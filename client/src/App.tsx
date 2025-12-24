@@ -39,6 +39,15 @@ function ProtectedRoute({
   return <Component />;
 }
 
+function RootRedirect() {
+  const { data: user, isLoading } = useUser();
+  if (isLoading) return <FullPageLoader />;
+  if (!user) return <Redirect to="/login" />;
+  return user.role === 'admin' 
+    ? <Redirect to="/admin/employees" /> 
+    : <Redirect to="/dashboard" />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -58,16 +67,7 @@ function Router() {
       </Route>
 
       {/* Root Redirect */}
-      <Route path="/">
-        {() => {
-          const { data: user, isLoading } = useUser();
-          if (isLoading) return <FullPageLoader />;
-          if (!user) return <Redirect to="/login" />;
-          return user.role === 'admin' 
-            ? <Redirect to="/admin/employees" /> 
-            : <Redirect to="/dashboard" />;
-        }}
-      </Route>
+      <Route path="/" component={RootRedirect} />
 
       <Route component={NotFound} />
     </Switch>

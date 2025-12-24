@@ -54,6 +54,41 @@ export function useLogin() {
   });
 }
 
+export function useRegisterAdmin() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: z.infer<typeof api.auth.registerAdmin.input>) => {
+      const res = await fetch(api.auth.registerAdmin.path, {
+        method: api.auth.registerAdmin.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      
+      if (res.status === 409) throw new Error("Username already exists");
+      if (!res.ok) throw new Error("Registration failed");
+      
+      return api.auth.registerAdmin.responses[201].parse(await res.json());
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(["/api/user"], user);
+      toast({
+        title: "Account created!",
+        description: `Admin account created and logged in as ${user.fullName}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Registration Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

@@ -22,6 +22,37 @@ export async function registerRoutes(
     res.json(users);
   });
 
+  // Register new admin account (public endpoint)
+  app.post(api.auth.registerAdmin.path, async (req, res) => {
+    try {
+      const adminData = api.auth.registerAdmin.input.parse(req.body);
+      const existingUser = await storage.getUserByUsername(adminData.username);
+      if (existingUser) {
+        return res.status(409).json({ message: "Username already exists" });
+      }
+      const user = await storage.createUser({
+        username: adminData.username,
+        password: adminData.password,
+        fullName: adminData.fullName,
+        role: "admin",
+        barcode: adminData.username,
+      });
+      // Log the user in after registration
+      req.logIn(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Registration successful but login failed" });
+        }
+        res.status(201).json(user);
+      });
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ message: "Validation error", field: e.errors[0]?.path?.join(".") });
+      } else {
+        res.status(500).json({ message: "Internal Server Error" });
+      }
+    }
+  });
+
   app.post(api.users.create.path, async (req, res) => {
     if (!req.isAuthenticated() || req.user!.role !== "admin") {
       return res.status(401).send("Unauthorized");

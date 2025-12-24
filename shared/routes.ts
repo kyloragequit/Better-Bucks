@@ -29,6 +29,20 @@ export const api = {
         401: errorSchemas.unauthorized,
       },
     },
+    registerAdmin: {
+      method: 'POST' as const,
+      path: '/api/register-admin',
+      input: z.object({
+        username: z.string().min(3),
+        password: z.string().min(6),
+        fullName: z.string().min(2),
+      }),
+      responses: {
+        201: z.custom<typeof users.$inferSelect>(),
+        400: errorSchemas.validation,
+        409: errorSchemas.validation,
+      },
+    },
     logout: {
       method: 'POST' as const,
       path: '/api/logout',

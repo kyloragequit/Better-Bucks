@@ -22,7 +22,7 @@ export async function registerRoutes(
     res.json(users);
   });
 
-  // Register new admin account (public endpoint)
+  // Register new admin account (public endpoint) - goes into pending queue
   app.post(api.auth.registerAdmin.path, async (req, res) => {
     try {
       const adminData = api.auth.registerAdmin.input.parse(req.body);
@@ -30,20 +30,18 @@ export async function registerRoutes(
       if (existingUser) {
         return res.status(409).json({ message: "Username already exists" });
       }
-      const user = await storage.createUser({
+      // Create admin in "pending" status - requires DSCLA approval
+      const db = require("./db").db;
+      const { users: usersTable } = require("@shared/schema");
+      const [user] = await db.insert(usersTable).values({
         username: adminData.username,
         password: adminData.password,
         fullName: adminData.fullName,
         role: "admin",
         barcode: adminData.username,
-      });
-      // Log the user in after registration
-      req.logIn(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Registration successful but login failed" });
-        }
-        res.status(201).json(user);
-      });
+        status: "pending",
+      }).returning();
+      res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
       if (e instanceof z.ZodError) {
         res.status(400).json({ message: "Validation error", field: e.errors[0]?.path?.join(".") });
@@ -130,6 +128,25 @@ export async function registerRoutes(
     res.json(user);
   });
 
+  // Get pending admins (prime account only)
+  app.get(api.users.getPending.path, async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.username !== "DSCLA") {
+      return res.status(401).send("Unauthorized");
+    }
+    const pendingAdmins = await storage.getPendingAdmins();
+    res.json(pendingAdmins);
+  });
+
+  // Approve pending admin (prime account only)
+  app.post(api.users.approvePending.path, async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.username !== "DSCLA") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    const user = await storage.approveAdminUser(id);
+    res.json(user);
+  });
+
   // Transactions
   app.get(api.transactions.list.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
@@ -143,17 +160,28 @@ export async function registerRoutes(
     }
   });
 
-  // Seed default admin if no users
-  const users = await storage.getAllUsers();
-  if (users.length === 0) {
+  // Seed default accounts if no users
+  const allUsers = await storage.getAllUsers();
+  if (allUsers.length === 0) {
+    // Create prime account (DSCLA) - can approve other admins
+    await storage.createUser({
+      username: "DSCLA",
+      password: "DHLLACOMBE",
+      fullName: "DHL Admin - Lacombe",
+      role: "admin",
+      barcode: "DSCLA",
+    });
+    console.log("Seeded prime admin: DSCLA / DHLLACOMBE");
+    
+    // Create fallback admin for testing
     await storage.createUser({
       username: "admin",
-      password: "adminpassword", // In real app, hash this
+      password: "adminpassword",
       fullName: "System Admin",
       role: "admin",
       barcode: "ADMIN123",
     });
-    console.log("Seeded admin user: admin / adminpassword");
+    console.log("Seeded fallback admin: admin / adminpassword");
   }
 
   return httpServer;

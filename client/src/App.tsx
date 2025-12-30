@@ -11,6 +11,7 @@ import LoginPage from "@/pages/login";
 import EmployeeDashboard from "@/pages/employee-dashboard";
 import AdminEmployeesPage from "@/pages/admin-employees";
 import AdminEmployeeDetailPage from "@/pages/admin-employee-detail";
+import AdminPendingPage from "@/pages/admin-pending";
 
 function ProtectedRoute({ 
   component: Component, 
@@ -64,6 +65,9 @@ function Router() {
       </Route>
       <Route path="/admin/employees/:id">
         <ProtectedRoute component={AdminEmployeeDetailPage} adminOnly />
+      </Route>
+      <Route path="/admin/pending">
+        <ProtectedRoute component={AdminPendingPage} adminOnly />
       </Route>
 
       {/* Root Redirect */}

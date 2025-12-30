@@ -33,6 +33,10 @@ export function setupAuth(app: Express) {
         if (!user || user.password !== password) {
           return done(null, false, { message: "Incorrect username or password" });
         }
+        // Prevent pending admin accounts from logging in
+        if (user.role === "admin" && user.status === "pending") {
+          return done(null, false, { message: "Admin account pending verification. Contact DSCLA." });
+        }
         return done(null, user);
       } catch (err) {
         return done(err);

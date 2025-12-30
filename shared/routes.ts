@@ -107,6 +107,21 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    getPending: {
+      method: 'GET' as const,
+      path: '/api/users/pending-admins',
+      responses: {
+        200: z.array(z.custom<typeof users.$inferSelect>()),
+      },
+    },
+    approvePending: {
+      method: 'POST' as const,
+      path: '/api/users/:id/approve',
+      responses: {
+        200: z.custom<typeof users.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   transactions: {
     list: {

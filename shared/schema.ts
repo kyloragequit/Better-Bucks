@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(), // Employee Code
   password: text("password").notNull(),
   role: text("role", { enum: ["admin", "employee"] }).default("employee").notNull(),
+  status: text("status", { enum: ["pending", "approved"] }).default("approved").notNull(), // For admin approval queue
   balance: integer("balance").default(0).notNull(),
   barcode: text("barcode").notNull(), // Could be same as username/employee code
   fullName: text("full_name").notNull(),
@@ -33,7 +34,7 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, balance: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, balance: true, status: true });
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
 
 export type User = typeof users.$inferSelect;

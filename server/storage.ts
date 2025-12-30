@@ -9,6 +9,8 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUserBalance(userId: number, amount: number): Promise<User>;
   updateUserRole(userId: number, role: "admin" | "employee"): Promise<User>;
+  approveAdminUser(userId: number): Promise<User>;
+  getPendingAdmins(): Promise<User[]>;
   getAllUsers(): Promise<User[]>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
@@ -53,6 +55,20 @@ export class DatabaseStorage implements IStorage {
       .returning();
       
     return updatedUser;
+  }
+
+  async approveAdminUser(userId: number): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ status: "approved" })
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return updatedUser;
+  }
+
+  async getPendingAdmins(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.status, "pending")).orderBy(users.fullName);
   }
 
   async getAllUsers(): Promise<User[]> {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
-import { useUserDetails, useUpdateBalance } from "@/hooks/use-users";
+import { useUserDetails, useUpdateBalance, useUpdateRole } from "@/hooks/use-users";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import Barcode from "react-barcode";
 import { format } from "date-fns";
@@ -60,7 +60,10 @@ export default function AdminEmployeeDetailPage() {
             <div className="text-4xl font-bold font-display text-primary mb-4">
               {user.balance.toLocaleString()} pts
             </div>
-            <AdjustBalanceDialog userId={user.id} currentBalance={user.balance} />
+            <div className="flex gap-2">
+              <AdjustBalanceDialog userId={user.id} currentBalance={user.balance} />
+              <ChangeRoleDialog userId={user.id} currentRole={user.role} fullName={user.fullName} />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -200,6 +203,53 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ChangeRoleDialog({ userId, currentRole, fullName }: { userId: number; currentRole: string; fullName: string }) {
+  const [open, setOpen] = useState(false);
+  const { mutate: updateRole, isPending } = useUpdateRole();
+  const newRole = currentRole === "admin" ? "employee" : "admin";
+
+  const handleSubmit = () => {
+    updateRole({ id: userId, role: newRole as "admin" | "employee" }, {
+      onSuccess: () => {
+        setOpen(false);
+      }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Shield className="mr-2 h-4 w-4" />Change Role
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Change User Role</DialogTitle>
+          <DialogDescription>
+            Change {fullName}'s role from {currentRole} to {newRole}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <p className="text-sm text-muted-foreground mb-4">
+            This action will change the user's access level and permissions.
+          </p>
+          <div className="bg-muted p-3 rounded-md">
+            <p className="text-sm font-medium">Current Role: <span className="capitalize">{currentRole}</span></p>
+            <p className="text-sm font-medium">New Role: <span className="capitalize text-primary">{newRole}</span></p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button type="submit" disabled={isPending} onClick={handleSubmit}>
+            {isPending ? "Updating..." : "Confirm Role Change"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -118,6 +118,18 @@ export async function registerRoutes(
     res.json(user);
   });
 
+  app.post(api.users.updateRole.path, async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const id = parseInt(req.params.id);
+    const { role } = api.users.updateRole.input.parse(req.body);
+
+    const user = await storage.updateUserRole(id, role);
+    res.json(user);
+  });
+
   // Transactions
   app.get(api.transactions.list.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");

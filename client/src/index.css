@@ -8,28 +8,28 @@
   --font-display: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
 
-  /* Emerald Theme for Money/Incentives */
+  /* DHL Brand Colors - Golden Yellow and Crimson Red */
   --background: 0 0% 98%;
   --foreground: 222 47% 11%;
   
-  --primary: 151 55% 42%;
+  --primary: 51 100% 50%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 150 30% 96%;
-  --secondary-foreground: 151 55% 32%;
+  --secondary: 355 95% 41%;
+  --secondary-foreground: 0 0% 100%;
   
   --muted: 210 40% 96%;
   --muted-foreground: 215 16% 47%;
   
-  --accent: 151 55% 94%;
-  --accent-foreground: 151 55% 32%;
+  --accent: 51 100% 90%;
+  --accent-foreground: 51 100% 25%;
   
-  --destructive: 0 84% 60%;
+  --destructive: 355 95% 41%;
   --destructive-foreground: 0 0% 98%;
 
   --border: 214 32% 91%;
   --input: 214 32% 91%;
-  --ring: 151 55% 42%;
+  --ring: 51 100% 50%;
   
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
@@ -41,24 +41,24 @@
   --background: 222 47% 11%;
   --foreground: 210 40% 98%;
   
-  --primary: 151 55% 50%;
-  --primary-foreground: 144 60% 10%;
+  --primary: 51 100% 55%;
+  --primary-foreground: 0 0% 0%;
   
-  --secondary: 217 33% 17%;
+  --secondary: 355 95% 50%;
   --secondary-foreground: 210 40% 98%;
   
   --muted: 217 33% 17%;
   --muted-foreground: 215 20% 65%;
   
-  --accent: 217 33% 17%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 51 100% 45%;
+  --accent-foreground: 0 0% 0%;
   
-  --destructive: 0 62% 30%;
+  --destructive: 355 95% 50%;
   --destructive-foreground: 210 40% 98%;
   
   --border: 217 33% 17%;
   --input: 217 33% 17%;
-  --ring: 151 55% 50%;
+  --ring: 51 100% 55%;
   
   --card: 222 47% 14%;
   --card-foreground: 210 40% 98%;

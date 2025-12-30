@@ -96,6 +96,17 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    updateRole: {
+      method: 'POST' as const,
+      path: '/api/users/:id/role',
+      input: z.object({
+        role: z.enum(['admin', 'employee']),
+      }),
+      responses: {
+        200: z.custom<typeof users.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   transactions: {
     list: {

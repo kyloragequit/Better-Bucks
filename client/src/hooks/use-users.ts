@@ -105,3 +105,40 @@ export function useUpdateBalance() {
     },
   });
 }
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, role }: { id: number; role: "admin" | "employee" }) => {
+      const url = buildUrl(api.users.updateRole.path, { id });
+      const res = await fetch(url, {
+        method: api.users.updateRole.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+        credentials: "include",
+      });
+      
+      if (!res.ok) throw new Error("Failed to update role");
+      
+      return api.users.updateRole.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.users.get.path, variables.id] });
+      queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      
+      toast({
+        title: "Role Updated",
+        description: `User role changed to ${variables.role}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}

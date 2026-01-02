@@ -29,6 +29,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             >
               Employees
             </Link>
+            {user?.username === "DSCLA" && (
+              <Link 
+                href="/admin/pending" 
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/admin/pending') ? "text-primary font-bold" : "text-muted-foreground"
+                }`}
+              >
+                Pending Approvals
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-4">

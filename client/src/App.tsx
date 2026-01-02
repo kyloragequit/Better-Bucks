@@ -12,6 +12,7 @@ import EmployeeDashboard from "@/pages/employee-dashboard";
 import AdminEmployeesPage from "@/pages/admin-employees";
 import AdminEmployeeDetailPage from "@/pages/admin-employee-detail";
 import AdminPendingPage from "@/pages/admin-pending";
+import PendingVerification from "@/pages/pending-verification";
 
 function ProtectedRoute({ 
   component: Component, 
@@ -26,6 +27,10 @@ function ProtectedRoute({
 
   if (!user) {
     return <Redirect to="/login" />;
+  }
+
+  if (user.role === 'admin' && user.status === 'pending' && window.location.pathname !== '/pending-verification') {
+    return <Redirect to="/pending-verification" />;
   }
 
   if (adminOnly && user.role !== 'admin') {
@@ -44,6 +49,11 @@ function RootRedirect() {
   const { data: user, isLoading } = useUser();
   if (isLoading) return <FullPageLoader />;
   if (!user) return <Redirect to="/login" />;
+  
+  if (user.role === 'admin' && user.status === 'pending') {
+    return <Redirect to="/pending-verification" />;
+  }
+
   return user.role === 'admin' 
     ? <Redirect to="/admin/employees" /> 
     : <Redirect to="/dashboard" />;
@@ -69,6 +79,7 @@ function Router() {
       <Route path="/admin/pending">
         <ProtectedRoute component={AdminPendingPage} adminOnly />
       </Route>
+      <Route path="/pending-verification" component={PendingVerification} />
 
       {/* Root Redirect */}
       <Route path="/" component={RootRedirect} />

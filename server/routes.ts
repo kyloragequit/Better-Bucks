@@ -86,6 +86,8 @@ export async function registerRoutes(
     if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
     
     const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
     // Users can see themselves, Admins can see everyone
     if (req.user!.role !== "admin" && req.user!.id !== id) {
       return res.status(403).send("Forbidden");
@@ -104,6 +106,8 @@ export async function registerRoutes(
     }
 
     const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
     const { amount, reason } = api.users.updateBalance.input.parse(req.body);
 
     const user = await storage.updateUserBalance(id, amount);
@@ -122,6 +126,8 @@ export async function registerRoutes(
     }
 
     const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
     const { role } = api.users.updateRole.input.parse(req.body);
 
     const user = await storage.updateUserRole(id, role);
@@ -143,6 +149,8 @@ export async function registerRoutes(
       return res.status(401).send("Unauthorized");
     }
     const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+    
     const user = await storage.approveAdminUser(id);
     res.json(user);
   });

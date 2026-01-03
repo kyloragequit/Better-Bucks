@@ -107,6 +107,28 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    updateProfile: {
+      method: 'PATCH' as const,
+      path: '/api/users/:id/profile',
+      input: z.object({
+        username: z.string().min(3).optional(),
+        password: z.string().min(6).optional(),
+      }),
+      responses: {
+        200: z.custom<typeof users.$inferSelect>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
+      },
+    },
+    deleteUser: {
+      method: 'DELETE' as const,
+      path: '/api/users/:id',
+      responses: {
+        200: z.void(),
+        403: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      },
+    },
     getPending: {
       method: 'GET' as const,
       path: '/api/users/pending-admins',

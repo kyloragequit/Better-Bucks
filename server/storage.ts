@@ -57,6 +57,19 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
+  async updateUserProfile(userId: number, data: { username?: string; password?: string }): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser;
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
   async approveAdminUser(userId: number): Promise<User> {
     const [updatedUser] = await db
       .update(users)

@@ -142,3 +142,46 @@ export function useUpdateRole() {
     },
   });
 }
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, username, password }: { id: number; username?: string; password?: string }) => {
+      const url = buildUrl(api.users.updateProfile.path, { id });
+      const res = await fetch(url, {
+        method: api.users.updateProfile.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update profile");
+      return api.users.updateProfile.responses[200].parse(await res.json());
+    },
+    onSuccess: (user) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: [api.users.get.path, user.id] });
+      toast({ title: "Success", description: "Profile updated successfully" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.users.deleteUser.path, { id });
+      const res = await fetch(url, { method: api.users.deleteUser.method, credentials: "include" });
+      if (!res.ok) throw new Error("Failed to delete user");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      toast({ title: "Success", description: "User deleted successfully" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}

@@ -1,26 +1,33 @@
 import { useState } from "react";
-import { useRoute, Link } from "wouter";
-import { useUserDetails, useUpdateBalance, useUpdateRole } from "@/hooks/use-users";
+import { useRoute, Link, useLocation } from "wouter";
+import { useUserDetails, useUpdateBalance, useUpdateRole, useUpdateProfile, useDeleteUser } from "@/hooks/use-users";
+import { useUser } from "@/hooks/use-auth";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import Barcode from "react-barcode";
 import { format } from "date-fns";
 
 export default function AdminEmployeeDetailPage() {
   const [, params] = useRoute("/admin/employees/:id");
+  const [, setLocation] = useLocation();
   const id = params ? parseInt(params.id) : 0;
   const { data: user, isLoading, error } = useUserDetails(id);
+  const { data: currentUser } = useUser();
 
   if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
   if (error || !user) return <AdminLayout><div className="p-8 text-center text-destructive">User not found</div></AdminLayout>;
+
+  const isPrime = currentUser?.username === "DSCLA";
+  const canDelete = isPrime ? (user.username !== "DSCLA") : (user.role === "employee");
+  const canEditProfile = isPrime || currentUser?.id === user.id;
 
   return (
     <AdminLayout>
@@ -29,10 +36,16 @@ export default function AdminEmployeeDetailPage() {
           <ChevronLeft className="h-4 w-4 mr-1" /> Back to Employees
         </Link>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-3xl font-display font-bold">{user.fullName}</h1>
-          <Badge variant={user.role === 'admin' ? "default" : "secondary"} className="capitalize">
-            {user.role}
-          </Badge>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-display font-bold">{user.fullName}</h1>
+            <Badge variant={user.role === 'admin' ? "default" : "secondary"} className="capitalize">
+              {user.role}
+            </Badge>
+          </div>
+          <div className="flex gap-2">
+            {canEditProfile && <EditProfileDialog user={user} />}
+            {canDelete && <DeleteUserDialog userId={user.id} fullName={user.fullName} onSuccess={() => setLocation("/admin/employees")} />}
+          </div>
         </div>
       </div>
 
@@ -62,11 +75,12 @@ export default function AdminEmployeeDetailPage() {
             </div>
             <div className="flex gap-2">
               <AdjustBalanceDialog userId={user.id} currentBalance={user.balance} />
-              <ChangeRoleDialog userId={user.id} currentRole={user.role} fullName={user.fullName} />
+              {isPrime && <ChangeRoleDialog userId={user.id} currentRole={user.role} fullName={user.fullName} />}
             </div>
           </CardContent>
         </Card>
       </div>
+      {/* ... rest of the file ... */}
 
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -248,6 +262,90 @@ function ChangeRoleDialog({ userId, currentRole, fullName }: { userId: number; c
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button type="submit" disabled={isPending} onClick={handleSubmit}>
             {isPending ? "Updating..." : "Confirm Role Change"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditProfileDialog({ user }: { user: any }) {
+  const [open, setOpen] = useState(false);
+  const [username, setUsername] = useState(user.username);
+  const [password, setPassword] = useState("");
+  const { mutate: updateProfile, isPending } = useUpdateProfile();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile({ id: user.id, username, password: password || undefined }, {
+      onSuccess: () => setOpen(false)
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <UserCog className="mr-2 h-4 w-4" /> Edit Profile
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Profile Settings</DialogTitle>
+          <DialogDescription>Update login credentials for {user.fullName}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div className="grid gap-2">
+            <Label htmlFor="username">Username / Code</Label>
+            <Input id="username" value={username} onChange={e => setUsername(e.target.value)} required />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">New Password (leave blank to keep current)</Label>
+            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={isPending}>Save Changes</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteUserDialog({ userId, fullName, onSuccess }: { userId: number; fullName: string; onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const { mutate: deleteUser, isPending } = useDeleteUser();
+
+  const handleDelete = () => {
+    deleteUser(userId, {
+      onSuccess: () => {
+        setOpen(false);
+        onSuccess();
+      }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="destructive" size="sm">
+          <Trash2 className="mr-2 h-4 w-4" /> Delete Account
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <AlertTriangle className="h-6 w-6 text-red-600" />
+          </div>
+          <DialogTitle className="text-center">Confirm Deletion</DialogTitle>
+          <DialogDescription className="text-center">
+            Are you sure you want to delete <strong>{fullName}</strong>? This action cannot be undone and all transaction history will be lost.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex gap-2 sm:justify-center">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
+            {isPending ? "Deleting..." : "Confirm Delete"}
           </Button>
         </DialogFooter>
       </DialogContent>

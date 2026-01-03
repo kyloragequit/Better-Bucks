@@ -134,6 +134,49 @@ export async function registerRoutes(
     res.json(user);
   });
 
+  app.patch(api.users.updateProfile.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
+    // Admins can change their own, Prime can change anyone's
+    const isPrime = req.user!.username === "DSCLA";
+    if (!isPrime && req.user!.id !== id) {
+      return res.status(403).send("Forbidden");
+    }
+
+    const data = api.users.updateProfile.input.parse(req.body);
+    const user = await storage.updateUserProfile(id, data);
+    res.json(user);
+  });
+
+  app.delete(api.users.deleteUser.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
+    const targetUser = await storage.getUser(id);
+    if (!targetUser) return res.status(404).send("User not found");
+
+    const isPrime = req.user!.username === "DSCLA";
+    const isAdmin = req.user!.role === "admin";
+
+    // Prime can delete anyone except themselves
+    if (isPrime) {
+      if (targetUser.username === "DSCLA") return res.status(400).send("Cannot delete prime account");
+      await storage.deleteUser(id);
+      return res.sendStatus(200);
+    }
+
+    // Admins can delete employee accounts ONLY
+    if (isAdmin && targetUser.role === "employee") {
+      await storage.deleteUser(id);
+      return res.sendStatus(200);
+    }
+
+    res.status(403).send("Forbidden");
+  });
+
   // Get pending admins (prime account only)
   app.get(api.users.getPending.path, async (req, res) => {
     if (!req.isAuthenticated() || req.user!.username !== "DSCLA") {

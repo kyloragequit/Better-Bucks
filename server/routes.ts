@@ -140,7 +140,7 @@ export async function registerRoutes(
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
     // Admins can change their own, Prime can change anyone's
-    const isPrime = req.user!.username === "DSCLA";
+    const isPrime = req.user!.role === "prime_admin";
     if (!isPrime && req.user!.id !== id) {
       return res.status(403).send("Forbidden");
     }
@@ -158,7 +158,7 @@ export async function registerRoutes(
     const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).send("User not found");
 
-    const isPrime = req.user!.username === "DSCLA";
+    const isPrime = req.user!.role === "prime_admin";
     const isAdmin = req.user!.role === "admin";
 
     // Prime can delete anyone except themselves
@@ -179,7 +179,7 @@ export async function registerRoutes(
 
   // Get pending admins (prime account only)
   app.get(api.users.getPending.path, async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.username !== "DSCLA") {
+    if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
     const pendingAdmins = await storage.getPendingAdmins();
@@ -188,7 +188,7 @@ export async function registerRoutes(
 
   // Approve pending admin (prime account only)
   app.post(api.users.approvePending.path, async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.username !== "DSCLA") {
+    if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
     const id = parseInt(req.params.id);
@@ -219,7 +219,7 @@ export async function registerRoutes(
       username: "DSCLA",
       password: "DHLLACOMBE",
       fullName: "DHL Admin - Lacombe",
-      role: "admin",
+      role: "prime_admin",
       barcode: "DSCLA",
     });
     console.log("Seeded prime admin: DSCLA / DHLLACOMBE");

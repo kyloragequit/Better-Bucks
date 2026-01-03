@@ -8,7 +8,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(), // Employee Code
   password: text("password").notNull(),
-  role: text("role", { enum: ["admin", "employee"] }).default("employee").notNull(),
+  role: text("role", { enum: ["admin", "employee", "prime_admin"] }).default("employee").notNull(),
   status: text("status", { enum: ["pending", "approved"] }).default("approved").notNull(), // For admin approval queue
   balance: integer("balance").default(0).notNull(),
   barcode: text("barcode").notNull(), // Could be same as username/employee code

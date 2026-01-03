@@ -100,7 +100,7 @@ export const api = {
       method: 'POST' as const,
       path: '/api/users/:id/role',
       input: z.object({
-        role: z.enum(['admin', 'employee']),
+        role: z.enum(['admin', 'employee', 'prime_admin']),
       }),
       responses: {
         200: z.custom<typeof users.$inferSelect>(),

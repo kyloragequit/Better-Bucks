@@ -181,6 +181,7 @@ function CreateEmployeeDialog() {
               <SelectContent>
                 <SelectItem value="employee">Employee</SelectItem>
                 <SelectItem value="admin">Administrator</SelectItem>
+                <SelectItem value="prime_admin">Prime Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -25,8 +25,8 @@ export default function AdminEmployeeDetailPage() {
   if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
   if (error || !user) return <AdminLayout><div className="p-8 text-center text-destructive">User not found</div></AdminLayout>;
 
-  const isPrime = currentUser?.username === "DSCLA";
-  const canDelete = isPrime ? (user.username !== "DSCLA") : (user.role === "employee");
+  const isPrime = currentUser?.role === "prime_admin";
+  const canDelete = isPrime ? (user.role !== "prime_admin") : (user.role === "employee");
   const canEditProfile = isPrime || currentUser?.id === user.id;
 
   return (
@@ -225,10 +225,12 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
 function ChangeRoleDialog({ userId, currentRole, fullName }: { userId: number; currentRole: string; fullName: string }) {
   const [open, setOpen] = useState(false);
   const { mutate: updateRole, isPending } = useUpdateRole();
-  const newRole = currentRole === "admin" ? "employee" : "admin";
+  const newRole = currentRole === "admin" ? "employee" : currentRole === "employee" ? "admin" : "employee";
 
   const handleSubmit = () => {
-    updateRole({ id: userId, role: newRole as "admin" | "employee" }, {
+    const roles: ("admin" | "employee" | "prime_admin")[] = ["employee", "admin", "prime_admin"];
+    const nextRole = roles[(roles.indexOf(currentRole as any) + 1) % roles.length];
+    updateRole({ id: userId, role: nextRole }, {
       onSuccess: () => {
         setOpen(false);
       }

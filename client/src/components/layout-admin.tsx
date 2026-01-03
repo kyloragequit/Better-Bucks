@@ -29,7 +29,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             >
               Employees
             </Link>
-            {user?.username === "DSCLA" && (
+            {user?.role === "prime_admin" && (
               <Link 
                 href="/admin/pending" 
                 className={`text-sm font-medium transition-colors hover:text-primary ${

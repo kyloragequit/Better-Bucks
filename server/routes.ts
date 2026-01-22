@@ -142,6 +142,14 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
+    const targetUser = await storage.getUser(id);
+    if (!targetUser) return res.status(404).send("User not found");
+
+    // Prevent changing role of prime_admin
+    if (targetUser.role === "prime_admin") {
+      return res.status(400).send("Cannot change role of prime administrator");
+    }
+
     const { role } = api.users.updateRole.input.parse(req.body);
 
     const updatedUser = await storage.updateUserRole(id, role as "admin" | "employee");
@@ -177,9 +185,9 @@ export async function registerRoutes(
     const isPrime = user.role === "prime_admin";
     const isAdmin = user.role === "admin";
 
-    // Prime can delete anyone except themselves
+    // Prime can delete anyone except themselves or other prime admins
     if (isPrime) {
-      if (targetUser.username === "DSLCA") return res.status(400).send("Cannot delete prime account");
+      if (targetUser.role === "prime_admin") return res.status(400).send("Cannot delete prime account");
       await storage.deleteUser(id);
       return res.sendStatus(200);
     }

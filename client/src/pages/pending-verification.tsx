@@ -20,7 +20,7 @@ export default function PendingVerification() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            You will be able to access the admin portal once your account has been verified by DSCLA.
+            You will be able to access the admin portal once your account has been verified by DSLCA.
           </p>
         </CardContent>
         <CardFooter className="flex justify-center">

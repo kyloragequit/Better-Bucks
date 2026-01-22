@@ -33,12 +33,12 @@ function ProtectedRoute({
     return <Redirect to="/pending-verification" />;
   }
 
-  if (adminOnly && user.role !== 'admin') {
+  if (adminOnly && user.role !== 'admin' && user.role !== 'prime_admin') {
     return <Redirect to="/dashboard" />;
   }
 
   // If user is admin but tries to access employee dashboard, send them to admin home
-  if (!adminOnly && user.role === 'admin' && window.location.pathname === '/dashboard') {
+  if (!adminOnly && (user.role === 'admin' || user.role === 'prime_admin') && window.location.pathname === '/dashboard') {
      return <Redirect to="/admin/employees" />;
   }
 
@@ -54,7 +54,7 @@ function RootRedirect() {
     return <Redirect to="/pending-verification" />;
   }
 
-  return user.role === 'admin' 
+  return (user.role === 'admin' || user.role === 'prime_admin')
     ? <Redirect to="/admin/employees" /> 
     : <Redirect to="/dashboard" />;
 }

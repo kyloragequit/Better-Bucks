@@ -30,22 +30,21 @@ export async function registerRoutes(
       if (existingUser) {
         return res.status(409).json({ message: "Username already exists" });
       }
-      // Create admin in "pending" status - requires DSCLA approval
-      const db = require("./db").db;
-      const { users: usersTable } = require("@shared/schema");
-      const [user] = await db.insert(usersTable).values({
+      // Create admin in "pending" status - requires DSLCA approval
+      const user = await storage.createUser({
         username: adminData.username,
         password: adminData.password,
         fullName: adminData.fullName,
         role: "admin",
         barcode: adminData.username,
         status: "pending",
-      }).returning();
+      });
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
       if (e instanceof z.ZodError) {
         res.status(400).json({ message: "Validation error", field: e.errors[0]?.path?.join(".") });
       } else {
+        console.error("Registration error:", e);
         res.status(500).json({ message: "Internal Server Error" });
       }
     }
@@ -214,7 +213,7 @@ export async function registerRoutes(
   // Seed default accounts if no users
   const allUsers = await storage.getAllUsers();
   if (allUsers.length === 0) {
-    // Create prime account (DSCLA) - can approve other admins
+    // Create prime account (DSLCA) - can approve other admins
     await storage.createUser({
       username: "DSLCA",
       password: "DHLLACOMBE",

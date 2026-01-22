@@ -111,6 +111,18 @@ export async function registerRoutes(
 
     const { amount, reason } = api.users.updateBalance.input.parse(req.body);
 
+    // If not prime admin, deduct from current admin balance
+    if (user.role !== "prime_admin") {
+      // For credits (giving points)
+      if (amount > 0) {
+        if (user.balance < amount) {
+          return res.status(400).json({ message: "Insufficient balance to award points" });
+        }
+        // Deduct from admin
+        await storage.updateUserBalance(user.id, -amount);
+      }
+    }
+
     const updatedUser = await storage.updateUserBalance(id, amount);
     await storage.createTransaction({
       userId: id,

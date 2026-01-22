@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KeyRound, Lock, User, Loader2, LogIn, UserPlus, Building2 } from "lucide-react";
 
+import haringBg from "@/assets/haring-background.png";
+
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { data: user } = useUser();
@@ -20,8 +22,12 @@ export default function LoginPage() {
   }, [user, setLocation]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/30 p-4">
-      <Card className="w-full max-w-md shadow-2xl shadow-primary/10 border-primary/10 animate-in">
+    <div 
+      className="flex min-h-screen items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${haringBg})` }}
+    >
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+      <Card className="w-full max-w-md shadow-2xl shadow-black/20 border-white/20 animate-in relative z-10 bg-background/95 backdrop-blur-sm">
         <CardHeader className="space-y-1 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <KeyRound className="h-8 w-8 text-primary" />

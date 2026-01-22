@@ -6,6 +6,8 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 
+import type { User } from "@shared/schema";
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -15,7 +17,8 @@ export async function registerRoutes(
 
   // Users
   app.get(api.users.list.path, async (req, res) => {
-    if (!req.isAuthenticated() || (req.user!.role !== "admin" && req.user!.role !== "prime_admin")) {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
     const users = await storage.getAllUsers();
@@ -52,7 +55,8 @@ export async function registerRoutes(
   });
 
   app.post(api.users.create.path, async (req, res) => {
-    if (!req.isAuthenticated() || (req.user!.role !== "admin" && req.user!.role !== "prime_admin")) {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
     try {
@@ -78,25 +82,27 @@ export async function registerRoutes(
   });
 
   app.get(api.users.get.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
     // Users can see themselves, Admins can see everyone
-    if (req.user!.role !== "admin" && req.user!.id !== id) {
+    if (user.role !== "admin" && user.role !== "prime_admin" && user.id !== id) {
       return res.status(403).send("Forbidden");
     }
 
-    const user = await storage.getUser(id);
-    if (!user) return res.status(404).send("User not found");
+    const userResult = await storage.getUser(id);
+    if (!userResult) return res.status(404).send("User not found");
 
     const transactions = await storage.getTransactionsByUser(id);
-    res.json({ ...user, transactions });
+    res.json({ ...userResult, transactions });
   });
 
   app.post(api.users.updateBalance.path, async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -105,18 +111,19 @@ export async function registerRoutes(
 
     const { amount, reason } = api.users.updateBalance.input.parse(req.body);
 
-    const user = await storage.updateUserBalance(id, amount);
+    const updatedUser = await storage.updateUserBalance(id, amount);
     await storage.createTransaction({
       userId: id,
       amount,
       reason,
     });
 
-    res.json(user);
+    res.json(updatedUser);
   });
 
   app.post(api.users.updateRole.path, async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -125,36 +132,38 @@ export async function registerRoutes(
 
     const { role } = api.users.updateRole.input.parse(req.body);
 
-    const user = await storage.updateUserRole(id, role);
-    res.json(user);
+    const updatedUser = await storage.updateUserRole(id, role as "admin" | "employee");
+    res.json(updatedUser);
   });
 
   app.patch(api.users.updateProfile.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
     // Admins can change their own, Prime can change anyone's
-    const isPrime = req.user!.role === "prime_admin";
-    if (!isPrime && req.user!.id !== id) {
+    const isPrime = user.role === "prime_admin";
+    if (!isPrime && user.id !== id) {
       return res.status(403).send("Forbidden");
     }
 
     const data = api.users.updateProfile.input.parse(req.body);
-    const user = await storage.updateUserProfile(id, data);
-    res.json(user);
+    const updatedUser = await storage.updateUserProfile(id, data);
+    res.json(updatedUser);
   });
 
   app.delete(api.users.deleteUser.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
     const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).send("User not found");
 
-    const isPrime = req.user!.role === "prime_admin";
-    const isAdmin = req.user!.role === "admin";
+    const isPrime = user.role === "prime_admin";
+    const isAdmin = user.role === "admin";
 
     // Prime can delete anyone except themselves
     if (isPrime) {
@@ -174,7 +183,8 @@ export async function registerRoutes(
 
   // Get pending admins (prime account only)
   app.get("/api/users/pending-admins", async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
     try {
@@ -188,7 +198,8 @@ export async function registerRoutes(
 
   // Approve pending admin (prime account only)
   app.post("/api/users/:id/approve", async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
     const id = parseInt(req.params.id);
@@ -205,7 +216,8 @@ export async function registerRoutes(
 
   // Reject/Delete pending admin (prime account only)
   app.delete("/api/users/:id/reject", async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
     const id = parseInt(req.params.id);
@@ -217,13 +229,14 @@ export async function registerRoutes(
 
   // Transactions
   app.get(api.transactions.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).send("Unauthorized");
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     
-    if (req.user!.role === "admin") {
+    if (user.role === "admin" || user.role === "prime_admin") {
       const txs = await storage.getAllTransactions();
       res.json(txs);
     } else {
-      const txs = await storage.getTransactionsByUser(req.user!.id);
+      const txs = await storage.getTransactionsByUser(user.id);
       res.json(txs);
     }
   });

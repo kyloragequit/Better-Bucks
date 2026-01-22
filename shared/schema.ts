@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   balance: integer("balance").default(0).notNull(),
   barcode: text("barcode").notNull(), // Could be same as username/employee code
   fullName: text("full_name").notNull(),
+  mustChangePassword: boolean("must_change_password").default(false).notNull(),
 });
 
 export const transactions = pgTable("transactions", {

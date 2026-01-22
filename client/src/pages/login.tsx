@@ -51,7 +51,7 @@ export default function LoginPage() {
 
           {/* Admin Tab */}
           <TabsContent value="admin" className="space-y-4 px-4 pb-4">
-            <AdminTabs />
+            <AdminLoginForm />
           </TabsContent>
         </Tabs>
       </Card>

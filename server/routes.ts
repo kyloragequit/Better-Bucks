@@ -52,7 +52,7 @@ export async function registerRoutes(
   });
 
   app.post(api.users.create.path, async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+    if (!req.isAuthenticated() || (req.user!.role !== "admin" && req.user!.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
     try {
@@ -61,16 +61,11 @@ export async function registerRoutes(
       if (existingUser) {
         return res.status(400).json({ message: "Username/Employee Code already exists" });
       }
-      // In a real app, hash password here. auth.ts usually handles hashing for login
-      // For creation, we need to ensure we use the same hashing method
-      // For simplicity in this demo, we'll store plain text or simple hash if auth.ts does it
-      // *Wait*, passport-local-strategy in setupAuth usually expects a verify function. 
-      // We should ideally use a crypto hash. 
-      // I'll rely on the auth module to handle hashing if I could, but here I'll just save it. 
-      // IMPORTANT: In production, hash this password!
       const user = await storage.createUser({
         ...userData,
-        barcode: userData.username, // Default barcode to username/code
+        barcode: userData.barcode || userData.username,
+        status: "approved",
+        mustChangePassword: true,
       });
       res.status(201).json(user);
     } catch (e) {

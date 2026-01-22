@@ -39,6 +39,7 @@ export async function registerRoutes(
         barcode: adminData.username,
         status: "pending",
       });
+      console.log(`New admin registration: ${user.username} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -177,7 +178,7 @@ export async function registerRoutes(
   });
 
   // Get pending admins (prime account only)
-  app.get(api.users.getPending.path, async (req, res) => {
+  app.get("/api/users/pending-admins", async (req, res) => {
     if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
@@ -191,15 +192,20 @@ export async function registerRoutes(
   });
 
   // Approve pending admin (prime account only)
-  app.post(api.users.approvePending.path, async (req, res) => {
+  app.post("/api/users/:id/approve", async (req, res) => {
     if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
     
-    const user = await storage.approveAdminUser(id);
-    res.json(user);
+    try {
+      const user = await storage.approveAdminUser(id);
+      res.json(user);
+    } catch (error) {
+      console.error("Error approving admin:", error);
+      res.status(500).send("Internal Server Error");
+    }
   });
 
   // Reject/Delete pending admin (prime account only)

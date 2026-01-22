@@ -114,7 +114,8 @@ function usePendingAdmins() {
     queryFn: async () => {
       const res = await fetch("/api/users/pending-admins", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch pending admins");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
   });
 }

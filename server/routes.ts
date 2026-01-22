@@ -15,7 +15,7 @@ export async function registerRoutes(
 
   // Users
   app.get(api.users.list.path, async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+    if (!req.isAuthenticated() || (req.user!.role !== "admin" && req.user!.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
     const users = await storage.getAllUsers();

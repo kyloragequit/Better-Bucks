@@ -11,14 +11,26 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminPendingPage() {
   const { data: pendingAdmins, isLoading } = usePendingAdmins();
   const { mutate: approveAdmin, isPending: isApproving } = useApproveAdmin();
+  const { mutate: rejectAdmin, isPending: isRejecting } = useRejectAdmin();
   const { toast } = useToast();
 
   const handleApprove = (id: number, name: string) => {
     approveAdmin(id, {
       onSuccess: () => {
         toast({
-          title: "Admin Approved",
-          description: `${name} has been approved and can now log in.`,
+          title: "Admin Verified",
+          description: `${name} has been verified and can now log in.`,
+        });
+      }
+    });
+  };
+
+  const handleReject = (id: number, name: string) => {
+    rejectAdmin(id, {
+      onSuccess: () => {
+        toast({
+          title: "Admin Rejected",
+          description: `${name}'s request has been removed.`,
         });
       }
     });
@@ -66,14 +78,23 @@ export default function AdminPendingPage() {
                         {admin.username}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right flex justify-end gap-2">
+                      <Button
+                        onClick={() => handleReject(admin.id, admin.fullName)}
+                        disabled={isRejecting || isApproving}
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                      >
+                        {isRejecting ? "Rejecting..." : "Reject"}
+                      </Button>
                       <Button
                         onClick={() => handleApprove(admin.id, admin.fullName)}
-                        disabled={isApproving}
+                        disabled={isApproving || isRejecting}
                         size="sm"
                         className="bg-green-600 hover:bg-green-700"
                       >
-                        {isApproving ? "Approving..." : "Approve"}
+                        {isApproving ? "Verifying..." : "Verify"}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -89,11 +110,11 @@ export default function AdminPendingPage() {
 
 function usePendingAdmins() {
   return useQuery({
-    queryKey: [api.users.getPending.path],
+    queryKey: ["/api/users/pending-admins"],
     queryFn: async () => {
-      const res = await fetch(api.users.getPending.path, { credentials: "include" });
+      const res = await fetch("/api/users/pending-admins", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch pending admins");
-      return api.users.getPending.responses[200].parse(await res.json());
+      return res.json();
     },
   });
 }
@@ -104,17 +125,42 @@ function useApproveAdmin() {
 
   return useMutation({
     mutationFn: async (id: number) => {
-      const url = buildUrl(api.users.approvePending.path, { id });
-      const res = await fetch(url, {
-        method: api.users.approvePending.method,
+      const res = await fetch(`/api/users/${id}/approve`, {
+        method: "POST",
         credentials: "include",
       });
       
-      if (!res.ok) throw new Error("Failed to approve admin");
-      return api.users.approvePending.responses[200].parse(await res.json());
+      if (!res.ok) throw new Error("Failed to verify admin");
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.users.getPending.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/pending-admins"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useRejectAdmin() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/users/${id}/reject`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      
+      if (!res.ok) throw new Error("Failed to reject admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/pending-admins"] });
     },
     onError: (error: Error) => {
       toast({

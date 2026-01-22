@@ -181,8 +181,13 @@ export async function registerRoutes(
     if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
-    const pendingAdmins = await storage.getPendingAdmins();
-    res.json(pendingAdmins);
+    try {
+      const pendingAdmins = await storage.getPendingAdmins();
+      res.json(pendingAdmins);
+    } catch (error) {
+      console.error("Error fetching pending admins:", error);
+      res.status(500).send("Internal Server Error");
+    }
   });
 
   // Approve pending admin (prime account only)
@@ -195,6 +200,18 @@ export async function registerRoutes(
     
     const user = await storage.approveAdminUser(id);
     res.json(user);
+  });
+
+  // Reject/Delete pending admin (prime account only)
+  app.delete("/api/users/:id/reject", async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+    
+    await storage.deleteUser(id);
+    res.sendStatus(200);
   });
 
   // Transactions
@@ -220,6 +237,7 @@ export async function registerRoutes(
       fullName: "DHL Admin - Lacombe",
       role: "prime_admin",
       barcode: "DSLCA",
+      status: "approved"
     });
     console.log("Seeded prime admin: DSLCA / DHLLACOMBE");
     
@@ -230,6 +248,7 @@ export async function registerRoutes(
       fullName: "System Admin",
       role: "admin",
       barcode: "ADMIN123",
+      status: "approved"
     });
     console.log("Seeded fallback admin: admin / adminpassword");
   }

@@ -225,7 +225,11 @@ function AdminRegisterForm() {
       alert("Password must be at least 6 characters");
       return;
     }
-    register({ fullName, username, password });
+    register({ fullName, username, password }, {
+      onSuccess: (data: any) => {
+        alert("Thank you for creating your account. We are waiting on the administrator to verify your account.");
+      }
+    });
   };
 
   return (

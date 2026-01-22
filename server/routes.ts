@@ -163,7 +163,7 @@ export async function registerRoutes(
 
     // Prime can delete anyone except themselves
     if (isPrime) {
-      if (targetUser.username === "DSCLA") return res.status(400).send("Cannot delete prime account");
+      if (targetUser.username === "DSLCA") return res.status(400).send("Cannot delete prime account");
       await storage.deleteUser(id);
       return res.sendStatus(200);
     }
@@ -216,13 +216,13 @@ export async function registerRoutes(
   if (allUsers.length === 0) {
     // Create prime account (DSCLA) - can approve other admins
     await storage.createUser({
-      username: "DSCLA",
+      username: "DSLCA",
       password: "DHLLACOMBE",
       fullName: "DHL Admin - Lacombe",
       role: "prime_admin",
-      barcode: "DSCLA",
+      barcode: "DSLCA",
     });
-    console.log("Seeded prime admin: DSCLA / DHLLACOMBE");
+    console.log("Seeded prime admin: DSLCA / DHLLACOMBE");
     
     // Create fallback admin for testing
     await storage.createUser({

@@ -2,9 +2,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { useLogout } from "@/hooks/use-auth";
 import { Clock, LogOut } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function PendingVerification() {
   const { mutate: logout } = useLogout();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    logout(undefined, {
+      onSuccess: () => {
+        setLocation("/login");
+      },
+    });
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/30 p-4">
@@ -24,7 +34,7 @@ export default function PendingVerification() {
           </p>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button variant="outline" onClick={() => logout()} className="w-full">
+          <Button variant="outline" onClick={handleLogout} className="w-full">
             <LogOut className="mr-2 h-4 w-4" />
             Back to Login
           </Button>

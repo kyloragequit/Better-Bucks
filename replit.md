@@ -64,6 +64,9 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Stripe integration via stripe-replit-sync for webhook processing and data sync
 - Stripe client: server/stripeClient.ts, webhook handler: server/webhookHandlers.ts
 - Webhook route registered BEFORE express.json() middleware in server/index.ts
+- PRIME1 organization: Free membership org (stripeCustomerId="free_membership"), auto-created on startup
+- Prime admins can cancel their org subscription via Settings page (/admin/settings)
+- Free memberships cannot be cancelled
 
 ### App Branding
 - Yellow square logo with letter "B" used across all layouts (AppLogo component)

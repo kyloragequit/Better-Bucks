@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +45,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 Pending Approvals
+              </Link>
+            )}
+            {user?.role === "prime_admin" && (
+              <Link
+                href="/admin/settings"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/admin/settings') ? "text-primary font-bold" : "text-muted-foreground"
+                }`}
+              >
+                Settings
               </Link>
             )}
           </nav>

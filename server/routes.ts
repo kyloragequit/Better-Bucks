@@ -10,8 +10,9 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { db } from "./db";
+import { organizations, users } from "@shared/schema";
 
 import type { User } from "@shared/schema";
 
@@ -580,30 +581,101 @@ export async function registerRoutes(
     res.json({ active: false });
   });
 
+  // Get organization info for authenticated prime admin
+  app.get("/api/organizations/my-org", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.status(404).json({ message: "No organization found" });
+    }
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    
+    const isFree = org.stripeCustomerId === "free_membership";
+    res.json({ ...org, isFree });
+  });
+
+  // Cancel subscription (prime admin only)
+  app.post("/api/organizations/cancel-subscription", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.status(400).json({ message: "No organization found" });
+    }
+
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+
+    if (org.stripeCustomerId === "free_membership") {
+      return res.status(400).json({ message: "Free memberships cannot be cancelled" });
+    }
+
+    if (!org.stripeSubscriptionId || org.stripeSubscriptionId === "pending_checkout") {
+      return res.status(400).json({ message: "No active subscription to cancel" });
+    }
+
+    try {
+      const stripe = await getUncachableStripeClient();
+      await stripe.subscriptions.cancel(org.stripeSubscriptionId);
+      await storage.updateOrganizationStatus(org.id, "inactive");
+      res.json({ message: "Subscription cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      res.status(500).json({ message: "Failed to cancel subscription" });
+    }
+  });
+
+  // Ensure PRIME1 organization exists (free membership)
+  let prime1Org = await storage.getOrganizationByCode("PRIME1");
+  if (!prime1Org) {
+    const [newOrg] = await db.insert(organizations).values({
+      name: "DHL Lacombe",
+      code: "PRIME1",
+      stripeCustomerId: "free_membership",
+      stripeSubscriptionId: "free_membership",
+      status: "active",
+    }).returning();
+    prime1Org = newOrg;
+    console.log("Created PRIME1 organization (free membership)");
+  }
+
   // Seed default accounts if no users
   const allUsers = await storage.getAllUsers();
   if (allUsers.length === 0) {
-    // Create prime account (DSCLA) - can approve other admins
     await storage.createUser({
       username: "DSCLA",
       password: "DHLLACOMBE",
       fullName: "DHL Admin - Lacombe",
       role: "prime_admin",
       barcode: "DSCLA",
-      status: "approved"
+      status: "approved",
+      organizationId: prime1Org.id,
     });
-    console.log("Seeded prime admin: DSCLA / DHLLACOMBE");
+    console.log("Seeded prime admin: DSCLA / DHLLACOMBE (PRIME1 org)");
     
-    // Create fallback admin for testing
     await storage.createUser({
       username: "admin",
       password: "adminpassword",
       fullName: "System Admin",
       role: "admin",
       barcode: "ADMIN123",
-      status: "approved"
+      status: "approved",
+      organizationId: prime1Org.id,
     });
-    console.log("Seeded fallback admin: admin / adminpassword");
+    console.log("Seeded fallback admin: admin / adminpassword (PRIME1 org)");
+  } else {
+    // Assign existing unscoped users to PRIME1 org
+    const unscopedUsers = allUsers.filter(u => !u.organizationId);
+    for (const u of unscopedUsers) {
+      await db.update(users).set({ organizationId: prime1Org.id }).where(eq(users.id, u.id));
+    }
+    if (unscopedUsers.length > 0) {
+      console.log(`Assigned ${unscopedUsers.length} existing users to PRIME1 org`);
+    }
   }
 
   return httpServer;

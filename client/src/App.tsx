@@ -18,6 +18,7 @@ import AdminEmployeesPage from "@/pages/admin-employees";
 import AdminEmployeeDetailPage from "@/pages/admin-employee-detail";
 import AdminOrdersPage from "@/pages/admin-orders";
 import AdminPendingPage from "@/pages/admin-pending";
+import AdminSettingsPage from "@/pages/admin-settings";
 import PendingVerification from "@/pages/pending-verification";
 import ChangePasswordPage from "@/pages/change-password";
 
@@ -82,6 +83,9 @@ function Router() {
       </Route>
       <Route path="/admin/pending">
         <ProtectedRoute component={AdminPendingPage} adminOnly />
+      </Route>
+      <Route path="/admin/settings">
+        <ProtectedRoute component={AdminSettingsPage} adminOnly />
       </Route>
       <Route path="/pending-verification" component={PendingVerification} />
       <Route path="/change-password" component={ChangePasswordPage} />

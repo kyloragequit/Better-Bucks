@@ -52,7 +52,8 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - **Note**: Current implementation uses plain text password comparison (marked as insecure for demo purposes)
 
 ### Order System
-- Employees can browse items at https://dscpromostore.com/ and submit orders with photo screenshots
+- Employees browse items at a configurable store URL (default: https://dscpromostore.com/) and submit orders with photo screenshots
+- Prime admins can edit the store URL from Settings page; employees see the updated URL in their nav and orders page
 - Orders deduct points from employee balance on creation
 - Admins can approve, reject, or complete orders
 - Rejected orders refund points back to the employee

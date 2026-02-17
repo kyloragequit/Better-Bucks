@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil } from "lucide-react";
 import type { Organization } from "@shared/schema";
 
 type OrgWithFree = Organization & { isFree: boolean; employeeCount: number };
@@ -66,6 +68,25 @@ export default function AdminSettingsPage() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const [editingStoreUrl, setEditingStoreUrl] = useState(false);
+  const [storeUrlValue, setStoreUrlValue] = useState("");
+
+  const { mutate: updateStoreUrl, isPending: isUpdatingUrl } = useMutation({
+    mutationFn: async (storeUrl: string) => {
+      const res = await apiRequest("PATCH", "/api/organizations/store-url", { storeUrl });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/store-url"] });
+      toast({ title: "Store URL Updated", description: "Your employees will now see the new store link." });
+      setEditingStoreUrl(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -183,6 +204,83 @@ export default function AdminSettingsPage() {
                         style={{ width: `${Math.min(100, (employeeCount / org.maxEmployees) * 100)}%` }}
                       />
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <ExternalLink className="h-5 w-5" />
+                    Employee Store
+                  </CardTitle>
+                  <CardDescription>
+                    The website your employees browse to pick items for orders
+                  </CardDescription>
+                </div>
+                {!editingStoreUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setStoreUrlValue(org.storeUrl || "https://dscpromostore.com/");
+                      setEditingStoreUrl(true);
+                    }}
+                    data-testid="button-edit-store-url"
+                  >
+                    <Pencil className="mr-2 h-3 w-3" />
+                    Edit
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {editingStoreUrl ? (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="store-url">Store Website URL</Label>
+                      <Input
+                        id="store-url"
+                        type="url"
+                        placeholder="https://example.com/store"
+                        value={storeUrlValue}
+                        onChange={(e) => setStoreUrlValue(e.target.value)}
+                        data-testid="input-store-url"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => updateStoreUrl(storeUrlValue)}
+                        disabled={isUpdatingUrl || !storeUrlValue}
+                        data-testid="button-save-store-url"
+                      >
+                        {isUpdatingUrl ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                        Save
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingStoreUrl(false)}
+                        data-testid="button-cancel-store-url"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Current Store URL</div>
+                    <a
+                      href={org.storeUrl || "https://dscpromostore.com/"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary underline break-all"
+                      data-testid="text-store-url"
+                    >
+                      {org.storeUrl || "https://dscpromostore.com/"}
+                    </a>
                   </div>
                 )}
               </CardContent>

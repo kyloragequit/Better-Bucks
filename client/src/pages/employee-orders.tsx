@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import type { Order } from "@shared/schema";
+import { useStoreUrl } from "@/hooks/use-store-url";
 
 function statusVariant(status: string) {
   switch (status) {
@@ -33,6 +34,7 @@ export default function EmployeeOrdersPage() {
   const { data: orders, isLoading } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
   });
+  const { storeUrl } = useStoreUrl();
 
   if (isLoading) return <EmployeeLayout><Loader /></EmployeeLayout>;
 
@@ -56,10 +58,10 @@ export default function EmployeeOrdersPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Visit our promo store to find items you'd like to order. Take screenshots of the items, then come back here to submit your order.
             </p>
-            <a href="https://dscpromostore.com/" target="_blank" rel="noopener noreferrer">
+            <a href={storeUrl} target="_blank" rel="noopener noreferrer">
               <Button className="w-full" data-testid="link-promo-store">
                 <ExternalLink className="mr-2 h-4 w-4" />
-                Visit DSC Promo Store
+                Visit Store
               </Button>
             </a>
           </CardContent>

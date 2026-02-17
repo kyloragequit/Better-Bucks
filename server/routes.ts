@@ -637,6 +637,33 @@ export async function registerRoutes(
     res.json({ ...org, isFree, employeeCount: orgUsers.length });
   });
 
+  // Update organization store URL (prime admin only)
+  app.patch("/api/organizations/store-url", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.status(400).json({ message: "No organization found" });
+    }
+    const { storeUrl } = z.object({ storeUrl: z.string().url("Please enter a valid URL") }).parse(req.body);
+    const updated = await storage.updateOrganizationStoreUrl(user.organizationId, storeUrl);
+    res.json(updated);
+  });
+
+  // Get store URL for the current user's organization
+  app.get("/api/organizations/store-url", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.json({ storeUrl: "https://dscpromostore.com/" });
+    }
+    const org = await storage.getOrganization(user.organizationId);
+    res.json({ storeUrl: org?.storeUrl || "https://dscpromostore.com/" });
+  });
+
   // Cancel subscription (prime admin only)
   app.post("/api/organizations/cancel-subscription", async (req, res) => {
     const user = req.user as User | undefined;

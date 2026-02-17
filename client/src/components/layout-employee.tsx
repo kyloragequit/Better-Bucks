@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
+import { useStoreUrl } from "@/hooks/use-store-url";
 
 export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const { mutate: logout } = useLogout();
   const { data: user } = useUser();
   const [location] = useLocation();
+  const { storeUrl } = useStoreUrl();
 
   const isActive = (path: string) => location === path;
 
@@ -34,7 +36,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
               Orders
             </Link>
             <a
-              href="https://dscpromostore.com/"
+              href={storeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary flex items-center gap-1"

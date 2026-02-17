@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KeyRound, Lock, User, Loader2, LogIn, UserPlus, Building2 } from "lucide-react";
+import { Lock, User, Loader2, LogIn, UserPlus, Building2 } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -35,8 +36,8 @@ export default function LoginPage() {
       </div>
       <Card className="w-full max-w-md shadow-2xl shadow-black/10 border-muted animate-in relative z-10 bg-white/80 backdrop-blur-sm">
         <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <KeyRound className="h-8 w-8 text-primary" />
+          <div className="mx-auto mb-4">
+            <AppLogo size="lg" />
           </div>
           <CardTitle className="text-2xl font-bold font-display">Employee Portal</CardTitle>
           <CardDescription>

@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
+import { users, transactions, orders, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -16,6 +16,12 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransactionsByUser(userId: number): Promise<Transaction[]>;
   getAllTransactions(): Promise<(Transaction & { user: User })[]>;
+
+  createOrder(order: InsertOrder): Promise<Order>;
+  getOrder(id: number): Promise<Order | undefined>;
+  getOrdersByUser(userId: number): Promise<Order[]>;
+  getAllOrders(): Promise<(Order & { user: User })[]>;
+  updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -121,6 +127,35 @@ export class DatabaseStorage implements IStorage {
       ...row.transaction,
       user: row.user!
     }));
+  }
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const [newOrder] = await db.insert(orders).values(order).returning();
+    return newOrder;
+  }
+
+  async getOrder(id: number): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    return order;
+  }
+
+  async getOrdersByUser(userId: number): Promise<Order[]> {
+    return await db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt));
+  }
+
+  async getAllOrders(): Promise<(Order & { user: User })[]> {
+    const result = await db
+      .select({ order: orders, user: users })
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id))
+      .orderBy(desc(orders.createdAt));
+    return result.map(row => ({ ...row.order, user: row.user! }));
+  }
+
+  async updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order> {
+    const updateData: any = { status, updatedAt: new Date() };
+    if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+    const [updated] = await db.update(orders).set(updateData).where(eq(orders.id, id)).returning();
+    return updated;
   }
 }
 

@@ -9,8 +9,10 @@ import { FullPageLoader } from "@/components/ui/loader";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import EmployeeDashboard from "@/pages/employee-dashboard";
+import EmployeeOrdersPage from "@/pages/employee-orders";
 import AdminEmployeesPage from "@/pages/admin-employees";
 import AdminEmployeeDetailPage from "@/pages/admin-employee-detail";
+import AdminOrdersPage from "@/pages/admin-orders";
 import AdminPendingPage from "@/pages/admin-pending";
 import PendingVerification from "@/pages/pending-verification";
 import ChangePasswordPage from "@/pages/change-password";
@@ -77,6 +79,9 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute component={EmployeeDashboard} />
       </Route>
+      <Route path="/orders">
+        <ProtectedRoute component={EmployeeOrdersPage} />
+      </Route>
 
       {/* Admin Routes */}
       <Route path="/admin/employees">
@@ -84,6 +89,9 @@ function Router() {
       </Route>
       <Route path="/admin/employees/:id">
         <ProtectedRoute component={AdminEmployeeDetailPage} adminOnly />
+      </Route>
+      <Route path="/admin/orders">
+        <ProtectedRoute component={AdminOrdersPage} adminOnly />
       </Route>
       <Route path="/admin/pending">
         <ProtectedRoute component={AdminPendingPage} adminOnly />

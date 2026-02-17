@@ -37,6 +37,8 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - **Tables**:
   - `users` - Employee/admin accounts with role, status, balance, barcode
   - `transactions` - Point credits/debits with reason and timestamp
+  - `orders` - Employee orders with photo URLs, points cost, status (pending/approved/rejected/completed), admin notes
+- **File Uploads**: Multer-based file upload to `uploads/` directory, served at `/uploads/` path (auth-protected)
 - **Migrations**: Managed via drizzle-kit with `db:push` command
 
 ### Authentication & Authorization
@@ -45,6 +47,17 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Admin accounts require approval from prime_admin before activation
 - Password change enforcement via `mustChangePassword` flag
 - **Note**: Current implementation uses plain text password comparison (marked as insecure for demo purposes)
+
+### Order System
+- Employees can browse items at https://dscpromostore.com/ and submit orders with photo screenshots
+- Orders deduct points from employee balance on creation
+- Admins can approve, reject, or complete orders
+- Rejected orders refund points back to the employee
+- Only employees can create orders (role-restricted)
+
+### App Branding
+- Yellow square logo with letter "B" used across all layouts (AppLogo component)
+- DHL brand color palette (golden yellow primary, crimson red secondary)
 
 ### Shared Code
 The `shared/` directory contains code used by both frontend and backend:
@@ -63,6 +76,7 @@ The `shared/` directory contains code used by both frontend and backend:
 - react-barcode for employee barcode generation
 - date-fns for date formatting
 - Lucide React for icons
+- multer for file uploads (server-side)
 
 ### Authentication
 - Passport.js with passport-local strategy

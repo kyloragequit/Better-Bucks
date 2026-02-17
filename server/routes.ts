@@ -5,8 +5,28 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 import type { User } from "@shared/schema";
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadDir),
+    filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp|pdf/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    cb(null, ext && mime);
+  },
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -259,6 +279,114 @@ export async function registerRoutes(
       const txs = await storage.getTransactionsByUser(user.id);
       res.json(txs);
     }
+  });
+
+  // Serve uploaded files
+  app.use("/uploads", (req, res, next) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    next();
+  }, (await import("express")).default.static(uploadDir));
+
+  // Upload photos
+  app.post("/api/upload", (req, res, next) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    next();
+  }, upload.array("photos", 10), (req, res) => {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) return res.status(400).json({ message: "No files uploaded" });
+    const urls = files.map(f => `/uploads/${f.filename}`);
+    res.json({ urls });
+  });
+
+  // Orders
+  const createOrderSchema = z.object({
+    description: z.string().min(1, "Description is required"),
+    photoUrls: z.array(z.string()).min(1, "At least one photo is required"),
+    pointsCost: z.number().int().positive("Points must be greater than 0"),
+  });
+
+  app.post("/api/orders", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (user.role !== "employee") return res.status(403).json({ message: "Only employees can place orders" });
+
+    try {
+      const parsed = createOrderSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+      const { description, photoUrls, pointsCost } = parsed.data;
+
+      if (user.balance < pointsCost) {
+        return res.status(400).json({ message: "Insufficient points balance" });
+      }
+
+      const order = await storage.createOrder({
+        userId: user.id,
+        pointsCost,
+        description,
+        photoUrls,
+      });
+
+      await storage.updateUserBalance(user.id, -pointsCost);
+      await storage.createTransaction({
+        userId: user.id,
+        amount: -pointsCost,
+        reason: `Order #${order.id}: ${description}`,
+      });
+
+      res.status(201).json(order);
+    } catch (e) {
+      console.error("Order creation error:", e);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.get("/api/orders", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+
+    if (user.role === "admin" || user.role === "prime_admin") {
+      const allOrders = await storage.getAllOrders();
+      res.json(allOrders);
+    } else {
+      const userOrders = await storage.getOrdersByUser(user.id);
+      res.json(userOrders);
+    }
+  });
+
+  const updateOrderStatusSchema = z.object({
+    status: z.enum(["approved", "rejected", "completed"]),
+    adminNotes: z.string().optional(),
+  });
+
+  app.patch("/api/orders/:id/status", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
+    const parsed = updateOrderStatusSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    const { status, adminNotes } = parsed.data;
+
+    const order = await storage.getOrder(id);
+    if (!order) return res.status(404).send("Order not found");
+
+    if (status === "rejected" && order.status === "pending") {
+      await storage.updateUserBalance(order.userId, order.pointsCost);
+      await storage.createTransaction({
+        userId: order.userId,
+        amount: order.pointsCost,
+        reason: `Order #${order.id} rejected - points refunded`,
+      });
+    }
+
+    const updated = await storage.updateOrderStatus(id, status, adminNotes);
+    res.json(updated);
   });
 
   // Seed default accounts if no users

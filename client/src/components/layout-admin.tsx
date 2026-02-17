@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Users, LogOut, LayoutDashboard } from "lucide-react";
+import { LogOut } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -12,26 +13,33 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      {/* Sidebar / Top Nav Hybrid for Responsiveness */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2 font-display font-bold text-xl text-primary">
-            <LayoutDashboard className="h-6 w-6" />
-            <span>Admin Portal</span>
+      <header className="sticky top-0 z-[999] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between gap-4 px-4">
+          <div className="flex items-center gap-2 font-display font-bold text-xl text-foreground">
+            <AppLogo size="sm" />
+            <span className="hidden sm:inline">Admin Portal</span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-6">
-            <Link 
-              href="/admin/employees" 
+          <nav className="flex items-center gap-6">
+            <Link
+              href="/admin/employees"
               className={`text-sm font-medium transition-colors hover:text-primary ${
                 isActive('/admin/employees') ? "text-primary font-bold" : "text-muted-foreground"
               }`}
             >
               Employees
             </Link>
+            <Link
+              href="/admin/orders"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive('/admin/orders') ? "text-primary font-bold" : "text-muted-foreground"
+              }`}
+            >
+              Orders
+            </Link>
             {user?.role === "prime_admin" && (
-              <Link 
-                href="/admin/pending" 
+              <Link
+                href="/admin/pending"
                 className={`text-sm font-medium transition-colors hover:text-primary ${
                   isActive('/admin/pending') ? "text-primary font-bold" : "text-muted-foreground"
                 }`}

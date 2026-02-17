@@ -60,13 +60,20 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 
 ### Organization & Subscription System
 - Landing page (/) with "Sign up for your organization" and "Log in to my organization" options
-- Signup flow: Enter org name + email -> Stripe checkout ($50/month) -> receive org code
+- Signup flow: Select tier -> Enter org name + email -> Stripe checkout -> receive org code
+- **Pricing Tiers**:
+  - Small Site: $149/month, up to 100 employees
+  - Mid-Size Site: $349/month, up to 300 employees
+  - Large Site: $599/month, up to 500 employees
+  - Enterprise: $999/month, unlimited employees
+- Organizations have `tier` and `maxEmployees` columns; employee limits enforced on user creation
 - First-time login: Enter org code -> create prime admin account
 - Stripe integration via stripe-replit-sync for webhook processing and data sync
 - Stripe client: server/stripeClient.ts, webhook handler: server/webhookHandlers.ts
 - Webhook route registered BEFORE express.json() middleware in server/index.ts
-- PRIME1 organization: Free membership org (stripeCustomerId="free_membership"), auto-created on startup
+- PRIME1 organization: Free membership org (stripeCustomerId="free_membership", tier="enterprise"), auto-created on startup
 - Prime admins can cancel their org subscription via Settings page (/admin/settings)
+- Settings page shows current tier, employee count/limit with usage bar
 - Free memberships cannot be cancelled
 
 ### App Branding

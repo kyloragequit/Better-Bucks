@@ -69,6 +69,12 @@ export async function registerRoutes(
       if (existingUser) {
         return res.status(409).json({ message: "Username already exists in this organization" });
       }
+      if (org.maxEmployees > 0) {
+        const orgUsers = await storage.getUsersByOrganization(org.id);
+        if (orgUsers.length >= org.maxEmployees) {
+          return res.status(400).json({ message: `This organization has reached its employee limit (${org.maxEmployees}). Please contact your administrator to upgrade the plan.` });
+        }
+      }
       const user = await storage.createUser({
         username: adminData.username,
         password: adminData.password,
@@ -101,6 +107,14 @@ export async function registerRoutes(
         const existingUser = await storage.getUserByUsernameAndOrg(userData.username, user.organizationId);
         if (existingUser) {
           return res.status(400).json({ message: "Username/Employee Code already exists in this organization" });
+        }
+        const org = await storage.getOrganization(user.organizationId);
+        if (org && org.maxEmployees > 0) {
+          const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+          if (orgUsers.length >= org.maxEmployees) {
+            const tierNames: Record<string, string> = { small: "Small Site (100)", mid: "Mid-Size Site (300)", large: "Large Site (500)", enterprise: "Enterprise (Unlimited)" };
+            return res.status(400).json({ message: `Employee limit reached for your ${tierNames[org.tier] || org.tier} plan (${org.maxEmployees} max). Please upgrade your plan to add more team members.` });
+          }
         }
       }
       const newUser = await storage.createUser({
@@ -445,53 +459,60 @@ export async function registerRoutes(
     }
   });
 
+  // Tier pricing configuration
+  const tierConfig = {
+    small: { price: 14900, maxEmployees: 100, name: "Small Site" },
+    mid: { price: 34900, maxEmployees: 300, name: "Mid-Size Site" },
+    large: { price: 59900, maxEmployees: 500, name: "Large Site" },
+    enterprise: { price: 99900, maxEmployees: -1, name: "Enterprise Site" },
+  } as const;
+
   // Organization signup - create checkout session
   const signupSchema = z.object({
     organizationName: z.string().min(2, "Organization name is required"),
     email: z.string().email("Valid email is required"),
+    tier: z.enum(["small", "mid", "large", "enterprise"]),
   });
 
   app.post("/api/organizations/signup", async (req, res) => {
     try {
-      const { organizationName, email } = signupSchema.parse(req.body);
+      const { organizationName, email, tier } = signupSchema.parse(req.body);
       const stripe = await getUncachableStripeClient();
+      const config = tierConfig[tier];
 
       const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
 
       const org = await storage.createOrganization({
         name: organizationName,
         code: orgCode,
+        tier,
+        maxEmployees: config.maxEmployees,
       });
 
       const customer = await stripe.customers.create({
         email,
-        metadata: { organizationId: String(org.id), organizationName },
+        metadata: { organizationId: String(org.id), organizationName, tier },
       });
 
-      const pricesResult = await db.execute(
-        sql`SELECT id FROM stripe.prices WHERE active = true AND recurring IS NOT NULL ORDER BY unit_amount ASC LIMIT 1`
-      );
-
-      let priceId: string;
-      if (pricesResult.rows.length > 0) {
-        priceId = pricesResult.rows[0].id as string;
-      } else {
-        const allPrices = await stripe.prices.list({ active: true, type: 'recurring', limit: 1 });
-        if (allPrices.data.length === 0) {
-          return res.status(500).json({ message: "No subscription price configured" });
-        }
-        priceId = allPrices.data[0].id;
-      }
+      const price = await stripe.prices.create({
+        unit_amount: config.price,
+        currency: "usd",
+        recurring: { interval: "month" },
+        product_data: {
+          name: `Employee Incentive Portal - ${config.name}`,
+          metadata: { tier },
+        },
+      });
 
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const session = await stripe.checkout.sessions.create({
         customer: customer.id,
         payment_method_types: ['card'],
-        line_items: [{ price: priceId, quantity: 1 }],
+        line_items: [{ price: price.id, quantity: 1 }],
         mode: 'subscription',
         success_url: `${baseUrl}/signup/success?org_code=${orgCode}`,
         cancel_url: `${baseUrl}/signup?cancelled=true`,
-        metadata: { organizationId: String(org.id) },
+        metadata: { organizationId: String(org.id), tier },
       });
 
       await storage.updateOrganizationStripe(org.id, customer.id, "pending_checkout");
@@ -612,7 +633,8 @@ export async function registerRoutes(
     if (!org) return res.status(404).json({ message: "Organization not found" });
     
     const isFree = org.stripeCustomerId === "free_membership";
-    res.json({ ...org, isFree });
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    res.json({ ...org, isFree, employeeCount: orgUsers.length });
   });
 
   // Cancel subscription (prime admin only)

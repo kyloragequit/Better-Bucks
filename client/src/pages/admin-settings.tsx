@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check } from "lucide-react";
+import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users } from "lucide-react";
 import type { Organization } from "@shared/schema";
 
-type OrgWithFree = Organization & { isFree: boolean };
+type OrgWithFree = Organization & { isFree: boolean; employeeCount: number };
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+const tierLabels: Record<string, string> = {
+  small: "Small Site",
+  mid: "Mid-Size Site",
+  large: "Large Site",
+  enterprise: "Enterprise Site",
+};
+
+const tierPrices: Record<string, number> = {
+  small: 149,
+  mid: 349,
+  large: 599,
+  enterprise: 999,
+};
 
 export default function AdminSettingsPage() {
   const { data: user } = useUser();
@@ -74,6 +88,11 @@ export default function AdminSettingsPage() {
     );
   }
 
+  const tierLabel = org ? (tierLabels[org.tier] || org.tier) : "";
+  const tierPrice = org ? (tierPrices[org.tier] || 0) : 0;
+  const employeeLimit = org?.maxEmployees === -1 ? "Unlimited" : String(org?.maxEmployees || 0);
+  const employeeCount = org?.employeeCount || 0;
+
   return (
     <AdminLayout>
       <div className="max-w-2xl mx-auto space-y-6">
@@ -121,6 +140,57 @@ export default function AdminSettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Plan & Usage
+                </CardTitle>
+                <CardDescription>
+                  Your current plan and employee usage
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Current Plan</div>
+                    <div className="font-medium" data-testid="text-current-tier">{tierLabel}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Employee Limit</div>
+                    <div className="font-medium" data-testid="text-employee-limit">{employeeLimit}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Current Employees</div>
+                    <div className="font-medium" data-testid="text-employee-count">{employeeCount}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Monthly Cost</div>
+                    <div className="font-medium" data-testid="text-monthly-cost">
+                      {org.isFree ? "Free" : `$${tierPrice}/month`}
+                    </div>
+                  </div>
+                </div>
+                {!org.isFree && org.maxEmployees > 0 && (
+                  <div className="mt-2">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>{employeeCount} of {org.maxEmployees} employees used</span>
+                      <span>{Math.round((employeeCount / org.maxEmployees) * 100)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          employeeCount / org.maxEmployees > 0.9 ? "bg-destructive" :
+                          employeeCount / org.maxEmployees > 0.7 ? "bg-yellow-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${Math.min(100, (employeeCount / org.maxEmployees) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
                   Membership
                 </CardTitle>
@@ -142,7 +212,7 @@ export default function AdminSettingsPage() {
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div>
                         <div className="text-sm text-muted-foreground">Plan</div>
-                        <div className="font-medium">$50/month</div>
+                        <div className="font-medium">{tierLabel} - ${tierPrice}/month</div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Status</div>

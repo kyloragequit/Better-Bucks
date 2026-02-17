@@ -275,11 +275,12 @@ function EditProfileDialog({ user }: { user: any }) {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState(user.username);
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(user.email || "");
   const { mutate: updateProfile, isPending } = useUpdateProfile();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile({ id: user.id, username, password: password || undefined }, {
+    updateProfile({ id: user.id, username, password: password || undefined, email: email || undefined }, {
       onSuccess: () => setOpen(false)
     });
   };
@@ -299,14 +300,19 @@ function EditProfileDialog({ user }: { user: any }) {
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid gap-2">
             <Label htmlFor="username">Username / Code</Label>
-            <Input id="username" value={username} onChange={e => setUsername(e.target.value)} required />
+            <Input id="username" value={username} onChange={e => setUsername(e.target.value)} required data-testid="input-edit-username" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">New Password (leave blank to keep current)</Label>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} data-testid="input-edit-password" />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="email">Email (for balance updates)</Label>
+            <Input id="email" type="email" placeholder="employee@example.com" value={email} onChange={e => setEmail(e.target.value)} data-testid="input-edit-email" />
+            <p className="text-xs text-muted-foreground">Optional. Receive notifications when your balance changes.</p>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={isPending}>Save Changes</Button>
+            <Button type="submit" disabled={isPending} data-testid="button-save-profile">Save Changes</Button>
           </DialogFooter>
         </form>
       </DialogContent>

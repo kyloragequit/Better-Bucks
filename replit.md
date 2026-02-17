@@ -36,8 +36,9 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - **Schema Location**: shared/schema.ts
 - **Tables**:
   - `organizations` - Multi-tenant org accounts with code, Stripe customer/subscription IDs, status
-  - `users` - Employee/admin accounts with role, status, balance, barcode, organizationId
+  - `users` - Employee/admin accounts with role, status, balance, barcode, email (optional), organizationId
   - `transactions` - Point credits/debits with reason and timestamp
+    - When admins credit points to employees, a corresponding debit transaction is created on the admin's account with reason "Points given to {employee name}"
   - `orders` - Employee orders with photo URLs, points cost, status (pending/approved/rejected/completed), admin notes
 - **Stripe Schema**: Managed by stripe-replit-sync (stripe.products, stripe.prices, stripe.customers, etc.)
 - **File Uploads**: Multer-based file upload to `uploads/` directory, served at `/uploads/` path (auth-protected)

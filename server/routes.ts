@@ -150,6 +150,9 @@ export async function registerRoutes(
 
     const { amount, reason } = api.users.updateBalance.input.parse(req.body);
 
+    const targetUser = await storage.getUser(id);
+    if (!targetUser) return res.status(404).send("User not found");
+
     // If not prime admin, deduct from current admin balance
     if (user.role !== "prime_admin") {
       // For credits (giving points)
@@ -159,6 +162,20 @@ export async function registerRoutes(
         }
         // Deduct from admin
         await storage.updateUserBalance(user.id, -amount);
+        await storage.createTransaction({
+          userId: user.id,
+          amount: -amount,
+          reason: `Points given to ${targetUser.fullName}`,
+        });
+      }
+    } else {
+      // Prime admin also gets a debit record when giving points
+      if (amount > 0) {
+        await storage.createTransaction({
+          userId: user.id,
+          amount: -amount,
+          reason: `Points given to ${targetUser.fullName}`,
+        });
       }
     }
 
@@ -201,8 +218,9 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
-    // Admins can change their own, Prime can change anyone's
+    // Users can change their own, admins can change their own, Prime can change anyone's
     const isPrime = user.role === "prime_admin";
+    const isAdmin = user.role === "admin" || isPrime;
     if (!isPrime && user.id !== id) {
       return res.status(403).send("Forbidden");
     }

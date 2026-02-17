@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   barcode: text("barcode").notNull(),
   fullName: text("full_name").notNull(),
   mustChangePassword: boolean("must_change_password").default(false).notNull(),
+  email: text("email"),
   organizationId: integer("organization_id"),
 });
 

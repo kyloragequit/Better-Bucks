@@ -8,6 +8,10 @@ import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { sql } from "drizzle-orm";
+import { db } from "./db";
 
 import type { User } from "@shared/schema";
 
@@ -41,19 +45,29 @@ export async function registerRoutes(
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
-    const users = await storage.getAllUsers();
+    if (!user.organizationId) {
+      return res.json([]);
+    }
+    const users = await storage.getUsersByOrganization(user.organizationId);
     res.json(users);
   });
 
-  // Register new admin account (public endpoint) - goes into pending queue
+  // Register new admin account - requires org code, goes into pending queue
   app.post(api.auth.registerAdmin.path, async (req, res) => {
     try {
       const adminData = api.auth.registerAdmin.input.parse(req.body);
-      const existingUser = await storage.getUserByUsername(adminData.username);
-      if (existingUser) {
-        return res.status(409).json({ message: "Username already exists" });
+      const orgCode = req.body.orgCode;
+      if (!orgCode) {
+        return res.status(400).json({ message: "Organization code is required" });
       }
-      // Create admin in "pending" status - requires DSCLA approval
+      const org = await storage.getOrganizationByCode(orgCode.toUpperCase());
+      if (!org || org.status !== "active") {
+        return res.status(400).json({ message: "Invalid or inactive organization code" });
+      }
+      const existingUser = await storage.getUserByUsernameAndOrg(adminData.username, org.id);
+      if (existingUser) {
+        return res.status(409).json({ message: "Username already exists in this organization" });
+      }
       const user = await storage.createUser({
         username: adminData.username,
         password: adminData.password,
@@ -61,8 +75,9 @@ export async function registerRoutes(
         role: "admin",
         barcode: adminData.username,
         status: "pending",
+        organizationId: org.id,
       });
-      console.log(`New admin registration: ${user.username} (pending)`);
+      console.log(`New admin registration: ${user.username} for org ${org.name} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -81,17 +96,20 @@ export async function registerRoutes(
     }
     try {
       const userData = api.users.create.input.parse(req.body);
-      const existingUser = await storage.getUserByUsername(userData.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username/Employee Code already exists" });
+      if (user.organizationId) {
+        const existingUser = await storage.getUserByUsernameAndOrg(userData.username, user.organizationId);
+        if (existingUser) {
+          return res.status(400).json({ message: "Username/Employee Code already exists in this organization" });
+        }
       }
-      const user = await storage.createUser({
+      const newUser = await storage.createUser({
         ...userData,
         barcode: userData.barcode || userData.username,
         status: "approved",
         mustChangePassword: true,
+        organizationId: user.organizationId,
       });
-      res.status(201).json(user);
+      res.status(201).json(newUser);
     } catch (e) {
       if (e instanceof z.ZodError) {
         res.status(400).json(e.errors);
@@ -228,7 +246,9 @@ export async function registerRoutes(
       return res.status(401).send("Unauthorized");
     }
     try {
-      const pendingAdmins = await storage.getPendingAdmins();
+      const pendingAdmins = user.organizationId 
+        ? await storage.getPendingAdminsByOrganization(user.organizationId)
+        : await storage.getPendingAdmins();
       res.json(pendingAdmins);
     } catch (error) {
       console.error("Error fetching pending admins:", error);
@@ -236,7 +256,7 @@ export async function registerRoutes(
     }
   });
 
-  // Approve pending admin (prime account only)
+  // Approve pending admin (prime account only, same org)
   app.post("/api/users/:id/approve", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
@@ -246,8 +266,12 @@ export async function registerRoutes(
     if (isNaN(id)) return res.status(400).send("Invalid ID");
     
     try {
-      const user = await storage.approveAdminUser(id);
-      res.json(user);
+      const targetUser = await storage.getUser(id);
+      if (!targetUser || (user.organizationId && targetUser.organizationId !== user.organizationId)) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const approvedUser = await storage.approveAdminUser(id);
+      res.json(approvedUser);
     } catch (error) {
       console.error("Error approving admin:", error);
       res.status(500).send("Internal Server Error");
@@ -347,7 +371,9 @@ export async function registerRoutes(
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
 
     if (user.role === "admin" || user.role === "prime_admin") {
-      const allOrders = await storage.getAllOrders();
+      const allOrders = user.organizationId
+        ? await storage.getOrdersByOrganization(user.organizationId)
+        : await storage.getAllOrders();
       res.json(allOrders);
     } else {
       const userOrders = await storage.getOrdersByUser(user.id);
@@ -387,6 +413,171 @@ export async function registerRoutes(
 
     const updated = await storage.updateOrderStatus(id, status, adminNotes);
     res.json(updated);
+  });
+
+  // Stripe publishable key (public)
+  app.get("/api/stripe/publishable-key", async (_req, res) => {
+    try {
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (error) {
+      console.error("Error getting Stripe key:", error);
+      res.status(500).json({ message: "Could not load payment configuration" });
+    }
+  });
+
+  // Organization signup - create checkout session
+  const signupSchema = z.object({
+    organizationName: z.string().min(2, "Organization name is required"),
+    email: z.string().email("Valid email is required"),
+  });
+
+  app.post("/api/organizations/signup", async (req, res) => {
+    try {
+      const { organizationName, email } = signupSchema.parse(req.body);
+      const stripe = await getUncachableStripeClient();
+
+      const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+
+      const org = await storage.createOrganization({
+        name: organizationName,
+        code: orgCode,
+      });
+
+      const customer = await stripe.customers.create({
+        email,
+        metadata: { organizationId: String(org.id), organizationName },
+      });
+
+      const pricesResult = await db.execute(
+        sql`SELECT id FROM stripe.prices WHERE active = true AND recurring IS NOT NULL ORDER BY unit_amount ASC LIMIT 1`
+      );
+
+      let priceId: string;
+      if (pricesResult.rows.length > 0) {
+        priceId = pricesResult.rows[0].id as string;
+      } else {
+        const allPrices = await stripe.prices.list({ active: true, type: 'recurring', limit: 1 });
+        if (allPrices.data.length === 0) {
+          return res.status(500).json({ message: "No subscription price configured" });
+        }
+        priceId = allPrices.data[0].id;
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customer.id,
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: 'subscription',
+        success_url: `${baseUrl}/signup/success?org_code=${orgCode}`,
+        cancel_url: `${baseUrl}/signup?cancelled=true`,
+        metadata: { organizationId: String(org.id) },
+      });
+
+      await storage.updateOrganizationStripe(org.id, customer.id, "pending_checkout");
+
+      res.json({ url: session.url, orgCode });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
+  // Validate organization code
+  app.get("/api/organizations/validate/:code", async (req, res) => {
+    const org = await storage.getOrganizationByCode(req.params.code.toUpperCase());
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    res.json({ id: org.id, name: org.name, status: org.status });
+  });
+
+  // Setup prime admin for an organization (first-time login flow)
+  const setupPrimeSchema = z.object({
+    orgCode: z.string().min(1, "Organization code is required"),
+    username: z.string().min(3, "Username must be at least 3 characters"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    fullName: z.string().min(2, "Full name is required"),
+  });
+
+  app.post("/api/organizations/setup-prime", async (req, res) => {
+    try {
+      const { orgCode, username, password, fullName } = setupPrimeSchema.parse(req.body);
+
+      const org = await storage.getOrganizationByCode(orgCode.toUpperCase());
+      if (!org) return res.status(404).json({ message: "Invalid organization code" });
+      if (org.status !== "active") return res.status(400).json({ message: "Organization subscription is not active yet" });
+
+      const existingUsers = await storage.getAllUsers();
+      const orgUsers = existingUsers.filter(u => u.organizationId === org.id);
+      const hasPrime = orgUsers.some(u => u.role === "prime_admin");
+      if (hasPrime) return res.status(400).json({ message: "This organization already has an administrator set up. Please use the regular login." });
+
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) return res.status(409).json({ message: "Username already taken" });
+
+      const user = await storage.createUser({
+        username,
+        password,
+        fullName,
+        role: "prime_admin",
+        barcode: username,
+        status: "approved",
+        organizationId: org.id,
+      });
+
+      req.login(user, (err) => {
+        if (err) return res.status(500).json({ message: "Account created but login failed" });
+        res.status(201).json(user);
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Setup prime error:", error);
+      res.status(500).json({ message: "Failed to set up administrator account" });
+    }
+  });
+
+  // Handle Stripe checkout completion webhook events for org activation
+  app.post("/api/organizations/activate", async (req, res) => {
+    const { orgCode } = req.body;
+    if (!orgCode) return res.status(400).json({ message: "Missing org code" });
+    const org = await storage.getOrganizationByCode(orgCode);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    await storage.updateOrganizationStatus(org.id, "active");
+    res.json({ success: true });
+  });
+
+  // Check subscription status for an org code  
+  app.get("/api/organizations/check-subscription/:code", async (req, res) => {
+    const org = await storage.getOrganizationByCode(req.params.code.toUpperCase());
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+
+    if (org.status === "active") {
+      return res.json({ active: true });
+    }
+
+    if (org.stripeCustomerId && org.stripeCustomerId !== "pending_checkout") {
+      try {
+        const stripe = await getUncachableStripeClient();
+        const subscriptions = await stripe.subscriptions.list({
+          customer: org.stripeCustomerId,
+          status: 'active',
+          limit: 1,
+        });
+        if (subscriptions.data.length > 0) {
+          await storage.updateOrganizationStripe(org.id, org.stripeCustomerId, subscriptions.data[0].id);
+          return res.json({ active: true });
+        }
+      } catch (e) {
+        console.error("Error checking subscription:", e);
+      }
+    }
+
+    res.json({ active: false });
   });
 
   // Seed default accounts if no users

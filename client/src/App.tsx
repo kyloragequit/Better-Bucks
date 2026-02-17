@@ -7,6 +7,10 @@ import { useUser } from "@/hooks/use-auth";
 import { FullPageLoader } from "@/components/ui/loader";
 
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
+import SignupPage from "@/pages/signup";
+import SignupSuccessPage from "@/pages/signup-success";
+import SetupPrimePage from "@/pages/setup-prime";
 import LoginPage from "@/pages/login";
 import EmployeeDashboard from "@/pages/employee-dashboard";
 import EmployeeOrdersPage from "@/pages/employee-orders";
@@ -44,7 +48,6 @@ function ProtectedRoute({
     return <Redirect to="/dashboard" />;
   }
 
-  // If user is admin but tries to access employee dashboard, send them to admin home
   if (!adminOnly && (user.role === 'admin' || user.role === 'prime_admin') && window.location.pathname === '/dashboard') {
      return <Redirect to="/admin/employees" />;
   }
@@ -52,30 +55,15 @@ function ProtectedRoute({
   return <Component />;
 }
 
-function RootRedirect() {
-  const { data: user, isLoading } = useUser();
-  if (isLoading) return <FullPageLoader />;
-  if (!user) return <Redirect to="/login" />;
-  
-  if (user.role === 'admin' && user.status === 'pending') {
-    return <Redirect to="/pending-verification" />;
-  }
-
-  if (user.mustChangePassword) {
-    return <Redirect to="/change-password" />;
-  }
-
-  return (user.role === 'admin' || user.role === 'prime_admin')
-    ? <Redirect to="/admin/employees" /> 
-    : <Redirect to="/dashboard" />;
-}
-
 function Router() {
   return (
     <Switch>
+      <Route path="/" component={LandingPage} />
+      <Route path="/signup" component={SignupPage} />
+      <Route path="/signup/success" component={SignupSuccessPage} />
+      <Route path="/setup" component={SetupPrimePage} />
       <Route path="/login" component={LoginPage} />
       
-      {/* Employee Routes */}
       <Route path="/dashboard">
         <ProtectedRoute component={EmployeeDashboard} />
       </Route>
@@ -83,7 +71,6 @@ function Router() {
         <ProtectedRoute component={EmployeeOrdersPage} />
       </Route>
 
-      {/* Admin Routes */}
       <Route path="/admin/employees">
         <ProtectedRoute component={AdminEmployeesPage} adminOnly />
       </Route>
@@ -98,9 +85,6 @@ function Router() {
       </Route>
       <Route path="/pending-verification" component={PendingVerification} />
       <Route path="/change-password" component={ChangePasswordPage} />
-
-      {/* Root Redirect */}
-      <Route path="/" component={RootRedirect} />
 
       <Route component={NotFound} />
     </Switch>

@@ -1,7 +1,7 @@
 
 import { db } from "./db";
-import { users, transactions, orders, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { users, transactions, orders, organizations, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization } from "@shared/schema";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -12,6 +12,9 @@ export interface IStorage {
   approveAdminUser(userId: number): Promise<User>;
   getPendingAdmins(): Promise<User[]>;
   getAllUsers(): Promise<User[]>;
+  getUsersByOrganization(organizationId: number): Promise<User[]>;
+  getPendingAdminsByOrganization(organizationId: number): Promise<User[]>;
+  getUserByUsernameAndOrg(username: string, organizationId: number): Promise<User | undefined>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransactionsByUser(userId: number): Promise<Transaction[]>;
@@ -21,7 +24,15 @@ export interface IStorage {
   getOrder(id: number): Promise<Order | undefined>;
   getOrdersByUser(userId: number): Promise<Order[]>;
   getAllOrders(): Promise<(Order & { user: User })[]>;
+  getOrdersByOrganization(organizationId: number): Promise<(Order & { user: User })[]>;
   updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
+
+  createOrganization(org: InsertOrganization): Promise<Organization>;
+  getOrganization(id: number): Promise<Organization | undefined>;
+  getOrganizationByCode(code: string): Promise<Organization | undefined>;
+  getOrganizationByStripeCustomerId(customerId: string): Promise<Organization | undefined>;
+  updateOrganizationStripe(id: number, stripeCustomerId: string, stripeSubscriptionId: string): Promise<Organization>;
+  updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending"): Promise<Organization>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -98,6 +109,23 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).orderBy(users.fullName);
   }
 
+  async getUsersByOrganization(organizationId: number): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.organizationId, organizationId)).orderBy(users.fullName);
+  }
+
+  async getPendingAdminsByOrganization(organizationId: number): Promise<User[]> {
+    return await db.select().from(users).where(
+      and(eq(users.status, "pending"), eq(users.organizationId, organizationId))
+    ).orderBy(users.fullName);
+  }
+
+  async getUserByUsernameAndOrg(username: string, organizationId: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      and(eq(users.username, username), eq(users.organizationId, organizationId))
+    );
+    return user;
+  }
+
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [newTransaction] = await db.insert(transactions).values(transaction).returning();
     return newTransaction;
@@ -151,10 +179,50 @@ export class DatabaseStorage implements IStorage {
     return result.map(row => ({ ...row.order, user: row.user! }));
   }
 
+  async getOrdersByOrganization(organizationId: number): Promise<(Order & { user: User })[]> {
+    const result = await db
+      .select({ order: orders, user: users })
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id))
+      .where(eq(users.organizationId, organizationId))
+      .orderBy(desc(orders.createdAt));
+    return result.map(row => ({ ...row.order, user: row.user! }));
+  }
+
   async updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order> {
     const updateData: any = { status, updatedAt: new Date() };
     if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
     const [updated] = await db.update(orders).set(updateData).where(eq(orders.id, id)).returning();
+    return updated;
+  }
+
+  async createOrganization(org: InsertOrganization): Promise<Organization> {
+    const [newOrg] = await db.insert(organizations).values(org).returning();
+    return newOrg;
+  }
+
+  async getOrganization(id: number): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    return org;
+  }
+
+  async getOrganizationByCode(code: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.code, code));
+    return org;
+  }
+
+  async getOrganizationByStripeCustomerId(customerId: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.stripeCustomerId, customerId));
+    return org;
+  }
+
+  async updateOrganizationStripe(id: number, stripeCustomerId: string, stripeSubscriptionId: string): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ stripeCustomerId, stripeSubscriptionId, status: "active" }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending"): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ status }).where(eq(organizations.id, id)).returning();
     return updated;
   }
 }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack employee incentive and rewards management system. Employees can view their point balances and transaction history via barcode-based identification, while administrators can manage employee accounts, adjust balances, and approve new admin registrations. The system features a role-based access control hierarchy with employees, admins, and a prime admin who can approve new administrator accounts.
+This is a multi-tenant full-stack employee incentive and rewards management system. Organizations sign up via a $50/month Stripe subscription, receive an organization code, and set up their prime admin account. Employees can view their point balances and transaction history via barcode-based identification, while administrators can manage employee accounts, adjust balances, and approve new admin registrations. The system features a role-based access control hierarchy with employees, admins, and a prime admin who can approve new administrator accounts.
 
 ## User Preferences
 
@@ -35,9 +35,11 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - **Database**: PostgreSQL with Drizzle ORM
 - **Schema Location**: shared/schema.ts
 - **Tables**:
-  - `users` - Employee/admin accounts with role, status, balance, barcode
+  - `organizations` - Multi-tenant org accounts with code, Stripe customer/subscription IDs, status
+  - `users` - Employee/admin accounts with role, status, balance, barcode, organizationId
   - `transactions` - Point credits/debits with reason and timestamp
   - `orders` - Employee orders with photo URLs, points cost, status (pending/approved/rejected/completed), admin notes
+- **Stripe Schema**: Managed by stripe-replit-sync (stripe.products, stripe.prices, stripe.customers, etc.)
 - **File Uploads**: Multer-based file upload to `uploads/` directory, served at `/uploads/` path (auth-protected)
 - **Migrations**: Managed via drizzle-kit with `db:push` command
 
@@ -54,6 +56,14 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Admins can approve, reject, or complete orders
 - Rejected orders refund points back to the employee
 - Only employees can create orders (role-restricted)
+
+### Organization & Subscription System
+- Landing page (/) with "Sign up for your organization" and "Log in to my organization" options
+- Signup flow: Enter org name + email -> Stripe checkout ($50/month) -> receive org code
+- First-time login: Enter org code -> create prime admin account
+- Stripe integration via stripe-replit-sync for webhook processing and data sync
+- Stripe client: server/stripeClient.ts, webhook handler: server/webhookHandlers.ts
+- Webhook route registered BEFORE express.json() middleware in server/index.ts
 
 ### App Branding
 - Yellow square logo with letter "B" used across all layouts (AppLogo component)

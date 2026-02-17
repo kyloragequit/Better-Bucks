@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, Loader2, LogIn, UserPlus, Building2 } from "lucide-react";
+import { Lock, User, Loader2, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 
 export default function LoginPage() {
@@ -22,7 +22,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
-      {/* Red Dots Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-[10%] left-[5%] w-12 h-12 rounded-full bg-[#D40511] opacity-20" />
         <div className="absolute top-[20%] right-[15%] w-24 h-24 rounded-full bg-[#D40511] opacity-10" />
@@ -34,40 +33,70 @@ export default function LoginPage() {
         <div className="absolute top-[5%] right-[40%] w-10 h-10 rounded-full bg-[#D40511] opacity-20" />
         <div className="absolute bottom-[5%] left-[45%] w-28 h-28 rounded-full bg-[#D40511] opacity-5" />
       </div>
-      <Card className="w-full max-w-md shadow-2xl shadow-black/10 border-muted animate-in relative z-10 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4">
-            <AppLogo size="lg" />
+
+      <div className="relative z-10 w-full max-w-md space-y-4">
+        <Button
+          variant="ghost"
+          onClick={() => setLocation("/")}
+          data-testid="button-back-landing"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+
+        <Card className="w-full shadow-2xl shadow-black/10 border-muted bg-white/80 backdrop-blur-sm">
+          <CardHeader className="space-y-1 text-center">
+            <div className="mx-auto mb-4">
+              <AppLogo size="lg" />
+            </div>
+            <CardTitle className="text-2xl font-bold font-display">Employee Portal</CardTitle>
+            <CardDescription>
+              Sign in to access your incentives and rewards
+            </CardDescription>
+          </CardHeader>
+
+          <Tabs defaultValue="employee" className="w-full px-4">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="employee" className="flex items-center gap-2">
+                <LogIn className="h-4 w-4" />
+                <span className="hidden sm:inline">Employee</span>
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="employee" className="space-y-4 pb-4">
+              <EmployeeLoginForm />
+            </TabsContent>
+
+            <TabsContent value="admin" className="space-y-4 pb-4">
+              <AdminLoginForm />
+            </TabsContent>
+          </Tabs>
+
+          <div className="px-4 pb-4">
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white/80 px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full mt-2"
+              onClick={() => setLocation("/setup")}
+              data-testid="button-first-time"
+            >
+              <HelpCircle className="mr-2 h-4 w-4" />
+              First time login?
+            </Button>
           </div>
-          <CardTitle className="text-2xl font-bold font-display">Employee Portal</CardTitle>
-          <CardDescription>
-            Sign in to access your incentives and rewards
-          </CardDescription>
-        </CardHeader>
-
-        <Tabs defaultValue="employee" className="w-full px-4">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="employee" className="flex items-center gap-2">
-              <LogIn className="h-4 w-4" />
-              <span className="hidden sm:inline">Employee</span>
-            </TabsTrigger>
-            <TabsTrigger value="admin" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Admin</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Employee Login Tab */}
-          <TabsContent value="employee" className="space-y-4 pb-4">
-            <EmployeeLoginForm />
-          </TabsContent>
-
-          {/* Admin Tab */}
-          <TabsContent value="admin" className="space-y-4 pb-4">
-            <AdminLoginForm />
-          </TabsContent>
-        </Tabs>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -222,6 +251,7 @@ function AdminLoginForm() {
 }
 
 function AdminRegisterForm() {
+  const [orgCode, setOrgCode] = useState("");
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -238,7 +268,7 @@ function AdminRegisterForm() {
       alert("Password must be at least 6 characters");
       return;
     }
-    register({ fullName, username, password }, {
+    register({ fullName, username, password, orgCode: orgCode.toUpperCase() } as any, {
       onSuccess: (data: any) => {
         alert("Thank you for creating your account. We are waiting on the administrator to verify your account.");
       }
@@ -247,6 +277,21 @@ function AdminRegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="reg-org-code">Organization Code</Label>
+        <div className="relative">
+          <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="reg-org-code"
+            placeholder="e.g. A1B2C3D4"
+            className="pl-9 uppercase font-mono tracking-widest"
+            value={orgCode}
+            onChange={(e) => setOrgCode(e.target.value.toUpperCase())}
+            required
+            data-testid="input-register-orgcode"
+          />
+        </div>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="full-name">Full Name</Label>
         <Input

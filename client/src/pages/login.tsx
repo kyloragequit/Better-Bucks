@@ -45,8 +45,8 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
 
-        <Tabs defaultValue="employee" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mx-4 mb-4">
+        <Tabs defaultValue="employee" className="w-full px-4">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="employee" className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               <span className="hidden sm:inline">Employee</span>
@@ -58,12 +58,12 @@ export default function LoginPage() {
           </TabsList>
 
           {/* Employee Login Tab */}
-          <TabsContent value="employee" className="space-y-4 px-4 pb-4">
+          <TabsContent value="employee" className="space-y-4 pb-4">
             <EmployeeLoginForm />
           </TabsContent>
 
           {/* Admin Tab */}
-          <TabsContent value="admin" className="space-y-4 px-4 pb-4">
+          <TabsContent value="admin" className="space-y-4 pb-4">
             <AdminLoginForm />
           </TabsContent>
         </Tabs>

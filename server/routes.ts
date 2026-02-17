@@ -53,7 +53,7 @@ export async function registerRoutes(
       if (existingUser) {
         return res.status(409).json({ message: "Username already exists" });
       }
-      // Create admin in "pending" status - requires DSLCA approval
+      // Create admin in "pending" status - requires DSCLA approval
       const user = await storage.createUser({
         username: adminData.username,
         password: adminData.password,
@@ -392,16 +392,16 @@ export async function registerRoutes(
   // Seed default accounts if no users
   const allUsers = await storage.getAllUsers();
   if (allUsers.length === 0) {
-    // Create prime account (DSLCA) - can approve other admins
+    // Create prime account (DSCLA) - can approve other admins
     await storage.createUser({
-      username: "DSLCA",
+      username: "DSCLA",
       password: "DHLLACOMBE",
       fullName: "DHL Admin - Lacombe",
       role: "prime_admin",
-      barcode: "DSLCA",
+      barcode: "DSCLA",
       status: "approved"
     });
-    console.log("Seeded prime admin: DSLCA / DHLLACOMBE");
+    console.log("Seeded prime admin: DSCLA / DHLLACOMBE");
     
     // Create fallback admin for testing
     await storage.createUser({

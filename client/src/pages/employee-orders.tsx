@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ShoppingCart, ExternalLink, Upload, X, ImageIcon, Loader2, Package } from "lucide-react";
+import { ShoppingCart, ExternalLink, Upload, X, ImageIcon, Loader2, Package, Link2 } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -138,6 +138,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [pointsCost, setPointsCost] = useState("");
+  const [itemUrl, setItemUrl] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -146,7 +147,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
   const queryClient = useQueryClient();
 
   const createOrderMutation = useMutation({
-    mutationFn: async (data: { description: string; photoUrls: string[]; pointsCost: number }) => {
+    mutationFn: async (data: { description: string; photoUrls: string[]; itemUrl?: string; pointsCost: number }) => {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -166,6 +167,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
       setOpen(false);
       setDescription("");
       setPointsCost("");
+      setItemUrl("");
       setPhotos([]);
       setPreviews([]);
     },
@@ -202,20 +204,29 @@ function CreateOrderDialog({ balance }: { balance: number }) {
       toast({ title: "Error", description: "Not enough points.", variant: "destructive" });
       return;
     }
-    if (photos.length === 0) {
-      toast({ title: "Error", description: "Please upload at least one photo.", variant: "destructive" });
+    if (photos.length === 0 && !itemUrl.trim()) {
+      toast({ title: "Error", description: "Please upload at least one photo or paste a link to the item.", variant: "destructive" });
       return;
     }
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      photos.forEach(f => formData.append("photos", f));
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
-      if (!uploadRes.ok) throw new Error("Failed to upload photos");
-      const { urls } = await uploadRes.json();
+      let urls: string[] = [];
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach(f => formData.append("photos", f));
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+        if (!uploadRes.ok) throw new Error("Failed to upload photos");
+        const result = await uploadRes.json();
+        urls = result.urls;
+      }
 
-      createOrderMutation.mutate({ description, photoUrls: urls, pointsCost: cost });
+      createOrderMutation.mutate({
+        description,
+        photoUrls: urls,
+        itemUrl: itemUrl.trim() || undefined,
+        pointsCost: cost,
+      });
     } catch (err: any) {
       toast({ title: "Upload Error", description: err.message, variant: "destructive" });
     } finally {
@@ -234,7 +245,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
         <DialogHeader>
           <DialogTitle>Submit Order</DialogTitle>
           <DialogDescription>
-            Upload screenshots from the promo store and describe what you'd like to order.
+            Paste a link to the item and/or upload screenshots, then describe what you'd like to order.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -248,6 +259,22 @@ function CreateOrderDialog({ balance }: { balance: number }) {
               onChange={(e) => setDescription(e.target.value)}
               data-testid="input-order-description"
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="item-url">Item Link (optional)</Label>
+            <div className="relative">
+              <Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="item-url"
+                type="url"
+                placeholder="https://store.example.com/item"
+                className="pl-9"
+                value={itemUrl}
+                onChange={(e) => setItemUrl(e.target.value)}
+                data-testid="input-order-item-url"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Paste a direct link to the item from the store</p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="points">Points to spend</Label>
@@ -265,7 +292,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
             <p className="text-xs text-muted-foreground">You have {balance.toLocaleString()} points available</p>
           </div>
           <div className="grid gap-2">
-            <Label>Photos / Screenshots</Label>
+            <Label>Photos / Screenshots (optional)</Label>
             <input
               ref={fileInputRef}
               type="file"

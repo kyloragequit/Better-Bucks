@@ -8,60 +8,60 @@
   --font-display: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
 
-  /* DHL Brand Colors - Golden Yellow and Crimson Red */
-  --background: 0 0% 98%;
-  --foreground: 222 47% 11%;
+  /* Better Bucks - Pink Brand Color #F0B6E9 */
+  --background: 300 20% 98%;
+  --foreground: 280 30% 11%;
   
-  --primary: 51 100% 50%;
+  --primary: 307 60% 55%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 355 95% 41%;
-  --secondary-foreground: 0 0% 100%;
+  --secondary: 307 40% 75%;
+  --secondary-foreground: 280 30% 11%;
   
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
+  --muted: 300 20% 95%;
+  --muted-foreground: 280 10% 45%;
   
-  --accent: 51 100% 90%;
-  --accent-foreground: 51 100% 25%;
+  --accent: 307 66% 90%;
+  --accent-foreground: 307 60% 30%;
   
-  --destructive: 355 95% 41%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 51 100% 50%;
+  --border: 300 20% 90%;
+  --input: 300 20% 90%;
+  --ring: 307 60% 55%;
   
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+  --card-foreground: 280 30% 11%;
 
   --radius: 0.75rem;
 }
 
 .dark {
-  --background: 222 47% 11%;
-  --foreground: 210 40% 98%;
+  --background: 280 20% 10%;
+  --foreground: 300 20% 96%;
   
-  --primary: 51 100% 55%;
+  --primary: 307 60% 65%;
   --primary-foreground: 0 0% 0%;
   
-  --secondary: 355 95% 50%;
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 307 40% 40%;
+  --secondary-foreground: 300 20% 96%;
   
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
+  --muted: 280 20% 17%;
+  --muted-foreground: 300 15% 65%;
   
-  --accent: 51 100% 45%;
-  --accent-foreground: 0 0% 0%;
+  --accent: 307 50% 45%;
+  --accent-foreground: 0 0% 100%;
   
-  --destructive: 355 95% 50%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive: 0 84% 55%;
+  --destructive-foreground: 0 0% 98%;
   
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 51 100% 55%;
+  --border: 280 20% 20%;
+  --input: 280 20% 20%;
+  --ring: 307 60% 65%;
   
-  --card: 222 47% 14%;
-  --card-foreground: 210 40% 98%;
+  --card: 280 20% 13%;
+  --card-foreground: 300 20% 96%;
 }
 
 @layer base {

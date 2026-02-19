@@ -9,7 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil } from "lucide-react";
+import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Organization } from "@shared/schema";
 
 type OrgWithFree = Organization & { isFree: boolean; employeeCount: number };
@@ -68,6 +69,24 @@ export default function AdminSettingsPage() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const [changingTier, setChangingTier] = useState(false);
+  const [selectedTier, setSelectedTier] = useState("");
+
+  const { mutate: changeTier, isPending: isChangingTier } = useMutation({
+    mutationFn: async (tier: string) => {
+      const res = await apiRequest("POST", "/api/organizations/change-tier", { tier });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
+      toast({ title: "Plan Changed", description: "Your subscription has been updated to the new plan." });
+      setChangingTier(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Change Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -318,43 +337,88 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
 
-                    <div className="border-t pt-4">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" data-testid="button-cancel-subscription">
-                            <AlertTriangle className="mr-2 h-4 w-4" />
-                            Cancel Subscription
+                    {changingTier ? (
+                      <div className="border-t pt-4 space-y-3">
+                        <Label>Select a new plan</Label>
+                        <Select value={selectedTier} onValueChange={setSelectedTier}>
+                          <SelectTrigger data-testid="select-new-tier">
+                            <SelectValue placeholder="Choose a plan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {org.tier !== "small" && <SelectItem value="small">Small Site - $149/mo (up to 100)</SelectItem>}
+                            {org.tier !== "mid" && <SelectItem value="mid">Mid-Size Site - $349/mo (up to 300)</SelectItem>}
+                            {org.tier !== "large" && <SelectItem value="large">Large Site - $599/mo (up to 500)</SelectItem>}
+                            {org.tier !== "enterprise" && <SelectItem value="enterprise">Enterprise - $999/mo (unlimited)</SelectItem>}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => changeTier(selectedTier)}
+                            disabled={isChangingTier || !selectedTier}
+                            data-testid="button-confirm-change-tier"
+                          >
+                            {isChangingTier ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                            Confirm Change
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will immediately cancel your organization's subscription. 
-                              All team members will lose access to the portal. This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel data-testid="button-cancel-dialog-cancel">Keep Subscription</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => cancelSubscription()}
-                              className="bg-destructive text-destructive-foreground"
-                              disabled={isCancelling}
-                              data-testid="button-confirm-cancel"
-                            >
-                              {isCancelling ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Cancelling...
-                                </>
-                              ) : (
-                                "Yes, Cancel Subscription"
-                              )}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setChangingTier(false); setSelectedTier(""); }}
+                            data-testid="button-cancel-change-tier"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border-t pt-4 flex items-center gap-3 flex-wrap">
+                        <Button
+                          variant="outline"
+                          onClick={() => { setChangingTier(true); setSelectedTier(""); }}
+                          data-testid="button-change-tier"
+                        >
+                          <ArrowUpDown className="mr-2 h-4 w-4" />
+                          Change Plan
+                        </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" data-testid="button-cancel-subscription">
+                              <AlertTriangle className="mr-2 h-4 w-4" />
+                              Cancel Subscription
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will immediately cancel your organization's subscription. 
+                                All team members will lose access to the portal. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel data-testid="button-cancel-dialog-cancel">Keep Subscription</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => cancelSubscription()}
+                                className="bg-destructive text-destructive-foreground"
+                                disabled={isCancelling}
+                                data-testid="button-confirm-cancel"
+                              >
+                                {isCancelling ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Cancelling...
+                                  </>
+                                ) : (
+                                  "Yes, Cancel Subscription"
+                                )}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">

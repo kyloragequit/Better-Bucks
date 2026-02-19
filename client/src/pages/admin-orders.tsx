@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Package, Check, X, Eye, Loader2 } from "lucide-react";
+import { Package, Check, X, Eye, Loader2, ExternalLink } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -63,7 +63,7 @@ export default function AdminOrdersPage() {
                   <TableHead>Employee</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Points</TableHead>
-                  <TableHead>Photos</TableHead>
+                  <TableHead>Details</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -80,7 +80,9 @@ export default function AdminOrdersPage() {
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
-                        <Eye className="mr-1 h-4 w-4" /> {order.photoUrls.length}
+                        <Eye className="mr-1 h-4 w-4" />
+                        {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
+                        {order.itemUrl ? " Link" : ""}
                       </Button>
                     </TableCell>
                     <TableCell className="text-right">
@@ -112,7 +114,7 @@ export default function AdminOrdersPage() {
                 <TableHead>Description</TableHead>
                 <TableHead>Points</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Photos</TableHead>
+                <TableHead>Details</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -141,7 +143,9 @@ export default function AdminOrdersPage() {
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-${order.id}`}>
-                      <Eye className="mr-1 h-4 w-4" /> {order.photoUrls.length}
+                      <Eye className="mr-1 h-4 w-4" />
+                      {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
+                      {order.itemUrl ? " Link" : ""}
                     </Button>
                   </TableCell>
                   <TableCell className="text-right">
@@ -219,7 +223,7 @@ function OrderPhotoDialog({ order, onClose }: { order: OrderWithUser; onClose: (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Order #{order.id} - Photos</DialogTitle>
+          <DialogTitle>Order #{order.id} - Details</DialogTitle>
           <DialogDescription>
             Submitted by {order.user?.fullName} on {format(new Date(order.createdAt), "MMM d, yyyy h:mm a")}
           </DialogDescription>
@@ -231,13 +235,33 @@ function OrderPhotoDialog({ order, onClose }: { order: OrderWithUser; onClose: (
           <div className="text-sm">
             <span className="font-medium">Points:</span> {order.pointsCost.toLocaleString()}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {order.photoUrls.map((url, idx) => (
-              <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-md overflow-hidden border aspect-square">
-                <img src={url} alt={`Order photo ${idx + 1}`} className="w-full h-full object-cover" />
+          {order.itemUrl && (
+            <div className="text-sm">
+              <span className="font-medium">Item Link:</span>{" "}
+              <a
+                href={order.itemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline inline-flex items-center gap-1"
+                data-testid="link-order-item-url"
+              >
+                {order.itemUrl}
+                <ExternalLink className="h-3 w-3" />
               </a>
-            ))}
-          </div>
+            </div>
+          )}
+          {order.photoUrls.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {order.photoUrls.map((url, idx) => (
+                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-md overflow-hidden border aspect-square">
+                  <img src={url} alt={`Order photo ${idx + 1}`} className="w-full h-full object-cover" />
+                </a>
+              ))}
+            </div>
+          )}
+          {order.photoUrls.length === 0 && !order.itemUrl && (
+            <p className="text-sm text-muted-foreground">No photos or links attached</p>
+          )}
         </div>
       </DialogContent>
     </Dialog>

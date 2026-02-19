@@ -1,8 +1,8 @@
-# Employee Incentive Portal
+# Better Bucks
 
 ## Overview
 
-This is a multi-tenant full-stack employee incentive and rewards management system. Organizations sign up via a $50/month Stripe subscription, receive an organization code, and set up their prime admin account. Employees can view their point balances and transaction history via barcode-based identification, while administrators can manage employee accounts, adjust balances, and approve new admin registrations. The system features a role-based access control hierarchy with employees, admins, and a prime admin who can approve new administrator accounts.
+This is a multi-tenant full-stack employee incentive and rewards management system branded as "Better Bucks". Organizations sign up via tiered Stripe subscriptions, receive an organization code, and set up their prime admin account. Employees can view their point balances and transaction history via barcode-based identification, while administrators can manage employee accounts, adjust balances, and approve new admin registrations. The system features a role-based access control hierarchy with employees, admins, and a prime admin who can approve new administrator accounts.
 
 ## User Preferences
 
@@ -54,6 +54,8 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 ### Order System
 - Employees browse items at a configurable store URL (default: https://dscpromostore.com/) and submit orders with photo screenshots
 - Prime admins can edit the store URL from Settings page; employees see the updated URL in their nav and orders page
+- Orders support both item links (URLs) and photo uploads - at least one is required
+- Orders have `itemUrl` column (optional text) and `photoUrls` array
 - Orders deduct points from employee balance on creation
 - Admins can approve, reject, or complete orders
 - Rejected orders refund points back to the employee
@@ -75,11 +77,13 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - PRIME1 organization: Free membership org (stripeCustomerId="free_membership", tier="enterprise"), auto-created on startup
 - Prime admins can cancel their org subscription via Settings page (/admin/settings)
 - Settings page shows current tier, employee count/limit with usage bar
-- Free memberships cannot be cancelled
+- Prime admins can change their subscription tier (upgrade/downgrade) via Settings page
+- Tier changes update Stripe subscription with proration and update local DB tier/maxEmployees
+- Free memberships cannot be cancelled or changed
 
 ### App Branding
 - Yellow square logo with letter "B" used across all layouts (AppLogo component)
-- DHL brand color palette (golden yellow primary, crimson red secondary)
+- Pink brand color palette (base color #F0B6E9, HSL 307 60% 55% primary)
 
 ### Shared Code
 The `shared/` directory contains code used by both frontend and backend:

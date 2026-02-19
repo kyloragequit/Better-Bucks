@@ -34,6 +34,7 @@ export interface IStorage {
   updateOrganizationStripe(id: number, stripeCustomerId: string, stripeSubscriptionId: string): Promise<Organization>;
   updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending"): Promise<Organization>;
   updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization>;
+  updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -229,6 +230,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ storeUrl }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ tier, maxEmployees }).where(eq(organizations.id, id)).returning();
     return updated;
   }
 }

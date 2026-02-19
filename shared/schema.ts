@@ -64,6 +64,7 @@ export const orders = pgTable("orders", {
   pointsCost: integer("points_cost").notNull(),
   description: text("description").notNull(),
   photoUrls: text("photo_urls").array().notNull(),
+  itemUrl: text("item_url"),
   status: text("status", { enum: ["pending", "approved", "rejected", "completed"] }).default("pending").notNull(),
   adminNotes: text("admin_notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

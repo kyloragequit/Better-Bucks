@@ -360,9 +360,13 @@ export async function registerRoutes(
   // Orders
   const createOrderSchema = z.object({
     description: z.string().min(1, "Description is required"),
-    photoUrls: z.array(z.string()).min(1, "At least one photo is required"),
+    photoUrls: z.array(z.string()).default([]),
+    itemUrl: z.string().url().optional().or(z.literal("")),
     pointsCost: z.number().int().positive("Points must be greater than 0"),
-  });
+  }).refine(
+    (data) => data.photoUrls.length > 0 || (data.itemUrl && data.itemUrl.length > 0),
+    { message: "Please provide at least one photo or a link to the item" }
+  );
 
   app.post("/api/orders", async (req, res) => {
     const user = req.user as User | undefined;
@@ -372,7 +376,7 @@ export async function registerRoutes(
     try {
       const parsed = createOrderSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
-      const { description, photoUrls, pointsCost } = parsed.data;
+      const { description, photoUrls, itemUrl, pointsCost } = parsed.data;
 
       if (user.balance < pointsCost) {
         return res.status(400).json({ message: "Insufficient points balance" });
@@ -383,6 +387,7 @@ export async function registerRoutes(
         pointsCost,
         description,
         photoUrls,
+        itemUrl: itemUrl || null,
       });
 
       await storage.updateUserBalance(user.id, -pointsCost);
@@ -499,7 +504,7 @@ export async function registerRoutes(
         currency: "usd",
         recurring: { interval: "month" },
         product_data: {
-          name: `Employee Incentive Portal - ${config.name}`,
+          name: `Better Bucks - ${config.name}`,
           metadata: { tier },
         },
       });
@@ -693,6 +698,72 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error cancelling subscription:", error);
       res.status(500).json({ message: "Failed to cancel subscription" });
+    }
+  });
+
+  // Change subscription tier (prime admin only)
+  app.post("/api/organizations/change-tier", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.status(400).json({ message: "No organization found" });
+    }
+
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+
+    if (org.stripeCustomerId === "free_membership") {
+      return res.status(400).json({ message: "Free memberships cannot change tiers" });
+    }
+
+    const { tier } = z.object({ tier: z.enum(["small", "mid", "large", "enterprise"]) }).parse(req.body);
+
+    if (tier === org.tier) {
+      return res.status(400).json({ message: "You are already on this plan" });
+    }
+
+    const config = tierConfig[tier];
+
+    const orgUsers = await storage.getUsersByOrganization(org.id);
+    if (config.maxEmployees > 0 && orgUsers.length > config.maxEmployees) {
+      return res.status(400).json({
+        message: `Cannot downgrade: you have ${orgUsers.length} employees but the ${config.name} plan allows only ${config.maxEmployees}.`
+      });
+    }
+
+    try {
+      const stripe = await getUncachableStripeClient();
+
+      if (org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
+        const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+        const price = await stripe.prices.create({
+          unit_amount: config.price,
+          currency: "usd",
+          recurring: { interval: "month" },
+          product_data: {
+            name: `Better Bucks - ${config.name}`,
+            metadata: { tier },
+          },
+        });
+
+        await stripe.subscriptions.update(org.stripeSubscriptionId, {
+          items: [{
+            id: subscription.items.data[0].id,
+            price: price.id,
+          }],
+          proration_behavior: 'create_prorations',
+        });
+
+        await storage.updateOrganizationTier(org.id, tier, config.maxEmployees);
+        res.json({ message: "Subscription updated successfully", tier, maxEmployees: config.maxEmployees });
+      } else {
+        return res.status(400).json({ message: "No active subscription to modify" });
+      }
+    } catch (error: any) {
+      console.error("Error changing tier:", error);
+      res.status(500).json({ message: error.message || "Failed to change subscription tier" });
     }
   });
 

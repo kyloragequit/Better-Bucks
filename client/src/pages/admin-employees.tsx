@@ -1,20 +1,26 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { useUsers, useCreateUser } from "@/hooks/use-users";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, UserPlus, ChevronRight } from "lucide-react";
+import { Plus, Search, UserPlus, ChevronRight, TrendingUp, Calendar, CalendarDays, CalendarRange } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import type { InsertUser } from "@shared/schema";
 
 export default function AdminEmployeesPage() {
   const { data: users, isLoading } = useUsers();
   const [search, setSearch] = useState("");
+
+  const { data: pointsStats } = useQuery<{ week: number; month: number; year: number }>({
+    queryKey: ["/api/stats/points"],
+  });
 
   const filteredUsers = users?.filter(user => 
     user.fullName.toLowerCase().includes(search.toLowerCase()) ||
@@ -29,6 +35,42 @@ export default function AdminEmployeesPage() {
           <p className="text-muted-foreground mt-1">Manage employee accounts and balances</p>
         </div>
         <CreateEmployeeDialog />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="border shadow-sm">
+          <CardContent className="pt-5 pb-4 px-5 flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 flex-shrink-0">
+              <Calendar className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Points This Week</p>
+              <p className="text-2xl font-bold" data-testid="text-points-week">{pointsStats?.week?.toLocaleString() ?? "—"}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border shadow-sm">
+          <CardContent className="pt-5 pb-4 px-5 flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600 flex-shrink-0">
+              <CalendarDays className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Points This Month</p>
+              <p className="text-2xl font-bold" data-testid="text-points-month">{pointsStats?.month?.toLocaleString() ?? "—"}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border shadow-sm">
+          <CardContent className="pt-5 pb-4 px-5 flex items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 flex-shrink-0">
+              <CalendarRange className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Points This Year</p>
+              <p className="text-2xl font-bold" data-testid="text-points-year">{pointsStats?.year?.toLocaleString() ?? "—"}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">

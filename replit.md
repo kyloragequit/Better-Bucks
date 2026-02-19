@@ -52,8 +52,9 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - **Note**: Current implementation uses plain text password comparison (marked as insecure for demo purposes)
 
 ### Order System
-- Employees browse items at a configurable store URL (default: https://dscpromostore.com/) and submit orders with photo screenshots
-- Prime admins can edit the store URL from Settings page; employees see the updated URL in their nav and orders page
+- Employees browse items at a configurable store URL and submit orders with photo screenshots
+- Store URL is set during initial org setup (no default); prime admins can also edit it from Settings page
+- Employees see the store URL in their nav and orders page
 - Orders support both item links (URLs) and photo uploads - at least one is required
 - Orders have `itemUrl` column (optional text) and `photoUrls` array
 - Orders deduct points from employee balance on creation
@@ -63,7 +64,9 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 
 ### Organization & Subscription System
 - Landing page (/) with "Sign up for your organization" and "Log in to my organization" options
-- Signup flow: Select tier -> Enter org name + email -> Stripe checkout -> receive org code
+- Signup flow: Select tier -> Enter org name + email + optional promo code -> Stripe checkout -> receive org code
+- Promo code GOKU11 bypasses payment and activates org immediately
+- First-time setup requires selecting a store website URL (no default)
 - **Pricing Tiers**:
   - Small Site: $149/month, up to 100 employees
   - Mid-Size Site: $349/month, up to 300 employees
@@ -76,6 +79,7 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Webhook route registered BEFORE express.json() middleware in server/index.ts
 - PRIME1 organization: Free membership org (stripeCustomerId="free_membership", tier="enterprise"), auto-created on startup
 - Prime admins can cancel their org subscription via Settings page (/admin/settings)
+- Admin employees page shows points distribution stats (week/month/year) at the top
 - Settings page shows current tier, employee count/limit with usage bar
 - Prime admins can change their subscription tier (upgrade/downgrade) via Settings page
 - Tier changes update Stripe subscription with proration and update local DB tier/maxEmployees

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check, Globe } from "lucide-react";
 
 export default function SetupPrimePage() {
   const [, setLocation] = useLocation();
@@ -23,6 +23,7 @@ export default function SetupPrimePage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [storeUrl, setStoreUrl] = useState("");
   const [codeValidated, setCodeValidated] = useState(false);
   const [orgName, setOrgName] = useState("");
 
@@ -63,6 +64,7 @@ export default function SetupPrimePage() {
         username,
         password,
         fullName,
+        storeUrl,
       });
       return await res.json();
     },
@@ -180,6 +182,24 @@ export default function SetupPrimePage() {
                 <div className="rounded-md bg-green-50 border border-green-200 p-3 flex items-center gap-2 text-sm text-green-800">
                   <Check className="h-4 w-4" />
                   Organization verified: {orgName}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="setup-store-url">Employee Store Website</Label>
+                  <p className="text-xs text-muted-foreground">Enter the website where your employees will browse and pick items</p>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="setup-store-url"
+                      type="url"
+                      placeholder="https://yourstore.com"
+                      className="pl-9"
+                      value={storeUrl}
+                      onChange={(e) => setStoreUrl(e.target.value)}
+                      required
+                      data-testid="input-setup-store-url"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">

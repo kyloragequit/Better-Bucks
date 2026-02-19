@@ -10,9 +10,9 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and, gte, gt, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { organizations, users, infoRequests } from "@shared/schema";
+import { organizations, users, infoRequests, transactions } from "@shared/schema";
 import nodemailer from "nodemailer";
 
 import type { User } from "@shared/schema";
@@ -454,6 +454,57 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Points distribution stats (admin only)
+  app.get("/api/stats/points", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const orgUserIds = orgUsers.map(u => u.id);
+
+    if (orgUserIds.length === 0) {
+      return res.json({ week: 0, month: 0, year: 0 });
+    }
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+
+    const [weekResult] = await db.select({
+      total: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 THEN ${transactions.amount} ELSE 0 END), 0)`
+    }).from(transactions)
+      .where(and(
+        inArray(transactions.userId, orgUserIds),
+        gte(transactions.createdAt, weekAgo)
+      ));
+
+    const [monthResult] = await db.select({
+      total: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 THEN ${transactions.amount} ELSE 0 END), 0)`
+    }).from(transactions)
+      .where(and(
+        inArray(transactions.userId, orgUserIds),
+        gte(transactions.createdAt, monthAgo)
+      ));
+
+    const [yearResult] = await db.select({
+      total: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 THEN ${transactions.amount} ELSE 0 END), 0)`
+    }).from(transactions)
+      .where(and(
+        inArray(transactions.userId, orgUserIds),
+        gte(transactions.createdAt, yearAgo)
+      ));
+
+    res.json({
+      week: Number(weekResult.total),
+      month: Number(monthResult.total),
+      year: Number(yearResult.total),
+    });
+  });
+
   // Stripe publishable key (public)
   app.get("/api/stripe/publishable-key", async (_req, res) => {
     try {
@@ -555,11 +606,12 @@ export async function registerRoutes(
     username: z.string().min(3, "Username must be at least 3 characters"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     fullName: z.string().min(2, "Full name is required"),
+    storeUrl: z.string().url("Please enter a valid website URL").min(1, "Store URL is required"),
   });
 
   app.post("/api/organizations/setup-prime", async (req, res) => {
     try {
-      const { orgCode, username, password, fullName } = setupPrimeSchema.parse(req.body);
+      const { orgCode, username, password, fullName, storeUrl } = setupPrimeSchema.parse(req.body);
 
       const org = await storage.getOrganizationByCode(orgCode.toUpperCase());
       if (!org) return res.status(404).json({ message: "Invalid organization code" });
@@ -572,6 +624,8 @@ export async function registerRoutes(
 
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) return res.status(409).json({ message: "Username already taken" });
+
+      await storage.updateOrganizationStoreUrl(org.id, storeUrl);
 
       const user = await storage.createUser({
         username,

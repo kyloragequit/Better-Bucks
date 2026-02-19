@@ -478,12 +478,12 @@ export async function registerRoutes(
     organizationName: z.string().min(2, "Organization name is required"),
     email: z.string().email("Valid email is required"),
     tier: z.enum(["small", "mid", "large", "enterprise"]),
+    promoCode: z.string().optional(),
   });
 
   app.post("/api/organizations/signup", async (req, res) => {
     try {
-      const { organizationName, email, tier } = signupSchema.parse(req.body);
-      const stripe = await getUncachableStripeClient();
+      const { organizationName, email, tier, promoCode } = signupSchema.parse(req.body);
       const config = tierConfig[tier];
 
       const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -494,6 +494,15 @@ export async function registerRoutes(
         tier,
         maxEmployees: config.maxEmployees,
       });
+
+      if (promoCode && promoCode.toUpperCase() === "GOKU11") {
+        await storage.updateOrganizationStripe(org.id, "promo_GOKU11", "promo_GOKU11");
+        await storage.updateOrganizationStatus(org.id, "active");
+
+        return res.json({ promoApplied: true, orgCode });
+      }
+
+      const stripe = await getUncachableStripeClient();
 
       const customer = await stripe.customers.create({
         email,

@@ -62,6 +62,7 @@ export default function SignupPage() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
+  const [promoCode, setPromoCode] = useState("");
 
   const [rfiName, setRfiName] = useState("");
   const [rfiEmail, setRfiEmail] = useState("");
@@ -97,11 +98,14 @@ export default function SignupPage() {
         organizationName: orgName,
         email,
         tier: selectedTier,
+        promoCode: promoCode || undefined,
       });
       return await res.json();
     },
-    onSuccess: (data: { url: string }) => {
-      if (data.url) {
+    onSuccess: (data: { url?: string; promoApplied?: boolean; orgCode?: string }) => {
+      if (data.promoApplied && data.orgCode) {
+        setLocation(`/signup/success?org_code=${data.orgCode}`);
+      } else if (data.url) {
         window.location.href = data.url;
       }
     },
@@ -260,6 +264,16 @@ export default function SignupPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     data-testid="input-org-email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="promo-code">Promo Code (optional)</Label>
+                  <Input
+                    id="promo-code"
+                    placeholder="Enter promo code"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    data-testid="input-promo-code"
                   />
                 </div>
                 <Button

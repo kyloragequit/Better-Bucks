@@ -732,7 +732,7 @@ export async function registerRoutes(
     const org = await storage.getOrganization(user.organizationId);
     if (!org) return res.status(404).json({ message: "Organization not found" });
     
-    const isFree = org.stripeCustomerId === "free_membership";
+    const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
     const orgUsers = await storage.getUsersByOrganization(user.organizationId);
     res.json({ ...org, isFree, employeeCount: orgUsers.length });
   });
@@ -781,6 +781,13 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Free memberships cannot be cancelled" });
     }
 
+    const isPromoOrg = org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
+
+    if (isPromoOrg) {
+      await storage.updateOrganizationStatus(org.id, "inactive");
+      return res.json({ message: "Subscription cancelled successfully" });
+    }
+
     if (!org.stripeSubscriptionId || org.stripeSubscriptionId === "pending_checkout") {
       return res.status(400).json({ message: "No active subscription to cancel" });
     }
@@ -811,6 +818,11 @@ export async function registerRoutes(
 
     if (org.stripeCustomerId === "free_membership") {
       return res.status(400).json({ message: "Free memberships cannot change tiers" });
+    }
+
+    const isPromoOrg = org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
+    if (isPromoOrg) {
+      return res.status(400).json({ message: "Promo code memberships cannot change tiers" });
     }
 
     const { tier } = z.object({ tier: z.enum(["small", "mid", "large", "enterprise"]) }).parse(req.body);

@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown } from "lucide-react";
+import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Organization } from "@shared/schema";
 
@@ -87,6 +87,27 @@ export default function AdminSettingsPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Change Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const { mutate: deleteOrganization, isPending: isDeleting } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/organizations/delete");
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Organization Deleted",
+        description: "Your organization has been permanently deleted.",
+      });
+      window.location.href = "/";
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Deletion Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -317,11 +338,42 @@ export default function AdminSettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {org.isFree ? (
-                  <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 p-4 text-sm text-green-800">
-                    <Shield className="h-5 w-5 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">Free Membership</div>
-                      <div>Your organization has a complimentary membership with full access to all features.</div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 p-4 text-sm text-green-800">
+                      <Shield className="h-5 w-5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium">Free Membership</div>
+                        <div>Your organization has a complimentary membership with full access to all features.</div>
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" data-testid="button-delete-org">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Organization
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Organization?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete your organization, all employee accounts, transaction history, and orders. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteOrganization()}
+                              disabled={isDeleting}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              data-testid="button-confirm-delete-org"
+                            >
+                              {isDeleting ? "Deleting..." : "Yes, Delete Everything"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ) : org.status === "active" ? (

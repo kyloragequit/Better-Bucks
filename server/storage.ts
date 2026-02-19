@@ -35,6 +35,7 @@ export interface IStorage {
   updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending"): Promise<Organization>;
   updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization>;
   updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization>;
+  deleteOrganization(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -236,6 +237,22 @@ export class DatabaseStorage implements IStorage {
   async updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ tier, maxEmployees }).where(eq(organizations.id, id)).returning();
     return updated;
+  }
+
+  async deleteOrganization(id: number): Promise<void> {
+    const orgUsers = await this.getUsersByOrganization(id);
+    const userIds = orgUsers.map(u => u.id);
+    if (userIds.length > 0) {
+      await db.delete(transactions).where(
+        eq(transactions.userId, userIds[0])
+      );
+      for (const uid of userIds) {
+        await db.delete(transactions).where(eq(transactions.userId, uid));
+        await db.delete(orders).where(eq(orders.userId, uid));
+      }
+      await db.delete(users).where(eq(users.organizationId, id));
+    }
+    await db.delete(organizations).where(eq(organizations.id, id));
   }
 }
 

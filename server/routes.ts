@@ -803,6 +803,36 @@ export async function registerRoutes(
     }
   });
 
+  // Delete organization (prime admin only, free/promo orgs)
+  app.post("/api/organizations/delete", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.status(400).json({ message: "No organization found" });
+    }
+
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+
+    const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
+    if (!isFree) {
+      return res.status(400).json({ message: "Only free or promo organizations can be deleted. Please cancel your subscription first." });
+    }
+
+    try {
+      req.logout((err) => {
+        if (err) console.error("Logout error during org delete:", err);
+      });
+      await storage.deleteOrganization(org.id);
+      res.json({ message: "Organization deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting organization:", error);
+      res.status(500).json({ message: "Failed to delete organization" });
+    }
+  });
+
   // Change subscription tier (prime admin only)
   app.post("/api/organizations/change-tier", async (req, res) => {
     const user = req.user as User | undefined;

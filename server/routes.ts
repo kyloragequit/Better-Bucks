@@ -160,15 +160,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Please provide either a valid email address or phone number" });
       }
       if (hasEmail) {
-        const existingEmail = await storage.getUserByEmailAndOrg(adminEmail, org.id);
+        const existingEmail = await storage.getUserByEmailGlobal(adminEmail);
         if (existingEmail) {
-          return res.status(400).json({ message: "This email is already in use within this organization" });
+          return res.status(400).json({ message: "This email is already associated with an existing account. You must delete that account before using this email for a new one." });
         }
       }
       if (hasPhone) {
-        const existingPhone = await storage.getUserByPhoneAndOrg(adminPhone, org.id);
+        const existingPhone = await storage.getUserByPhoneGlobal(adminPhone);
         if (existingPhone) {
-          return res.status(400).json({ message: "This phone number is already in use within this organization" });
+          return res.status(400).json({ message: "This phone number is already associated with an existing account. You must delete that account before using this number for a new one." });
         }
       }
 
@@ -220,15 +220,15 @@ export async function registerRoutes(
           return res.status(400).json({ message: "Username/Employee Code already exists in this organization" });
         }
         if (hasEmail) {
-          const existingEmail = await storage.getUserByEmailAndOrg(empEmail, user.organizationId);
+          const existingEmail = await storage.getUserByEmailGlobal(empEmail);
           if (existingEmail) {
-            return res.status(400).json({ message: "This email is already in use within this organization" });
+            return res.status(400).json({ message: "This email is already associated with an existing account. You must delete that account before using this email for a new one." });
           }
         }
         if (hasPhone) {
-          const existingPhone = await storage.getUserByPhoneAndOrg(empPhone, user.organizationId);
+          const existingPhone = await storage.getUserByPhoneGlobal(empPhone);
           if (existingPhone) {
-            return res.status(400).json({ message: "This phone number is already in use within this organization" });
+            return res.status(400).json({ message: "This phone number is already associated with an existing account. You must delete that account before using this number for a new one." });
           }
         }
         const org = await storage.getOrganization(user.organizationId);

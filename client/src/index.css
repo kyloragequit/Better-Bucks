@@ -8,28 +8,28 @@
   --font-display: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
 
-  /* Better Bucks - Pink Brand Color #F0B6E9 */
-  --background: 300 20% 98%;
-  --foreground: 280 30% 11%;
+  /* Better Bucks - Pink Brand Color #F7C1E7 */
+  --background: 318 20% 98%;
+  --foreground: 300 30% 11%;
   
-  --primary: 307 60% 55%;
+  --primary: 318 60% 55%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 307 40% 75%;
-  --secondary-foreground: 280 30% 11%;
+  --secondary: 318 40% 75%;
+  --secondary-foreground: 300 30% 11%;
   
-  --muted: 300 20% 95%;
-  --muted-foreground: 280 10% 45%;
+  --muted: 318 20% 95%;
+  --muted-foreground: 300 10% 45%;
   
-  --accent: 307 66% 90%;
-  --accent-foreground: 307 60% 30%;
+  --accent: 318 69% 86%;
+  --accent-foreground: 318 60% 30%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 300 20% 90%;
-  --input: 300 20% 90%;
-  --ring: 307 60% 55%;
+  --border: 318 20% 90%;
+  --input: 318 20% 90%;
+  --ring: 318 60% 55%;
   
   --card: 0 0% 100%;
   --card-foreground: 280 30% 11%;
@@ -41,24 +41,24 @@
   --background: 280 20% 10%;
   --foreground: 300 20% 96%;
   
-  --primary: 307 60% 65%;
+  --primary: 318 60% 65%;
   --primary-foreground: 0 0% 0%;
   
-  --secondary: 307 40% 40%;
-  --secondary-foreground: 300 20% 96%;
+  --secondary: 318 40% 40%;
+  --secondary-foreground: 318 20% 96%;
   
-  --muted: 280 20% 17%;
-  --muted-foreground: 300 15% 65%;
+  --muted: 300 20% 17%;
+  --muted-foreground: 318 15% 65%;
   
-  --accent: 307 50% 45%;
+  --accent: 318 50% 45%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 84% 55%;
   --destructive-foreground: 0 0% 98%;
   
-  --border: 280 20% 20%;
-  --input: 280 20% 20%;
-  --ring: 307 60% 65%;
+  --border: 300 20% 20%;
+  --input: 300 20% 20%;
+  --ring: 318 60% 65%;
   
   --card: 280 20% 13%;
   --card-foreground: 300 20% 96%;

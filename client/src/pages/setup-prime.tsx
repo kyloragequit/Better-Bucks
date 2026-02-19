@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check, Globe } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check, Globe, Mail } from "lucide-react";
 
 export default function SetupPrimePage() {
   const [, setLocation] = useLocation();
@@ -23,6 +23,7 @@ export default function SetupPrimePage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [storeUrl, setStoreUrl] = useState("");
   const [codeValidated, setCodeValidated] = useState(false);
   const [orgName, setOrgName] = useState("");
@@ -64,6 +65,7 @@ export default function SetupPrimePage() {
         username,
         password,
         fullName,
+        email,
         storeUrl,
       });
       return await res.json();
@@ -72,9 +74,9 @@ export default function SetupPrimePage() {
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Account Created!",
-        description: `Welcome, ${user.fullName}! You are now the administrator.`,
+        description: `Welcome, ${user.fullName}! Please verify your email.`,
       });
-      setLocation("/admin/dashboard");
+      setLocation("/verify-email");
     },
     onError: (error: Error) => {
       toast({
@@ -214,6 +216,23 @@ export default function SetupPrimePage() {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       data-testid="input-setup-fullname"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="setup-email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="setup-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      className="pl-9"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      data-testid="input-setup-email"
                     />
                   </div>
                 </div>

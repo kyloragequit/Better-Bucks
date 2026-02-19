@@ -15,6 +15,8 @@ export interface IStorage {
   getUsersByOrganization(organizationId: number): Promise<User[]>;
   getPendingAdminsByOrganization(organizationId: number): Promise<User[]>;
   getUserByUsernameAndOrg(username: string, organizationId: number): Promise<User | undefined>;
+  getUserByEmailAndOrg(email: string, organizationId: number): Promise<User | undefined>;
+  updateUserEmailVerification(userId: number, code: string | null, verified: boolean): Promise<User>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransactionsByUser(userId: number): Promise<Transaction[]>;
@@ -127,6 +129,21 @@ export class DatabaseStorage implements IStorage {
       and(eq(users.username, username), eq(users.organizationId, organizationId))
     );
     return user;
+  }
+
+  async getUserByEmailAndOrg(email: string, organizationId: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      and(eq(users.email, email), eq(users.organizationId, organizationId))
+    );
+    return user;
+  }
+
+  async updateUserEmailVerification(userId: number, code: string | null, verified: boolean): Promise<User> {
+    const [updated] = await db.update(users).set({
+      emailVerificationCode: code,
+      emailVerified: verified,
+    }).where(eq(users.id, userId)).returning();
+    return updated;
   }
 
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {

@@ -22,6 +22,7 @@ import AdminPendingPage from "@/pages/admin-pending";
 import AdminSettingsPage from "@/pages/admin-settings";
 import PendingVerification from "@/pages/pending-verification";
 import ChangePasswordPage from "@/pages/change-password";
+import VerifyEmailPage from "@/pages/verify-email";
 
 function ProtectedRoute({ 
   component: Component, 
@@ -42,6 +43,10 @@ function ProtectedRoute({
     return <Redirect to="/pending-verification" />;
   }
 
+  if (!user.emailVerified && user.email && window.location.pathname !== '/verify-email') {
+    return <Redirect to="/verify-email" />;
+  }
+
   if (user.mustChangePassword && window.location.pathname !== '/change-password') {
     return <Redirect to="/change-password" />;
   }
@@ -55,6 +60,17 @@ function ProtectedRoute({
   }
 
   return <Component />;
+}
+
+function VerifyEmailRoute() {
+  const { data: user, isLoading } = useUser();
+  if (isLoading) return <FullPageLoader />;
+  if (!user) return <Redirect to="/login" />;
+  if (user.emailVerified) {
+    if (user.role === "employee") return <Redirect to="/dashboard" />;
+    return <Redirect to="/admin/dashboard" />;
+  }
+  return <VerifyEmailPage user={user} />;
 }
 
 function Router() {
@@ -90,6 +106,9 @@ function Router() {
       </Route>
       <Route path="/admin/settings">
         <ProtectedRoute component={AdminSettingsPage} adminOnly />
+      </Route>
+      <Route path="/verify-email">
+        <VerifyEmailRoute />
       </Route>
       <Route path="/pending-verification" component={PendingVerification} />
       <Route path="/change-password" component={ChangePasswordPage} />

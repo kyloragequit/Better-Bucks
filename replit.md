@@ -49,6 +49,12 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Three user roles: `employee`, `admin`, `prime_admin`
 - Admin accounts require approval from prime_admin before activation
 - Password change enforcement via `mustChangePassword` flag
+- Email verification required for all new users (6-digit code sent via email)
+  - Users with email set but not verified are redirected to /verify-email
+  - Existing users without email are not blocked
+  - Email must be unique within an organization
+  - SMTP configured via SMTP_USER and SMTP_PASS secrets (falls back to console logging)
+  - Endpoints: POST /api/verify-email, POST /api/resend-verification
 - **Note**: Current implementation uses plain text password comparison (marked as insecure for demo purposes)
 
 ### Order System

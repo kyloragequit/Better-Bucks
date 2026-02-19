@@ -17,6 +17,40 @@ import nodemailer from "nodemailer";
 
 import type { User } from "@shared/schema";
 
+async function sendVerificationEmail(email: string, code: string, fullName: string): Promise<void> {
+  try {
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    if (!smtpUser || !smtpPass) {
+      console.log(`[Email Verification] SMTP not configured. Code for ${email}: ${code}`);
+      return;
+    }
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: { user: smtpUser, pass: smtpPass },
+    });
+    await transporter.sendMail({
+      from: `"Better Bucks" <${smtpUser}>`,
+      to: email,
+      subject: "Verify your email - Better Bucks",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          <h2 style="color: #d946a8;">Better Bucks</h2>
+          <p>Hi ${fullName},</p>
+          <p>Your verification code is:</p>
+          <div style="background: #fce4ec; padding: 16px; border-radius: 8px; text-align: center; font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #d946a8;">${code}</div>
+          <p style="margin-top: 16px; color: #666;">Enter this code in the app to verify your email address.</p>
+        </div>
+      `,
+    });
+    console.log(`[Email Verification] Sent to ${email}`);
+  } catch (err) {
+    console.error(`[Email Verification] Failed to send to ${email}:`, err);
+  }
+}
+
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -76,15 +110,30 @@ export async function registerRoutes(
           return res.status(400).json({ message: `This organization has reached its employee limit (${org.maxEmployees}). Please contact your administrator to upgrade the plan.` });
         }
       }
+      const adminEmail = req.body.email;
+      if (!adminEmail || !z.string().email().safeParse(adminEmail).success) {
+        return res.status(400).json({ message: "A valid email address is required" });
+      }
+      const existingEmail = await storage.getUserByEmailAndOrg(adminEmail, org.id);
+      if (existingEmail) {
+        return res.status(400).json({ message: "This email is already in use within this organization" });
+      }
+
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
       const user = await storage.createUser({
         username: adminData.username,
         password: adminData.password,
         fullName: adminData.fullName,
+        email: adminEmail,
+        emailVerificationCode: verificationCode,
         role: "admin",
         barcode: adminData.username,
         status: "pending",
         organizationId: org.id,
       });
+
+      await sendVerificationEmail(adminEmail, verificationCode, adminData.fullName);
       console.log(`New admin registration: ${user.username} for org ${org.name} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
@@ -104,10 +153,17 @@ export async function registerRoutes(
     }
     try {
       const userData = api.users.create.input.parse(req.body);
+      if (!userData.email || !z.string().email().safeParse(userData.email).success) {
+        return res.status(400).json({ message: "A valid email address is required" });
+      }
       if (user.organizationId) {
         const existingUser = await storage.getUserByUsernameAndOrg(userData.username, user.organizationId);
         if (existingUser) {
           return res.status(400).json({ message: "Username/Employee Code already exists in this organization" });
+        }
+        const existingEmail = await storage.getUserByEmailAndOrg(userData.email, user.organizationId);
+        if (existingEmail) {
+          return res.status(400).json({ message: "This email is already in use within this organization" });
         }
         const org = await storage.getOrganization(user.organizationId);
         if (org && org.maxEmployees > 0) {
@@ -118,13 +174,22 @@ export async function registerRoutes(
           }
         }
       }
+
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
       const newUser = await storage.createUser({
         ...userData,
         barcode: userData.barcode || userData.username,
+        emailVerificationCode: verificationCode,
         status: "approved",
         mustChangePassword: true,
         organizationId: user.organizationId,
       });
+
+      if (userData.email) {
+        await sendVerificationEmail(userData.email, verificationCode, userData.fullName);
+      }
+
       res.status(201).json(newUser);
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -637,12 +702,13 @@ export async function registerRoutes(
     username: z.string().min(3, "Username must be at least 3 characters"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     fullName: z.string().min(2, "Full name is required"),
+    email: z.string().email("Please enter a valid email address"),
     storeUrl: z.string().url("Please enter a valid website URL").min(1, "Store URL is required"),
   });
 
   app.post("/api/organizations/setup-prime", async (req, res) => {
     try {
-      const { orgCode, username, password, fullName, storeUrl } = setupPrimeSchema.parse(req.body);
+      const { orgCode, username, password, fullName, email, storeUrl } = setupPrimeSchema.parse(req.body);
 
       const org = await storage.getOrganizationByCode(orgCode.toUpperCase());
       if (!org) return res.status(404).json({ message: "Invalid organization code" });
@@ -656,17 +722,26 @@ export async function registerRoutes(
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) return res.status(409).json({ message: "Username already taken" });
 
+      const existingEmail = await storage.getUserByEmailAndOrg(email, org.id);
+      if (existingEmail) return res.status(400).json({ message: "This email is already in use within this organization" });
+
       await storage.updateOrganizationStoreUrl(org.id, storeUrl);
+
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
       const user = await storage.createUser({
         username,
         password,
         fullName,
+        email,
+        emailVerificationCode: verificationCode,
         role: "prime_admin",
         barcode: username,
         status: "approved",
         organizationId: org.id,
       });
+
+      await sendVerificationEmail(email, verificationCode, fullName);
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Account created but login failed" });
@@ -958,6 +1033,42 @@ export async function registerRoutes(
       }
       res.status(500).json({ message: "Failed to submit request" });
     }
+  });
+
+  app.post("/api/verify-email", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const { code } = z.object({ code: z.string().length(6) }).parse(req.body);
+      if (user.emailVerified) {
+        return res.json({ message: "Email already verified" });
+      }
+      if (user.emailVerificationCode !== code) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+      const updated = await storage.updateUserEmailVerification(user.id, null, true);
+      res.json(updated);
+    } catch (e) {
+      res.status(400).json({ message: "Invalid verification code" });
+    }
+  });
+
+  app.post("/api/resend-verification", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    if (user.emailVerified) {
+      return res.json({ message: "Email already verified" });
+    }
+    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+    await storage.updateUserEmailVerification(user.id, newCode, false);
+    if (user.email) {
+      await sendVerificationEmail(user.email, newCode, user.fullName);
+    }
+    res.json({ message: "Verification code sent" });
   });
 
   // Ensure PRIME1 organization exists (free membership)

@@ -253,6 +253,7 @@ function AdminLoginForm() {
 function AdminRegisterForm() {
   const [orgCode, setOrgCode] = useState("");
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -268,7 +269,7 @@ function AdminRegisterForm() {
       alert("Password must be at least 6 characters");
       return;
     }
-    register({ fullName, username, password, orgCode: orgCode.toUpperCase() } as any, {
+    register({ fullName, username, password, email, orgCode: orgCode.toUpperCase() } as any, {
       onSuccess: (data: any) => {
         alert("Thank you for creating your account. We are waiting on the administrator to verify your account.");
       }
@@ -301,6 +302,18 @@ function AdminRegisterForm() {
           onChange={(e) => setFullName(e.target.value)}
           required
           data-testid="input-admin-fullname"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="reg-email">Email Address</Label>
+        <Input
+          id="reg-email"
+          type="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          data-testid="input-register-email"
         />
       </div>
       <div className="space-y-2">

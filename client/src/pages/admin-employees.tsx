@@ -101,6 +101,7 @@ function CreateEmployeeDialog() {
     fullName: "",
     username: "",
     password: "",
+    email: "",
     role: "employee",
     barcode: "",
   });
@@ -111,7 +112,7 @@ function CreateEmployeeDialog() {
     createUser(payload, {
       onSuccess: () => {
         setOpen(false);
-        setFormData({ fullName: "", username: "", password: "", role: "employee", barcode: "" });
+        setFormData({ fullName: "", username: "", password: "", email: "", role: "employee", barcode: "" });
       }
     });
   };
@@ -138,6 +139,18 @@ function CreateEmployeeDialog() {
               required
               value={formData.fullName}
               onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="emp-email">Email Address</Label>
+            <Input 
+              id="emp-email" 
+              type="email"
+              required
+              placeholder="employee@example.com"
+              value={formData.email || ""}
+              onChange={(e) => setFormData({...formData, email: e.target.value})} 
+              data-testid="input-employee-email"
             />
           </div>
           <div className="grid gap-2">

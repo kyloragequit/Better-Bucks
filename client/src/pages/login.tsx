@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, Loader2, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle } from "lucide-react";
+import { Lock, User, Loader2, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 
 export default function LoginPage() {
@@ -254,6 +254,8 @@ function AdminRegisterForm() {
   const [orgCode, setOrgCode] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -269,7 +271,12 @@ function AdminRegisterForm() {
       alert("Password must be at least 6 characters");
       return;
     }
-    register({ fullName, username, password, email, orgCode: orgCode.toUpperCase() } as any, {
+    register({ 
+      fullName, username, password, 
+      email: contactMethod === "email" ? email : "", 
+      phone: contactMethod === "phone" ? phone : "", 
+      orgCode: orgCode.toUpperCase() 
+    } as any, {
       onSuccess: (data: any) => {
         alert("Thank you for creating your account. We are waiting on the administrator to verify your account.");
       }
@@ -305,16 +312,50 @@ function AdminRegisterForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="reg-email">Email Address</Label>
-        <Input
-          id="reg-email"
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          data-testid="input-register-email"
-        />
+        <Label>Verification Method</Label>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={contactMethod === "email" ? "default" : "outline"}
+            size="sm"
+            className="flex-1"
+            onClick={() => setContactMethod("email")}
+            data-testid="button-reg-method-email"
+          >
+            <Mail className="mr-1 h-3 w-3" /> Email
+          </Button>
+          <Button
+            type="button"
+            variant={contactMethod === "phone" ? "default" : "outline"}
+            size="sm"
+            className="flex-1"
+            onClick={() => setContactMethod("phone")}
+            data-testid="button-reg-method-phone"
+          >
+            <Phone className="mr-1 h-3 w-3" /> Phone
+          </Button>
+        </div>
+        {contactMethod === "email" ? (
+          <Input
+            id="reg-email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            data-testid="input-register-email"
+          />
+        ) : (
+          <Input
+            id="reg-phone"
+            type="tel"
+            placeholder="+1 (555) 123-4567"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            data-testid="input-register-phone"
+          />
+        )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="reg-username">Username</Label>

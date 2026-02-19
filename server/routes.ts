@@ -51,6 +51,48 @@ async function sendVerificationEmail(email: string, code: string, fullName: stri
   }
 }
 
+async function sendVerificationCode(email: string | null | undefined, phone: string | null | undefined, code: string, fullName: string): Promise<void> {
+  if (email) {
+    await sendVerificationEmail(email, code, fullName);
+  }
+  if (phone) {
+    await sendVerificationSMS(phone, code);
+  }
+}
+
+async function sendVerificationSMS(phone: string, code: string): Promise<void> {
+  try {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+    if (!accountSid || !authToken || !fromNumber) {
+      console.log(`[SMS Verification] Twilio not configured. Code for ${phone}: ${code}`);
+      return;
+    }
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        To: phone,
+        From: fromNumber,
+        Body: `Your Better Bucks verification code is: ${code}`,
+      }),
+    });
+    if (!response.ok) {
+      const errData = await response.text();
+      console.error(`[SMS Verification] Twilio error:`, errData);
+      return;
+    }
+    console.log(`[SMS Verification] Sent to ${phone}`);
+  } catch (err) {
+    console.error(`[SMS Verification] Failed to send to ${phone}:`, err);
+  }
+}
+
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -111,12 +153,23 @@ export async function registerRoutes(
         }
       }
       const adminEmail = req.body.email;
-      if (!adminEmail || !z.string().email().safeParse(adminEmail).success) {
-        return res.status(400).json({ message: "A valid email address is required" });
+      const adminPhone = req.body.phone;
+      const hasEmail = adminEmail && z.string().email().safeParse(adminEmail).success;
+      const hasPhone = adminPhone && adminPhone.length >= 10;
+      if (!hasEmail && !hasPhone) {
+        return res.status(400).json({ message: "Please provide either a valid email address or phone number" });
       }
-      const existingEmail = await storage.getUserByEmailAndOrg(adminEmail, org.id);
-      if (existingEmail) {
-        return res.status(400).json({ message: "This email is already in use within this organization" });
+      if (hasEmail) {
+        const existingEmail = await storage.getUserByEmailAndOrg(adminEmail, org.id);
+        if (existingEmail) {
+          return res.status(400).json({ message: "This email is already in use within this organization" });
+        }
+      }
+      if (hasPhone) {
+        const existingPhone = await storage.getUserByPhoneAndOrg(adminPhone, org.id);
+        if (existingPhone) {
+          return res.status(400).json({ message: "This phone number is already in use within this organization" });
+        }
       }
 
       const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -125,7 +178,8 @@ export async function registerRoutes(
         username: adminData.username,
         password: adminData.password,
         fullName: adminData.fullName,
-        email: adminEmail,
+        email: hasEmail ? adminEmail : null,
+        phone: hasPhone ? adminPhone : null,
         emailVerificationCode: verificationCode,
         role: "admin",
         barcode: adminData.username,
@@ -133,7 +187,7 @@ export async function registerRoutes(
         organizationId: org.id,
       });
 
-      await sendVerificationEmail(adminEmail, verificationCode, adminData.fullName);
+      await sendVerificationCode(hasEmail ? adminEmail : null, hasPhone ? adminPhone : null, verificationCode, adminData.fullName);
       console.log(`New admin registration: ${user.username} for org ${org.name} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
@@ -153,17 +207,29 @@ export async function registerRoutes(
     }
     try {
       const userData = api.users.create.input.parse(req.body);
-      if (!userData.email || !z.string().email().safeParse(userData.email).success) {
-        return res.status(400).json({ message: "A valid email address is required" });
+      const empEmail = userData.email;
+      const empPhone = (req.body as any).phone;
+      const hasEmail = empEmail && z.string().email().safeParse(empEmail).success;
+      const hasPhone = empPhone && empPhone.length >= 10;
+      if (!hasEmail && !hasPhone) {
+        return res.status(400).json({ message: "Please provide either a valid email address or phone number" });
       }
       if (user.organizationId) {
         const existingUser = await storage.getUserByUsernameAndOrg(userData.username, user.organizationId);
         if (existingUser) {
           return res.status(400).json({ message: "Username/Employee Code already exists in this organization" });
         }
-        const existingEmail = await storage.getUserByEmailAndOrg(userData.email, user.organizationId);
-        if (existingEmail) {
-          return res.status(400).json({ message: "This email is already in use within this organization" });
+        if (hasEmail) {
+          const existingEmail = await storage.getUserByEmailAndOrg(empEmail, user.organizationId);
+          if (existingEmail) {
+            return res.status(400).json({ message: "This email is already in use within this organization" });
+          }
+        }
+        if (hasPhone) {
+          const existingPhone = await storage.getUserByPhoneAndOrg(empPhone, user.organizationId);
+          if (existingPhone) {
+            return res.status(400).json({ message: "This phone number is already in use within this organization" });
+          }
         }
         const org = await storage.getOrganization(user.organizationId);
         if (org && org.maxEmployees > 0) {
@@ -180,15 +246,15 @@ export async function registerRoutes(
       const newUser = await storage.createUser({
         ...userData,
         barcode: userData.barcode || userData.username,
+        email: hasEmail ? empEmail : null,
+        phone: hasPhone ? empPhone : null,
         emailVerificationCode: verificationCode,
         status: "approved",
         mustChangePassword: true,
         organizationId: user.organizationId,
       });
 
-      if (userData.email) {
-        await sendVerificationEmail(userData.email, verificationCode, userData.fullName);
-      }
+      await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, userData.fullName);
 
       res.status(201).json(newUser);
     } catch (e) {
@@ -702,13 +768,20 @@ export async function registerRoutes(
     username: z.string().min(3, "Username must be at least 3 characters"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     fullName: z.string().min(2, "Full name is required"),
-    email: z.string().email("Please enter a valid email address"),
+    email: z.string().email("Please enter a valid email address").optional().or(z.literal("")),
+    phone: z.string().min(10, "Please enter a valid phone number").optional().or(z.literal("")),
     storeUrl: z.string().url("Please enter a valid website URL").min(1, "Store URL is required"),
   });
 
   app.post("/api/organizations/setup-prime", async (req, res) => {
     try {
-      const { orgCode, username, password, fullName, email, storeUrl } = setupPrimeSchema.parse(req.body);
+      const { orgCode, username, password, fullName, email, phone, storeUrl } = setupPrimeSchema.parse(req.body);
+
+      const hasEmail = email && email.length > 0;
+      const hasPhone = phone && phone.length > 0;
+      if (!hasEmail && !hasPhone) {
+        return res.status(400).json({ message: "Please provide either an email address or phone number for verification" });
+      }
 
       const org = await storage.getOrganizationByCode(orgCode.toUpperCase());
       if (!org) return res.status(404).json({ message: "Invalid organization code" });
@@ -722,8 +795,14 @@ export async function registerRoutes(
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) return res.status(409).json({ message: "Username already taken" });
 
-      const existingEmail = await storage.getUserByEmailAndOrg(email, org.id);
-      if (existingEmail) return res.status(400).json({ message: "This email is already in use within this organization" });
+      if (hasEmail) {
+        const existingEmail = await storage.getUserByEmailAndOrg(email, org.id);
+        if (existingEmail) return res.status(400).json({ message: "This email is already in use within this organization" });
+      }
+      if (hasPhone) {
+        const existingPhone = await storage.getUserByPhoneAndOrg(phone, org.id);
+        if (existingPhone) return res.status(400).json({ message: "This phone number is already in use within this organization" });
+      }
 
       await storage.updateOrganizationStoreUrl(org.id, storeUrl);
 
@@ -733,7 +812,8 @@ export async function registerRoutes(
         username,
         password,
         fullName,
-        email,
+        email: hasEmail ? email : null,
+        phone: hasPhone ? phone : null,
         emailVerificationCode: verificationCode,
         role: "prime_admin",
         barcode: username,
@@ -741,7 +821,7 @@ export async function registerRoutes(
         organizationId: org.id,
       });
 
-      await sendVerificationEmail(email, verificationCode, fullName);
+      await sendVerificationCode(hasEmail ? email : null, hasPhone ? phone : null, verificationCode, fullName);
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Account created but login failed" });
@@ -1061,13 +1141,11 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Not authenticated" });
     }
     if (user.emailVerified) {
-      return res.json({ message: "Email already verified" });
+      return res.json({ message: "Already verified" });
     }
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
     await storage.updateUserEmailVerification(user.id, newCode, false);
-    if (user.email) {
-      await sendVerificationEmail(user.email, newCode, user.fullName);
-    }
+    await sendVerificationCode(user.email, user.phone, newCode, user.fullName);
     res.json({ message: "Verification code sent" });
   });
 

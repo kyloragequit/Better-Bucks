@@ -28,6 +28,7 @@ export const users = pgTable("users", {
   fullName: text("full_name").notNull(),
   mustChangePassword: boolean("must_change_password").default(false).notNull(),
   email: text("email"),
+  phone: text("phone"),
   emailVerified: boolean("email_verified").default(false).notNull(),
   emailVerificationCode: text("email_verification_code"),
   organizationId: integer("organization_id"),

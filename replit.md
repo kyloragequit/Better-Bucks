@@ -57,6 +57,16 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
   - Endpoints: POST /api/verify-email, POST /api/resend-verification
 - **Note**: Current implementation uses plain text password comparison (marked as insecure for demo purposes)
 
+### Verification System (Email or Phone)
+- All user creation forms offer a toggle between Email and Phone verification
+- At least one contact method (email or phone) is required for new accounts
+- Phone verification via Twilio SMS API (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER)
+- Both email and SMS fall back to console logging when credentials aren't configured
+- Phone uniqueness enforced within organization boundaries (same as email)
+- Verify page (/verify-email) dynamically shows Email or Phone UI based on user's contact method
+- `emailVerified` field is reused for both email and phone verification status
+- getUserByPhoneAndOrg storage method for phone uniqueness checks
+
 ### Order System
 - Employees browse items at a configurable store URL and submit orders with photo screenshots
 - Store URL is set during initial org setup (no default); prime admins can also edit it from Settings page

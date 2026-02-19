@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, UserPlus, ChevronRight } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Mail, Phone } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import type { InsertUser } from "@shared/schema";
 
@@ -97,6 +97,8 @@ export default function AdminEmployeesPage() {
 function CreateEmployeeDialog() {
   const [open, setOpen] = useState(false);
   const { mutate: createUser, isPending } = useCreateUser();
+  const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
+  const [phone, setPhone] = useState("");
   const [formData, setFormData] = useState<InsertUser>({
     fullName: "",
     username: "",
@@ -108,11 +110,18 @@ function CreateEmployeeDialog() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { ...formData, barcode: formData.barcode || formData.username };
+    const payload = { 
+      ...formData, 
+      barcode: formData.barcode || formData.username,
+      email: contactMethod === "email" ? formData.email : "",
+      phone: contactMethod === "phone" ? phone : "",
+    };
     createUser(payload, {
       onSuccess: () => {
         setOpen(false);
         setFormData({ fullName: "", username: "", password: "", email: "", role: "employee", barcode: "" });
+        setPhone("");
+        setContactMethod("email");
       }
     });
   };
@@ -142,16 +151,50 @@ function CreateEmployeeDialog() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="emp-email">Email Address</Label>
-            <Input 
-              id="emp-email" 
-              type="email"
-              required
-              placeholder="employee@example.com"
-              value={formData.email || ""}
-              onChange={(e) => setFormData({...formData, email: e.target.value})} 
-              data-testid="input-employee-email"
-            />
+            <Label>Verification Method</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={contactMethod === "email" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setContactMethod("email")}
+                data-testid="button-emp-method-email"
+              >
+                <Mail className="mr-1 h-3 w-3" /> Email
+              </Button>
+              <Button
+                type="button"
+                variant={contactMethod === "phone" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setContactMethod("phone")}
+                data-testid="button-emp-method-phone"
+              >
+                <Phone className="mr-1 h-3 w-3" /> Phone
+              </Button>
+            </div>
+            {contactMethod === "email" ? (
+              <Input 
+                id="emp-email" 
+                type="email"
+                required
+                placeholder="employee@example.com"
+                value={formData.email || ""}
+                onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                data-testid="input-employee-email"
+              />
+            ) : (
+              <Input 
+                id="emp-phone" 
+                type="tel"
+                required
+                placeholder="+1 (555) 123-4567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)} 
+                data-testid="input-employee-phone"
+              />
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="code">Employee Code (Username)</Label>

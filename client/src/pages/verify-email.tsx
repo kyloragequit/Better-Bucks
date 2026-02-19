@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, RefreshCw } from "lucide-react";
+import { Loader2, Mail, Phone, RefreshCw } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface VerifyEmailPageProps {
@@ -19,6 +19,9 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [code, setCode] = useState("");
+  const isPhoneVerification = !user.email && !!user.phone;
+  const contactInfo = isPhoneVerification ? user.phone : user.email;
+  const contactLabel = isPhoneVerification ? "Phone" : "Email";
 
   const { mutate: verify, isPending: isVerifying } = useMutation({
     mutationFn: async () => {
@@ -27,7 +30,7 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      toast({ title: "Email Verified!", description: "Your email has been verified successfully." });
+      toast({ title: `${contactLabel} Verified!`, description: `Your ${contactLabel.toLowerCase()} has been verified successfully.` });
       if (user.role === "employee") {
         setLocation("/dashboard");
       } else {
@@ -45,7 +48,7 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
       return await res.json();
     },
     onSuccess: () => {
-      toast({ title: "Code Sent", description: "A new verification code has been sent to your email." });
+      toast({ title: "Code Sent", description: `A new verification code has been sent to your ${contactLabel.toLowerCase()}.` });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -77,13 +80,13 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
               <AppLogo size="lg" />
             </div>
             <div className="mx-auto w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center mb-2">
-              <Mail className="h-8 w-8 text-pink-500" />
+              {isPhoneVerification ? <Phone className="h-8 w-8 text-pink-500" /> : <Mail className="h-8 w-8 text-pink-500" />}
             </div>
             <CardTitle className="text-2xl font-bold" data-testid="text-verify-title">
-              Verify Your Email
+              Verify Your {contactLabel}
             </CardTitle>
             <CardDescription>
-              We sent a 6-digit code to <strong>{user.email}</strong>. Enter it below to verify your account.
+              We sent a 6-digit code to <strong>{contactInfo}</strong>. Enter it below to verify your account.
             </CardDescription>
           </CardHeader>
 
@@ -116,7 +119,7 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
                     Verifying...
                   </>
                 ) : (
-                  "Verify Email"
+                  `Verify ${contactLabel}`
                 )}
               </Button>
 

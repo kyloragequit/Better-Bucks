@@ -43,7 +43,7 @@ function ProtectedRoute({
     return <Redirect to="/pending-verification" />;
   }
 
-  if (!user.emailVerified && user.email && window.location.pathname !== '/verify-email') {
+  if (!user.emailVerified && (user.email || user.phone) && window.location.pathname !== '/verify-email') {
     return <Redirect to="/verify-email" />;
   }
 

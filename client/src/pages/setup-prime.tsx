@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check, Globe, Mail } from "lucide-react";
+import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone } from "lucide-react";
 
 export default function SetupPrimePage() {
   const [, setLocation] = useLocation();
@@ -24,6 +24,8 @@ export default function SetupPrimePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
   const [storeUrl, setStoreUrl] = useState("");
   const [codeValidated, setCodeValidated] = useState(false);
   const [orgName, setOrgName] = useState("");
@@ -65,7 +67,8 @@ export default function SetupPrimePage() {
         username,
         password,
         fullName,
-        email,
+        email: contactMethod === "email" ? email : "",
+        phone: contactMethod === "phone" ? phone : "",
         storeUrl,
       });
       return await res.json();
@@ -221,20 +224,58 @@ export default function SetupPrimePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="setup-email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="setup-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      className="pl-9"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      data-testid="input-setup-email"
-                    />
+                  <Label>Verification Method</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={contactMethod === "email" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setContactMethod("email")}
+                      data-testid="button-method-email"
+                    >
+                      <Mail className="mr-1 h-3 w-3" /> Email
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={contactMethod === "phone" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setContactMethod("phone")}
+                      data-testid="button-method-phone"
+                    >
+                      <Phone className="mr-1 h-3 w-3" /> Phone
+                    </Button>
                   </div>
+                  {contactMethod === "email" ? (
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="setup-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        className="pl-9"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        data-testid="input-setup-email"
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="setup-phone"
+                        type="tel"
+                        placeholder="+1 (555) 123-4567"
+                        className="pl-9"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                        data-testid="input-setup-phone"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

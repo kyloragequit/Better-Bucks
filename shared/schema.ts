@@ -78,6 +78,17 @@ export const ordersRelations = relations(orders, ({ one }) => ({
   }),
 }));
 
+export const infoRequests = pgTable("info_requests", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  needs: text("needs").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInfoRequestSchema = createInsertSchema(infoRequests).omit({ id: true, createdAt: true });
+
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true, status: true, stripeCustomerId: true, stripeSubscriptionId: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, balance: true, status: true });
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
@@ -91,3 +102,5 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type InfoRequest = typeof infoRequests.$inferSelect;
+export type InsertInfoRequest = z.infer<typeof insertInfoRequestSchema>;

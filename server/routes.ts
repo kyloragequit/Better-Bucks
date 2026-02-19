@@ -12,7 +12,8 @@ import crypto from "crypto";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sql, eq } from "drizzle-orm";
 import { db } from "./db";
-import { organizations, users } from "@shared/schema";
+import { organizations, users, infoRequests } from "@shared/schema";
+import nodemailer from "nodemailer";
 
 import type { User } from "@shared/schema";
 
@@ -764,6 +765,62 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Error changing tier:", error);
       res.status(500).json({ message: error.message || "Failed to change subscription tier" });
+    }
+  });
+
+  // Request for Information (RFI) - public endpoint
+  app.post("/api/info-request", async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1, "Name is required"),
+        email: z.string().email("Valid email is required"),
+        phone: z.string().min(1, "Phone number is required"),
+        needs: z.string().min(1, "Please describe your needs"),
+      });
+
+      const data = schema.parse(req.body);
+
+      await db.insert(infoRequests).values(data);
+
+      const dateStr = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+      const subject = `RFI Better Bucks ${data.name} ${dateStr}`;
+
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPass = process.env.SMTP_PASS;
+      const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+      const smtpPort = parseInt(process.env.SMTP_PORT || "587");
+
+      if (smtpUser && smtpPass) {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: { user: smtpUser, pass: smtpPass },
+        });
+
+        await transporter.sendMail({
+          from: smtpUser,
+          to: "milesgchase@gmail.com",
+          subject,
+          text: `New Information Request\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\nEmployee Incentive Needs:\n${data.needs}`,
+          html: `
+            <h2>New Information Request</h2>
+            <p><strong>Name:</strong> ${data.name}</p>
+            <p><strong>Email:</strong> ${data.email}</p>
+            <p><strong>Phone:</strong> ${data.phone}</p>
+            <h3>Employee Incentive Needs:</h3>
+            <p>${data.needs.replace(/\n/g, "<br>")}</p>
+          `,
+        });
+      }
+
+      res.json({ message: "Your request has been submitted. We'll be in touch!" });
+    } catch (error: any) {
+      console.error("RFI submission error:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: error.errors[0]?.message || "Invalid input" });
+      }
+      res.status(500).json({ message: "Failed to submit request" });
     }
   });
 

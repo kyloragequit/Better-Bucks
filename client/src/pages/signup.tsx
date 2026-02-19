@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, CreditCard, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Loader2, CreditCard, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
 
 const tiers = [
   {
@@ -61,6 +62,31 @@ export default function SignupPage() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
+
+  const [rfiName, setRfiName] = useState("");
+  const [rfiEmail, setRfiEmail] = useState("");
+  const [rfiPhone, setRfiPhone] = useState("");
+  const [rfiNeeds, setRfiNeeds] = useState("");
+  const [rfiSubmitted, setRfiSubmitted] = useState(false);
+
+  const { mutate: submitRfi, isPending: isSubmittingRfi } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/info-request", {
+        name: rfiName,
+        email: rfiEmail,
+        phone: rfiPhone,
+        needs: rfiNeeds,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      setRfiSubmitted(true);
+      toast({ title: "Request Sent!", description: "We'll be in touch with more information soon." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
+    },
+  });
 
   const params = new URLSearchParams(window.location.search);
   const cancelled = params.get("cancelled");
@@ -258,6 +284,107 @@ export default function SignupPage() {
             </CardContent>
           </Card>
         )}
+
+        <div className="border-t border-border/50 pt-8 mt-8">
+          <Card className="shadow-xl shadow-black/5 border-muted bg-white/80 backdrop-blur-sm max-w-lg mx-auto">
+            <CardHeader className="text-center pb-3">
+              <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Mail className="h-5 w-5 text-primary" />
+              </div>
+              <CardTitle className="text-lg" data-testid="text-rfi-title">
+                Would you like more information?
+              </CardTitle>
+              <CardDescription>
+                Fill out the form below and we'll get back to you with details tailored to your needs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {rfiSubmitted ? (
+                <div className="text-center py-6 space-y-2">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                    <Check className="h-6 w-6 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold text-lg" data-testid="text-rfi-success">Thank You!</h3>
+                  <p className="text-muted-foreground text-sm">Your request has been submitted. We'll be in touch soon!</p>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    submitRfi();
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="rfi-name">Name</Label>
+                    <Input
+                      id="rfi-name"
+                      placeholder="John Smith"
+                      value={rfiName}
+                      onChange={(e) => setRfiName(e.target.value)}
+                      required
+                      data-testid="input-rfi-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rfi-email">Email</Label>
+                    <Input
+                      id="rfi-email"
+                      type="email"
+                      placeholder="john@company.com"
+                      value={rfiEmail}
+                      onChange={(e) => setRfiEmail(e.target.value)}
+                      required
+                      data-testid="input-rfi-email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rfi-phone">Phone Number</Label>
+                    <Input
+                      id="rfi-phone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={rfiPhone}
+                      onChange={(e) => setRfiPhone(e.target.value)}
+                      required
+                      data-testid="input-rfi-phone"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rfi-needs">Employee Incentive Needs</Label>
+                    <Textarea
+                      id="rfi-needs"
+                      placeholder="Tell us about your organization and what you're looking for in an employee incentive program..."
+                      value={rfiNeeds}
+                      onChange={(e) => setRfiNeeds(e.target.value)}
+                      rows={4}
+                      required
+                      data-testid="input-rfi-needs"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmittingRfi}
+                    data-testid="button-submit-rfi"
+                  >
+                    {isSubmittingRfi ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Send Request
+                      </>
+                    )}
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

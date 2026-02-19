@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'admin' || user.role === 'prime_admin') setLocation('/admin/employees');
+      if (user.role === 'admin' || user.role === 'prime_admin') setLocation('/admin/dashboard');
       else setLocation('/dashboard');
     }
   }, [user, setLocation]);

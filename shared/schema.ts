@@ -36,6 +36,7 @@ export const transactions = pgTable("transactions", {
   userId: integer("user_id").notNull(),
   amount: integer("amount").notNull(), // Positive for credit, negative for debit
   reason: text("reason").notNull(),
+  performedBy: integer("performed_by"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

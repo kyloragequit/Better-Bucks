@@ -181,6 +181,7 @@ export async function registerRoutes(
           userId: user.id,
           amount: -amount,
           reason: `Points given to ${targetUser.fullName}`,
+          performedBy: user.id,
         });
       }
     } else {
@@ -190,6 +191,7 @@ export async function registerRoutes(
           userId: user.id,
           amount: -amount,
           reason: `Points given to ${targetUser.fullName}`,
+          performedBy: user.id,
         });
       }
     }
@@ -199,6 +201,7 @@ export async function registerRoutes(
       userId: id,
       amount,
       reason,
+      performedBy: user.id,
     });
 
     res.json(updatedUser);
@@ -454,7 +457,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  // Points distribution stats (admin only)
+  // Points distribution stats (admin only) - counts bucks given from admins to employees
   app.get("/api/stats/points", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
@@ -463,11 +466,17 @@ export async function registerRoutes(
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
 
     const orgUsers = await storage.getUsersByOrganization(user.organizationId);
-    const orgUserIds = orgUsers.map(u => u.id);
+    const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
+    const adminIds = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id);
 
-    if (orgUserIds.length === 0) {
+    if (employeeIds.length === 0 || adminIds.length === 0) {
       return res.json({ week: 0, month: 0, year: 0 });
     }
+
+    const adminIdFilter = req.query.adminId ? parseInt(req.query.adminId as string) : null;
+    const performedByFilter = adminIdFilter
+      ? eq(transactions.performedBy, adminIdFilter)
+      : inArray(transactions.performedBy, adminIds);
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -475,26 +484,32 @@ export async function registerRoutes(
     const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
     const [weekResult] = await db.select({
-      total: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 THEN ${transactions.amount} ELSE 0 END), 0)`
+      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
     }).from(transactions)
       .where(and(
-        inArray(transactions.userId, orgUserIds),
+        inArray(transactions.userId, employeeIds),
+        gt(transactions.amount, 0),
+        performedByFilter,
         gte(transactions.createdAt, weekAgo)
       ));
 
     const [monthResult] = await db.select({
-      total: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 THEN ${transactions.amount} ELSE 0 END), 0)`
+      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
     }).from(transactions)
       .where(and(
-        inArray(transactions.userId, orgUserIds),
+        inArray(transactions.userId, employeeIds),
+        gt(transactions.amount, 0),
+        performedByFilter,
         gte(transactions.createdAt, monthAgo)
       ));
 
     const [yearResult] = await db.select({
-      total: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 THEN ${transactions.amount} ELSE 0 END), 0)`
+      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
     }).from(transactions)
       .where(and(
-        inArray(transactions.userId, orgUserIds),
+        inArray(transactions.userId, employeeIds),
+        gt(transactions.amount, 0),
+        performedByFilter,
         gte(transactions.createdAt, yearAgo)
       ));
 
@@ -503,6 +518,22 @@ export async function registerRoutes(
       month: Number(monthResult.total),
       year: Number(yearResult.total),
     });
+  });
+
+  // Get admins for the current organization (for dashboard filter)
+  app.get("/api/org/admins", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const admins = orgUsers
+      .filter(u => u.role === "admin" || u.role === "prime_admin")
+      .map(u => ({ id: u.id, fullName: u.fullName, role: u.role }));
+
+    res.json(admins);
   });
 
   // Stripe publishable key (public)

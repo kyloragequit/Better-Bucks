@@ -22,6 +22,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
           <nav className="flex items-center gap-6">
             <Link
+              href="/admin/dashboard"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive('/admin/dashboard') ? "text-primary font-bold" : "text-muted-foreground"
+              }`}
+            >
+              Dashboard
+            </Link>
+            <Link
               href="/admin/employees"
               className={`text-sm font-medium transition-colors hover:text-primary ${
                 isActive('/admin/employees') ? "text-primary font-bold" : "text-muted-foreground"

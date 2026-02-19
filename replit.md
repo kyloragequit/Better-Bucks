@@ -79,7 +79,8 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Webhook route registered BEFORE express.json() middleware in server/index.ts
 - PRIME1 organization: Free membership org (stripeCustomerId="free_membership", tier="enterprise"), auto-created on startup
 - Prime admins can cancel their org subscription via Settings page (/admin/settings)
-- Admin employees page shows points distribution stats (week/month/year) at the top
+- Admin Dashboard page (/admin/dashboard) shows bucks distributed from admins to employees (week/month/year) with filter-by-administrator dropdown
+- Transactions track `performedBy` to identify which admin performed the action
 - Settings page shows current tier, employee count/limit with usage bar
 - Prime admins can change their subscription tier (upgrade/downgrade) via Settings page
 - Tier changes update Stripe subscription with proration and update local DB tier/maxEmployees

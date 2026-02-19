@@ -14,6 +14,7 @@ import SetupPrimePage from "@/pages/setup-prime";
 import LoginPage from "@/pages/login";
 import EmployeeDashboard from "@/pages/employee-dashboard";
 import EmployeeOrdersPage from "@/pages/employee-orders";
+import AdminDashboardPage from "@/pages/admin-dashboard";
 import AdminEmployeesPage from "@/pages/admin-employees";
 import AdminEmployeeDetailPage from "@/pages/admin-employee-detail";
 import AdminOrdersPage from "@/pages/admin-orders";
@@ -50,7 +51,7 @@ function ProtectedRoute({
   }
 
   if (!adminOnly && (user.role === 'admin' || user.role === 'prime_admin') && window.location.pathname === '/dashboard') {
-     return <Redirect to="/admin/employees" />;
+     return <Redirect to="/admin/dashboard" />;
   }
 
   return <Component />;
@@ -72,6 +73,9 @@ function Router() {
         <ProtectedRoute component={EmployeeOrdersPage} />
       </Route>
 
+      <Route path="/admin/dashboard">
+        <ProtectedRoute component={AdminDashboardPage} adminOnly />
+      </Route>
       <Route path="/admin/employees">
         <ProtectedRoute component={AdminEmployeesPage} adminOnly />
       </Route>

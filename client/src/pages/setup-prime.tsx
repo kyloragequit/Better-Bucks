@@ -74,7 +74,7 @@ export default function SetupPrimePage() {
         title: "Account Created!",
         description: `Welcome, ${user.fullName}! You are now the administrator.`,
       });
-      setLocation("/admin/employees");
+      setLocation("/admin/dashboard");
     },
     onError: (error: Error) => {
       toast({

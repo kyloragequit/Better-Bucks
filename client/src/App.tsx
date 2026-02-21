@@ -23,6 +23,8 @@ import AdminSettingsPage from "@/pages/admin-settings";
 import PendingVerification from "@/pages/pending-verification";
 import ChangePasswordPage from "@/pages/change-password";
 import VerifyEmailPage from "@/pages/verify-email";
+import DeveloperLoginPage from "@/pages/developer-login";
+import DeveloperDashboardPage from "@/pages/developer-dashboard";
 
 function ProtectedRoute({ 
   component: Component, 
@@ -37,6 +39,10 @@ function ProtectedRoute({
 
   if (!user) {
     return <Redirect to="/login" />;
+  }
+
+  if (user.role === 'developer') {
+    return <Redirect to="/developer/dashboard" />;
   }
 
   if (user.role === 'admin' && user.status === 'pending' && window.location.pathname !== '/pending-verification') {
@@ -112,6 +118,9 @@ function Router() {
       </Route>
       <Route path="/pending-verification" component={PendingVerification} />
       <Route path="/change-password" component={ChangePasswordPage} />
+      
+      <Route path="/developer" component={DeveloperLoginPage} />
+      <Route path="/developer/dashboard" component={DeveloperDashboardPage} />
 
       <Route component={NotFound} />
     </Switch>

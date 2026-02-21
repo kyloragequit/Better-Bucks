@@ -9,9 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2 } from "lucide-react";
+import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Organization } from "@shared/schema";
+import type { Organization, ShopWebsite } from "@shared/schema";
 
 type OrgWithFree = Organization & { isFree: boolean; employeeCount: number };
 import {
@@ -326,6 +326,8 @@ export default function AdminSettingsPage() {
               </CardContent>
             </Card>
 
+            <ShopWebsitesSection />
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -493,5 +495,296 @@ export default function AdminSettingsPage() {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+function ShopWebsitesSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newRate, setNewRate] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editRate, setEditRate] = useState("");
+
+  const { data: websites, isLoading } = useQuery<ShopWebsite[]>({
+    queryKey: ["/api/shop-websites"],
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async (data: { name: string; url: string; pointsPerDollar: number }) => {
+      const res = await apiRequest("POST", "/api/shop-websites", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shop-websites"] });
+      toast({ title: "Shop Added", description: "New shop website has been added." });
+      setAdding(false);
+      setNewName("");
+      setNewUrl("");
+      setNewRate("");
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: number; name: string; url: string; pointsPerDollar: number }) => {
+      const res = await apiRequest("PATCH", `/api/shop-websites/${id}`, data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shop-websites"] });
+      toast({ title: "Shop Updated" });
+      setEditingId(null);
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/shop-websites/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shop-websites"] });
+      toast({ title: "Shop Removed" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const handleAdd = () => {
+    const rate = parseInt(newRate);
+    if (!newName.trim() || !newUrl.trim() || !rate || rate <= 0) {
+      toast({ title: "Error", description: "All fields are required. Points must be a positive number.", variant: "destructive" });
+      return;
+    }
+    addMutation.mutate({ name: newName.trim(), url: newUrl.trim(), pointsPerDollar: rate });
+  };
+
+  const handleUpdate = () => {
+    if (editingId === null) return;
+    const rate = parseInt(editRate);
+    if (!editName.trim() || !editUrl.trim() || !rate || rate <= 0) {
+      toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
+      return;
+    }
+    updateMutation.mutate({ id: editingId, name: editName.trim(), url: editUrl.trim(), pointsPerDollar: rate });
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Store className="h-5 w-5" />
+            Shop Websites & Conversion Rates
+          </CardTitle>
+          <CardDescription>
+            Add websites your employees can shop from and set how many points equal a dollar at each store.
+          </CardDescription>
+        </div>
+        {!adding && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAdding(true)}
+            data-testid="button-add-shop"
+          >
+            <Plus className="mr-2 h-3 w-3" />
+            Add Shop
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {adding && (
+          <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="shop-name">Shop Name</Label>
+                <Input
+                  id="shop-name"
+                  placeholder="e.g. Amazon"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  data-testid="input-new-shop-name"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="shop-url">Website URL</Label>
+                <Input
+                  id="shop-url"
+                  type="url"
+                  placeholder="https://amazon.com"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  data-testid="input-new-shop-url"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="shop-rate">Points per $1</Label>
+                <Input
+                  id="shop-rate"
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 50"
+                  value={newRate}
+                  onChange={(e) => setNewRate(e.target.value)}
+                  data-testid="input-new-shop-rate"
+                />
+              </div>
+            </div>
+            {newRate && parseInt(newRate) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Example: {parseInt(newRate)} points = $1.00 {newName ? `on ${newName}` : ""}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleAdd}
+                disabled={addMutation.isPending}
+                data-testid="button-save-new-shop"
+              >
+                {addMutation.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                Save
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setAdding(false); setNewName(""); setNewUrl(""); setNewRate(""); }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (!websites || websites.length === 0) ? (
+          <div className="text-center py-6 text-sm text-muted-foreground">
+            No shop websites added yet. Add a shop to let employees choose where to spend their points.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {websites.map((shop) => (
+              <div key={shop.id} className="border rounded-md p-4" data-testid={`shop-item-${shop.id}`}>
+                {editingId === shop.id ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label>Shop Name</Label>
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          data-testid={`input-edit-shop-name-${shop.id}`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Website URL</Label>
+                        <Input
+                          type="url"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          data-testid={`input-edit-shop-url-${shop.id}`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Points per $1</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={editRate}
+                          onChange={(e) => setEditRate(e.target.value)}
+                          data-testid={`input-edit-shop-rate-${shop.id}`}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleUpdate} disabled={updateMutation.isPending}>
+                        {updateMutation.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                        Save
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="space-y-1">
+                      <div className="font-medium">{shop.name}</div>
+                      <a
+                        href={shop.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary underline break-all"
+                      >
+                        {shop.url}
+                      </a>
+                      <div className="text-sm text-muted-foreground">
+                        <Badge variant="outline" className="text-xs">
+                          {shop.pointsPerDollar} pts = $1.00
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingId(shop.id);
+                          setEditName(shop.name);
+                          setEditUrl(shop.url);
+                          setEditRate(String(shop.pointsPerDollar));
+                        }}
+                        data-testid={`button-edit-shop-${shop.id}`}
+                      >
+                        <Pencil className="mr-1 h-3 w-3" />
+                        Edit
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" data-testid={`button-delete-shop-${shop.id}`}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove {shop.name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This shop website will be removed. Existing orders will not be affected.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteMutation.mutate(shop.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

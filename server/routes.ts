@@ -498,6 +498,7 @@ export async function registerRoutes(
     photoUrls: z.array(z.string()).default([]),
     itemUrl: z.string().url().optional().or(z.literal("")),
     pointsCost: z.number().int().positive("Points must be greater than 0"),
+    shopWebsiteId: z.number().int().optional(),
   }).refine(
     (data) => data.photoUrls.length > 0 || (data.itemUrl && data.itemUrl.length > 0),
     { message: "Please provide at least one photo or a link to the item" }
@@ -511,10 +512,19 @@ export async function registerRoutes(
     try {
       const parsed = createOrderSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
-      const { description, photoUrls, itemUrl, pointsCost } = parsed.data;
+      const { description, photoUrls, itemUrl, pointsCost, shopWebsiteId } = parsed.data;
 
       if (user.balance < pointsCost) {
         return res.status(400).json({ message: "Insufficient points balance" });
+      }
+
+      let convertedValue: string | null = null;
+      if (shopWebsiteId) {
+        const shop = await storage.getShopWebsite(shopWebsiteId);
+        if (shop && shop.pointsPerDollar > 0) {
+          const dollars = (pointsCost / shop.pointsPerDollar).toFixed(2);
+          convertedValue = `$${dollars} on ${shop.name}`;
+        }
       }
 
       const order = await storage.createOrder({
@@ -523,6 +533,8 @@ export async function registerRoutes(
         description,
         photoUrls,
         itemUrl: itemUrl || null,
+        shopWebsiteId: shopWebsiteId || null,
+        convertedValue,
       });
 
       await storage.updateUserBalance(user.id, -pointsCost);
@@ -1149,6 +1161,196 @@ export async function registerRoutes(
     res.json({ message: "Verification code sent" });
   });
 
+  // ==================== DEVELOPER ROUTES ====================
+
+  app.post("/api/developer-login", async (req, res) => {
+    try {
+      const { username, password } = z.object({
+        username: z.string(),
+        password: z.string(),
+      }).parse(req.body);
+
+      const user = await storage.getUserByUsername(username);
+      if (!user || user.role !== "developer" || user.password !== password) {
+        return res.status(401).json({ message: "Invalid developer credentials" });
+      }
+
+      // Check if password needs to be changed (monthly)
+      if (user.passwordLastChanged) {
+        const daysSinceChange = (Date.now() - new Date(user.passwordLastChanged).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceChange > 30) {
+          await db.update(users).set({ mustChangePassword: true }).where(eq(users.id, user.id));
+          user.mustChangePassword = true;
+        }
+      }
+
+      req.login(user, (err) => {
+        if (err) return res.status(500).json({ message: "Login failed" });
+        res.json(user);
+      });
+    } catch (e) {
+      res.status(400).json({ message: "Invalid request" });
+    }
+  });
+
+  app.get("/api/developer/organizations", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const allOrgs = await storage.getAllOrganizations();
+      const orgData = await Promise.all(allOrgs.map(async (org) => {
+        const orgUsers = await storage.getUsersByOrganization(org.id);
+        const admins = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
+        const employees = orgUsers.filter(u => u.role === "employee");
+        const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
+        return {
+          ...org,
+          adminCount: admins.length,
+          employeeCount: employees.length,
+          totalUsers: orgUsers.length,
+          primeAdmin: primeAdmin ? { id: primeAdmin.id, username: primeAdmin.username, fullName: primeAdmin.fullName } : null,
+        };
+      }));
+      res.json(orgData);
+    } catch (e) {
+      console.error("Developer org fetch error:", e);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.post("/api/developer/impersonate/:userId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const targetId = parseInt(req.params.userId);
+    if (isNaN(targetId)) return res.status(400).json({ message: "Invalid user ID" });
+
+    const targetUser = await storage.getUser(targetId);
+    if (!targetUser || targetUser.role !== "prime_admin") {
+      return res.status(404).json({ message: "Prime admin not found" });
+    }
+
+    // Store developer's original user ID in session for returning later
+    (req.session as any).developerOriginalUserId = user.id;
+
+    req.login(targetUser, (err) => {
+      if (err) return res.status(500).json({ message: "Impersonation failed" });
+      res.json(targetUser);
+    });
+  });
+
+  app.get("/api/developer/status", async (req, res) => {
+    const devUserId = (req.session as any).developerOriginalUserId;
+    res.json({ impersonating: !!devUserId });
+  });
+
+  app.post("/api/developer/return", async (req, res) => {
+    const devUserId = (req.session as any).developerOriginalUserId;
+    if (!devUserId) {
+      return res.status(400).json({ message: "No developer session to return to" });
+    }
+
+    const devUser = await storage.getUser(devUserId);
+    if (!devUser || devUser.role !== "developer") {
+      return res.status(400).json({ message: "Developer account not found" });
+    }
+
+    delete (req.session as any).developerOriginalUserId;
+
+    req.login(devUser, (err) => {
+      if (err) return res.status(500).json({ message: "Failed to return to developer session" });
+      res.json(devUser);
+    });
+  });
+
+  // ==================== SHOP WEBSITE ROUTES ====================
+
+  app.get("/api/shop-websites", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || !user.organizationId) {
+      return res.status(401).send("Unauthorized");
+    }
+    const websites = await storage.getShopWebsitesByOrganization(user.organizationId);
+    res.json(websites);
+  });
+
+  app.post("/api/shop-websites", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    try {
+      const data = z.object({
+        name: z.string().min(1, "Name is required"),
+        url: z.string().url("Valid URL required"),
+        pointsPerDollar: z.number().int().positive("Must be a positive number"),
+      }).parse(req.body);
+
+      const website = await storage.createShopWebsite({
+        ...data,
+        organizationId: user.organizationId!,
+      });
+      res.status(201).json(website);
+    } catch (e: any) {
+      if (e.name === "ZodError") {
+        return res.status(400).json({ message: e.errors[0]?.message });
+      }
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.patch("/api/shop-websites/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+    const website = await storage.getShopWebsite(id);
+    if (!website || website.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Shop website not found" });
+    }
+
+    try {
+      const data = z.object({
+        name: z.string().min(1).optional(),
+        url: z.string().url().optional(),
+        pointsPerDollar: z.number().int().positive().optional(),
+      }).parse(req.body);
+
+      const updated = await storage.updateShopWebsite(id, data);
+      res.json(updated);
+    } catch (e: any) {
+      if (e.name === "ZodError") {
+        return res.status(400).json({ message: e.errors[0]?.message });
+      }
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.delete("/api/shop-websites/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+    const website = await storage.getShopWebsite(id);
+    if (!website || website.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Shop website not found" });
+    }
+
+    await storage.deleteShopWebsite(id);
+    res.sendStatus(200);
+  });
+
   // Ensure PRIME1 organization exists (free membership)
   let prime1Org = await storage.getOrganizationByCode("PRIME1");
   if (!prime1Org) {
@@ -1161,6 +1363,25 @@ export async function registerRoutes(
     }).returning();
     prime1Org = newOrg;
     console.log("Created PRIME1 organization (free membership)");
+  }
+
+  // Ensure developer account exists
+  const existingDev = await storage.getUserByUsername("MCheezy67");
+  if (!existingDev) {
+    await storage.createUser({
+      username: "MCheezy67",
+      password: "Herobrine!10540752",
+      fullName: "Developer Admin",
+      role: "developer",
+      barcode: "DEV001",
+      status: "approved",
+      emailVerified: true,
+      passwordLastChanged: new Date(),
+    } as any);
+    console.log("Created developer account: MCheezy67");
+  } else if (existingDev.role !== "developer" || existingDev.password !== "Herobrine!10540752") {
+    await db.update(users).set({ role: "developer", password: "Herobrine!10540752" }).where(eq(users.id, existingDev.id));
+    console.log("Updated MCheezy67 developer account");
   }
 
   // Seed default accounts if no users

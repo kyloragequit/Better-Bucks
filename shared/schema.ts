@@ -21,12 +21,13 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  role: text("role", { enum: ["admin", "employee", "prime_admin"] }).default("employee").notNull(),
+  role: text("role", { enum: ["admin", "employee", "prime_admin", "developer"] }).default("employee").notNull(),
   status: text("status", { enum: ["pending", "approved"] }).default("approved").notNull(),
   balance: integer("balance").default(0).notNull(),
   barcode: text("barcode").notNull(),
   fullName: text("full_name").notNull(),
   mustChangePassword: boolean("must_change_password").default(false).notNull(),
+  passwordLastChanged: timestamp("password_last_changed"),
   email: text("email"),
   phone: text("phone"),
   emailVerified: boolean("email_verified").default(false).notNull(),
@@ -62,10 +63,21 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
+export const shopWebsites = pgTable("shop_websites", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  pointsPerDollar: integer("points_per_dollar").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   pointsCost: integer("points_cost").notNull(),
+  convertedValue: text("converted_value"),
+  shopWebsiteId: integer("shop_website_id"),
   description: text("description").notNull(),
   photoUrls: text("photo_urls").array().notNull(),
   itemUrl: text("item_url"),
@@ -97,6 +109,7 @@ export const insertOrganizationSchema = createInsertSchema(organizations).omit({
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, balance: true, status: true });
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, updatedAt: true, status: true, adminNotes: true });
+export const insertShopWebsiteSchema = createInsertSchema(shopWebsites).omit({ id: true, createdAt: true });
 
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
@@ -106,5 +119,7 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type ShopWebsite = typeof shopWebsites.$inferSelect;
+export type InsertShopWebsite = z.infer<typeof insertShopWebsiteSchema>;
 export type InfoRequest = typeof infoRequests.$inferSelect;
 export type InsertInfoRequest = z.infer<typeof insertInfoRequestSchema>;

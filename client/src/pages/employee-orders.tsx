@@ -10,12 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ShoppingCart, ExternalLink, Upload, X, ImageIcon, Loader2, Package, Link2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShoppingCart, ExternalLink, Upload, X, ImageIcon, Loader2, Package, Link2, Store } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import type { Order } from "@shared/schema";
+import type { Order, ShopWebsite } from "@shared/schema";
 import { useStoreUrl } from "@/hooks/use-store-url";
 
 function statusVariant(status: string) {
@@ -139,6 +140,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
   const [description, setDescription] = useState("");
   const [pointsCost, setPointsCost] = useState("");
   const [itemUrl, setItemUrl] = useState("");
+  const [selectedShopId, setSelectedShopId] = useState<string>("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -146,8 +148,18 @@ function CreateOrderDialog({ balance }: { balance: number }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: shopWebsites } = useQuery<ShopWebsite[]>({
+    queryKey: ["/api/shop-websites"],
+  });
+
+  const selectedShop = shopWebsites?.find(s => s.id === parseInt(selectedShopId));
+  const pointsNum = parseInt(pointsCost) || 0;
+  const convertedDollars = selectedShop && pointsNum > 0 && selectedShop.pointsPerDollar > 0
+    ? (pointsNum / selectedShop.pointsPerDollar).toFixed(2)
+    : null;
+
   const createOrderMutation = useMutation({
-    mutationFn: async (data: { description: string; photoUrls: string[]; itemUrl?: string; pointsCost: number }) => {
+    mutationFn: async (data: { description: string; photoUrls: string[]; itemUrl?: string; pointsCost: number; shopWebsiteId?: number }) => {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,6 +180,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
       setDescription("");
       setPointsCost("");
       setItemUrl("");
+      setSelectedShopId("");
       setPhotos([]);
       setPreviews([]);
     },
@@ -226,6 +239,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
         photoUrls: urls,
         itemUrl: itemUrl.trim() || undefined,
         pointsCost: cost,
+        shopWebsiteId: selectedShopId ? parseInt(selectedShopId) : undefined,
       });
     } catch (err: any) {
       toast({ title: "Upload Error", description: err.message, variant: "destructive" });
@@ -260,6 +274,37 @@ function CreateOrderDialog({ balance }: { balance: number }) {
               data-testid="input-order-description"
             />
           </div>
+          {shopWebsites && shopWebsites.length > 0 && (
+            <div className="grid gap-2">
+              <Label htmlFor="shop-website">Shop Website (optional)</Label>
+              <Select value={selectedShopId} onValueChange={setSelectedShopId}>
+                <SelectTrigger data-testid="select-shop-website">
+                  <SelectValue placeholder="Select a shop..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {shopWebsites.map((shop) => (
+                    <SelectItem key={shop.id} value={String(shop.id)} data-testid={`shop-option-${shop.id}`}>
+                      <span className="flex items-center gap-2">
+                        <Store className="h-3 w-3" />
+                        {shop.name} ({shop.pointsPerDollar} pts = $1)
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedShop && (
+                <a
+                  href={selectedShop.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary underline flex items-center gap-1"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Browse {selectedShop.name}
+                </a>
+              )}
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="item-url">Item Link (optional)</Label>
             <div className="relative">
@@ -290,6 +335,14 @@ function CreateOrderDialog({ balance }: { balance: number }) {
               data-testid="input-order-points"
             />
             <p className="text-xs text-muted-foreground">You have {balance.toLocaleString()} points available</p>
+            {convertedDollars && selectedShop && (
+              <div className="bg-muted/50 rounded-md p-2 text-sm flex items-center gap-2">
+                <Store className="h-4 w-4 text-primary" />
+                <span>
+                  {pointsNum.toLocaleString()} points = <strong>${convertedDollars}</strong> on {selectedShop.name}
+                </span>
+              </div>
+            )}
           </div>
           <div className="grid gap-2">
             <Label>Photos / Screenshots (optional)</Label>

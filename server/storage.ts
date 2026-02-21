@@ -1,7 +1,7 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { users, transactions, orders, organizations, shopWebsites, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite } from "@shared/schema";
+import { eq, desc, and, ne } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -31,6 +31,16 @@ export interface IStorage {
   getAllOrders(): Promise<(Order & { user: User })[]>;
   getOrdersByOrganization(organizationId: number): Promise<(Order & { user: User })[]>;
   updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
+
+  getAllOrganizations(): Promise<Organization[]>;
+  
+  createShopWebsite(website: InsertShopWebsite): Promise<ShopWebsite>;
+  getShopWebsitesByOrganization(organizationId: number): Promise<ShopWebsite[]>;
+  getShopWebsite(id: number): Promise<ShopWebsite | undefined>;
+  updateShopWebsite(id: number, data: Partial<InsertShopWebsite>): Promise<ShopWebsite>;
+  deleteShopWebsite(id: number): Promise<void>;
+
+  updateUserPassword(userId: number, password: string): Promise<User>;
 
   createOrganization(org: InsertOrganization): Promise<Organization>;
   getOrganization(id: number): Promise<Organization | undefined>;
@@ -86,6 +96,7 @@ export class DatabaseStorage implements IStorage {
     const updateData: any = { ...data };
     if (data.password) {
       updateData.mustChangePassword = false;
+      updateData.passwordLastChanged = new Date();
     }
     const [updatedUser] = await db
       .update(users)
@@ -273,6 +284,42 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ tier, maxEmployees }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async getAllOrganizations(): Promise<Organization[]> {
+    return await db.select().from(organizations).orderBy(organizations.name);
+  }
+
+  async createShopWebsite(website: InsertShopWebsite): Promise<ShopWebsite> {
+    const [newWebsite] = await db.insert(shopWebsites).values(website).returning();
+    return newWebsite;
+  }
+
+  async getShopWebsitesByOrganization(organizationId: number): Promise<ShopWebsite[]> {
+    return await db.select().from(shopWebsites).where(eq(shopWebsites.organizationId, organizationId)).orderBy(shopWebsites.name);
+  }
+
+  async getShopWebsite(id: number): Promise<ShopWebsite | undefined> {
+    const [website] = await db.select().from(shopWebsites).where(eq(shopWebsites.id, id));
+    return website;
+  }
+
+  async updateShopWebsite(id: number, data: Partial<InsertShopWebsite>): Promise<ShopWebsite> {
+    const [updated] = await db.update(shopWebsites).set(data).where(eq(shopWebsites.id, id)).returning();
+    return updated;
+  }
+
+  async deleteShopWebsite(id: number): Promise<void> {
+    await db.delete(shopWebsites).where(eq(shopWebsites.id, id));
+  }
+
+  async updateUserPassword(userId: number, password: string): Promise<User> {
+    const [updated] = await db.update(users).set({ 
+      password, 
+      mustChangePassword: false,
+      passwordLastChanged: new Date()
+    }).where(eq(users.id, userId)).returning();
     return updated;
   }
 

@@ -1,79 +1,186 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
-import { Building2, LogIn, ArrowRight } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown } from "lucide-react";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[10%] left-[5%] w-12 h-12 rounded-full bg-[#F7C1E7] opacity-20" />
-        <div className="absolute top-[20%] right-[15%] w-24 h-24 rounded-full bg-[#F7C1E7] opacity-10" />
-        <div className="absolute bottom-[15%] left-[20%] w-16 h-16 rounded-full bg-[#F7C1E7] opacity-15" />
-        <div className="absolute top-[60%] right-[10%] w-8 h-8 rounded-full bg-[#F7C1E7] opacity-25" />
-        <div className="absolute bottom-[10%] right-[30%] w-20 h-20 rounded-full bg-[#F7C1E7] opacity-10" />
-        <div className="absolute top-[40%] left-[15%] w-6 h-6 rounded-full bg-[#F7C1E7] opacity-30" />
-        <div className="absolute bottom-[40%] right-[25%] w-14 h-14 rounded-full bg-[#F7C1E7] opacity-15" />
-        <div className="absolute top-[5%] right-[40%] w-10 h-10 rounded-full bg-[#F7C1E7] opacity-20" />
-        <div className="absolute bottom-[5%] left-[45%] w-28 h-28 rounded-full bg-[#F7C1E7] opacity-5" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md space-y-6">
-        <div className="text-center space-y-4">
-          <div className="mx-auto mb-2">
-            <AppLogo size="lg" />
+    <div className="min-h-screen bg-white flex flex-col">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <AppLogo size="sm" />
+            <span className="text-lg font-bold text-gray-900" data-testid="text-brand-name">Better Bucks</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900" data-testid="text-landing-title">
-            Better Bucks
-          </h1>
-          <p className="text-muted-foreground">
-            Manage your team's rewards, incentives, and recognition in one place.
-          </p>
-        </div>
-
-        <Card className="shadow-2xl shadow-black/10 border-muted bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg text-center">Get Started</CardTitle>
-            <CardDescription className="text-center">
-              Choose an option below to continue
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 transition-all duration-300"
-              onClick={() => setLocation("/signup")}
-              data-testid="button-signup-org"
-            >
-              <Building2 className="mr-2 h-5 w-5" />
-              Sign up for your organization
-              <ArrowRight className="ml-auto h-4 w-4" />
-            </Button>
-
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white/80 px-2 text-muted-foreground">or</span>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
-              className="w-full text-base py-6 font-semibold transition-all duration-300"
+              size="sm"
               onClick={() => setLocation("/login")}
-              data-testid="button-login-org"
+              data-testid="button-header-login"
+            >
+              <LogIn className="mr-1.5 h-4 w-4" />
+              Log In
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setLocation("/signup")}
+              data-testid="button-header-signup"
+            >
+              <Building2 className="mr-1.5 h-4 w-4" />
+              Sign Up
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[10%] left-[5%] w-16 h-16 rounded-full bg-[#F7C1E7] opacity-20" />
+          <div className="absolute top-[20%] right-[10%] w-32 h-32 rounded-full bg-[#F7C1E7] opacity-10" />
+          <div className="absolute bottom-[15%] left-[20%] w-20 h-20 rounded-full bg-[#F7C1E7] opacity-15" />
+          <div className="absolute top-[50%] right-[5%] w-12 h-12 rounded-full bg-[#F7C1E7] opacity-25" />
+          <div className="absolute bottom-[5%] right-[30%] w-24 h-24 rounded-full bg-[#F7C1E7] opacity-10" />
+          <div className="absolute top-[30%] left-[50%] w-8 h-8 rounded-full bg-[#F7C1E7] opacity-30" />
+        </div>
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
+          <div className="mx-auto mb-6">
+            <AppLogo size="lg" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight" data-testid="text-hero-headline">
+            Reward Performance. Simplify Incentives. Motivate Your Team.
+          </h1>
+          <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed" data-testid="text-hero-subheadline">
+            A points-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.
+          </p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              size="lg"
+              className="text-base px-8 shadow-lg shadow-primary/25"
+              onClick={() => setLocation("/signup")}
+              data-testid="button-hero-signup"
+            >
+              <Building2 className="mr-2 h-5 w-5" />
+              Sign Up for Your Organization
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="text-base px-8"
+              onClick={() => setLocation("/login")}
+              data-testid="button-hero-login"
             >
               <LogIn className="mr-2 h-5 w-5" />
-              Log in to my organization
-              <ArrowRight className="ml-auto h-4 w-4" />
+              Log In
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <div className="mt-12 animate-bounce">
+            <ChevronDown className="mx-auto h-6 w-6 text-gray-400" />
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 sm:py-24 bg-gray-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid gap-8 md:grid-cols-3">
+            <div className="bg-white rounded-md p-8 border border-gray-100 shadow-sm" data-testid="card-benefit-rewards">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-[#F7C1E7]/20 mb-5">
+                <Star className="h-6 w-6 text-[#D94FAD]" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Simple Rewards, Zero Hassle</h3>
+              <p className="text-gray-600 mb-4">Streamline how you recognize employees.</p>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Replace spreadsheets and manual tracking
+                </li>
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Reward employees in seconds
+                </li>
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Centralized platform for all incentives
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-md p-8 border border-gray-100 shadow-sm" data-testid="card-benefit-performance">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-[#F7C1E7]/20 mb-5">
+                <TrendingUp className="h-6 w-6 text-[#D94FAD]" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Motivate Performance That Matters</h3>
+              <p className="text-gray-600 mb-4">Turn everyday actions into measurable results.</p>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Tie rewards to KPIs, attendance, or goals
+                </li>
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Reinforce productivity and accountability
+                </li>
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Encourage behaviors aligned with company success
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-md p-8 border border-gray-100 shadow-sm" data-testid="card-benefit-costs">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-[#F7C1E7]/20 mb-5">
+                <DollarSign className="h-6 w-6 text-[#D94FAD]" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Control Costs While Boosting Engagement</h3>
+              <p className="text-gray-600 mb-4">Incentives employees love — with budgets you control.</p>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Predictable incentive spending
+                </li>
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Flexible reward options employees choose
+                </li>
+                <li className="flex items-start gap-2 text-gray-600">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  Scales easily as your workforce grows
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3" data-testid="text-cta-headline">
+            Ready to transform your employee rewards?
+          </h2>
+          <p className="text-gray-600 mb-6 max-w-lg mx-auto">
+            See how Better Bucks can simplify incentives and energize your team.
+          </p>
+          <Button
+            size="lg"
+            className="text-base px-8 shadow-lg shadow-primary/25"
+            onClick={() => {
+              window.location.href = "mailto:demo@betterbucks.com?subject=Request%20a%20Demo";
+            }}
+            data-testid="button-request-demo"
+          >
+            Request a Demo
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+          <div className="mt-8 pt-6 border-t text-sm text-gray-400 flex items-center justify-center gap-2">
+            <AppLogo size="sm" />
+            <span>Better Bucks</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

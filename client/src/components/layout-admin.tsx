@@ -23,9 +23,7 @@ function ImpersonationBanner() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/developer/status"] });
-      setLocation("/developer/dashboard");
+      window.location.href = "/developer/dashboard";
     },
   });
 

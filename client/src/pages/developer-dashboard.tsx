@@ -56,10 +56,7 @@ export default function DeveloperDashboardPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/developer/status"] });
-      toast({ title: "Impersonation Active", description: "You are now viewing as the prime admin. Use the return button to switch back." });
-      setLocation("/admin/dashboard");
+      window.location.href = "/admin/dashboard";
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });

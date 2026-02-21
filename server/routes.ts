@@ -1235,12 +1235,14 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Prime admin not found" });
     }
 
-    // Store developer's original user ID in session for returning later
-    (req.session as any).developerOriginalUserId = user.id;
-
+    const devId = user.id;
     req.login(targetUser, (err) => {
       if (err) return res.status(500).json({ message: "Impersonation failed" });
-      res.json(targetUser);
+      (req.session as any).developerOriginalUserId = devId;
+      req.session.save((saveErr) => {
+        if (saveErr) return res.status(500).json({ message: "Session save failed" });
+        res.json(targetUser);
+      });
     });
   });
 
@@ -1260,11 +1262,13 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Developer account not found" });
     }
 
-    delete (req.session as any).developerOriginalUserId;
-
     req.login(devUser, (err) => {
       if (err) return res.status(500).json({ message: "Failed to return to developer session" });
-      res.json(devUser);
+      delete (req.session as any).developerOriginalUserId;
+      req.session.save((saveErr) => {
+        if (saveErr) return res.status(500).json({ message: "Session save failed" });
+        res.json(devUser);
+      });
     });
   });
 

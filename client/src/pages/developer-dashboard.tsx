@@ -33,7 +33,7 @@ const tierPrices: Record<string, number> = {
 };
 
 export default function DeveloperDashboardPage() {
-  const { data: user } = useUser();
+  const { data: user, isLoading: userLoading } = useUser();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -57,6 +57,7 @@ export default function DeveloperDashboardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/status"] });
       toast({ title: "Impersonation Active", description: "You are now viewing as the prime admin. Use the return button to switch back." });
       setLocation("/admin/dashboard");
     },
@@ -75,12 +76,20 @@ export default function DeveloperDashboardPage() {
     },
   });
 
+  if (userLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader />
+      </div>
+    );
+  }
+
   if (!user || user.role !== "developer") {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground">Access denied. Developer credentials required.</p>
+            <p className="text-muted-foreground">Please sign in with developer credentials to continue.</p>
             <Button className="mt-4" onClick={() => setLocation("/developer")}>Go to Developer Login</Button>
           </CardContent>
         </Card>

@@ -398,6 +398,9 @@ export default function SignupPage() {
               )}
             </CardContent>
           </Card>
+          <p className="text-center mt-4 text-sm">
+            <strong>Are you a small business?</strong>
+          </p>
         </div>
       </div>
     </div>

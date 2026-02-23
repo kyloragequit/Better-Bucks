@@ -2,9 +2,9 @@ import logoImg from "@assets/ChatGPT_Image_Feb_23,_2026,_01_29_46_PM_17718750293
 
 export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const sizeClasses = {
-    sm: "h-7 w-7",
-    md: "h-9 w-9",
-    lg: "h-12 w-12",
+    sm: "h-10 w-10",
+    md: "h-14 w-14",
+    lg: "h-20 w-20",
   };
 
   return (

@@ -1,7 +1,7 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite } from "@shared/schema";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { users, transactions, orders, organizations, shopWebsites, documents, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument } from "@shared/schema";
+import { eq, desc, and, ne, ilike, or, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -51,6 +51,12 @@ export interface IStorage {
   updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization>;
   updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization>;
   deleteOrganization(id: number): Promise<void>;
+
+  createDocument(doc: InsertDocument): Promise<Document>;
+  getDocumentsByUser(userId: number): Promise<(Document & { uploadedBy: User })[]>;
+  getDocumentsByOrganization(organizationId: number, filters?: { search?: string; assignedToUserId?: number; isDisciplinaryAction?: boolean; dateFrom?: Date; dateTo?: Date }): Promise<(Document & { assignedTo: User; uploadedBy: User })[]>;
+  getDocument(id: number): Promise<Document | undefined>;
+  deleteDocument(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -321,6 +327,76 @@ export class DatabaseStorage implements IStorage {
       passwordLastChanged: new Date()
     }).where(eq(users.id, userId)).returning();
     return updated;
+  }
+
+  async createDocument(doc: InsertDocument): Promise<Document> {
+    const [newDoc] = await db.insert(documents).values(doc).returning();
+    return newDoc;
+  }
+
+  async getDocumentsByUser(userId: number): Promise<(Document & { uploadedBy: User })[]> {
+    const uploadedByUsers = db.$with("uploaded_by_users").as(db.select().from(users));
+    const result = await db
+      .select({ document: documents, uploadedBy: users })
+      .from(documents)
+      .leftJoin(users, eq(documents.uploadedByUserId, users.id))
+      .where(eq(documents.assignedToUserId, userId))
+      .orderBy(desc(documents.createdAt));
+    return result.map(row => ({ ...row.document, uploadedBy: row.uploadedBy! }));
+  }
+
+  async getDocumentsByOrganization(organizationId: number, filters?: { search?: string; assignedToUserId?: number; isDisciplinaryAction?: boolean; dateFrom?: Date; dateTo?: Date }): Promise<(Document & { assignedTo: User; uploadedBy: User })[]> {
+    const assignedToAlias = db.select().from(users).as("assigned_to_users");
+    const conditions: any[] = [eq(documents.organizationId, organizationId)];
+
+    if (filters?.assignedToUserId) {
+      conditions.push(eq(documents.assignedToUserId, filters.assignedToUserId));
+    }
+    if (filters?.isDisciplinaryAction !== undefined) {
+      conditions.push(eq(documents.isDisciplinaryAction, filters.isDisciplinaryAction));
+    }
+    if (filters?.dateFrom) {
+      conditions.push(gte(documents.createdAt, filters.dateFrom));
+    }
+    if (filters?.dateTo) {
+      conditions.push(lte(documents.createdAt, filters.dateTo));
+    }
+    if (filters?.search) {
+      conditions.push(ilike(documents.name, `%${filters.search}%`));
+    }
+
+    const uploadedByAlias = db.select().from(users).as("uploaded_by_alias");
+
+    const result = await db
+      .select({
+        document: documents,
+        assignedTo: { id: users.id, username: users.username, fullName: users.fullName, role: users.role, status: users.status, balance: users.balance, barcode: users.barcode, password: users.password, mustChangePassword: users.mustChangePassword, passwordLastChanged: users.passwordLastChanged, email: users.email, phone: users.phone, emailVerified: users.emailVerified, emailVerificationCode: users.emailVerificationCode, organizationId: users.organizationId },
+      })
+      .from(documents)
+      .leftJoin(users, eq(documents.assignedToUserId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(documents.createdAt));
+
+    const uploaderIds = Array.from(new Set(result.map(r => r.document.uploadedByUserId)));
+    const uploaders = uploaderIds.length > 0
+      ? await db.select().from(users).where(or(...uploaderIds.map(uid => eq(users.id, uid))))
+      : [];
+    const uploaderMap = new Map(uploaders.map(u => [u.id, u]));
+
+    return result.map(row => ({
+      ...row.document,
+      assignedTo: row.assignedTo as User,
+      uploadedBy: uploaderMap.get(row.document.uploadedByUserId) as User,
+    }));
+  }
+
+  async getDocument(id: number): Promise<Document | undefined> {
+    const [doc] = await db.select().from(documents).where(eq(documents.id, id));
+    return doc;
+  }
+
+  async deleteDocument(id: number): Promise<void> {
+    await db.delete(documents).where(eq(documents.id, id));
   }
 
   async deleteOrganization(id: number): Promise<void> {

@@ -102,6 +102,21 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Tier changes update Stripe subscription with proration and update local DB tier/maxEmployees
 - Free memberships cannot be cancelled or changed
 
+### Document Management System
+- Admins and prime admins can upload documents (PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, RTF, images) to any employee or admin in their org
+- Each document has a name, file upload, assigned user, and optional "Disciplinary Action" flag
+- Documents table: `documents` with id, name, fileUrl, originalFilename, assignedToUserId, uploadedByUserId, organizationId, isDisciplinaryAction, createdAt
+- Employees can view their assigned documents at /documents (read-only)
+- Admins can view all org documents at /admin/documents and upload/delete documents
+- Prime admins have additional search & filter capabilities:
+  - Search by document name
+  - Filter by assigned person
+  - Filter by disciplinary action flag
+  - Filter by date range (from/to)
+- API endpoints: POST /api/documents (upload), GET /api/documents (list with filters), DELETE /api/documents/:id
+- File uploads use existing multer setup with expanded file type support
+- User data in API responses is sanitized (no passwords exposed)
+
 ### App Branding
 - Yellow square logo with letter "B" used across all layouts (AppLogo component)
 - Pink brand color palette (base color #F7C1E7, HSL 318 60% 55% primary)

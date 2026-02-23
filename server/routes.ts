@@ -103,10 +103,9 @@ const upload = multer({
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|webp|pdf/;
+    const allowed = /jpeg|jpg|png|gif|webp|pdf|doc|docx|xls|xlsx|csv|txt|rtf/;
     const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    cb(null, ext && mime);
+    cb(null, ext);
   },
 });
 
@@ -1352,6 +1351,81 @@ export async function registerRoutes(
     }
 
     await storage.deleteShopWebsite(id);
+    res.sendStatus(200);
+  });
+
+  // ========== Document Management ==========
+  app.post("/api/documents", upload.single("file"), async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!req.file) return res.status(400).json({ message: "File is required" });
+
+    const { name, assignedToUserId, isDisciplinaryAction } = req.body;
+    if (!name || !assignedToUserId) {
+      return res.status(400).json({ message: "Name and assigned user are required" });
+    }
+
+    const assignedUser = await storage.getUser(parseInt(assignedToUserId));
+    if (!assignedUser || assignedUser.organizationId !== user.organizationId) {
+      return res.status(400).json({ message: "Invalid assigned user" });
+    }
+
+    const doc = await storage.createDocument({
+      name,
+      fileUrl: `/uploads/${req.file.filename}`,
+      originalFilename: req.file.originalname,
+      assignedToUserId: parseInt(assignedToUserId),
+      uploadedByUserId: user.id,
+      organizationId: user.organizationId!,
+      isDisciplinaryAction: isDisciplinaryAction === "true" || isDisciplinaryAction === true,
+    });
+    res.status(201).json(doc);
+  });
+
+  app.get("/api/documents", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+
+    const safeUser = (u: User | undefined) => u ? { id: u.id, fullName: u.fullName, username: u.username, role: u.role } : null;
+
+    if (user.role === "employee") {
+      const docs = await storage.getDocumentsByUser(user.id);
+      return res.json(docs.map(d => ({ ...d, uploadedBy: safeUser(d.uploadedBy) })));
+    }
+
+    if (user.role === "admin" || user.role === "prime_admin") {
+      const filters: any = {};
+      if (req.query.search) filters.search = req.query.search as string;
+      if (req.query.assignedToUserId) filters.assignedToUserId = parseInt(req.query.assignedToUserId as string);
+      if (req.query.isDisciplinaryAction !== undefined && req.query.isDisciplinaryAction !== "") {
+        filters.isDisciplinaryAction = req.query.isDisciplinaryAction === "true";
+      }
+      if (req.query.dateFrom) filters.dateFrom = new Date(req.query.dateFrom as string);
+      if (req.query.dateTo) filters.dateTo = new Date(req.query.dateTo as string);
+
+      const docs = await storage.getDocumentsByOrganization(user.organizationId!, filters);
+      return res.json(docs.map(d => ({ ...d, assignedTo: safeUser(d.assignedTo), uploadedBy: safeUser(d.uploadedBy) })));
+    }
+
+    return res.status(403).send("Forbidden");
+  });
+
+  app.delete("/api/documents/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+    const doc = await storage.getDocument(id);
+    if (!doc || doc.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Document not found" });
+    }
+
+    await storage.deleteDocument(id);
     res.sendStatus(200);
   });
 

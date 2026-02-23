@@ -94,6 +94,35 @@ export const ordersRelations = relations(orders, ({ one }) => ({
   }),
 }));
 
+export const documents = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  assignedToUserId: integer("assigned_to_user_id").notNull(),
+  uploadedByUserId: integer("uploaded_by_user_id").notNull(),
+  organizationId: integer("organization_id").notNull(),
+  isDisciplinaryAction: boolean("is_disciplinary_action").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  assignedTo: one(users, {
+    fields: [documents.assignedToUserId],
+    references: [users.id],
+    relationName: "assignedDocuments",
+  }),
+  uploadedBy: one(users, {
+    fields: [documents.uploadedByUserId],
+    references: [users.id],
+    relationName: "uploadedDocuments",
+  }),
+  organization: one(organizations, {
+    fields: [documents.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
 export const infoRequests = pgTable("info_requests", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -110,6 +139,7 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, balan
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, updatedAt: true, status: true, adminNotes: true });
 export const insertShopWebsiteSchema = createInsertSchema(shopWebsites).omit({ id: true, createdAt: true });
+export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true });
 
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
@@ -121,5 +151,7 @@ export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type ShopWebsite = typeof shopWebsites.$inferSelect;
 export type InsertShopWebsite = z.infer<typeof insertShopWebsiteSchema>;
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InfoRequest = typeof infoRequests.$inferSelect;
 export type InsertInfoRequest = z.infer<typeof insertInfoRequestSchema>;

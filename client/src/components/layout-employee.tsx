@@ -35,6 +35,13 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
             >
               Orders
             </Link>
+            <Link
+              href="/documents"
+              className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/documents') ? "text-primary font-bold" : "text-muted-foreground"}`}
+              data-testid="link-employee-documents"
+            >
+              Documents
+            </Link>
             <a
               href={storeUrl}
               target="_blank"

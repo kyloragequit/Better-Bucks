@@ -23,6 +23,8 @@ import AdminSettingsPage from "@/pages/admin-settings";
 import PendingVerification from "@/pages/pending-verification";
 import ChangePasswordPage from "@/pages/change-password";
 import VerifyEmailPage from "@/pages/verify-email";
+import AdminDocumentsPage from "@/pages/admin-documents";
+import EmployeeDocumentsPage from "@/pages/employee-documents";
 import DeveloperLoginPage from "@/pages/developer-login";
 import DeveloperDashboardPage from "@/pages/developer-dashboard";
 
@@ -95,6 +97,10 @@ function Router() {
         <ProtectedRoute component={EmployeeOrdersPage} />
       </Route>
 
+      <Route path="/documents">
+        <ProtectedRoute component={EmployeeDocumentsPage} />
+      </Route>
+
       <Route path="/admin/dashboard">
         <ProtectedRoute component={AdminDashboardPage} adminOnly />
       </Route>
@@ -109,6 +115,9 @@ function Router() {
       </Route>
       <Route path="/admin/pending">
         <ProtectedRoute component={AdminPendingPage} adminOnly />
+      </Route>
+      <Route path="/admin/documents">
+        <ProtectedRoute component={AdminDocumentsPage} adminOnly />
       </Route>
       <Route path="/admin/settings">
         <ProtectedRoute component={AdminSettingsPage} adminOnly />

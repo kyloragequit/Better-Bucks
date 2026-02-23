@@ -8,66 +8,65 @@
   --font-display: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
 
-  /* Better Bucks - Pink Brand Color #F7C1E7 */
-  --background: 318 20% 98%;
-  --foreground: 300 30% 11%;
+  --background: 213 20% 98%;
+  --foreground: 213 30% 11%;
   
-  --primary: 318 60% 55%;
+  --primary: 213 54% 19%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 318 40% 75%;
-  --secondary-foreground: 300 30% 11%;
+  --secondary: 110 44% 43%;
+  --secondary-foreground: 0 0% 100%;
   
-  --muted: 318 20% 95%;
-  --muted-foreground: 300 10% 45%;
+  --muted: 213 15% 94%;
+  --muted-foreground: 213 10% 45%;
   
-  --accent: 318 69% 86%;
-  --accent-foreground: 318 60% 30%;
+  --accent: 110 35% 90%;
+  --accent-foreground: 213 54% 19%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 318 20% 90%;
-  --input: 318 20% 90%;
-  --ring: 318 60% 55%;
+  --border: 213 15% 88%;
+  --input: 213 15% 88%;
+  --ring: 213 54% 19%;
   
   --card: 0 0% 100%;
-  --card-foreground: 280 30% 11%;
+  --card-foreground: 213 30% 11%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 300 30% 11%;
+  --popover-foreground: 213 30% 11%;
 
   --radius: 0.75rem;
 }
 
 .dark {
-  --background: 280 20% 10%;
-  --foreground: 300 20% 96%;
+  --background: 213 30% 8%;
+  --foreground: 213 15% 96%;
   
-  --primary: 318 60% 65%;
-  --primary-foreground: 0 0% 0%;
+  --primary: 213 45% 35%;
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 318 40% 40%;
-  --secondary-foreground: 318 20% 96%;
+  --secondary: 110 40% 38%;
+  --secondary-foreground: 0 0% 100%;
   
-  --muted: 300 20% 17%;
-  --muted-foreground: 318 15% 65%;
+  --muted: 213 20% 15%;
+  --muted-foreground: 213 15% 60%;
   
-  --accent: 318 50% 45%;
+  --accent: 110 30% 25%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 84% 55%;
   --destructive-foreground: 0 0% 98%;
   
-  --border: 300 20% 20%;
-  --input: 300 20% 20%;
-  --ring: 318 60% 65%;
+  --border: 213 20% 20%;
+  --input: 213 20% 20%;
+  --ring: 213 45% 35%;
   
-  --card: 280 20% 13%;
-  --card-foreground: 300 20% 96%;
+  --card: 213 25% 12%;
+  --card-foreground: 213 15% 96%;
 
-  --popover: 280 20% 13%;
-  --popover-foreground: 300 20% 96%;
+  --popover: 213 25% 12%;
+  --popover-foreground: 213 15% 96%;
 }
 
 @layer base {
@@ -80,23 +79,22 @@
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    @apply font-bold tracking-tight;
   }
 }
 
-/* Custom Utilities */
-.glass-panel {
-  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
-}
-.dark .glass-panel {
-  @apply bg-black/40 border-white/10;
+.font-display {
+  font-family: var(--font-display);
 }
 
-.animate-in {
-  animation: fadeIn 0.4s ease-out forwards;
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px hsl(var(--background)) inset;
+  -webkit-text-fill-color: hsl(var(--foreground));
+  transition: background-color 5000s ease-in-out 0s;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.barcode-container svg {
+  max-width: 100%;
+  height: auto;
 }

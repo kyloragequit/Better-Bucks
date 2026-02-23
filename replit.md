@@ -118,8 +118,8 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - User data in API responses is sanitized (no passwords exposed)
 
 ### App Branding
-- Yellow square logo with letter "B" used across all layouts (AppLogo component)
-- Pink brand color palette (base color #F7C1E7, HSL 318 60% 55% primary)
+- Custom logo image used across all layouts (AppLogo component imports from @assets)
+- Navy blue and green brand color palette (primary #162A4A, secondary #4E9F3D)
 
 ### Shared Code
 The `shared/` directory contains code used by both frontend and backend:

@@ -38,12 +38,12 @@ export default function LandingPage() {
 
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[10%] left-[5%] w-16 h-16 rounded-full bg-[#F7C1E7] opacity-20" />
-          <div className="absolute top-[20%] right-[10%] w-32 h-32 rounded-full bg-[#F7C1E7] opacity-10" />
-          <div className="absolute bottom-[15%] left-[20%] w-20 h-20 rounded-full bg-[#F7C1E7] opacity-15" />
-          <div className="absolute top-[50%] right-[5%] w-12 h-12 rounded-full bg-[#F7C1E7] opacity-25" />
-          <div className="absolute bottom-[5%] right-[30%] w-24 h-24 rounded-full bg-[#F7C1E7] opacity-10" />
-          <div className="absolute top-[30%] left-[50%] w-8 h-8 rounded-full bg-[#F7C1E7] opacity-30" />
+          <div className="absolute top-[10%] left-[5%] w-16 h-16 rounded-full bg-primary opacity-20" />
+          <div className="absolute top-[20%] right-[10%] w-32 h-32 rounded-full bg-secondary opacity-10" />
+          <div className="absolute bottom-[15%] left-[20%] w-20 h-20 rounded-full bg-primary opacity-15" />
+          <div className="absolute top-[50%] right-[5%] w-12 h-12 rounded-full bg-secondary opacity-25" />
+          <div className="absolute bottom-[5%] right-[30%] w-24 h-24 rounded-full bg-primary opacity-10" />
+          <div className="absolute top-[30%] left-[50%] w-8 h-8 rounded-full bg-secondary opacity-30" />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
@@ -51,7 +51,7 @@ export default function LandingPage() {
             <AppLogo size="lg" />
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight" data-testid="text-hero-headline">
-            Reward Performance. Simplify Incentives. Motivate Your Team.
+            Reward What's Important
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed" data-testid="text-hero-subheadline">
             A points-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.
@@ -88,66 +88,66 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid gap-8 md:grid-cols-3">
             <div className="bg-white rounded-md p-8 border border-gray-100 shadow-sm" data-testid="card-benefit-rewards">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-[#F7C1E7]/20 mb-5">
-                <Star className="h-6 w-6 text-[#D94FAD]" />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
+                <Star className="h-6 w-6 text-secondary" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Simple Rewards, Zero Hassle</h3>
               <p className="text-gray-600 mb-4">Streamline how you recognize employees.</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Replace spreadsheets and manual tracking
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Reward employees in seconds
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Centralized platform for all incentives
                 </li>
               </ul>
             </div>
 
             <div className="bg-white rounded-md p-8 border border-gray-100 shadow-sm" data-testid="card-benefit-performance">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-[#F7C1E7]/20 mb-5">
-                <TrendingUp className="h-6 w-6 text-[#D94FAD]" />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
+                <TrendingUp className="h-6 w-6 text-secondary" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Motivate Performance That Matters</h3>
               <p className="text-gray-600 mb-4">Turn everyday actions into measurable results.</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Tie rewards to KPIs, attendance, or goals
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Reinforce productivity and accountability
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Encourage behaviors aligned with company success
                 </li>
               </ul>
             </div>
 
             <div className="bg-white rounded-md p-8 border border-gray-100 shadow-sm" data-testid="card-benefit-costs">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-[#F7C1E7]/20 mb-5">
-                <DollarSign className="h-6 w-6 text-[#D94FAD]" />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
+                <DollarSign className="h-6 w-6 text-secondary" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Control Costs While Boosting Engagement</h3>
               <p className="text-gray-600 mb-4">Incentives employees love — with budgets you control.</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Predictable incentive spending
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Flexible reward options employees choose
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#D94FAD] shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
                   Scales easily as your workforce grows
                 </li>
               </ul>

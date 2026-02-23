@@ -102,7 +102,7 @@ export default function DeveloperDashboardPage() {
             <AppLogo size="sm" />
             <div>
               <span className="text-lg font-bold">Better Bucks</span>
-              <Badge variant="outline" className="ml-2 text-[#D94FAD] border-[#D94FAD] text-xs">
+              <Badge variant="outline" className="ml-2 text-secondary border-secondary text-xs">
                 DEVELOPER
               </Badge>
             </div>
@@ -144,8 +144,8 @@ export default function DeveloperDashboardPage() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-[#F7C1E7]/20">
-                      <Building2 className="h-5 w-5 text-[#D94FAD]" />
+                    <div className="p-2 rounded-md bg-primary/10">
+                      <Building2 className="h-5 w-5 text-secondary" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Organizations</p>
@@ -157,8 +157,8 @@ export default function DeveloperDashboardPage() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-[#F7C1E7]/20">
-                      <Shield className="h-5 w-5 text-[#D94FAD]" />
+                    <div className="p-2 rounded-md bg-primary/10">
+                      <Shield className="h-5 w-5 text-secondary" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Admins</p>
@@ -172,8 +172,8 @@ export default function DeveloperDashboardPage() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-[#F7C1E7]/20">
-                      <Users className="h-5 w-5 text-[#D94FAD]" />
+                    <div className="p-2 rounded-md bg-primary/10">
+                      <Users className="h-5 w-5 text-secondary" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Employees</p>

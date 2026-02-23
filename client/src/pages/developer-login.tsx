@@ -66,7 +66,7 @@ export default function DeveloperLoginPage() {
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
-              <Code2 className="h-5 w-5 text-[#D94FAD]" />
+              <Code2 className="h-5 w-5 text-secondary" />
               Developer Sign In
             </CardTitle>
             <CardDescription className="text-gray-400">

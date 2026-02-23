@@ -140,6 +140,11 @@ export default function SignupPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-5xl space-y-6">
+        <div className="bg-primary text-primary-foreground text-center py-3 px-4 rounded-lg shadow-md" data-testid="banner-small-business">
+          <p className="text-sm font-semibold">Contact us for small business pricing</p>
+          <a href="mailto:miles@betterbucks.net" className="text-xs underline opacity-90 hover:opacity-100">miles@betterbucks.net</a>
+        </div>
+
         <Button
           variant="ghost"
           className="mb-2"

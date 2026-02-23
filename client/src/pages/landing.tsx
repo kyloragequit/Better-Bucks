@@ -47,7 +47,7 @@ export default function LandingPage() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
-          <div className="mx-auto mb-6">
+          <div className="flex justify-center mb-6">
             <AppLogo size="lg" />
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight" data-testid="text-hero-headline">

@@ -97,13 +97,14 @@ export default function EmployeeOrdersPage() {
                 <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Points</TableHead>
+                <TableHead>Value</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(!orders || orders.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                     No orders yet. Browse the store and submit your first order!
                   </TableCell>
                 </TableRow>
@@ -116,6 +117,9 @@ export default function EmployeeOrdersPage() {
                   <TableCell className="font-medium max-w-[200px] truncate">{order.description}</TableCell>
                   <TableCell className="font-bold tabular-nums text-primary">
                     {order.pointsCost.toLocaleString()} pts
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {order.convertedValue || "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-${order.id}`}>
@@ -159,7 +163,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
     : null;
 
   const createOrderMutation = useMutation({
-    mutationFn: async (data: { description: string; photoUrls: string[]; itemUrl?: string; pointsCost: number; shopWebsiteId?: number }) => {
+    mutationFn: async (data: { description: string; photoUrls: string[]; itemUrl?: string; pointsCost: number; shopWebsiteId: number }) => {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,6 +221,10 @@ function CreateOrderDialog({ balance }: { balance: number }) {
       toast({ title: "Error", description: "Not enough points.", variant: "destructive" });
       return;
     }
+    if (!selectedShopId) {
+      toast({ title: "Error", description: "Please select a shop website.", variant: "destructive" });
+      return;
+    }
     if (photos.length === 0 && !itemUrl.trim()) {
       toast({ title: "Error", description: "Please upload at least one photo or paste a link to the item.", variant: "destructive" });
       return;
@@ -239,7 +247,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
         photoUrls: urls,
         itemUrl: itemUrl.trim() || undefined,
         pointsCost: cost,
-        shopWebsiteId: selectedShopId ? parseInt(selectedShopId) : undefined,
+        shopWebsiteId: parseInt(selectedShopId),
       });
     } catch (err: any) {
       toast({ title: "Upload Error", description: err.message, variant: "destructive" });
@@ -274,37 +282,41 @@ function CreateOrderDialog({ balance }: { balance: number }) {
               data-testid="input-order-description"
             />
           </div>
-          {shopWebsites && shopWebsites.length > 0 && (
-            <div className="grid gap-2">
-              <Label htmlFor="shop-website">Shop Website (optional)</Label>
-              <Select value={selectedShopId} onValueChange={setSelectedShopId}>
-                <SelectTrigger data-testid="select-shop-website">
-                  <SelectValue placeholder="Select a shop..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {shopWebsites.map((shop) => (
-                    <SelectItem key={shop.id} value={String(shop.id)} data-testid={`shop-option-${shop.id}`}>
-                      <span className="flex items-center gap-2">
-                        <Store className="h-3 w-3" />
-                        {shop.name} ({shop.pointsPerDollar} pts = $1)
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedShop && (
-                <a
-                  href={selectedShop.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary underline flex items-center gap-1"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Browse {selectedShop.name}
-                </a>
-              )}
-            </div>
-          )}
+          <div className="grid gap-2">
+            <Label htmlFor="shop-website">Shop Website *</Label>
+            {shopWebsites && shopWebsites.length > 0 ? (
+              <>
+                <Select value={selectedShopId} onValueChange={setSelectedShopId}>
+                  <SelectTrigger data-testid="select-shop-website">
+                    <SelectValue placeholder="Select a shop..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {shopWebsites.map((shop) => (
+                      <SelectItem key={shop.id} value={String(shop.id)} data-testid={`shop-option-${shop.id}`}>
+                        <span className="flex items-center gap-2">
+                          <Store className="h-3 w-3" />
+                          {shop.name} ({shop.pointsPerDollar} pts = $1)
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedShop && (
+                  <a
+                    href={selectedShop.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary underline flex items-center gap-1"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Browse {selectedShop.name}
+                  </a>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No shop websites have been set up yet. Ask your admin to add one.</p>
+            )}
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="item-url">Item Link (optional)</Label>
             <div className="relative">

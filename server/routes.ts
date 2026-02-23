@@ -12,7 +12,7 @@ import crypto from "crypto";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sql, eq, and, gte, gt, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { organizations, users, infoRequests, transactions } from "@shared/schema";
+import { organizations, users, infoRequests, transactions, orders } from "@shared/schema";
 import nodemailer from "nodemailer";
 
 import type { User } from "@shared/schema";
@@ -497,7 +497,7 @@ export async function registerRoutes(
     photoUrls: z.array(z.string()).default([]),
     itemUrl: z.string().url().optional().or(z.literal("")),
     pointsCost: z.number().int().positive("Points must be greater than 0"),
-    shopWebsiteId: z.number().int().optional(),
+    shopWebsiteId: z.number().int({ required_error: "Shop website is required" }),
   }).refine(
     (data) => data.photoUrls.length > 0 || (data.itemUrl && data.itemUrl.length > 0),
     { message: "Please provide at least one photo or a link to the item" }
@@ -659,6 +659,42 @@ export async function registerRoutes(
       week: Number(weekResult.total),
       month: Number(monthResult.total),
       year: Number(yearResult.total),
+    });
+  });
+
+  app.get("/api/stats/orders", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
+
+    if (employeeIds.length === 0) {
+      return res.json({ totalOrders: 0, pendingDollars: "$0.00", approvedDollars: "$0.00", totalDollars: "$0.00" });
+    }
+
+    const allOrders = await db.select().from(orders).where(inArray(orders.userId, employeeIds));
+
+    let totalOrders = allOrders.length;
+    let pendingDollars = 0;
+    let approvedDollars = 0;
+    let totalDollars = 0;
+
+    for (const order of allOrders) {
+      const dollarAmount = order.convertedValue ? parseFloat(order.convertedValue.replace(/[^0-9.]/g, "")) || 0 : 0;
+      totalDollars += dollarAmount;
+      if (order.status === "pending") pendingDollars += dollarAmount;
+      if (order.status === "approved" || order.status === "completed") approvedDollars += dollarAmount;
+    }
+
+    res.json({
+      totalOrders,
+      pendingDollars: `$${pendingDollars.toFixed(2)}`,
+      approvedDollars: `$${approvedDollars.toFixed(2)}`,
+      totalDollars: `$${totalDollars.toFixed(2)}`,
     });
   });
 

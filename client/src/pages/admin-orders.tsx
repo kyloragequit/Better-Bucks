@@ -63,6 +63,7 @@ export default function AdminOrdersPage() {
                   <TableHead>Employee</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Points</TableHead>
+                  <TableHead>Value</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -77,6 +78,9 @@ export default function AdminOrdersPage() {
                     <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
                     <TableCell className="font-bold tabular-nums text-primary">
                       {order.pointsCost.toLocaleString()} pts
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {order.convertedValue || "—"}
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
@@ -113,6 +117,7 @@ export default function AdminOrdersPage() {
                 <TableHead>Employee</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Points</TableHead>
+                <TableHead>Value</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Details</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -121,7 +126,7 @@ export default function AdminOrdersPage() {
             <TableBody>
               {(!orders || orders.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     No orders yet.
                   </TableCell>
                 </TableRow>
@@ -135,6 +140,9 @@ export default function AdminOrdersPage() {
                   <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
                   <TableCell className="font-bold tabular-nums text-primary">
                     {order.pointsCost.toLocaleString()} pts
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {order.convertedValue || "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-${order.id}`}>
@@ -235,6 +243,11 @@ function OrderPhotoDialog({ order, onClose }: { order: OrderWithUser; onClose: (
           <div className="text-sm">
             <span className="font-medium">Points:</span> {order.pointsCost.toLocaleString()}
           </div>
+          {order.convertedValue && (
+            <div className="text-sm">
+              <span className="font-medium">USD Value:</span> {order.convertedValue}
+            </div>
+          )}
           {order.itemUrl && (
             <div className="text-sm">
               <span className="font-medium">Item Link:</span>{" "}

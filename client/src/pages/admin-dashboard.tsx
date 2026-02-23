@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, CalendarDays, CalendarRange } from "lucide-react";
+import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 
 export default function AdminDashboardPage() {
@@ -30,6 +30,10 @@ export default function AdminDashboardPage() {
     },
   });
 
+  const { data: orderStats, isLoading: orderStatsLoading } = useQuery<{ totalOrders: number; pendingDollars: string; approvedDollars: string; totalDollars: string }>({
+    queryKey: ["/api/stats/orders"],
+  });
+
   return (
     <AdminLayout>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -54,44 +58,94 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {(statsLoading || adminsLoading) ? (
+      {(statsLoading || adminsLoading || orderStatsLoading) ? (
         <Loader />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <Card className="border shadow-sm">
-            <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-blue-600 flex-shrink-0">
-                <Calendar className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Bucks This Week</p>
-                <p className="text-3xl font-bold" data-testid="text-points-week">{pointsStats?.week?.toLocaleString() ?? "0"}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border shadow-sm">
-            <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600 flex-shrink-0">
-                <CalendarDays className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Bucks This Month</p>
-                <p className="text-3xl font-bold" data-testid="text-points-month">{pointsStats?.month?.toLocaleString() ?? "0"}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border shadow-sm">
-            <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 text-purple-600 flex-shrink-0">
-                <CalendarRange className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Bucks This Year</p>
-                <p className="text-3xl font-bold" data-testid="text-points-year">{pointsStats?.year?.toLocaleString() ?? "0"}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <Card className="border shadow-sm">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-blue-600 flex-shrink-0">
+                  <Calendar className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Bucks This Week</p>
+                  <p className="text-3xl font-bold" data-testid="text-points-week">{pointsStats?.week?.toLocaleString() ?? "0"}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border shadow-sm">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600 flex-shrink-0">
+                  <CalendarDays className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Bucks This Month</p>
+                  <p className="text-3xl font-bold" data-testid="text-points-month">{pointsStats?.month?.toLocaleString() ?? "0"}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border shadow-sm">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 text-purple-600 flex-shrink-0">
+                  <CalendarRange className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Bucks This Year</p>
+                  <p className="text-3xl font-bold" data-testid="text-points-year">{pointsStats?.year?.toLocaleString() ?? "0"}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <h2 className="text-xl font-display font-bold text-foreground mb-4">Order Tracking</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="border shadow-sm">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 flex-shrink-0">
+                  <ShoppingCart className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Total Orders</p>
+                  <p className="text-3xl font-bold" data-testid="text-total-orders">{orderStats?.totalOrders ?? 0}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border shadow-sm">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100 text-yellow-600 flex-shrink-0">
+                  <Clock className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Pending Orders ($)</p>
+                  <p className="text-3xl font-bold" data-testid="text-pending-dollars">{orderStats?.pendingDollars ?? "$0.00"}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border shadow-sm">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 flex-shrink-0">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Approved Orders ($)</p>
+                  <p className="text-3xl font-bold" data-testid="text-approved-dollars">{orderStats?.approvedDollars ?? "$0.00"}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border shadow-sm">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-100 text-pink-600 flex-shrink-0">
+                  <DollarSign className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Total $ in Orders</p>
+                  <p className="text-3xl font-bold" data-testid="text-total-dollars">{orderStats?.totalDollars ?? "$0.00"}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
     </AdminLayout>
   );

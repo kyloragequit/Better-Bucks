@@ -52,6 +52,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { mutate: logout } = useLogout();
   const { data: user } = useUser();
+  const { data: devStatus } = useQuery<{ impersonating: boolean }>({
+    queryKey: ["/api/developer/status"],
+  });
+  const isImpersonating = devStatus?.impersonating === true;
 
   const isActive = (path: string) => location === path || location.startsWith(`${path}/`);
 
@@ -90,15 +94,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             >
               Orders
             </Link>
-            <Link
-              href="/admin/documents"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/admin/documents') ? "text-primary font-bold" : "text-muted-foreground"
-              }`}
-              data-testid="link-admin-documents"
-            >
-              Documents
-            </Link>
+            {!isImpersonating && (
+              <Link
+                href="/admin/documents"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/admin/documents') ? "text-primary font-bold" : "text-muted-foreground"
+                }`}
+                data-testid="link-admin-documents"
+              >
+                Documents
+              </Link>
+            )}
             {user?.role === "prime_admin" && (
               <Link
                 href="/admin/pending"

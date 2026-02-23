@@ -53,7 +53,7 @@ export default function AdminDocumentsPage() {
   });
 
   const { data: orgUsers = [] } = useQuery<User[]>({
-    queryKey: ["/api/employees"],
+    queryKey: ["/api/users"],
   });
 
   const uploadMutation = useMutation({

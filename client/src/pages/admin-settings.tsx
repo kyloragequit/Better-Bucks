@@ -34,10 +34,10 @@ const tierLabels: Record<string, string> = {
 };
 
 const tierPrices: Record<string, number> = {
-  small: 149,
-  mid: 349,
-  large: 599,
-  enterprise: 999,
+  small: 49.99,
+  mid: 99.99,
+  large: 149.99,
+  enterprise: 299.99,
 };
 
 export default function AdminSettingsPage() {
@@ -399,10 +399,10 @@ export default function AdminSettingsPage() {
                             <SelectValue placeholder="Choose a plan" />
                           </SelectTrigger>
                           <SelectContent>
-                            {org.tier !== "small" && <SelectItem value="small">Small Site - $149/mo (up to 100)</SelectItem>}
-                            {org.tier !== "mid" && <SelectItem value="mid">Mid-Size Site - $349/mo (up to 300)</SelectItem>}
-                            {org.tier !== "large" && <SelectItem value="large">Large Site - $599/mo (up to 500)</SelectItem>}
-                            {org.tier !== "enterprise" && <SelectItem value="enterprise">Enterprise - $999/mo (unlimited)</SelectItem>}
+                            {org.tier !== "small" && <SelectItem value="small">Small Site - $49.99/mo (up to 100)</SelectItem>}
+                            {org.tier !== "mid" && <SelectItem value="mid">Mid-Size Site - $99.99/mo (up to 300)</SelectItem>}
+                            {org.tier !== "large" && <SelectItem value="large">Large Site - $149.99/mo (up to 500)</SelectItem>}
+                            {org.tier !== "enterprise" && <SelectItem value="enterprise">Enterprise - $299.99/mo (unlimited)</SelectItem>}
                           </SelectContent>
                         </Select>
                         <div className="flex items-center gap-2">

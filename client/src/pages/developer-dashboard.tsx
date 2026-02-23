@@ -26,10 +26,10 @@ const tierLabels: Record<string, string> = {
 };
 
 const tierPrices: Record<string, number> = {
-  small: 149,
-  mid: 349,
-  large: 599,
-  enterprise: 999,
+  small: 49.99,
+  mid: 99.99,
+  large: 149.99,
+  enterprise: 299.99,
 };
 
 export default function DeveloperDashboardPage() {

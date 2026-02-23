@@ -84,10 +84,10 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Promo code GOKU11 bypasses payment and activates org immediately
 - First-time setup requires selecting a store website URL (no default)
 - **Pricing Tiers**:
-  - Small Site: $149/month, up to 100 employees
-  - Mid-Size Site: $349/month, up to 300 employees
-  - Large Site: $599/month, up to 500 employees
-  - Enterprise: $999/month, unlimited employees
+  - Small Site: $49.99/month, up to 100 employees
+  - Mid-Size Site: $99.99/month, up to 300 employees
+  - Large Site: $149.99/month, up to 500 employees
+  - Enterprise: $299.99/month, unlimited employees
 - Organizations have `tier` and `maxEmployees` columns; employee limits enforced on user creation
 - First-time login: Enter org code -> create prime admin account
 - Stripe integration via stripe-replit-sync for webhook processing and data sync

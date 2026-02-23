@@ -1138,7 +1138,7 @@ export async function registerRoutes(
 
         await transporter.sendMail({
           from: smtpUser,
-          to: "milesgchase@gmail.com",
+          to: "miles@betterbucks.net",
           subject,
           text: `New Information Request\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\nEmployee Incentive Needs:\n${data.needs}`,
           html: `

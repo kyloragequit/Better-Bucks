@@ -98,3 +98,28 @@ input:-webkit-autofill:focus {
   max-width: 100%;
   height: auto;
 }
+
+/* Fun theme — activated by clicking the logo, resets on navigation/refresh */
+.fun-theme {
+  --primary: 18 94% 54%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 228 90% 27%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 18 80% 92%;
+  --accent-foreground: 18 80% 25%;
+  --ring: 18 94% 54%;
+}
+
+@keyframes logo-whirl {
+  0%   { transform: rotate(0deg)   scale(1);    }
+  15%  { transform: rotate(90deg)  scale(1.25); }
+  40%  { transform: rotate(300deg) scale(0.85); }
+  65%  { transform: rotate(620deg) scale(1.15); }
+  82%  { transform: rotate(700deg) scale(0.95); }
+  100% { transform: rotate(720deg) scale(1);    }
+}
+
+.logo-whirl {
+  animation: logo-whirl 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  cursor: pointer;
+}

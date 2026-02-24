@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useUser } from "@/hooks/use-auth";
 import { useUserDetails, useUpdateProfile } from "@/hooks/use-users";
+import { useQuery } from "@tanstack/react-query";
 import { EmployeeLayout } from "@/components/layout-employee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,15 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wallet, History, CreditCard, Mail } from "lucide-react";
+import { Wallet, History, CreditCard, Mail, Store } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import Barcode from "react-barcode";
 import { format } from "date-fns";
 
 export default function EmployeeDashboard() {
   const { data: authUser } = useUser();
-  // Fetch full details including transactions
   const { data: userDetails, isLoading } = useUserDetails(authUser?.id || 0);
+  const { data: shops } = useQuery<{ id: number; name: string; url: string; pointsPerDollar: number }[]>({
+    queryKey: ["/api/shop-websites"],
+    enabled: !!authUser,
+  });
 
   if (isLoading) return <EmployeeLayout><Loader /></EmployeeLayout>;
   if (!userDetails) return null;
@@ -44,7 +48,23 @@ export default function EmployeeDashboard() {
               {userDetails.balance.toLocaleString()}
               <span className="text-2xl text-muted-foreground ml-2 font-normal">pts</span>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground max-w-md">
+            {shops && shops.length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                {shops.filter(s => s.pointsPerDollar > 0).map((shop) => (
+                  <div key={shop.id} className="flex items-center gap-2 text-sm" data-testid={`text-shop-value-${shop.id}`}>
+                    <Store className="h-3.5 w-3.5 text-secondary shrink-0" />
+                    <span className="text-muted-foreground">{shop.name}:</span>
+                    <span className="font-semibold text-secondary">
+                      ${(userDetails.balance / shop.pointsPerDollar).toFixed(2)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({shop.pointsPerDollar} pts = $1)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-sm text-muted-foreground max-w-md">
               Use your points to redeem rewards or make purchases at authorized locations using your barcode.
             </p>
           </CardContent>

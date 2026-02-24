@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Camera, QrCode, Search, ArrowLeft, Loader2, Plus, Minus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import type { User } from "@shared/schema";
 
 type ScannedUser = {
   id: number;
@@ -25,12 +26,34 @@ export default function AdminInstantTransactionPage() {
   const [mode, setMode] = useState<"scan" | "manual" | "transaction">("scan");
   const [scannedUser, setScannedUser] = useState<ScannedUser | null>(null);
   const [manualCode, setManualCode] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [txType, setTxType] = useState<"credit" | "debit">("credit");
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
+
+  const suggestions = manualCode.trim().length >= 1
+    ? (allUsers ?? []).filter(u =>
+        u.fullName.toLowerCase().includes(manualCode.toLowerCase()) ||
+        u.username.toLowerCase().includes(manualCode.toLowerCase()) ||
+        u.barcode?.toLowerCase().includes(manualCode.toLowerCase())
+      ).slice(0, 6)
+    : [];
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const lookupMutation = useMutation({
     mutationFn: async (identifier: string) => {
@@ -118,7 +141,22 @@ export default function AdminInstantTransactionPage() {
 
   const handleManualLookup = () => {
     if (!manualCode.trim()) return;
+    setShowSuggestions(false);
     lookupMutation.mutate(manualCode.trim());
+  };
+
+  const selectSuggestion = (user: User) => {
+    setShowSuggestions(false);
+    setManualCode(user.fullName);
+    setScannedUser({
+      id: user.id,
+      fullName: user.fullName,
+      username: user.username,
+      balance: user.balance,
+      role: user.role,
+      departmentId: user.departmentId ?? null,
+    });
+    setMode("transaction");
   };
 
   const handleSubmitTransaction = () => {
@@ -284,24 +322,49 @@ export default function AdminInstantTransactionPage() {
                   <Search className="h-5 w-5" />
                   Manual Lookup
                 </CardTitle>
-                <CardDescription>Enter a username or employee code instead</CardDescription>
+                <CardDescription>Search by name, username, or employee code</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    value={manualCode}
-                    onChange={(e) => setManualCode(e.target.value)}
-                    placeholder="Enter username or employee code"
-                    onKeyDown={(e) => e.key === "Enter" && handleManualLookup()}
-                    data-testid="input-manual-lookup"
-                  />
-                  <Button
-                    onClick={handleManualLookup}
-                    disabled={lookupMutation.isPending || !manualCode.trim()}
-                    data-testid="button-manual-lookup"
-                  >
-                    {lookupMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look Up"}
-                  </Button>
+                <div ref={suggestionsRef} className="relative">
+                  <div className="flex gap-2">
+                    <Input
+                      value={manualCode}
+                      onChange={(e) => {
+                        setManualCode(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      placeholder="Search by name, username, or code..."
+                      onKeyDown={(e) => e.key === "Enter" && handleManualLookup()}
+                      data-testid="input-manual-lookup"
+                    />
+                    <Button
+                      onClick={handleManualLookup}
+                      disabled={lookupMutation.isPending || !manualCode.trim()}
+                      data-testid="button-manual-lookup"
+                    >
+                      {lookupMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look Up"}
+                    </Button>
+                  </div>
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-lg shadow-lg overflow-hidden">
+                      {suggestions.map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/60 transition-colors border-b last:border-b-0"
+                          onClick={() => selectSuggestion(u)}
+                          data-testid={`suggestion-${u.id}`}
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{u.fullName}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{u.username}</p>
+                          </div>
+                          <span className="text-xs font-bold text-primary">{u.balance.toLocaleString()} pts</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

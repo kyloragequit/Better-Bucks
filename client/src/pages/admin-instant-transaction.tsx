@@ -43,25 +43,31 @@ export default function AdminInstantTransactionPage() {
       stopScanner();
     },
     onError: (e: Error) => {
-      toast({ title: "Not Found", description: e.message, variant: "destructive" });
+      const msg = e.message.replace(/^\d+:\s*/, "");
+      toast({ title: "Not Found", description: msg || "No team member found with that code.", variant: "destructive" });
     },
   });
 
   const transactionMutation = useMutation({
-    mutationFn: async (data: { userId: number; amount: number; type: string; reason: string }) => {
-      const res = await apiRequest("POST", "/api/transactions", data);
+    mutationFn: async (data: { userId: number; amount: number; reason: string }) => {
+      const res = await apiRequest("POST", `/api/users/${data.userId}/balance`, {
+        amount: data.amount,
+        reason: data.reason,
+      });
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "Transaction Complete", description: `Successfully ${txType === "credit" ? "credited" : "debited"} ${amount} points.` });
+      const pts = Math.abs(vars.amount).toLocaleString();
+      toast({ title: "Transaction Complete", description: `Successfully ${vars.amount > 0 ? "credited" : "debited"} ${pts} points.` });
       setScannedUser(null);
       setAmount("");
       setReason("");
       setMode("scan");
     },
     onError: (e: Error) => {
-      toast({ title: "Transaction Failed", description: e.message, variant: "destructive" });
+      const msg = e.message.replace(/^\d+:\s*/, "");
+      toast({ title: "Transaction Failed", description: msg, variant: "destructive" });
     },
   });
 
@@ -120,10 +126,10 @@ export default function AdminInstantTransactionPage() {
       toast({ title: "Invalid", description: "Please enter a valid amount.", variant: "destructive" });
       return;
     }
+    const signedAmount = txType === "credit" ? parseInt(amount) : -parseInt(amount);
     transactionMutation.mutate({
       userId: scannedUser.id,
-      amount: parseInt(amount),
-      type: txType,
+      amount: signedAmount,
       reason: reason || (txType === "credit" ? "Instant credit" : "Instant debit"),
     });
   };

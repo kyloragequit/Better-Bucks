@@ -10,12 +10,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, UserPlus, ChevronRight, Mail, Phone } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, UserPlus, ChevronRight, Mail, Phone, Zap } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
 import { useUser } from "@/hooks/use-auth";
-import type { InsertUser, Department } from "@shared/schema";
+import type { InsertUser, Department, User } from "@shared/schema";
 
 export default function AdminEmployeesPage() {
   const { data: users, isLoading } = useUsers();
@@ -63,7 +66,10 @@ export default function AdminEmployeesPage() {
           <h1 className="text-3xl font-display font-bold text-foreground">{isPrimeAdmin ? "Team Members" : "Employees"}</h1>
           <p className="text-muted-foreground mt-1">{isPrimeAdmin ? "Manage all team member accounts and balances" : "Manage employee accounts and balances"}</p>
         </div>
-        <CreateEmployeeDialog />
+        <div className="flex gap-2">
+          <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
+          <CreateEmployeeDialog />
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">
@@ -164,6 +170,210 @@ export default function AdminEmployeesPage() {
         </div>
       )}
     </AdminLayout>
+  );
+}
+
+function BulkCreditDialog({ users, departments }: { users: User[]; departments: Department[] }) {
+  const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [deptQuickSelect, setDeptQuickSelect] = useState<string>("none");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { getRoleLabel } = useRoleLabels();
+
+  const creditableUsers = users.filter(u => u.role !== "prime_admin");
+
+  const bulkCreditMutation = useMutation({
+    mutationFn: async ({ userIds, amount, reason }: { userIds: number[]; amount: number; reason: string }) => {
+      const res = await apiRequest("POST", "/api/users/bulk-credit", { userIds, amount, reason });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to credit employees");
+      }
+      return await res.json();
+    },
+    onSuccess: (data: { credited: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats/points"] });
+      toast({ title: "Points Credited", description: `Successfully credited ${data.credited} employee${data.credited !== 1 ? "s" : ""}.` });
+      setOpen(false);
+      setSelectedIds(new Set());
+      setAmount("");
+      setReason("");
+      setDeptQuickSelect("none");
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const toggleUser = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === creditableUsers.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(creditableUsers.map(u => u.id)));
+    }
+  };
+
+  const selectDepartment = (deptId: string) => {
+    setDeptQuickSelect(deptId);
+    if (deptId === "none") {
+      setSelectedIds(new Set());
+      return;
+    }
+    const deptUsers = creditableUsers.filter(u => u.departmentId?.toString() === deptId);
+    setSelectedIds(new Set(deptUsers.map(u => u.id)));
+  };
+
+  const parsedAmount = parseInt(amount) || 0;
+  const totalCost = parsedAmount * selectedIds.size;
+
+  const handleSubmit = () => {
+    if (selectedIds.size === 0) {
+      toast({ title: "No employees selected", description: "Select at least one employee to credit.", variant: "destructive" });
+      return;
+    }
+    if (parsedAmount <= 0) {
+      toast({ title: "Invalid amount", description: "Enter a positive point amount.", variant: "destructive" });
+      return;
+    }
+    if (!reason.trim()) {
+      toast({ title: "Reason required", description: "Please enter a reason for the credit.", variant: "destructive" });
+      return;
+    }
+    bulkCreditMutation.mutate({ userIds: Array.from(selectedIds), amount: parsedAmount, reason: reason.trim() });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => {
+      setOpen(o);
+      if (!o) { setSelectedIds(new Set()); setAmount(""); setReason(""); setDeptQuickSelect("none"); }
+    }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" data-testid="button-bulk-credit">
+          <Zap className="mr-2 h-4 w-4" /> Bulk Credit
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Bulk Credit Points</DialogTitle>
+          <DialogDescription>Credit the same amount of points to multiple employees at once.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Points Per Employee</Label>
+              <Input
+                type="number"
+                min={1}
+                placeholder="e.g. 100"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                data-testid="input-bulk-amount"
+              />
+            </div>
+            {departments.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Quick-Select Department</Label>
+                <Select value={deptQuickSelect} onValueChange={selectDepartment}>
+                  <SelectTrigger data-testid="select-bulk-dept">
+                    <SelectValue placeholder="Choose department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {departments.map(d => (
+                      <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Reason</Label>
+            <Textarea
+              placeholder="e.g. Monthly performance bonus"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="resize-none"
+              rows={2}
+              data-testid="input-bulk-reason"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Select Employees</Label>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={toggleAll}
+                data-testid="button-bulk-select-all"
+              >
+                {selectedIds.size === creditableUsers.length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <ScrollArea className="h-[220px] rounded-md border">
+              <div className="p-2 space-y-1">
+                {creditableUsers.length === 0 && (
+                  <p className="text-center text-sm text-muted-foreground py-8">No employees available</p>
+                )}
+                {creditableUsers.map(u => (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    data-testid={`bulk-row-${u.id}`}
+                  >
+                    <Checkbox
+                      checked={selectedIds.has(u.id)}
+                      onCheckedChange={() => toggleUser(u.id)}
+                      data-testid={`bulk-check-${u.id}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{u.fullName}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{u.username} · {getRoleLabel(u.role)}</p>
+                    </div>
+                    <span className="text-xs font-bold text-primary tabular-nums">{u.balance.toLocaleString()} pts</span>
+                  </label>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {selectedIds.size > 0 && parsedAmount > 0 && (
+            <div className="rounded-lg bg-muted/50 border px-4 py-3 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                <span className="font-semibold text-foreground">{selectedIds.size}</span> employee{selectedIds.size !== 1 ? "s" : ""} × <span className="font-semibold text-foreground">{parsedAmount.toLocaleString()} pts</span>
+              </span>
+              <span className="font-bold text-primary">{totalCost.toLocaleString()} pts total</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="mt-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={bulkCreditMutation.isPending || selectedIds.size === 0 || parsedAmount <= 0 || !reason.trim()}
+            data-testid="button-bulk-submit"
+          >
+            {bulkCreditMutation.isPending ? "Crediting..." : `Credit ${selectedIds.size > 0 ? selectedIds.size : ""} Employee${selectedIds.size !== 1 ? "s" : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

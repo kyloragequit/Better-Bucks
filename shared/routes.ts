@@ -110,6 +110,18 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    bulkCredit: {
+      method: 'POST' as const,
+      path: '/api/users/bulk-credit',
+      input: z.object({
+        userIds: z.array(z.number().int()).min(1),
+        amount: z.number().int().positive(),
+        reason: z.string().min(1),
+      }),
+      responses: {
+        200: z.object({ credited: z.number() }),
+      },
+    },
     updateRole: {
       method: 'POST' as const,
       path: '/api/users/:id/role',

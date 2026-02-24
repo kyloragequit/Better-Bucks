@@ -359,6 +359,63 @@ export async function registerRoutes(
     res.json({ ...userResult, transactions });
   });
 
+  app.post(api.users.bulkCredit.path, async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { userIds, amount, reason } = api.users.bulkCredit.input.parse(req.body);
+
+    // For non-prime admins, check if they have enough balance for all users
+    if (user.role !== "prime_admin") {
+      const totalCost = amount * userIds.length;
+      if (user.balance < totalCost) {
+        return res.status(400).json({
+          message: `Insufficient balance. Need ${totalCost.toLocaleString()} pts to credit ${userIds.length} employees (${amount.toLocaleString()} pts each), but only have ${user.balance.toLocaleString()} pts.`,
+        });
+      }
+    }
+
+    let credited = 0;
+    for (const targetId of userIds) {
+      const targetUser = await storage.getUser(targetId);
+      if (!targetUser) continue;
+
+      // Department isolation for non-prime admins
+      if (user.role === "admin" && targetUser.departmentId !== user.departmentId) continue;
+
+      // Deduct from admin balance (non-prime) or just record transaction (prime)
+      if (user.role !== "prime_admin") {
+        await storage.updateUserBalance(user.id, -amount);
+        await storage.createTransaction({
+          userId: user.id,
+          amount: -amount,
+          reason: `Points given to ${targetUser.fullName}`,
+          performedBy: user.id,
+        });
+      } else {
+        await storage.createTransaction({
+          userId: user.id,
+          amount: -amount,
+          reason: `Points given to ${targetUser.fullName}`,
+          performedBy: user.id,
+        });
+      }
+
+      await storage.updateUserBalance(targetId, amount);
+      await storage.createTransaction({
+        userId: targetId,
+        amount,
+        reason,
+        performedBy: user.id,
+      });
+      credited++;
+    }
+
+    res.json({ credited });
+  });
+
   app.post(api.users.updateBalance.path, async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {

@@ -727,10 +727,10 @@ export async function registerRoutes(
 
   // Tier pricing configuration
   const tierConfig = {
-    small: { price: 14900, maxEmployees: 100, name: "Small Site" },
-    mid: { price: 34900, maxEmployees: 300, name: "Mid-Size Site" },
-    large: { price: 59900, maxEmployees: 500, name: "Large Site" },
-    enterprise: { price: 99900, maxEmployees: -1, name: "Enterprise Site" },
+    small: { price: 4999, maxEmployees: 100, name: "Small Site" },
+    mid: { price: 9999, maxEmployees: 300, name: "Mid-Size Site" },
+    large: { price: 14999, maxEmployees: 500, name: "Large Site" },
+    enterprise: { price: 29999, maxEmployees: -1, name: "Enterprise Site" },
   } as const;
 
   // Organization signup - create checkout session

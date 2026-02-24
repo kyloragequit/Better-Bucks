@@ -1227,7 +1227,12 @@ export async function registerRoutes(
 
     try {
       const allOrgs = await storage.getAllOrganizations();
-      const orgData = await Promise.all(allOrgs.map(async (org) => {
+      const qualifiedOrgs = allOrgs.filter(org => {
+        const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_");
+        if (isFree) return true;
+        return org.status === "active" && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout";
+      });
+      const orgData = await Promise.all(qualifiedOrgs.map(async (org) => {
         const orgUsers = await storage.getUsersByOrganization(org.id);
         const admins = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
         const employees = orgUsers.filter(u => u.role === "employee");

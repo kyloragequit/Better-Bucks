@@ -174,6 +174,7 @@ function CreateEmployeeDialog() {
   const { mutate: createUser, isPending } = useCreateUser();
   const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
   const [phone, setPhone] = useState("");
+  const [selectedDept, setSelectedDept] = useState<string>("none");
   const [formData, setFormData] = useState<InsertUser>({
     fullName: "",
     username: "",
@@ -183,6 +184,10 @@ function CreateEmployeeDialog() {
     barcode: "",
   });
 
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { 
@@ -190,6 +195,7 @@ function CreateEmployeeDialog() {
       barcode: formData.barcode || formData.username,
       email: contactMethod === "email" ? formData.email : "",
       phone: contactMethod === "phone" ? phone : "",
+      departmentId: selectedDept !== "none" ? parseInt(selectedDept) : null,
     };
     createUser(payload, {
       onSuccess: () => {
@@ -197,6 +203,7 @@ function CreateEmployeeDialog() {
         setFormData({ fullName: "", username: "", password: "", email: "", role: "employee", barcode: "" });
         setPhone("");
         setContactMethod("email");
+        setSelectedDept("none");
       }
     });
   };
@@ -315,6 +322,22 @@ function CreateEmployeeDialog() {
               </SelectContent>
             </Select>
           </div>
+          {departments && departments.length > 0 && (
+            <div className="grid gap-2">
+              <Label htmlFor="department">Department</Label>
+              <Select value={selectedDept} onValueChange={setSelectedDept}>
+                <SelectTrigger data-testid="select-create-department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Department</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <DialogFooter className="mt-6">
             <Button type="submit" disabled={isPending}>
               {isPending ? "Creating..." : "Create Account"}

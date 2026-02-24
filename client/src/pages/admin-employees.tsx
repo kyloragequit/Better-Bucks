@@ -78,20 +78,18 @@ export default function AdminEmployeesPage() {
               data-testid="input-search-employees"
             />
           </div>
-          {departments && departments.length > 0 && (
-            <Select value={deptFilter} onValueChange={setDeptFilter}>
-              <SelectTrigger className="w-[200px]" data-testid="select-dept-filter">
-                <SelectValue placeholder="All Departments" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="none">No Department</SelectItem>
-                {departments.map(d => (
-                  <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={deptFilter} onValueChange={setDeptFilter}>
+            <SelectTrigger className="w-[200px]" data-testid="select-dept-filter">
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              <SelectItem value="none">No Department</SelectItem>
+              {departments?.map(d => (
+                <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -128,7 +126,7 @@ export default function AdminEmployeesPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
                   <TableCell>
-                    {isPrimeAdmin && departments && departments.length > 0 ? (
+                    {isPrimeAdmin ? (
                       <Select
                         value={user.departmentId?.toString() || "none"}
                         onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}
@@ -138,7 +136,7 @@ export default function AdminEmployeesPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">None</SelectItem>
-                          {departments.map(d => (
+                          {departments?.map(d => (
                             <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -322,22 +320,20 @@ function CreateEmployeeDialog() {
               </SelectContent>
             </Select>
           </div>
-          {departments && departments.length > 0 && (
-            <div className="grid gap-2">
-              <Label htmlFor="department">Department</Label>
-              <Select value={selectedDept} onValueChange={setSelectedDept}>
-                <SelectTrigger data-testid="select-create-department">
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Department</SelectItem>
-                  {departments.map(d => (
-                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="grid gap-2">
+            <Label htmlFor="department">Department</Label>
+            <Select value={selectedDept} onValueChange={setSelectedDept}>
+              <SelectTrigger data-testid="select-create-department">
+                <SelectValue placeholder="Select department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Department</SelectItem>
+                {departments?.map(d => (
+                  <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <DialogFooter className="mt-6">
             <Button type="submit" disabled={isPending}>
               {isPending ? "Creating..." : "Create Account"}

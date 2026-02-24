@@ -63,19 +63,17 @@ export default function AdminDashboardPage() {
           <p className="text-muted-foreground mt-1">Bucks distributed from administrators to employees</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {departments && departments.length > 0 && (
-            <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
-              <SelectTrigger className="w-full sm:w-48" data-testid="select-dept-filter-dashboard">
-                <SelectValue placeholder="Filter by department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {departments.map(d => (
-                  <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
+            <SelectTrigger className="w-full sm:w-48" data-testid="select-dept-filter-dashboard">
+              <SelectValue placeholder="Filter by department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments?.map(d => (
+                <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={selectedAdminId} onValueChange={setSelectedAdminId}>
             <SelectTrigger className="w-full sm:w-56" data-testid="select-admin-filter">
               <SelectValue placeholder="Filter by administrator" />

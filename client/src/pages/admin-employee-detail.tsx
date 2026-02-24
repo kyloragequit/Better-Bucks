@@ -332,7 +332,7 @@ function EditProfileDialog({ user }: { user: any }) {
             <Input id="email" type="email" placeholder="employee@example.com" value={email} onChange={e => setEmail(e.target.value)} data-testid="input-edit-email" />
             <p className="text-xs text-muted-foreground">Optional. Receive notifications when your balance changes.</p>
           </div>
-          {isPrimeAdmin && departments && departments.length > 0 && (
+          {isPrimeAdmin && (
             <div className="grid gap-2">
               <Label htmlFor="department">Department</Label>
               <Select value={selectedDept} onValueChange={setSelectedDept}>
@@ -341,7 +341,7 @@ function EditProfileDialog({ user }: { user: any }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Department</SelectItem>
-                  {departments.map(d => (
+                  {departments?.map(d => (
                     <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
                   ))}
                 </SelectContent>

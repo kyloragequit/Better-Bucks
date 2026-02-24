@@ -148,12 +148,12 @@ export function useUpdateProfile() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, username, password, email }: { id: number; username?: string; password?: string; email?: string }) => {
+    mutationFn: async ({ id, username, password, email, departmentId }: { id: number; username?: string; password?: string; email?: string; departmentId?: number | null }) => {
       const url = buildUrl(api.users.updateProfile.path, { id });
       const res = await fetch(url, {
         method: api.users.updateProfile.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, email }),
+        body: JSON.stringify({ username, password, email, departmentId }),
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to update profile");
@@ -161,6 +161,7 @@ export function useUpdateProfile() {
     },
     onSuccess: (user) => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: [api.users.get.path, user.id] });
       toast({ title: "Success", description: "Profile updated successfully" });
     },

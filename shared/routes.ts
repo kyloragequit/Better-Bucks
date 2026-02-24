@@ -128,6 +128,7 @@ export const api = {
         username: z.string().min(3).optional(),
         password: z.string().min(6).optional(),
         email: z.string().email().optional().or(z.literal("")).transform(v => v || null),
+        departmentId: z.number().int().nullable().optional(),
       }),
       responses: {
         200: z.custom<typeof users.$inferSelect>(),

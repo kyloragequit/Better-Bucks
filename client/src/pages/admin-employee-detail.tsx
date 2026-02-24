@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { useUserDetails, useUpdateBalance, useUpdateRole, useUpdateProfile, useDeleteUser } from "@/hooks/use-users";
 import { useUser } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle } from "lucide-react";
@@ -15,6 +17,7 @@ import { Loader } from "@/components/ui/loader";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import { useRoleLabels } from "@/hooks/use-role-labels";
+import type { Department } from "@shared/schema";
 
 export default function AdminEmployeeDetailPage() {
   const [, params] = useRoute("/admin/employees/:id");
@@ -283,11 +286,22 @@ function EditProfileDialog({ user }: { user: any }) {
   const [username, setUsername] = useState(user.username);
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState(user.email || "");
+  const [selectedDept, setSelectedDept] = useState<string>(user.departmentId?.toString() || "none");
   const { mutate: updateProfile, isPending } = useUpdateProfile();
+  const { data: currentUser } = useUser();
+  const isPrimeAdmin = currentUser?.role === "prime_admin";
+
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile({ id: user.id, username, password: password || undefined, email: email || undefined }, {
+    const payload: any = { id: user.id, username, password: password || undefined, email: email || undefined };
+    if (isPrimeAdmin) {
+      payload.departmentId = selectedDept !== "none" ? parseInt(selectedDept) : null;
+    }
+    updateProfile(payload, {
       onSuccess: () => setOpen(false)
     });
   };
@@ -318,6 +332,22 @@ function EditProfileDialog({ user }: { user: any }) {
             <Input id="email" type="email" placeholder="employee@example.com" value={email} onChange={e => setEmail(e.target.value)} data-testid="input-edit-email" />
             <p className="text-xs text-muted-foreground">Optional. Receive notifications when your balance changes.</p>
           </div>
+          {isPrimeAdmin && departments && departments.length > 0 && (
+            <div className="grid gap-2">
+              <Label htmlFor="department">Department</Label>
+              <Select value={selectedDept} onValueChange={setSelectedDept}>
+                <SelectTrigger data-testid="select-edit-department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Department</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={isPending} data-testid="button-save-profile">Save Changes</Button>
           </DialogFooter>

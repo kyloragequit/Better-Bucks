@@ -453,7 +453,14 @@ export async function registerRoutes(
     }
 
     const data = api.users.updateProfile.input.parse(req.body);
-    const updatedUser = await storage.updateUserProfile(id, data);
+    if (data.departmentId !== undefined && !isPrime) {
+      delete (data as any).departmentId;
+    }
+    const profileData: any = { username: data.username, password: data.password, email: data.email };
+    if (isPrime && data.departmentId !== undefined) {
+      profileData.departmentId = data.departmentId;
+    }
+    const updatedUser = await storage.updateUserProfile(id, profileData);
     res.json(updatedUser);
   });
 

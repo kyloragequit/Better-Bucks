@@ -2,26 +2,19 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import logoImg from "@assets/Final_Logo_1771908016318.png";
 import funLogoImg from "@assets/image_1771968786741.png";
+import { useFunMode, setFunMode } from "@/hooks/use-fun-mode";
 
 export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const [spinning, setSpinning] = useState(false);
-  const [funMode, setFunMode] = useState(false);
+  const funMode = useFunMode();
   const [location] = useLocation();
 
   useEffect(() => {
-    document.documentElement.classList.remove("fun-theme");
     setFunMode(false);
   }, [location]);
 
   const handleClick = () => {
-    const isOn = document.documentElement.classList.contains("fun-theme");
-    if (isOn) {
-      document.documentElement.classList.remove("fun-theme");
-      setFunMode(false);
-    } else {
-      document.documentElement.classList.add("fun-theme");
-      setFunMode(true);
-    }
+    setFunMode(!funMode);
     setSpinning(false);
     requestAnimationFrame(() => requestAnimationFrame(() => setSpinning(true)));
   };

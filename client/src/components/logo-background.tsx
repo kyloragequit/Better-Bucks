@@ -2,15 +2,15 @@ import logoImg from "@assets/Final_Logo_1771908016318.png";
 
 export function LogoBackground() {
   const logos = [
-    { top: "5%", left: "3%", size: "80px", rotate: "-15deg", opacity: 0.06 },
-    { top: "15%", right: "8%", size: "120px", rotate: "25deg", opacity: 0.04 },
-    { top: "35%", left: "12%", size: "60px", rotate: "45deg", opacity: 0.07 },
-    { bottom: "20%", left: "6%", size: "100px", rotate: "-30deg", opacity: 0.05 },
-    { top: "55%", right: "5%", size: "70px", rotate: "60deg", opacity: 0.06 },
-    { bottom: "8%", right: "20%", size: "90px", rotate: "-45deg", opacity: 0.04 },
-    { top: "45%", left: "45%", size: "50px", rotate: "15deg", opacity: 0.03 },
-    { bottom: "35%", right: "35%", size: "110px", rotate: "-60deg", opacity: 0.05 },
-    { top: "8%", left: "55%", size: "65px", rotate: "35deg", opacity: 0.04 },
+    { top: "5%", left: "3%", size: "100px", rotate: "-15deg", opacity: 0.15 },
+    { top: "12%", right: "8%", size: "140px", rotate: "25deg", opacity: 0.12 },
+    { top: "35%", left: "8%", size: "80px", rotate: "45deg", opacity: 0.18 },
+    { bottom: "18%", left: "5%", size: "120px", rotate: "-30deg", opacity: 0.14 },
+    { top: "55%", right: "4%", size: "90px", rotate: "60deg", opacity: 0.16 },
+    { bottom: "6%", right: "18%", size: "110px", rotate: "-45deg", opacity: 0.12 },
+    { top: "42%", left: "42%", size: "70px", rotate: "15deg", opacity: 0.1 },
+    { bottom: "32%", right: "32%", size: "130px", rotate: "-60deg", opacity: 0.13 },
+    { top: "6%", left: "50%", size: "85px", rotate: "35deg", opacity: 0.14 },
   ];
 
   return (

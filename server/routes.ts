@@ -199,6 +199,75 @@ export async function registerRoutes(
     }
   });
 
+  app.post(api.auth.registerEmployee.path, async (req, res) => {
+    try {
+      const empData = api.auth.registerEmployee.input.parse(req.body);
+      const orgCode = req.body.orgCode;
+      if (!orgCode) {
+        return res.status(400).json({ message: "Organization code is required" });
+      }
+      const org = await storage.getOrganizationByCode(orgCode.toUpperCase());
+      if (!org || org.status !== "active") {
+        return res.status(400).json({ message: "Invalid or inactive organization code" });
+      }
+      const existingUser = await storage.getUserByUsernameAndOrg(empData.username, org.id);
+      if (existingUser) {
+        return res.status(409).json({ message: "Username already exists in this organization" });
+      }
+      if (org.maxEmployees > 0) {
+        const orgUsers = await storage.getUsersByOrganization(org.id);
+        if (orgUsers.length >= org.maxEmployees) {
+          return res.status(400).json({ message: `This organization has reached its employee limit (${org.maxEmployees}). Please contact your administrator to upgrade the plan.` });
+        }
+      }
+      const empEmail = req.body.email;
+      const empPhone = req.body.phone;
+      const hasEmail = empEmail && z.string().email().safeParse(empEmail).success;
+      const hasPhone = empPhone && empPhone.length >= 10;
+      if (!hasEmail && !hasPhone) {
+        return res.status(400).json({ message: "Please provide either a valid email address or phone number" });
+      }
+      if (hasEmail) {
+        const existingEmail = await storage.getUserByEmailGlobal(empEmail);
+        if (existingEmail) {
+          return res.status(400).json({ message: "This email is already associated with an existing account. You must delete that account before using this email for a new one." });
+        }
+      }
+      if (hasPhone) {
+        const existingPhone = await storage.getUserByPhoneGlobal(empPhone);
+        if (existingPhone) {
+          return res.status(400).json({ message: "This phone number is already associated with an existing account. You must delete that account before using this number for a new one." });
+        }
+      }
+
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      const user = await storage.createUser({
+        username: empData.username,
+        password: empData.password,
+        fullName: empData.fullName,
+        email: hasEmail ? empEmail : null,
+        phone: hasPhone ? empPhone : null,
+        emailVerificationCode: verificationCode,
+        role: "employee",
+        barcode: empData.username,
+        status: "pending",
+        organizationId: org.id,
+      });
+
+      await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, empData.fullName);
+      console.log(`New employee registration: ${user.username} for org ${org.name} (pending approval)`);
+      res.status(201).json({ ...user, message: "Employee registration submitted. Awaiting admin approval." });
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        res.status(400).json({ message: "Validation error", field: e.errors[0]?.path?.join(".") });
+      } else {
+        console.error("Employee registration error:", e);
+        res.status(500).json({ message: "Internal Server Error" });
+      }
+    }
+  });
+
   app.post(api.users.create.path, async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {

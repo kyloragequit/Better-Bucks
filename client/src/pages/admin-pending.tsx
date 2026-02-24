@@ -18,7 +18,7 @@ export default function AdminPendingPage() {
     approveAdmin(id, {
       onSuccess: () => {
         toast({
-          title: "Admin Verified",
+          title: "Account Verified",
           description: `${name} has been verified and can now log in.`,
         });
       }
@@ -29,7 +29,7 @@ export default function AdminPendingPage() {
     rejectAdmin(id, {
       onSuccess: () => {
         toast({
-          title: "Admin Rejected",
+          title: "Account Rejected",
           description: `${name}'s request has been removed.`,
         });
       }
@@ -39,8 +39,8 @@ export default function AdminPendingPage() {
   return (
     <AdminLayout>
       <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-foreground">Pending Admin Approvals</h1>
-        <p className="text-muted-foreground mt-1">Review and approve new administrator accounts</p>
+        <h1 className="text-3xl font-display font-bold text-foreground">Pending Approvals</h1>
+        <p className="text-muted-foreground mt-1">Review and approve new admin and employee accounts</p>
       </div>
 
       {isLoading ? (
@@ -52,13 +52,13 @@ export default function AdminPendingPage() {
           <CardContent className="py-12 text-center">
             <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <p className="text-lg font-medium">No pending approvals</p>
-            <p className="text-muted-foreground">All admin accounts have been verified.</p>
+            <p className="text-muted-foreground">All accounts have been verified.</p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Pending Admin Accounts ({pendingAdmins?.length})</CardTitle>
+            <CardTitle>Pending Accounts ({pendingAdmins?.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -66,6 +66,7 @@ export default function AdminPendingPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -77,6 +78,11 @@ export default function AdminPendingPage() {
                       <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
                         {admin.username}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={admin.role === "employee" ? "secondary" : "default"}>
+                        {admin.role === "employee" ? "Employee" : "Admin"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right flex justify-end gap-2">
                       <Button

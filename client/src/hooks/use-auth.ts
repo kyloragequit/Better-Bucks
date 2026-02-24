@@ -68,9 +68,12 @@ export function useRegisterAdmin() {
       });
       
       if (res.status === 409) throw new Error("Username already exists");
-      if (!res.ok) throw new Error("Registration failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Registration failed");
+      }
       
-      return api.auth.registerAdmin.responses[201].parse(await res.json());
+      return res.json();
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -78,6 +81,37 @@ export function useRegisterAdmin() {
         title: "Account created!",
         description: `Admin account created and logged in as ${user.fullName}`,
       });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Registration Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useRegisterEmployee() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: z.infer<typeof api.auth.registerEmployee.input>) => {
+      const res = await fetch(api.auth.registerEmployee.path, {
+        method: api.auth.registerEmployee.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+
+      if (res.status === 409) throw new Error("Username already exists");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Registration failed");
+      }
+
+      return res.json();
     },
     onError: (error: Error) => {
       toast({

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign } from "lucide-react";
+import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 
 export default function AdminDashboardPage() {
@@ -21,7 +21,7 @@ export default function AdminDashboardPage() {
     ? "/api/stats/points"
     : `/api/stats/points?adminId=${selectedAdminId}`;
 
-  const { data: pointsStats, isLoading: statsLoading } = useQuery<{ week: number; month: number; year: number }>({
+  const { data: pointsStats, isLoading: statsLoading } = useQuery<{ week: number; month: number; year: number; weekDebited: number; monthDebited: number; yearDebited: number }>({
     queryKey: statsQueryKey,
     queryFn: async () => {
       const res = await fetch(statsUrl, { credentials: "include" });
@@ -62,37 +62,79 @@ export default function AdminDashboardPage() {
         <Loader />
       ) : (
         <>
+          <h2 className="text-lg font-display font-bold text-foreground mb-3 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-green-600" /> Bucks Credited
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-            <Card className="border shadow-sm">
+            <Card className="border shadow-sm border-green-200">
               <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-blue-600 flex-shrink-0">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600 flex-shrink-0">
                   <Calendar className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Bucks This Week</p>
-                  <p className="text-3xl font-bold" data-testid="text-points-week">{pointsStats?.week?.toLocaleString() ?? "0"}</p>
+                  <p className="text-sm text-muted-foreground font-medium">This Week</p>
+                  <p className="text-3xl font-bold text-green-700" data-testid="text-points-week">{pointsStats?.week?.toLocaleString() ?? "0"}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border shadow-sm">
+            <Card className="border shadow-sm border-green-200">
               <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600 flex-shrink-0">
                   <CalendarDays className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Bucks This Month</p>
-                  <p className="text-3xl font-bold" data-testid="text-points-month">{pointsStats?.month?.toLocaleString() ?? "0"}</p>
+                  <p className="text-sm text-muted-foreground font-medium">This Month</p>
+                  <p className="text-3xl font-bold text-green-700" data-testid="text-points-month">{pointsStats?.month?.toLocaleString() ?? "0"}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border shadow-sm">
+            <Card className="border shadow-sm border-green-200">
               <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 text-purple-600 flex-shrink-0">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600 flex-shrink-0">
                   <CalendarRange className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Bucks This Year</p>
-                  <p className="text-3xl font-bold" data-testid="text-points-year">{pointsStats?.year?.toLocaleString() ?? "0"}</p>
+                  <p className="text-sm text-muted-foreground font-medium">This Year</p>
+                  <p className="text-3xl font-bold text-green-700" data-testid="text-points-year">{pointsStats?.year?.toLocaleString() ?? "0"}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <h2 className="text-lg font-display font-bold text-foreground mb-3 flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-red-600" /> Bucks Debited
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <Card className="border shadow-sm border-red-200">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 text-red-600 flex-shrink-0">
+                  <Calendar className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">This Week</p>
+                  <p className="text-3xl font-bold text-red-700" data-testid="text-debited-week">{pointsStats?.weekDebited?.toLocaleString() ?? "0"}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border shadow-sm border-red-200">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 text-red-600 flex-shrink-0">
+                  <CalendarDays className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">This Month</p>
+                  <p className="text-3xl font-bold text-red-700" data-testid="text-debited-month">{pointsStats?.monthDebited?.toLocaleString() ?? "0"}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border shadow-sm border-red-200">
+              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 text-red-600 flex-shrink-0">
+                  <CalendarRange className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">This Year</p>
+                  <p className="text-3xl font-bold text-red-700" data-testid="text-debited-year">{pointsStats?.yearDebited?.toLocaleString() ?? "0"}</p>
                 </div>
               </CardContent>
             </Card>

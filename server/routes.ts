@@ -10,7 +10,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sql, eq, and, gte, gt, inArray } from "drizzle-orm";
+import { sql, eq, and, gte, gt, lt, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { organizations, users, infoRequests, transactions, orders } from "@shared/schema";
 import nodemailer from "nodemailer";
@@ -625,7 +625,7 @@ export async function registerRoutes(
     const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
     const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-    const [weekResult] = await db.select({
+    const [weekCredit] = await db.select({
       total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
     }).from(transactions)
       .where(and(
@@ -635,7 +635,7 @@ export async function registerRoutes(
         gte(transactions.createdAt, weekAgo)
       ));
 
-    const [monthResult] = await db.select({
+    const [monthCredit] = await db.select({
       total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
     }).from(transactions)
       .where(and(
@@ -645,7 +645,7 @@ export async function registerRoutes(
         gte(transactions.createdAt, monthAgo)
       ));
 
-    const [yearResult] = await db.select({
+    const [yearCredit] = await db.select({
       total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
     }).from(transactions)
       .where(and(
@@ -655,10 +655,40 @@ export async function registerRoutes(
         gte(transactions.createdAt, yearAgo)
       ));
 
+    const [weekDebit] = await db.select({
+      total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`
+    }).from(transactions)
+      .where(and(
+        inArray(transactions.userId, employeeIds),
+        lt(transactions.amount, 0),
+        gte(transactions.createdAt, weekAgo)
+      ));
+
+    const [monthDebit] = await db.select({
+      total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`
+    }).from(transactions)
+      .where(and(
+        inArray(transactions.userId, employeeIds),
+        lt(transactions.amount, 0),
+        gte(transactions.createdAt, monthAgo)
+      ));
+
+    const [yearDebit] = await db.select({
+      total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`
+    }).from(transactions)
+      .where(and(
+        inArray(transactions.userId, employeeIds),
+        lt(transactions.amount, 0),
+        gte(transactions.createdAt, yearAgo)
+      ));
+
     res.json({
-      week: Number(weekResult.total),
-      month: Number(monthResult.total),
-      year: Number(yearResult.total),
+      week: Number(weekCredit.total),
+      month: Number(monthCredit.total),
+      year: Number(yearCredit.total),
+      weekDebited: Number(weekDebit.total),
+      monthDebited: Number(monthDebit.total),
+      yearDebited: Number(yearDebit.total),
     });
   });
 

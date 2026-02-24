@@ -3,11 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 
+type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedDollars: string; totalDollars: string };
+
 export default function AdminDashboardPage() {
   const [selectedAdminId, setSelectedAdminId] = useState<string>("all");
+  const [orderPeriod, setOrderPeriod] = useState<"week" | "month" | "year">("week");
 
   const { data: admins, isLoading: adminsLoading } = useQuery<{ id: number; fullName: string; role: string }[]>({
     queryKey: ["/api/org/admins"],
@@ -30,9 +34,12 @@ export default function AdminDashboardPage() {
     },
   });
 
-  const { data: orderStats, isLoading: orderStatsLoading } = useQuery<{ totalOrders: number; pendingDollars: string; approvedDollars: string; totalDollars: string }>({
+  const { data: orderStats, isLoading: orderStatsLoading } = useQuery<{ week: OrderPeriodStats; month: OrderPeriodStats; year: OrderPeriodStats }>({
     queryKey: ["/api/stats/orders"],
   });
+
+  const currentOrderStats = orderStats?.[orderPeriod];
+  const periodLabel = orderPeriod === "week" ? "This Week" : orderPeriod === "month" ? "This Month" : "This Year";
 
   return (
     <AdminLayout>
@@ -140,7 +147,22 @@ export default function AdminDashboardPage() {
             </Card>
           </div>
 
-          <h2 className="text-xl font-display font-bold text-foreground mb-4">Order Tracking</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+            <h2 className="text-xl font-display font-bold text-foreground">Order Tracking</h2>
+            <Tabs value={orderPeriod} onValueChange={(v) => setOrderPeriod(v as "week" | "month" | "year")}>
+              <TabsList>
+                <TabsTrigger value="week" data-testid="tab-orders-week">
+                  <Calendar className="h-4 w-4 mr-1.5" /> Week
+                </TabsTrigger>
+                <TabsTrigger value="month" data-testid="tab-orders-month">
+                  <CalendarDays className="h-4 w-4 mr-1.5" /> Month
+                </TabsTrigger>
+                <TabsTrigger value="year" data-testid="tab-orders-year">
+                  <CalendarRange className="h-4 w-4 mr-1.5" /> Year
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="border shadow-sm">
               <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
@@ -148,8 +170,8 @@ export default function AdminDashboardPage() {
                   <ShoppingCart className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Total Orders</p>
-                  <p className="text-3xl font-bold" data-testid="text-total-orders">{orderStats?.totalOrders ?? 0}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Orders {periodLabel}</p>
+                  <p className="text-3xl font-bold" data-testid="text-total-orders">{currentOrderStats?.totalOrders ?? 0}</p>
                 </div>
               </CardContent>
             </Card>
@@ -159,8 +181,8 @@ export default function AdminDashboardPage() {
                   <Clock className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Pending Orders ($)</p>
-                  <p className="text-3xl font-bold" data-testid="text-pending-dollars">{orderStats?.pendingDollars ?? "$0.00"}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Pending ($) {periodLabel}</p>
+                  <p className="text-3xl font-bold" data-testid="text-pending-dollars">{currentOrderStats?.pendingDollars ?? "$0.00"}</p>
                 </div>
               </CardContent>
             </Card>
@@ -170,8 +192,8 @@ export default function AdminDashboardPage() {
                   <CheckCircle className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Approved Orders ($)</p>
-                  <p className="text-3xl font-bold" data-testid="text-approved-dollars">{orderStats?.approvedDollars ?? "$0.00"}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Approved ($) {periodLabel}</p>
+                  <p className="text-3xl font-bold" data-testid="text-approved-dollars">{currentOrderStats?.approvedDollars ?? "$0.00"}</p>
                 </div>
               </CardContent>
             </Card>
@@ -181,8 +203,8 @@ export default function AdminDashboardPage() {
                   <DollarSign className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Total $ in Orders</p>
-                  <p className="text-3xl font-bold" data-testid="text-total-dollars">{orderStats?.totalDollars ?? "$0.00"}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Total ($) {periodLabel}</p>
+                  <p className="text-3xl font-bold" data-testid="text-total-dollars">{currentOrderStats?.totalDollars ?? "$0.00"}</p>
                 </div>
               </CardContent>
             </Card>

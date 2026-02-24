@@ -702,29 +702,45 @@ export async function registerRoutes(
     const orgUsers = await storage.getUsersByOrganization(user.organizationId);
     const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
 
+    const emptyStats = { totalOrders: 0, pendingDollars: "$0.00", approvedDollars: "$0.00", totalDollars: "$0.00" };
     if (employeeIds.length === 0) {
-      return res.json({ totalOrders: 0, pendingDollars: "$0.00", approvedDollars: "$0.00", totalDollars: "$0.00" });
+      return res.json({ week: emptyStats, month: emptyStats, year: emptyStats });
     }
 
     const allOrders = await db.select().from(orders).where(inArray(orders.userId, employeeIds));
 
-    let totalOrders = allOrders.length;
-    let pendingDollars = 0;
-    let approvedDollars = 0;
-    let totalDollars = 0;
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-    for (const order of allOrders) {
-      const dollarAmount = order.convertedValue ? parseFloat(order.convertedValue.replace(/[^0-9.]/g, "")) || 0 : 0;
-      totalDollars += dollarAmount;
-      if (order.status === "pending") pendingDollars += dollarAmount;
-      if (order.status === "approved" || order.status === "completed") approvedDollars += dollarAmount;
-    }
+    const calcStats = (filtered: typeof allOrders) => {
+      let total = filtered.length;
+      let pendingDollars = 0;
+      let approvedDollars = 0;
+      let totalDollars = 0;
+      for (const order of filtered) {
+        const dollarAmount = order.convertedValue ? parseFloat(order.convertedValue.replace(/[^0-9.]/g, "")) || 0 : 0;
+        totalDollars += dollarAmount;
+        if (order.status === "pending") pendingDollars += dollarAmount;
+        if (order.status === "approved" || order.status === "completed") approvedDollars += dollarAmount;
+      }
+      return {
+        totalOrders: total,
+        pendingDollars: `$${pendingDollars.toFixed(2)}`,
+        approvedDollars: `$${approvedDollars.toFixed(2)}`,
+        totalDollars: `$${totalDollars.toFixed(2)}`,
+      };
+    };
+
+    const weekOrders = allOrders.filter(o => new Date(o.createdAt) >= weekAgo);
+    const monthOrders = allOrders.filter(o => new Date(o.createdAt) >= monthAgo);
+    const yearOrders = allOrders.filter(o => new Date(o.createdAt) >= yearAgo);
 
     res.json({
-      totalOrders,
-      pendingDollars: `$${pendingDollars.toFixed(2)}`,
-      approvedDollars: `$${approvedDollars.toFixed(2)}`,
-      totalDollars: `$${totalDollars.toFixed(2)}`,
+      week: calcStats(weekOrders),
+      month: calcStats(monthOrders),
+      year: calcStats(yearOrders),
     });
   });
 

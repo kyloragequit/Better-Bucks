@@ -6,36 +6,50 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
+import { useUser } from "@/hooks/use-auth";
+import type { Department } from "@shared/schema";
 
 type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedDollars: string; totalDollars: string };
 
 export default function AdminDashboardPage() {
   const [selectedAdminId, setSelectedAdminId] = useState<string>("all");
+  const [selectedDeptId, setSelectedDeptId] = useState<string>("all");
   const [orderPeriod, setOrderPeriod] = useState<"week" | "month" | "year">("week");
+  const { data: currentUser } = useUser();
+  const isPrimeAdmin = currentUser?.role === "prime_admin";
 
   const { data: admins, isLoading: adminsLoading } = useQuery<{ id: number; fullName: string; role: string }[]>({
     queryKey: ["/api/org/admins"],
   });
 
-  const statsQueryKey = selectedAdminId === "all"
-    ? ["/api/stats/points"]
-    : ["/api/stats/points", { adminId: selectedAdminId }];
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
+  });
 
-  const statsUrl = selectedAdminId === "all"
-    ? "/api/stats/points"
-    : `/api/stats/points?adminId=${selectedAdminId}`;
+  const buildStatsUrl = (base: string) => {
+    const params = new URLSearchParams();
+    if (selectedAdminId !== "all") params.set("adminId", selectedAdminId);
+    if (selectedDeptId !== "all") params.set("departmentId", selectedDeptId);
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
 
   const { data: pointsStats, isLoading: statsLoading } = useQuery<{ week: number; month: number; year: number; weekDebited: number; monthDebited: number; yearDebited: number }>({
-    queryKey: statsQueryKey,
+    queryKey: ["/api/stats/points", { adminId: selectedAdminId, departmentId: selectedDeptId }],
     queryFn: async () => {
-      const res = await fetch(statsUrl, { credentials: "include" });
+      const res = await fetch(buildStatsUrl("/api/stats/points"), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch stats");
       return res.json();
     },
   });
 
   const { data: orderStats, isLoading: orderStatsLoading } = useQuery<{ week: OrderPeriodStats; month: OrderPeriodStats; year: OrderPeriodStats }>({
-    queryKey: ["/api/stats/orders"],
+    queryKey: ["/api/stats/orders", { departmentId: selectedDeptId }],
+    queryFn: async () => {
+      const res = await fetch(buildStatsUrl("/api/stats/orders"), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch order stats");
+      return res.json();
+    },
   });
 
   const currentOrderStats = orderStats?.[orderPeriod];
@@ -48,9 +62,22 @@ export default function AdminDashboardPage() {
           <h1 className="text-3xl font-display font-bold text-foreground" data-testid="heading-dashboard">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Bucks distributed from administrators to employees</p>
         </div>
-        <div className="w-full md:w-64">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {departments && departments.length > 0 && (
+            <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
+              <SelectTrigger className="w-full sm:w-48" data-testid="select-dept-filter-dashboard">
+                <SelectValue placeholder="Filter by department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(d => (
+                  <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={selectedAdminId} onValueChange={setSelectedAdminId}>
-            <SelectTrigger data-testid="select-admin-filter">
+            <SelectTrigger className="w-full sm:w-56" data-testid="select-admin-filter">
               <SelectValue placeholder="Filter by administrator" />
             </SelectTrigger>
             <SelectContent>

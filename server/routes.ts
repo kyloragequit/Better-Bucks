@@ -693,12 +693,16 @@ export async function registerRoutes(
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
 
-    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    let orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const deptIdParam = req.query.departmentId ? parseInt(req.query.departmentId as string) : null;
+    if (deptIdParam !== null) {
+      orgUsers = orgUsers.filter(u => u.departmentId === deptIdParam);
+    }
     const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
     const adminIds = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id);
 
     if (employeeIds.length === 0 || adminIds.length === 0) {
-      return res.json({ week: 0, month: 0, year: 0 });
+      return res.json({ week: 0, month: 0, year: 0, weekDebited: 0, monthDebited: 0, yearDebited: 0 });
     }
 
     const adminIdFilter = req.query.adminId ? parseInt(req.query.adminId as string) : null;
@@ -785,7 +789,11 @@ export async function registerRoutes(
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
 
-    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    let orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const deptIdParam = req.query.departmentId ? parseInt(req.query.departmentId as string) : null;
+    if (deptIdParam !== null) {
+      orgUsers = orgUsers.filter(u => u.departmentId === deptIdParam);
+    }
     const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
 
     const emptyStats = { totalOrders: 0, pendingDollars: "$0.00", approvedDollars: "$0.00", totalDollars: "$0.00" };

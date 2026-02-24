@@ -883,16 +883,6 @@ export async function registerRoutes(
     }
   });
 
-  // Handle Stripe checkout completion webhook events for org activation
-  app.post("/api/organizations/activate", async (req, res) => {
-    const { orgCode } = req.body;
-    if (!orgCode) return res.status(400).json({ message: "Missing org code" });
-    const org = await storage.getOrganizationByCode(orgCode);
-    if (!org) return res.status(404).json({ message: "Organization not found" });
-    await storage.updateOrganizationStatus(org.id, "active");
-    res.json({ success: true });
-  });
-
   // Check subscription status for an org code  
   app.get("/api/organizations/check-subscription/:code", async (req, res) => {
     const org = await storage.getOrganizationByCode(req.params.code.toUpperCase());
@@ -912,6 +902,7 @@ export async function registerRoutes(
         });
         if (subscriptions.data.length > 0) {
           await storage.updateOrganizationStripe(org.id, org.stripeCustomerId, subscriptions.data[0].id);
+          await storage.updateOrganizationStatus(org.id, "active");
           return res.json({ active: true });
         }
       } catch (e) {

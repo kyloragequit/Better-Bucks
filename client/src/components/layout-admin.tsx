@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings, ArrowLeft, Code2, FileText } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, FileText, Zap } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -93,6 +93,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               }`}
             >
               Orders
+            </Link>
+            <Link
+              href="/admin/instant-transaction"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive('/admin/instant-transaction') ? "text-primary font-bold" : "text-muted-foreground"
+              }`}
+              data-testid="link-instant-transaction"
+            >
+              <span className="hidden lg:inline">Instant Transaction</span>
+              <span className="lg:hidden">Quick TX</span>
             </Link>
             {!isImpersonating && (
               <Link

@@ -1526,6 +1526,124 @@ export async function registerRoutes(
     res.sendStatus(200);
   });
 
+  // ========== Departments ==========
+  app.get("/api/departments", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || !user.organizationId) {
+      return res.status(401).send("Unauthorized");
+    }
+    const depts = await storage.getDepartmentsByOrganization(user.organizationId);
+    res.json(depts);
+  });
+
+  app.post("/api/departments", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    try {
+      const { name } = z.object({ name: z.string().min(1) }).parse(req.body);
+      const dept = await storage.createDepartment({ name, organizationId: user.organizationId! });
+      res.status(201).json(dept);
+    } catch (e: any) {
+      if (e.name === "ZodError") return res.status(400).json({ message: e.errors[0]?.message });
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  app.patch("/api/departments/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    const dept = await storage.getDepartment(id);
+    if (!dept || dept.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+    const { name } = z.object({ name: z.string().min(1) }).parse(req.body);
+    const updated = await storage.updateDepartment(id, name);
+    res.json(updated);
+  });
+
+  app.delete("/api/departments/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    const dept = await storage.getDepartment(id);
+    if (!dept || dept.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+    await storage.deleteDepartment(id);
+    res.sendStatus(200);
+  });
+
+  app.patch("/api/users/:id/department", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    const target = await storage.getUser(id);
+    if (!target || target.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const { departmentId } = z.object({ departmentId: z.number().int().nullable() }).parse(req.body);
+    const updated = await storage.updateUserDepartment(id, departmentId);
+    res.json(updated);
+  });
+
+  // ========== Role Labels ==========
+  app.get("/api/organizations/role-labels", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || !user.organizationId) {
+      return res.status(401).send("Unauthorized");
+    }
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    res.json({ adminRoleLabel: org.adminRoleLabel, employeeRoleLabel: org.employeeRoleLabel });
+  });
+
+  app.put("/api/organizations/role-labels", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const { adminRoleLabel, employeeRoleLabel } = z.object({
+      adminRoleLabel: z.string().min(1).max(30),
+      employeeRoleLabel: z.string().min(1).max(30),
+    }).parse(req.body);
+    const updated = await storage.updateOrganizationRoleLabels(user.organizationId!, adminRoleLabel, employeeRoleLabel);
+    res.json({ adminRoleLabel: updated.adminRoleLabel, employeeRoleLabel: updated.employeeRoleLabel });
+  });
+
+  // ========== QR Scan Lookup ==========
+  app.get("/api/users/scan/:identifier", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const identifier = req.params.identifier;
+    const targetId = parseInt(identifier);
+    let target: User | undefined;
+    if (!isNaN(targetId)) {
+      target = await storage.getUser(targetId);
+    }
+    if (!target) {
+      const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+      target = orgUsers.find(u => u.username === identifier || u.barcode === identifier);
+    }
+    if (!target || target.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+    res.json({ id: target.id, fullName: target.fullName, username: target.username, balance: target.balance, role: target.role, departmentId: target.departmentId });
+  });
+
   // ========== Document Management ==========
   app.post("/api/documents", upload.single("file"), async (req, res) => {
     const user = req.user as User | undefined;

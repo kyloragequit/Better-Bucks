@@ -12,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
-import Barcode from "react-barcode";
+import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
+import { useRoleLabels } from "@/hooks/use-role-labels";
 
 export default function AdminEmployeeDetailPage() {
   const [, params] = useRoute("/admin/employees/:id");
@@ -21,6 +22,7 @@ export default function AdminEmployeeDetailPage() {
   const id = params ? parseInt(params.id) : 0;
   const { data: user, isLoading, error } = useUserDetails(id);
   const { data: currentUser } = useUser();
+  const { getRoleLabel } = useRoleLabels();
 
   if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
   if (error || !user) return <AdminLayout><div className="p-8 text-center text-destructive">User not found</div></AdminLayout>;
@@ -38,8 +40,8 @@ export default function AdminEmployeeDetailPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-display font-bold">{user.fullName}</h1>
-            <Badge variant={user.role === 'admin' ? "default" : "secondary"} className="capitalize">
-              {user.role}
+            <Badge variant={user.role === 'admin' ? "default" : "secondary"}>
+              {getRoleLabel(user.role)}
             </Badge>
           </div>
           <div className="flex gap-2">
@@ -50,14 +52,19 @@ export default function AdminEmployeeDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Barcode Card */}
+        {/* QR Code Card */}
         <Card className="md:col-span-1 shadow-md border-primary/10">
           <CardHeader>
             <CardTitle className="text-lg">Employee ID</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center pt-2 pb-6">
-             <div className="overflow-hidden rounded bg-white p-2 border">
-               <Barcode value={user.barcode} width={1.5} height={60} fontSize={14} />
+             <div className="overflow-hidden rounded bg-white p-4 border">
+               <QRCodeSVG
+                 value={JSON.stringify({ id: user.id, username: user.username, barcode: user.barcode })}
+                 size={120}
+                 level="M"
+                 fgColor="#162A4A"
+               />
              </div>
              <p className="mt-4 text-sm text-muted-foreground font-mono">Code: {user.username}</p>
           </CardContent>

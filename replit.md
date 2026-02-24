@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a multi-tenant full-stack employee incentive and rewards management system branded as "Better Bucks". Organizations sign up via tiered Stripe subscriptions, receive an organization code, and set up their prime admin account. Employees can view their point balances and transaction history via barcode-based identification, while administrators can manage employee accounts, adjust balances, and approve new admin registrations. The system features a role-based access control hierarchy with employees, admins, and a prime admin who can approve new administrator accounts.
+This is a multi-tenant full-stack employee incentive and rewards management system branded as "Better Bucks". Organizations sign up via tiered Stripe subscriptions, receive an organization code, and set up their prime admin account. Employees can view their point balances and transaction history via QR code-based identification, while administrators can manage employee accounts, adjust balances, and approve new admin registrations. The system features a role-based access control hierarchy with employees, admins, and a prime admin who can approve new administrator accounts.
 
 ## User Preferences
 
@@ -35,8 +35,9 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - **Database**: PostgreSQL with Drizzle ORM
 - **Schema Location**: shared/schema.ts
 - **Tables**:
-  - `organizations` - Multi-tenant org accounts with code, Stripe customer/subscription IDs, status
-  - `users` - Employee/admin accounts with role, status, balance, barcode, email (optional), organizationId
+  - `organizations` - Multi-tenant org accounts with code, Stripe customer/subscription IDs, status, adminRoleLabel, employeeRoleLabel
+  - `users` - Employee/admin accounts with role, status, balance, barcode, email (optional), organizationId, departmentId
+  - `departments` - Organization departments with name and organizationId
   - `transactions` - Point credits/debits with reason and timestamp
     - When admins credit points to employees, a corresponding debit transaction is created on the admin's account with reason "Points given to {employee name}"
   - `orders` - Employee orders with photo URLs, points cost, status (pending/approved/rejected/completed), admin notes
@@ -101,6 +102,32 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Prime admins can change their subscription tier (upgrade/downgrade) via Settings page
 - Tier changes update Stripe subscription with proration and update local DB tier/maxEmployees
 - Free memberships cannot be cancelled or changed
+
+### Department Management
+- Prime admins can create, edit, and delete departments in Settings page
+- Admins can assign team members to departments from the Employees page
+- Department filter on Employees page for easy filtering by department
+- API endpoints: GET/POST /api/departments, PATCH/DELETE /api/departments/:id, PATCH /api/users/:id/department
+
+### Custom Role Labels
+- Prime admins can customize "Admin" and "Employee" role display names (e.g., "Group Lead", "Team Member")
+- Custom role labels stored in organizations table (adminRoleLabel, employeeRoleLabel)
+- Labels displayed throughout the admin portal using useRoleLabels hook
+- API endpoints: GET/PUT /api/organizations/role-labels
+
+### QR Code System
+- Employee dashboard shows QR code instead of barcode for identification
+- QR codes encode user ID, username, and barcode data as JSON
+- Uses qrcode.react library for generation and html5-qrcode for scanning
+- QR codes displayed in navy blue (#162A4A) brand color
+
+### Instant Transaction
+- Admins can credit/debit points via QR code scan or manual lookup
+- Camera-based QR scanner using html5-qrcode library
+- Manual lookup by username or employee code
+- Transaction screen shows employee details and allows credit/debit with reason
+- Accessible at /admin/instant-transaction
+- API endpoint: GET /api/users/scan/:identifier for employee lookup
 
 ### Document Management System
 - Admins and prime admins can upload documents (PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, RTF, images) to any employee or admin in their org

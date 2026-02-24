@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useUsers, useCreateUser } from "@/hooks/use-users";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,16 +12,46 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, UserPlus, ChevronRight, Mail, Phone } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
-import type { InsertUser } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import { useRoleLabels } from "@/hooks/use-role-labels";
+import type { InsertUser, Department } from "@shared/schema";
 
 export default function AdminEmployeesPage() {
   const { data: users, isLoading } = useUsers();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { getRoleLabel } = useRoleLabels();
   const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState<string>("all");
 
-  const filteredUsers = users?.filter(user => 
-    user.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    user.username.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
+  });
+
+  const deptMap = new Map(departments?.map(d => [d.id, d.name]) || []);
+
+  const assignDeptMutation = useMutation({
+    mutationFn: async ({ userId, departmentId }: { userId: number; departmentId: number | null }) => {
+      const res = await apiRequest("PATCH", `/api/users/${userId}/department`, { departmentId });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Department Updated" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const filteredUsers = users?.filter(user => {
+    const matchesSearch = user.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      user.username.toLowerCase().includes(search.toLowerCase());
+    const matchesDept = deptFilter === "all" || 
+      (deptFilter === "none" && !user.departmentId) ||
+      (user.departmentId?.toString() === deptFilter);
+    return matchesSearch && matchesDept;
+  });
 
   return (
     <AdminLayout>
@@ -32,14 +64,31 @@ export default function AdminEmployeesPage() {
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by name or code..." 
-            className="pl-9 max-w-md bg-muted/30"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search by name or code..." 
+              className="pl-9 bg-muted/30"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              data-testid="input-search-employees"
+            />
+          </div>
+          {departments && departments.length > 0 && (
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="w-[200px]" data-testid="select-dept-filter">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                <SelectItem value="none">No Department</SelectItem>
+                {departments.map(d => (
+                  <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -53,6 +102,7 @@ export default function AdminEmployeesPage() {
                 <TableHead>Employee Name</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -60,7 +110,7 @@ export default function AdminEmployeesPage() {
             <TableBody>
               {filteredUsers?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     No employees found
                   </TableCell>
                 </TableRow>
@@ -73,7 +123,29 @@ export default function AdminEmployeesPage() {
                       {user.username}
                     </span>
                   </TableCell>
-                  <TableCell className="capitalize text-muted-foreground">{user.role}</TableCell>
+                  <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
+                  <TableCell>
+                    {departments && departments.length > 0 ? (
+                      <Select
+                        value={user.departmentId?.toString() || "none"}
+                        onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}
+                      >
+                        <SelectTrigger className="h-8 w-[140px] text-xs" data-testid={`select-dept-${user.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {departments.map(d => (
+                            <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {user.departmentId ? deptMap.get(user.departmentId) || "—" : "—"}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right font-bold text-primary tabular-nums">
                     {user.balance.toLocaleString()} pts
                   </TableCell>

@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
@@ -57,6 +57,14 @@ export interface IStorage {
   getDocumentsByOrganization(organizationId: number, filters?: { search?: string; assignedToUserId?: number; isDisciplinaryAction?: boolean; dateFrom?: Date; dateTo?: Date }): Promise<(Document & { assignedTo: User; uploadedBy: User })[]>;
   getDocument(id: number): Promise<Document | undefined>;
   deleteDocument(id: number): Promise<void>;
+
+  createDepartment(dept: InsertDepartment): Promise<Department>;
+  getDepartmentsByOrganization(organizationId: number): Promise<Department[]>;
+  getDepartment(id: number): Promise<Department | undefined>;
+  updateDepartment(id: number, name: string): Promise<Department>;
+  deleteDepartment(id: number): Promise<void>;
+  updateUserDepartment(userId: number, departmentId: number | null): Promise<User>;
+  updateOrganizationRoleLabels(id: number, adminLabel: string, employeeLabel: string): Promise<Organization>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -397,6 +405,40 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocument(id: number): Promise<void> {
     await db.delete(documents).where(eq(documents.id, id));
+  }
+
+  async createDepartment(dept: InsertDepartment): Promise<Department> {
+    const [newDept] = await db.insert(departments).values(dept).returning();
+    return newDept;
+  }
+
+  async getDepartmentsByOrganization(organizationId: number): Promise<Department[]> {
+    return await db.select().from(departments).where(eq(departments.organizationId, organizationId)).orderBy(departments.name);
+  }
+
+  async getDepartment(id: number): Promise<Department | undefined> {
+    const [dept] = await db.select().from(departments).where(eq(departments.id, id));
+    return dept;
+  }
+
+  async updateDepartment(id: number, name: string): Promise<Department> {
+    const [updated] = await db.update(departments).set({ name }).where(eq(departments.id, id)).returning();
+    return updated;
+  }
+
+  async deleteDepartment(id: number): Promise<void> {
+    await db.update(users).set({ departmentId: null }).where(eq(users.departmentId, id));
+    await db.delete(departments).where(eq(departments.id, id));
+  }
+
+  async updateUserDepartment(userId: number, departmentId: number | null): Promise<User> {
+    const [updated] = await db.update(users).set({ departmentId }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async updateOrganizationRoleLabels(id: number, adminLabel: string, employeeLabel: string): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ adminRoleLabel: adminLabel, employeeRoleLabel: employeeLabel }).where(eq(organizations.id, id)).returning();
+    return updated;
   }
 
   async deleteOrganization(id: number): Promise<void> {

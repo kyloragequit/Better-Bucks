@@ -27,6 +27,7 @@ import AdminDocumentsPage from "@/pages/admin-documents";
 import EmployeeDocumentsPage from "@/pages/employee-documents";
 import DeveloperLoginPage from "@/pages/developer-login";
 import DeveloperDashboardPage from "@/pages/developer-dashboard";
+import AdminInstantTransactionPage from "@/pages/admin-instant-transaction";
 
 function ProtectedRoute({ 
   component: Component, 
@@ -118,6 +119,9 @@ function Router() {
       </Route>
       <Route path="/admin/documents">
         <ProtectedRoute component={AdminDocumentsPage} adminOnly />
+      </Route>
+      <Route path="/admin/instant-transaction">
+        <ProtectedRoute component={AdminInstantTransactionPage} adminOnly />
       </Route>
       <Route path="/admin/settings">
         <ProtectedRoute component={AdminSettingsPage} adminOnly />

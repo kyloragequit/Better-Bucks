@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Wallet, History, CreditCard, Mail, Store } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
-import Barcode from "react-barcode";
+import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 
 export default function EmployeeDashboard() {
@@ -65,12 +65,12 @@ export default function EmployeeDashboard() {
               </div>
             )}
             <p className="mt-3 text-sm text-muted-foreground max-w-md">
-              Use your points to redeem rewards or make purchases at authorized locations using your barcode.
+              Use your points to redeem rewards or make purchases at authorized locations using your QR code.
             </p>
           </CardContent>
         </Card>
 
-        {/* Barcode Card */}
+        {/* QR Code Card */}
         <Card className="shadow-lg border-primary/10">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-foreground font-bold">
@@ -78,8 +78,13 @@ export default function EmployeeDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center pt-4 pb-8">
-            <div className="bg-white p-3 rounded-lg border shadow-sm">
-              <Barcode value={userDetails.barcode} width={1.8} height={70} fontSize={16} />
+            <div className="bg-white p-4 rounded-lg border shadow-sm" data-testid="qr-code-container">
+              <QRCodeSVG
+                value={JSON.stringify({ id: userDetails.id, username: userDetails.username, barcode: userDetails.barcode })}
+                size={140}
+                level="M"
+                fgColor="#162A4A"
+              />
             </div>
             <p className="mt-4 text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
               {userDetails.username}

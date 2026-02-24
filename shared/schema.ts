@@ -14,6 +14,15 @@ export const organizations = pgTable("organizations", {
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   status: text("status", { enum: ["active", "inactive", "pending"] }).default("pending").notNull(),
+  adminRoleLabel: text("admin_role_label").default("Admin").notNull(),
+  employeeRoleLabel: text("employee_role_label").default("Employee").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  organizationId: integer("organization_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -33,6 +42,7 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").default(false).notNull(),
   emailVerificationCode: text("email_verification_code"),
   organizationId: integer("organization_id"),
+  departmentId: integer("department_id"),
 });
 
 export const transactions = pgTable("transactions", {
@@ -48,11 +58,23 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
 }));
 
+export const departmentsRelations = relations(departments, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [departments.organizationId],
+    references: [organizations.id],
+  }),
+  users: many(users),
+}));
+
 export const usersRelations = relations(users, ({ many, one }) => ({
   transactions: many(transactions),
   organization: one(organizations, {
     fields: [users.organizationId],
     references: [organizations.id],
+  }),
+  department: one(departments, {
+    fields: [users.departmentId],
+    references: [departments.id],
   }),
 }));
 
@@ -140,6 +162,7 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({ i
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, updatedAt: true, status: true, adminNotes: true });
 export const insertShopWebsiteSchema = createInsertSchema(shopWebsites).omit({ id: true, createdAt: true });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true });
+export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true, createdAt: true });
 
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
@@ -153,5 +176,7 @@ export type ShopWebsite = typeof shopWebsites.$inferSelect;
 export type InsertShopWebsite = z.infer<typeof insertShopWebsiteSchema>;
 export type Document = typeof documents.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type Department = typeof departments.$inferSelect;
+export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type InfoRequest = typeof infoRequests.$inferSelect;
 export type InsertInfoRequest = z.infer<typeof insertInfoRequestSchema>;

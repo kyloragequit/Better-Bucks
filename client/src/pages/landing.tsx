@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
 import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown } from "lucide-react";
+import { LogoBackground } from "@/components/logo-background";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
@@ -37,14 +38,7 @@ export default function LandingPage() {
       </header>
 
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[10%] left-[5%] w-16 h-16 rounded-full bg-primary opacity-20" />
-          <div className="absolute top-[20%] right-[10%] w-32 h-32 rounded-full bg-secondary opacity-10" />
-          <div className="absolute bottom-[15%] left-[20%] w-20 h-20 rounded-full bg-primary opacity-15" />
-          <div className="absolute top-[50%] right-[5%] w-12 h-12 rounded-full bg-secondary opacity-25" />
-          <div className="absolute bottom-[5%] right-[30%] w-24 h-24 rounded-full bg-primary opacity-10" />
-          <div className="absolute top-[30%] left-[50%] w-8 h-8 rounded-full bg-secondary opacity-30" />
-        </div>
+        <LogoBackground />
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
           <div className="flex justify-center mb-6">

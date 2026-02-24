@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
+import { LogoBackground } from "@/components/logo-background";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone } from "lucide-react";
 
@@ -116,12 +117,7 @@ export default function SetupPrimePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[10%] left-[5%] w-12 h-12 rounded-full bg-primary opacity-20" />
-        <div className="absolute top-[20%] right-[15%] w-24 h-24 rounded-full bg-primary opacity-10" />
-        <div className="absolute bottom-[15%] left-[20%] w-16 h-16 rounded-full bg-primary opacity-15" />
-        <div className="absolute top-[60%] right-[10%] w-8 h-8 rounded-full bg-primary opacity-25" />
-      </div>
+      <LogoBackground />
 
       <div className="relative z-10 w-full max-w-md space-y-4">
         <Button

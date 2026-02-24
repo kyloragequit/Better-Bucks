@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, User, Loader2, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
+import { LogoBackground } from "@/components/logo-background";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -22,17 +23,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[10%] left-[5%] w-12 h-12 rounded-full bg-primary opacity-20" />
-        <div className="absolute top-[20%] right-[15%] w-24 h-24 rounded-full bg-primary opacity-10" />
-        <div className="absolute bottom-[15%] left-[20%] w-16 h-16 rounded-full bg-primary opacity-15" />
-        <div className="absolute top-[60%] right-[10%] w-8 h-8 rounded-full bg-primary opacity-25" />
-        <div className="absolute bottom-[10%] right-[30%] w-20 h-20 rounded-full bg-primary opacity-10" />
-        <div className="absolute top-[40%] left-[15%] w-6 h-6 rounded-full bg-primary opacity-30" />
-        <div className="absolute bottom-[40%] right-[25%] w-14 h-14 rounded-full bg-primary opacity-15" />
-        <div className="absolute top-[5%] right-[40%] w-10 h-10 rounded-full bg-primary opacity-20" />
-        <div className="absolute bottom-[5%] left-[45%] w-28 h-28 rounded-full bg-primary opacity-5" />
-      </div>
+      <LogoBackground />
 
       <div className="relative z-10 w-full max-w-md space-y-4">
         <Button

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AppLogo } from "@/components/app-logo";
+import { LogoBackground } from "@/components/logo-background";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, CreditCard, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
@@ -131,13 +132,7 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[10%] left-[5%] w-12 h-12 rounded-full bg-primary opacity-20" />
-        <div className="absolute top-[20%] right-[15%] w-24 h-24 rounded-full bg-primary opacity-10" />
-        <div className="absolute bottom-[15%] left-[20%] w-16 h-16 rounded-full bg-primary opacity-15" />
-        <div className="absolute top-[60%] right-[10%] w-8 h-8 rounded-full bg-primary opacity-25" />
-        <div className="absolute bottom-[10%] right-[30%] w-20 h-20 rounded-full bg-primary opacity-10" />
-      </div>
+      <LogoBackground />
 
       <div className="relative z-10 w-full max-w-5xl space-y-6">
         <div className="bg-primary text-primary-foreground text-center py-3 px-4 rounded-lg shadow-md" data-testid="banner-small-business">

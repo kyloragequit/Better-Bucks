@@ -1,4 +1,4 @@
-import logoImg from "@assets/ChatGPT_Image_Feb_23,_2026,_01_27_33_PM_1771876849184.png";
+import logoImg from "@assets/Final_Logo_1771908016318.png";
 
 export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const sizeClasses = {

@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, Crown, LogOut, LogIn, Code2, Shield } from "lucide-react";
+import { Building2, Users, Crown, LogOut, LogIn, Code2, Shield, Trash2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import type { Organization } from "@shared/schema";
 
 type OrgWithStats = Organization & {
@@ -57,6 +58,20 @@ export default function DeveloperDashboardPage() {
     },
     onSuccess: () => {
       window.location.href = "/admin/dashboard";
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (orgId: number) => {
+      const res = await apiRequest("DELETE", `/api/developer/organizations/${orgId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/organizations"] });
+      toast({ title: "Deleted", description: "Organization has been removed." });
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -252,20 +267,38 @@ export default function DeveloperDashboardPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {org.primeAdmin ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => impersonateMutation.mutate(org.primeAdmin!.id)}
-                                    disabled={impersonateMutation.isPending}
-                                    data-testid={`button-enter-org-${org.id}`}
-                                  >
-                                    <LogIn className="mr-1.5 h-3 w-3" />
-                                    Enter
-                                  </Button>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">No prime admin</span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                  {org.primeAdmin && org.status === "active" ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => impersonateMutation.mutate(org.primeAdmin!.id)}
+                                      disabled={impersonateMutation.isPending}
+                                      data-testid={`button-enter-org-${org.id}`}
+                                    >
+                                      <LogIn className="mr-1.5 h-3 w-3" />
+                                      Enter
+                                    </Button>
+                                  ) : !org.primeAdmin && org.status === "active" ? (
+                                    <span className="text-xs text-muted-foreground">No prime admin</span>
+                                  ) : null}
+                                  {(org.status === "pending" || org.stripeSubscriptionId === "pending_checkout") && (
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => {
+                                        if (confirm(`Delete "${org.name}"? This cannot be undone.`)) {
+                                          deleteMutation.mutate(org.id);
+                                        }
+                                      }}
+                                      disabled={deleteMutation.isPending}
+                                      data-testid={`button-delete-org-${org.id}`}
+                                    >
+                                      <Trash2 className="mr-1.5 h-3 w-3" />
+                                      Delete
+                                    </Button>
+                                  )}
+                                </div>
                               </TableCell>
                             </TableRow>
                           );

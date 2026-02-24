@@ -382,6 +382,9 @@ export async function registerRoutes(
       const targetUser = await storage.getUser(targetId);
       if (!targetUser) continue;
 
+      // Cannot credit yourself
+      if (targetUser.id === user.id) continue;
+
       // Department isolation for non-prime admins
       if (user.role === "admin" && targetUser.departmentId !== user.departmentId) continue;
 

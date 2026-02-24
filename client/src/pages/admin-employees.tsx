@@ -183,7 +183,8 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
   const queryClient = useQueryClient();
   const { getRoleLabel } = useRoleLabels();
 
-  const creditableUsers = users.filter(u => u.role !== "prime_admin");
+  const { data: currentUser } = useUser();
+  const creditableUsers = users.filter(u => u.role !== "prime_admin" && u.id !== currentUser?.id);
 
   const bulkCreditMutation = useMutation({
     mutationFn: async ({ userIds, amount, reason }: { userIds: number[]; amount: number; reason: string }) => {

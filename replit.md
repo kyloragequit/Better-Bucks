@@ -105,8 +105,10 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 
 ### Department Management
 - Prime admins can create, edit, and delete departments in Settings page
-- Admins can assign team members to departments from the Employees page
-- Department filter on Employees page for easy filtering by department
+- Prime admins can assign any user (admin or employee) to departments from the Employees page
+- Prime admins see all users across all departments with department filter
+- Non-prime admins are isolated to their own department — they can only see and interact with users in the same department
+- Department filter on Employees page for easy filtering by department (prime admin only)
 - API endpoints: GET/POST /api/departments, PATCH/DELETE /api/departments/:id, PATCH /api/users/:id/department
 
 ### Custom Role Labels
@@ -130,19 +132,9 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - API endpoint: GET /api/users/scan/:identifier for employee lookup
 
 ### Document Management System
-- Admins and prime admins can upload documents (PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, RTF, images) to any employee or admin in their org
-- Each document has a name, file upload, assigned user, and optional "Disciplinary Action" flag
-- Documents table: `documents` with id, name, fileUrl, originalFilename, assignedToUserId, uploadedByUserId, organizationId, isDisciplinaryAction, createdAt
-- Employees can view their assigned documents at /documents (read-only)
-- Admins can view all org documents at /admin/documents and upload/delete documents
-- Prime admins have additional search & filter capabilities:
-  - Search by document name
-  - Filter by assigned person
-  - Filter by disciplinary action flag
-  - Filter by date range (from/to)
-- API endpoints: POST /api/documents (upload), GET /api/documents (list with filters), DELETE /api/documents/:id
-- File uploads use existing multer setup with expanded file type support
-- User data in API responses is sanitized (no passwords exposed)
+- Documents feature removed from UI (tabs/routes removed from both admin and employee layouts)
+- Backend API endpoints still exist but are not linked from the UI
+- Documents table schema retained in database
 
 ### App Branding
 - Custom logo image used across all layouts (AppLogo component imports from @assets)

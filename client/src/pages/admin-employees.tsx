@@ -14,13 +14,16 @@ import { Search, UserPlus, ChevronRight, Mail, Phone } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
+import { useUser } from "@/hooks/use-auth";
 import type { InsertUser, Department } from "@shared/schema";
 
 export default function AdminEmployeesPage() {
   const { data: users, isLoading } = useUsers();
+  const { data: currentUser } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { getRoleLabel } = useRoleLabels();
+  const isPrimeAdmin = currentUser?.role === "prime_admin";
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("all");
 
@@ -57,8 +60,8 @@ export default function AdminEmployeesPage() {
     <AdminLayout>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Employees</h1>
-          <p className="text-muted-foreground mt-1">Manage employee accounts and balances</p>
+          <h1 className="text-3xl font-display font-bold text-foreground">{isPrimeAdmin ? "Team Members" : "Employees"}</h1>
+          <p className="text-muted-foreground mt-1">{isPrimeAdmin ? "Manage all team member accounts and balances" : "Manage employee accounts and balances"}</p>
         </div>
         <CreateEmployeeDialog />
       </div>
@@ -125,7 +128,7 @@ export default function AdminEmployeesPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
                   <TableCell>
-                    {departments && departments.length > 0 ? (
+                    {isPrimeAdmin && departments && departments.length > 0 ? (
                       <Select
                         value={user.departmentId?.toString() || "none"}
                         onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}

@@ -125,8 +125,11 @@ export async function registerRoutes(
     if (!user.organizationId) {
       return res.json([]);
     }
-    const users = await storage.getUsersByOrganization(user.organizationId);
-    res.json(users);
+    let allUsers = await storage.getUsersByOrganization(user.organizationId);
+    if (user.role === "admin") {
+      allUsers = allUsers.filter(u => u.departmentId === user.departmentId);
+    }
+    res.json(allUsers);
   });
 
   // Register new admin account - requires org code, goes into pending queue
@@ -341,13 +344,16 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
-    // Users can see themselves, Admins can see everyone
     if (user.role !== "admin" && user.role !== "prime_admin" && user.id !== id) {
       return res.status(403).send("Forbidden");
     }
 
     const userResult = await storage.getUser(id);
     if (!userResult) return res.status(404).send("User not found");
+
+    if (user.role === "admin" && user.id !== id && userResult.departmentId !== user.departmentId) {
+      return res.status(403).send("Forbidden");
+    }
 
     const transactions = await storage.getTransactionsByUser(id);
     res.json({ ...userResult, transactions });
@@ -366,6 +372,10 @@ export async function registerRoutes(
 
     const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).send("User not found");
+
+    if (user.role === "admin" && targetUser.departmentId !== user.departmentId) {
+      return res.status(403).send("Forbidden");
+    }
 
     // If not prime admin, deduct from current admin balance
     if (user.role !== "prime_admin") {
@@ -1584,7 +1594,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id/department", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
     const id = parseInt(req.params.id);
@@ -1640,6 +1650,9 @@ export async function registerRoutes(
     }
     if (!target || target.organizationId !== user.organizationId) {
       return res.status(404).json({ message: "Employee not found" });
+    }
+    if (user.role === "admin" && target.departmentId !== user.departmentId) {
+      return res.status(403).json({ message: "Cannot access users in other departments" });
     }
     res.json({ id: target.id, fullName: target.fullName, username: target.username, balance: target.balance, role: target.role, departmentId: target.departmentId });
   });

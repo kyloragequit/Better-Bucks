@@ -1055,6 +1055,7 @@ export async function registerRoutes(
       });
 
       await storage.updateOrganizationStripe(org.id, customerId, "pending_checkout");
+      await storage.updateOrganizationStatus(org.id, org.status as any);
       await storage.updateOrganizationTier(org.id, tier, config.maxEmployees === -1 ? 999999 : config.maxEmployees);
 
       res.json({ url: session.url });

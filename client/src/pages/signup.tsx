@@ -22,7 +22,7 @@ const tiers = [
     description: "Up to 100 employees",
     perEmployee: "~$0.50",
     icon: Users,
-    features: ["Up to 100 active logins", "Admin dashboard", "Points tracking", "Basic reporting", "Email support"],
+    features: ["60-day free pilot program", "Up to 100 active logins", "Admin dashboard", "Points tracking", "Basic reporting", "Email support"],
   },
   {
     id: "mid" as const,
@@ -33,7 +33,7 @@ const tiers = [
     perEmployee: "~$0.33",
     icon: Building2,
     popular: true,
-    features: ["Up to 300 active logins", "Admin dashboard", "Points tracking", "Advanced reporting", "Priority support"],
+    features: ["60-day free pilot program", "Up to 300 active logins", "Admin dashboard", "Points tracking", "Advanced reporting", "Priority support"],
   },
   {
     id: "large" as const,
@@ -43,7 +43,7 @@ const tiers = [
     description: "301-500 employees",
     perEmployee: "~$0.30",
     icon: Zap,
-    features: ["Up to 500 active logins", "Admin dashboard", "Points tracking", "Advanced reporting", "Priority support"],
+    features: ["60-day free pilot program", "Up to 500 active logins", "Admin dashboard", "Points tracking", "Advanced reporting", "Priority support"],
   },
   {
     id: "enterprise" as const,
@@ -53,7 +53,7 @@ const tiers = [
     description: "500+ employees",
     perEmployee: "Best value",
     icon: Crown,
-    features: ["Unlimited logins", "Admin dashboard", "Points tracking", "Custom reporting", "Dedicated support"],
+    features: ["60-day free pilot program", "Unlimited logins", "Admin dashboard", "Points tracking", "Custom reporting", "Dedicated support"],
   },
 ];
 
@@ -199,6 +199,9 @@ export default function SignupPage() {
                   <div>
                     <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
                     <span className="text-sm text-muted-foreground">/mo</span>
+                  </div>
+                  <div className="inline-block rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1" data-testid={`badge-trial-${tier.id}`}>
+                    60-Day Free Pilot
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {tier.perEmployee} per employee

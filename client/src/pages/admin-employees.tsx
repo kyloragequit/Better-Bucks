@@ -434,7 +434,10 @@ function CreateEmployeeDialog() {
       </DialogTrigger>
 
       {isAtCapacity ? (
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px]" aria-describedby={undefined}>
+          <DialogHeader className="sr-only">
+            <DialogTitle>Employee Limit Reached</DialogTitle>
+          </DialogHeader>
           <div className="flex flex-col items-center text-center gap-5 py-4">
             <AppLogo size="lg" />
             <div className="space-y-2">

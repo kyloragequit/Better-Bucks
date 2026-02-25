@@ -26,6 +26,7 @@ import VerifyEmailPage from "@/pages/verify-email";
 import DeveloperLoginPage from "@/pages/developer-login";
 import DeveloperDashboardPage from "@/pages/developer-dashboard";
 import AdminInstantTransactionPage from "@/pages/admin-instant-transaction";
+import ReactivatePage from "@/pages/reactivate";
 
 function ProtectedRoute({ 
   component: Component, 
@@ -86,6 +87,7 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/signup/success" component={SignupSuccessPage} />
+      <Route path="/reactivate" component={ReactivatePage} />
       <Route path="/setup" component={SetupPrimePage} />
       <Route path="/login" component={LoginPage} />
       

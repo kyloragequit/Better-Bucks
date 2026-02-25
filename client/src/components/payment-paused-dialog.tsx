@@ -1,7 +1,8 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CreditCard, Loader2, LogOut } from "lucide-react";
+import { AlertTriangle, CreditCard, LogOut } from "lucide-react";
 import { useLogout } from "@/hooks/use-auth";
 
 interface OrgStatus {
@@ -13,24 +14,11 @@ interface OrgStatus {
 
 export function PaymentPausedDialog() {
   const { mutate: logout } = useLogout();
+  const [, setLocation] = useLocation();
 
   const { data: orgStatus } = useQuery<OrgStatus>({
     queryKey: ["/api/organizations/my-status"],
     refetchInterval: 60000,
-  });
-
-  const billingMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/organizations/billing-portal", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to open billing portal");
-      return res.json();
-    },
-    onSuccess: (data: { url: string }) => {
-      window.location.href = data.url;
-    },
   });
 
   if (!orgStatus?.isPaused) return null;
@@ -57,8 +45,8 @@ export function PaymentPausedDialog() {
             </h2>
             <p className="text-muted-foreground text-sm max-w-xs mx-auto">
               {orgStatus.status === "inactive"
-                ? "Your organization's subscription has been cancelled. Please update your billing information to reactivate your account."
-                : "There's an issue with your organization's payment. Please update your billing information to continue using Better Bucks."}
+                ? "Your organization's subscription has been cancelled. Please reactivate your subscription to continue using Better Bucks."
+                : "There's an issue with your organization's payment. Please reactivate your subscription to continue using Better Bucks."}
             </p>
           </div>
 
@@ -67,15 +55,10 @@ export function PaymentPausedDialog() {
               <Button
                 className="w-full shadow-lg shadow-primary/25"
                 size="lg"
-                onClick={() => billingMutation.mutate()}
-                disabled={billingMutation.isPending}
+                onClick={() => setLocation("/reactivate")}
                 data-testid="button-update-billing"
               >
-                {billingMutation.isPending ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <CreditCard className="mr-2 h-5 w-5" />
-                )}
+                <CreditCard className="mr-2 h-5 w-5" />
                 Update Billing Information
               </Button>
               <Button

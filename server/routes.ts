@@ -1003,6 +1003,69 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/organizations/reactivate", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).json({ message: "Only the prime admin can reactivate a subscription" });
+    }
+
+    try {
+      const { tier } = z.object({ tier: z.enum(["small", "mid", "large", "enterprise"]) }).parse(req.body);
+      const config = tierConfig[tier];
+
+      const org = await storage.getOrganization(user.organizationId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      if (org.status === "active") {
+        return res.status(400).json({ message: "Organization is already active" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+
+      let customerId = org.stripeCustomerId;
+      if (!customerId || customerId === "free_membership" || customerId.startsWith("promo_")) {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          metadata: { organizationId: String(org.id), organizationName: org.name, tier },
+        });
+        customerId = customer.id;
+      }
+
+      const price = await stripe.prices.create({
+        unit_amount: config.price,
+        currency: "usd",
+        recurring: { interval: "month" },
+        product_data: {
+          name: `Better Bucks - ${config.name}`,
+          metadata: { tier },
+        },
+      });
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{ price: price.id, quantity: 1 }],
+        mode: 'subscription',
+        subscription_data: { trial_period_days: 60 },
+        success_url: `${baseUrl}/admin/settings?reactivated=true`,
+        cancel_url: `${baseUrl}/reactivate?cancelled=true`,
+        metadata: { organizationId: String(org.id), tier },
+      });
+
+      await storage.updateOrganizationStripe(org.id, customerId, "pending_checkout");
+      await storage.updateOrganizationTier(org.id, tier, config.maxEmployees === -1 ? 999999 : config.maxEmployees);
+
+      res.json({ url: session.url });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      console.error("Reactivation error:", error);
+      res.status(500).json({ message: "Failed to create reactivation checkout session" });
+    }
+  });
+
   // Validate organization code
   app.get("/api/organizations/validate/:code", async (req, res) => {
     const org = await storage.getOrganizationByCode(req.params.code.toUpperCase());

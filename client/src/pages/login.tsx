@@ -14,6 +14,11 @@ export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { data: user } = useUser();
 
+  const params = new URLSearchParams(window.location.search);
+  const urlOrgCode = params.get("orgCode") || "";
+  const urlTab = params.get("tab") || "employee";
+  const urlMode = params.get("mode") || "";
+
   useEffect(() => {
     if (user) {
       if (user.role === 'admin' || user.role === 'prime_admin') setLocation('/admin/dashboard');
@@ -46,7 +51,7 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
 
-          <Tabs defaultValue="employee" className="w-full px-4">
+          <Tabs defaultValue={urlTab} className="w-full px-4">
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="employee" className="flex items-center gap-2">
                 <LogIn className="h-4 w-4" />
@@ -59,7 +64,7 @@ export default function LoginPage() {
             </TabsList>
 
             <TabsContent value="employee" className="space-y-4 pb-4">
-              <EmployeeTabs />
+              <EmployeeTabs defaultMode={urlMode === "create" ? "register" : "login"} defaultOrgCode={urlOrgCode} />
             </TabsContent>
 
             <TabsContent value="admin" className="space-y-4 pb-4">
@@ -92,8 +97,8 @@ export default function LoginPage() {
   );
 }
 
-function EmployeeTabs() {
-  const [tab, setTab] = useState<"login" | "register">("login");
+function EmployeeTabs({ defaultMode = "login", defaultOrgCode = "" }: { defaultMode?: "login" | "register"; defaultOrgCode?: string }) {
+  const [tab, setTab] = useState<"login" | "register">(defaultMode);
 
   return (
     <Tabs value={tab} onValueChange={(val) => setTab(val as "login" | "register")} className="space-y-4">
@@ -107,7 +112,7 @@ function EmployeeTabs() {
       </TabsContent>
 
       <TabsContent value="register" className="space-y-0">
-        <EmployeeRegisterForm />
+        <EmployeeRegisterForm defaultOrgCode={defaultOrgCode} />
       </TabsContent>
     </Tabs>
   );
@@ -177,8 +182,8 @@ function EmployeeLoginForm() {
   );
 }
 
-function EmployeeRegisterForm() {
-  const [orgCode, setOrgCode] = useState("");
+function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) {
+  const [orgCode, setOrgCode] = useState(defaultOrgCode);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");

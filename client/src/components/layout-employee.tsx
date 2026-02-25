@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
+import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { useStoreUrl } from "@/hooks/use-store-url";
 
 export function EmployeeLayout({ children }: { children: React.ReactNode }) {
@@ -61,6 +62,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
       <main className="container max-w-5xl mx-auto px-4 py-8 animate-in">
         {children}
       </main>
+      <PaymentPausedDialog />
     </div>
   );
 }

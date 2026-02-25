@@ -3,6 +3,7 @@ import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LogOut, Settings, ArrowLeft, Code2, Zap } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
+import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 function ImpersonationBanner() {
@@ -140,6 +141,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <main className="container py-8 px-4 animate-in">
         {children}
       </main>
+      <PaymentPausedDialog />
     </div>
   );
 }

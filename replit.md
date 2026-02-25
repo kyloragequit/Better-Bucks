@@ -102,6 +102,15 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - Prime admins can change their subscription tier (upgrade/downgrade) via Settings page
 - Tier changes update Stripe subscription with proration and update local DB tier/maxEmployees
 - Free memberships cannot be cancelled or changed
+- 60-day free trial on all tiers via Stripe subscription_data: { trial_period_days: 60 }
+- Signup QR code: Prime admins see a QR code on Settings page that links to `/login?orgCode=XXX&tab=employee&mode=create`
+- Login page accepts URL params: `orgCode`, `tab` (employee/admin), `mode` (create) to pre-fill registration
+- Payment pause system: Organizations with lapsed payments get status "paused"
+  - `GET /api/organizations/my-status` checks Stripe subscription status and auto-pauses if past_due/unpaid
+  - PaymentPausedDialog component shown in both admin and employee layouts when org is paused/inactive
+  - Prime admins get "Update Billing" button (opens Stripe billing portal); other users see "contact admin" message
+  - `POST /api/organizations/billing-portal` creates a Stripe billing portal session for the prime admin
+  - Organization status enum: active, inactive, pending, paused
 
 ### Department Management
 - Prime admins can create, edit, and delete departments in Settings page

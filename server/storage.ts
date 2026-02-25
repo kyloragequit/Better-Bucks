@@ -47,7 +47,7 @@ export interface IStorage {
   getOrganizationByCode(code: string): Promise<Organization | undefined>;
   getOrganizationByStripeCustomerId(customerId: string): Promise<Organization | undefined>;
   updateOrganizationStripe(id: number, stripeCustomerId: string, stripeSubscriptionId: string): Promise<Organization>;
-  updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending"): Promise<Organization>;
+  updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused"): Promise<Organization>;
   updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization>;
   updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization>;
   deleteOrganization(id: number): Promise<void>;
@@ -286,7 +286,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending"): Promise<Organization> {
+  async updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused"): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ status }).where(eq(organizations.id, id)).returning();
     return updated;
   }

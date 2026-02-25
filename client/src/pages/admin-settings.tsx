@@ -9,7 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree } from "lucide-react";
+import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Organization, ShopWebsite, Department } from "@shared/schema";
 
@@ -178,7 +179,7 @@ export default function AdminSettingsPage() {
                   <CardDescription>Organization Details</CardDescription>
                 </div>
                 <Badge variant={org.status === "active" ? "default" : "destructive"} data-testid="badge-org-status">
-                  {org.status === "active" ? "Active" : org.status === "inactive" ? "Cancelled" : "Pending"}
+                  {org.status === "active" ? "Active" : org.status === "inactive" ? "Cancelled" : org.status === "paused" ? "Paused" : "Pending"}
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -194,6 +195,26 @@ export default function AdminSettingsPage() {
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Share this code with team members who need to register for your organization.
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <QrCode className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold">Employee Signup QR Code</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="bg-white p-4 rounded-lg border shadow-sm" data-testid="qr-employee-signup">
+                      <QRCodeSVG
+                        value={`${window.location.origin}/login?orgCode=${org.code}&tab=employee&mode=create`}
+                        size={180}
+                        fgColor="#162A4A"
+                        level="M"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center max-w-xs">
+                      Employees can scan this QR code to go directly to the registration page with your organization code pre-filled.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

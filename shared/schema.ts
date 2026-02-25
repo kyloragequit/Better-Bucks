@@ -13,7 +13,7 @@ export const organizations = pgTable("organizations", {
   storeUrl: text("store_url").default("https://dscpromostore.com/").notNull(),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
-  status: text("status", { enum: ["active", "inactive", "pending"] }).default("pending").notNull(),
+  status: text("status", { enum: ["active", "inactive", "pending", "paused"] }).default("pending").notNull(),
   adminRoleLabel: text("admin_role_label").default("Admin").notNull(),
   employeeRoleLabel: text("employee_role_label").default("Employee").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

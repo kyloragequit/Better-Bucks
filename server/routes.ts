@@ -1197,6 +1197,72 @@ export async function registerRoutes(
     }
   });
 
+  // Stripe billing portal (prime admin only)
+  app.post("/api/organizations/billing-portal", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.status(400).json({ message: "No organization found" });
+    }
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    if (!org.stripeCustomerId || org.stripeCustomerId === "free_membership" || org.stripeCustomerId.startsWith("promo_")) {
+      return res.status(400).json({ message: "No billing account to manage" });
+    }
+    try {
+      const stripe = await getUncachableStripeClient();
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.billingPortal.sessions.create({
+        customer: org.stripeCustomerId,
+        return_url: `${baseUrl}/admin/settings`,
+      });
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating billing portal session:", error);
+      res.status(500).json({ message: "Failed to open billing portal" });
+    }
+  });
+
+  // Check org status for current user (any authenticated user)
+  app.get("/api/organizations/my-status", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) {
+      return res.json({ status: "active", isPaused: false });
+    }
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.json({ status: "active", isPaused: false });
+
+    const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_");
+    if (isFree) {
+      return res.json({ status: "active", isPaused: false });
+    }
+
+    if (org.status === "active" && org.stripeCustomerId && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
+      try {
+        const stripe = await getUncachableStripeClient();
+        const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+        if (sub.status === "past_due" || sub.status === "unpaid" || sub.status === "incomplete_expired") {
+          await storage.updateOrganizationStatus(org.id, "paused");
+          return res.json({ status: "paused", isPaused: true, orgName: org.name, isPrimeAdmin: user.role === "prime_admin" });
+        }
+        if (sub.status === "canceled") {
+          await storage.updateOrganizationStatus(org.id, "inactive");
+          return res.json({ status: "inactive", isPaused: true, orgName: org.name, isPrimeAdmin: user.role === "prime_admin" });
+        }
+      } catch (e) {
+        console.error("Error checking subscription status:", e);
+      }
+    }
+
+    const isPaused = org.status === "paused" || org.status === "inactive";
+    res.json({ status: org.status, isPaused, orgName: org.name, isPrimeAdmin: user.role === "prime_admin" });
+  });
+
   // Delete organization (prime admin only, free/promo orgs)
   app.post("/api/organizations/delete", async (req, res) => {
     const user = req.user as User | undefined;

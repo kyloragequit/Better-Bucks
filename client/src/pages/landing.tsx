@@ -1,11 +1,19 @@
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown, Info } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<"home" | "about">("home");
+  const aboutRef = useRef<HTMLDivElement>(null);
+
+  const scrollToAbout = () => {
+    setActiveTab("about");
+    setTimeout(() => aboutRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -16,6 +24,15 @@ export default function LandingPage() {
             <span className="text-lg font-bold text-gray-900" data-testid="text-brand-name">Better Bucks</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={scrollToAbout}
+              data-testid="button-header-about"
+            >
+              <Info className="mr-1.5 h-4 w-4" />
+              About
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -146,6 +163,32 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section ref={aboutRef} className="py-16 sm:py-24 bg-white" data-testid="section-about">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">About Better Bucks</h2>
+            <div className="h-1 w-16 bg-secondary mx-auto rounded-full" />
+          </div>
+          <div className="space-y-6 text-gray-700 text-base sm:text-lg leading-relaxed">
+            <p>
+              Better Bucks LLC was founded in 2026 by Southeastern Louisiana University Business Administration student, Miles Gideon Chase.
+            </p>
+            <p>
+              Throughout his college career, Miles saw the emphasis focused on behaviors in the workplace in 21st century business. Through his various jobs (7 to be precise) and internships throughout his college career, he saw how psychology and incentives play a major role in how to have happier and more effective employees. He also saw that poor incentives &mdash; things that the employees did not want &mdash; actually discouraged employees more than they made them want to be more effective. He also saw that managers had difficulty allocating their time to actually reward their employees.
+            </p>
+            <p className="text-xl font-semibold text-gray-900">
+              That's why he made Better Bucks.
+            </p>
+            <p>
+              Better Bucks streamlines the process for employee incentives. It allows them to tell you what they want and helps you to easily and instantly reward them with things they want.
+            </p>
+            <p className="text-2xl font-bold text-center text-primary mt-8">
+              Better Bucks for a Better Business!
+            </p>
           </div>
         </div>
       </section>

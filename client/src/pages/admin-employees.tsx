@@ -155,7 +155,7 @@ export default function AdminEmployeesPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right font-bold text-primary tabular-nums">
-                    {user.balance.toLocaleString()} pts
+                    {user.balance.toLocaleString()} bcks
                   </TableCell>
                   <TableCell className="text-right">
                     <Link href={`/admin/employees/${user.id}`}>
@@ -347,7 +347,7 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
                       <p className="text-sm font-medium truncate">{u.fullName}</p>
                       <p className="text-xs text-muted-foreground font-mono">{u.username} · {getRoleLabel(u.role)}</p>
                     </div>
-                    <span className="text-xs font-bold text-primary tabular-nums">{u.balance.toLocaleString()} pts</span>
+                    <span className="text-xs font-bold text-primary tabular-nums">{u.balance.toLocaleString()} bcks</span>
                   </label>
                 ))}
               </div>
@@ -357,9 +357,9 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
           {selectedIds.size > 0 && parsedAmount > 0 && (
             <div className="rounded-lg bg-muted/50 border px-4 py-3 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                <span className="font-semibold text-foreground">{selectedIds.size}</span> employee{selectedIds.size !== 1 ? "s" : ""} × <span className="font-semibold text-foreground">{parsedAmount.toLocaleString()} pts</span>
+                <span className="font-semibold text-foreground">{selectedIds.size}</span> employee{selectedIds.size !== 1 ? "s" : ""} × <span className="font-semibold text-foreground">{parsedAmount.toLocaleString()} bcks</span>
               </span>
-              <span className="font-bold text-primary">{totalCost.toLocaleString()} pts total</span>
+              <span className="font-bold text-primary">{totalCost.toLocaleString()} bcks total</span>
             </div>
           )}
         </div>

@@ -77,7 +77,7 @@ export default function EmployeeOrdersPage() {
           <CardContent>
             <div className="text-4xl font-bold font-display text-foreground mb-2">
               {(userDetails?.balance || 0).toLocaleString()}
-              <span className="text-xl text-muted-foreground ml-2 font-normal">pts</span>
+              <span className="text-xl text-muted-foreground ml-2 font-normal">bcks</span>
             </div>
             <CreateOrderDialog balance={userDetails?.balance || 0} />
           </CardContent>
@@ -116,7 +116,7 @@ export default function EmployeeOrdersPage() {
                   </TableCell>
                   <TableCell className="font-medium max-w-[200px] truncate">{order.description}</TableCell>
                   <TableCell className="font-bold tabular-nums text-primary">
-                    {order.pointsCost.toLocaleString()} pts
+                    {order.pointsCost.toLocaleString()} bcks
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {order.convertedValue || "—"}
@@ -295,7 +295,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
                       <SelectItem key={shop.id} value={String(shop.id)} data-testid={`shop-option-${shop.id}`}>
                         <span className="flex items-center gap-2">
                           <Store className="h-3 w-3" />
-                          {shop.name} ({shop.pointsPerDollar} pts = $1)
+                          {shop.name} ({shop.pointsPerDollar} bcks = $1)
                         </span>
                       </SelectItem>
                     ))}

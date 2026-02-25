@@ -965,7 +965,7 @@ function ShopWebsitesSection() {
                       </a>
                       <div className="text-sm text-muted-foreground">
                         <Badge variant="outline" className="text-xs">
-                          {shop.pointsPerDollar} pts = $1.00
+                          {shop.pointsPerDollar} bcks = $1.00
                         </Badge>
                       </div>
                     </div>

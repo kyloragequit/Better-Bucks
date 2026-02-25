@@ -81,7 +81,7 @@ export default function AdminEmployeeDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold font-display text-primary mb-4">
-              {user.balance.toLocaleString()} pts
+              {user.balance.toLocaleString()} bcks
             </div>
             <div className="flex gap-2">
               <AdjustBalanceDialog userId={user.id} currentBalance={user.balance} />

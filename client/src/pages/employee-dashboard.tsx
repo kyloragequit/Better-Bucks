@@ -46,7 +46,7 @@ export default function EmployeeDashboard() {
           <CardContent>
             <div className="text-5xl md:text-6xl font-bold font-display text-foreground tracking-tight">
               {userDetails.balance.toLocaleString()}
-              <span className="text-2xl text-muted-foreground ml-2 font-normal">pts</span>
+              <span className="text-2xl text-muted-foreground ml-2 font-normal">bcks</span>
             </div>
             {shops && shops.length > 0 && (
               <div className="mt-4 space-y-1.5">
@@ -58,7 +58,7 @@ export default function EmployeeDashboard() {
                       ${(userDetails.balance / shop.pointsPerDollar).toFixed(2)}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      ({shop.pointsPerDollar} pts = $1)
+                      ({shop.pointsPerDollar} bcks = $1)
                     </span>
                   </div>
                 ))}

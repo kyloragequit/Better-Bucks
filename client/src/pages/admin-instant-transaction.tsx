@@ -81,8 +81,8 @@ export default function AdminInstantTransactionPage() {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      const pts = Math.abs(vars.amount).toLocaleString();
-      toast({ title: "Transaction Complete", description: `Successfully ${vars.amount > 0 ? "credited" : "debited"} ${pts} Bucks.` });
+      const bcks = Math.abs(vars.amount).toLocaleString();
+      toast({ title: "Transaction Complete", description: `Successfully ${vars.amount > 0 ? "credited" : "debited"} ${bcks} Bucks.` });
       setScannedUser(null);
       setAmount("");
       setReason("");
@@ -209,7 +209,7 @@ export default function AdminInstantTransactionPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Current Balance</span>
-                  <span className="font-bold text-primary" data-testid="text-scanned-balance">{scannedUser.balance.toLocaleString()} pts</span>
+                  <span className="font-bold text-primary" data-testid="text-scanned-balance">{scannedUser.balance.toLocaleString()} bcks</span>
                 </div>
               </CardContent>
             </Card>
@@ -360,7 +360,7 @@ export default function AdminInstantTransactionPage() {
                             <p className="font-medium text-sm">{u.fullName}</p>
                             <p className="text-xs text-muted-foreground font-mono">{u.username}</p>
                           </div>
-                          <span className="text-xs font-bold text-primary">{u.balance.toLocaleString()} pts</span>
+                          <span className="text-xs font-bold text-primary">{u.balance.toLocaleString()} bcks</span>
                         </button>
                       ))}
                     </div>

@@ -77,7 +77,7 @@ export default function AdminOrdersPage() {
                     <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
                     <TableCell className="font-bold tabular-nums text-primary">
-                      {order.pointsCost.toLocaleString()} pts
+                      {order.pointsCost.toLocaleString()} bcks
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {order.convertedValue || "—"}
@@ -139,7 +139,7 @@ export default function AdminOrdersPage() {
                   <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
                   <TableCell className="font-bold tabular-nums text-primary">
-                    {order.pointsCost.toLocaleString()} pts
+                    {order.pointsCost.toLocaleString()} bcks
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {order.convertedValue || "—"}

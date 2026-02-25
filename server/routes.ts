@@ -1497,6 +1497,7 @@ export async function registerRoutes(
       const qualifiedOrgs = allOrgs.filter(org => {
         const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_");
         if (isFree) return true;
+        if (org.status === "paused" || org.status === "inactive") return true;
         return org.status === "active" && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout";
       });
       const orgData = await Promise.all(qualifiedOrgs.map(async (org) => {

@@ -234,6 +234,15 @@ export default function SignupPage() {
           })}
         </div>
 
+        <div className="text-center py-8">
+          <div className="inline-block rounded-xl bg-gradient-to-r from-[#4E9F3D] to-[#3a7a2e] px-10 py-5 shadow-lg">
+            <p className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide" data-testid="text-free-trial-banner">
+              FREE 60 DAY TRIAL
+            </p>
+            <p className="text-white/90 text-sm mt-1">on all plans — no charge until your pilot ends</p>
+          </div>
+        </div>
+
         {selectedTier && (
           <Card className="shadow-2xl shadow-black/10 border-muted bg-white/80 backdrop-blur-sm max-w-lg mx-auto">
             <CardHeader className="text-center pb-3">

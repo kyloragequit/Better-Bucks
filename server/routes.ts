@@ -1048,7 +1048,6 @@ export async function registerRoutes(
         payment_method_types: ['card'],
         line_items: [{ price: price.id, quantity: 1 }],
         mode: 'subscription',
-        subscription_data: { trial_period_days: 60 },
         success_url: `${baseUrl}/admin/settings?reactivated=true`,
         cancel_url: `${baseUrl}/reactivate?cancelled=true`,
         metadata: { organizationId: String(org.id), tier },

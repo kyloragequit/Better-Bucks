@@ -21,7 +21,7 @@ const tiers = [
     description: "Up to 100 employees",
     perEmployee: "~$0.50",
     icon: Users,
-    features: ["60-day free pilot program", "Up to 100 active logins", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"],
+    features: ["Up to 100 active logins", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"],
   },
   {
     id: "mid" as const,
@@ -32,7 +32,7 @@ const tiers = [
     perEmployee: "~$0.33",
     icon: Building2,
     popular: true,
-    features: ["60-day free pilot program", "Up to 300 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
+    features: ["Up to 300 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
   },
   {
     id: "large" as const,
@@ -42,7 +42,7 @@ const tiers = [
     description: "301-500 employees",
     perEmployee: "~$0.30",
     icon: Zap,
-    features: ["60-day free pilot program", "Up to 500 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
+    features: ["Up to 500 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
   },
   {
     id: "enterprise" as const,
@@ -52,7 +52,7 @@ const tiers = [
     description: "500+ employees",
     perEmployee: "Best value",
     icon: Crown,
-    features: ["60-day free pilot program", "Unlimited logins", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"],
+    features: ["Unlimited logins", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"],
   },
 ];
 

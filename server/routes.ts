@@ -1023,7 +1023,8 @@ export async function registerRoutes(
       const stripe = await getUncachableStripeClient();
 
       let customerId = org.stripeCustomerId;
-      if (!customerId || customerId === "free_membership" || customerId.startsWith("promo_")) {
+      const needsNewCustomer = !customerId || customerId === "free_membership" || customerId.startsWith("promo_") || !customerId.startsWith("cus_");
+      if (needsNewCustomer) {
         const customer = await stripe.customers.create({
           email: user.email || undefined,
           metadata: { organizationId: String(org.id), organizationName: org.name, tier },

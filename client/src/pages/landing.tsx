@@ -305,7 +305,7 @@ export default function LandingPage() {
           </form>
           <div className="mt-10 pt-6 border-t text-sm text-gray-400 flex items-center justify-center gap-2">
             <AppLogo size="sm" />
-            <span>Better Bucks</span>
+            <span>Better Bucks LLC</span>
           </div>
         </div>
       </footer>

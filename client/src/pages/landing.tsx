@@ -1,18 +1,53 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown, Info } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown, Info, Send, Loader2 } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"home" | "about">("home");
   const aboutRef = useRef<HTMLDivElement>(null);
+  const contactRef = useRef<HTMLDivElement>(null);
+
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactNeeds, setContactNeeds] = useState("");
+  const [contactSubmitting, setContactSubmitting] = useState(false);
 
   const scrollToAbout = () => {
     setActiveTab("about");
     setTimeout(() => aboutRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactSubmitting(true);
+    try {
+      const res = await fetch("/api/info-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: contactName, email: contactEmail, phone: contactPhone, needs: contactNeeds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit");
+      toast({ title: "Request Sent!", description: data.message });
+      setContactName("");
+      setContactEmail("");
+      setContactPhone("");
+      setContactNeeds("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setContactSubmitting(false);
+    }
   };
 
   return (
@@ -193,26 +228,82 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3" data-testid="text-cta-headline">
-            Ready to transform your employee rewards?
-          </h2>
-          <p className="text-gray-600 mb-6 max-w-lg mx-auto">
-            See how Better Bucks can simplify incentives and energize your team.
-          </p>
-          <Button
-            size="lg"
-            className="text-base px-8 shadow-lg shadow-primary/25"
-            onClick={() => {
-              window.open("mailto:miles@betterbucks.net?subject=Request%20a%20Demo", "_blank");
-            }}
-            data-testid="button-request-demo"
-          >
-            Request a Demo
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <div className="mt-8 pt-6 border-t text-sm text-gray-400 flex items-center justify-center gap-2">
+      <footer ref={contactRef} className="border-t bg-gray-50" data-testid="section-contact">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3" data-testid="text-cta-headline">
+              Ready to transform your employee rewards?
+            </h2>
+            <p className="text-gray-600 max-w-lg mx-auto">
+              Fill out the form below and we'll get back to you about how Better Bucks can work for your team.
+            </p>
+          </div>
+          <form onSubmit={handleContactSubmit} className="bg-white rounded-lg border shadow-sm p-6 sm:p-8 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-name">Name</Label>
+                <Input
+                  id="contact-name"
+                  required
+                  placeholder="Your full name"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  data-testid="input-contact-name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-email">Email</Label>
+                <Input
+                  id="contact-email"
+                  type="email"
+                  required
+                  placeholder="you@company.com"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  data-testid="input-contact-email"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="contact-phone">Phone</Label>
+              <Input
+                id="contact-phone"
+                type="tel"
+                required
+                placeholder="(555) 123-4567"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                data-testid="input-contact-phone"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="contact-needs">Tell us about your employee incentive needs</Label>
+              <Textarea
+                id="contact-needs"
+                required
+                rows={4}
+                placeholder="How many employees do you have? What kind of rewards are you looking for?"
+                value={contactNeeds}
+                onChange={(e) => setContactNeeds(e.target.value)}
+                data-testid="input-contact-needs"
+              />
+            </div>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full text-base shadow-lg shadow-primary/25"
+              disabled={contactSubmitting}
+              data-testid="button-request-demo"
+            >
+              {contactSubmitting ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-5 w-5" />
+              )}
+              {contactSubmitting ? "Sending..." : "Request a Demo"}
+            </Button>
+          </form>
+          <div className="mt-10 pt-6 border-t text-sm text-gray-400 flex items-center justify-center gap-2">
             <AppLogo size="sm" />
             <span>Better Bucks</span>
           </div>

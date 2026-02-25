@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useUsers, useCreateUser } from "@/hooks/use-users";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -13,12 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, UserPlus, ChevronRight, Mail, Phone, Zap } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
 import { useUser } from "@/hooks/use-auth";
-import type { InsertUser, Department, User } from "@shared/schema";
+import { AppLogo } from "@/components/app-logo";
+import type { InsertUser, Department, User, Organization } from "@shared/schema";
 
 export default function AdminEmployeesPage() {
   const { data: users, isLoading } = useUsers();
@@ -380,6 +381,7 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
 
 function CreateEmployeeDialog() {
   const [open, setOpen] = useState(false);
+  const [, navigate] = useLocation();
   const { mutate: createUser, isPending } = useCreateUser();
   const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
   const [phone, setPhone] = useState("");
@@ -396,6 +398,12 @@ function CreateEmployeeDialog() {
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
   });
+
+  type OrgData = Organization & { isFree: boolean; employeeCount: number };
+  const { data: org } = useQuery<OrgData>({
+    queryKey: ["/api/organizations/my-org"],
+  });
+  const isAtCapacity = !!org && org.maxEmployees > 0 && org.employeeCount >= org.maxEmployees;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -424,6 +432,29 @@ function CreateEmployeeDialog() {
           <UserPlus className="mr-2 h-4 w-4" /> Add Employee
         </Button>
       </DialogTrigger>
+
+      {isAtCapacity ? (
+        <DialogContent className="sm:max-w-[400px]">
+          <div className="flex flex-col items-center text-center gap-5 py-4">
+            <AppLogo size="lg" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-display font-bold text-foreground">
+                Would you like to add another employee?
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                You've reached the limit of <span className="font-semibold text-foreground">{org?.maxEmployees} employees</span> on your current plan. Upgrade to add more team members.
+              </p>
+            </div>
+            <Button
+              className="w-full shadow-lg shadow-primary/20"
+              onClick={() => { setOpen(false); navigate("/admin/settings"); }}
+              data-testid="button-upgrade-plan"
+            >
+              <TrendingUp className="mr-2 h-4 w-4" /> Upgrade Your Plan
+            </Button>
+          </div>
+        </DialogContent>
+      ) : (
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Employee</DialogTitle>
@@ -552,6 +583,7 @@ function CreateEmployeeDialog() {
           </DialogFooter>
         </form>
       </DialogContent>
+      )}
     </Dialog>
   );
 }

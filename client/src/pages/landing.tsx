@@ -205,7 +205,7 @@ export default function LandingPage() {
             size="lg"
             className="text-base px-8 shadow-lg shadow-primary/25"
             onClick={() => {
-              window.location.href = "mailto:demo@betterbucks.com?subject=Request%20a%20Demo";
+              window.open("mailto:miles@betterbucks.net?subject=Request%20a%20Demo", "_blank");
             }}
             data-testid="button-request-demo"
           >

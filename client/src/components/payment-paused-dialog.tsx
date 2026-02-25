@@ -1,7 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AppLogo } from "@/components/app-logo";
 import { AlertTriangle, CreditCard, Loader2, LogOut } from "lucide-react";
 import { useLogout } from "@/hooks/use-auth";
 
@@ -30,7 +29,7 @@ export function PaymentPausedDialog() {
       return res.json();
     },
     onSuccess: (data: { url: string }) => {
-      window.open(data.url, "_blank");
+      window.location.href = data.url;
     },
   });
 
@@ -48,8 +47,6 @@ export function PaymentPausedDialog() {
           <DialogTitle>Account Paused</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center text-center gap-5 py-4">
-          <AppLogo size="lg" />
-
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
             <AlertTriangle className="h-7 w-7 text-amber-600" />
           </div>

@@ -181,6 +181,7 @@ export function useDeleteUser() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
       toast({ title: "Success", description: "User deleted successfully" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),

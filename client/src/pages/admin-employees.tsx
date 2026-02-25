@@ -199,7 +199,7 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
     onSuccess: (data: { credited: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/points"] });
-      toast({ title: "Points Credited", description: `Successfully credited ${data.credited} employee${data.credited !== 1 ? "s" : ""}.` });
+      toast({ title: "Bucks Credited", description: `Successfully credited ${data.credited} employee${data.credited !== 1 ? "s" : ""}.` });
       setOpen(false);
       setSelectedIds(new Set());
       setAmount("");
@@ -246,7 +246,7 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
       return;
     }
     if (parsedAmount <= 0) {
-      toast({ title: "Invalid amount", description: "Enter a positive point amount.", variant: "destructive" });
+      toast({ title: "Invalid amount", description: "Enter a positive Bucks amount.", variant: "destructive" });
       return;
     }
     if (!reason.trim()) {
@@ -268,14 +268,14 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Bulk Credit Points</DialogTitle>
-          <DialogDescription>Credit the same amount of points to multiple employees at once.</DialogDescription>
+          <DialogTitle>Bulk Credit Bucks</DialogTitle>
+          <DialogDescription>Credit the same amount of Bucks to multiple employees at once.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Points Per Employee</Label>
+              <Label>Bucks Per Employee</Label>
               <Input
                 type="number"
                 min={1}

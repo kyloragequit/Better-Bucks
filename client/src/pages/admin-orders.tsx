@@ -62,7 +62,7 @@ export default function AdminOrdersPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Points</TableHead>
+                  <TableHead>Bucks</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -116,7 +116,7 @@ export default function AdminOrdersPage() {
                 <TableHead>Date</TableHead>
                 <TableHead>Employee</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead>Points</TableHead>
+                <TableHead>Bucks</TableHead>
                 <TableHead>Value</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Details</TableHead>
@@ -241,7 +241,7 @@ function OrderPhotoDialog({ order, onClose }: { order: OrderWithUser; onClose: (
             <span className="font-medium">Description:</span> {order.description}
           </div>
           <div className="text-sm">
-            <span className="font-medium">Points:</span> {order.pointsCost.toLocaleString()}
+            <span className="font-medium">Bucks:</span> {order.pointsCost.toLocaleString()}
           </div>
           {order.convertedValue && (
             <div className="text-sm">

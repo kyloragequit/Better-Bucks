@@ -48,7 +48,7 @@ export default function LandingPage() {
             Reward What's Important
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed" data-testid="text-hero-subheadline">
-            A points-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.
+            A Bucks-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button

@@ -65,7 +65,7 @@ export default function EmployeeDashboard() {
               </div>
             )}
             <p className="mt-3 text-sm text-muted-foreground max-w-md">
-              Use your points to redeem rewards or make purchases at authorized locations using your QR code.
+              Use your Bucks to redeem rewards or make purchases at authorized locations using your QR code.
             </p>
           </CardContent>
         </Card>

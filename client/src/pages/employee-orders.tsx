@@ -96,7 +96,7 @@ export default function EmployeeOrdersPage() {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead>Points</TableHead>
+                <TableHead>Bucks</TableHead>
                 <TableHead>Value</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -214,11 +214,11 @@ function CreateOrderDialog({ balance }: { balance: number }) {
     e.preventDefault();
     const cost = parseInt(pointsCost);
     if (!cost || cost <= 0) {
-      toast({ title: "Error", description: "Enter a valid point amount.", variant: "destructive" });
+      toast({ title: "Error", description: "Enter a valid Bucks amount.", variant: "destructive" });
       return;
     }
     if (cost > balance) {
-      toast({ title: "Error", description: "Not enough points.", variant: "destructive" });
+      toast({ title: "Error", description: "Not enough Bucks.", variant: "destructive" });
       return;
     }
     if (!selectedShopId) {
@@ -334,7 +334,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
             <p className="text-xs text-muted-foreground">Paste a direct link to the item from the store</p>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="points">Points to spend</Label>
+            <Label htmlFor="points">Bucks to spend</Label>
             <Input
               id="points"
               type="number"
@@ -346,12 +346,12 @@ function CreateOrderDialog({ balance }: { balance: number }) {
               onChange={(e) => setPointsCost(e.target.value)}
               data-testid="input-order-points"
             />
-            <p className="text-xs text-muted-foreground">You have {balance.toLocaleString()} points available</p>
+            <p className="text-xs text-muted-foreground">You have {balance.toLocaleString()} Bucks available</p>
             {convertedDollars && selectedShop && (
               <div className="bg-muted/50 rounded-md p-2 text-sm flex items-center gap-2">
                 <Store className="h-4 w-4 text-primary" />
                 <span>
-                  {pointsNum.toLocaleString()} points = <strong>${convertedDollars}</strong> on {selectedShop.name}
+                  {pointsNum.toLocaleString()} Bucks = <strong>${convertedDollars}</strong> on {selectedShop.name}
                 </span>
               </div>
             )}

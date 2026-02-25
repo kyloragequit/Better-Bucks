@@ -175,7 +175,7 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
         <DialogHeader>
           <DialogTitle>Adjust Employee Balance</DialogTitle>
           <DialogDescription>
-            Add or remove points from this employee's account.
+            Add or remove Bucks from this employee's account.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">

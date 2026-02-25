@@ -82,7 +82,7 @@ export default function AdminInstantTransactionPage() {
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       const pts = Math.abs(vars.amount).toLocaleString();
-      toast({ title: "Transaction Complete", description: `Successfully ${vars.amount > 0 ? "credited" : "debited"} ${pts} points.` });
+      toast({ title: "Transaction Complete", description: `Successfully ${vars.amount > 0 ? "credited" : "debited"} ${pts} Bucks.` });
       setScannedUser(null);
       setAmount("");
       setReason("");
@@ -185,7 +185,7 @@ export default function AdminInstantTransactionPage() {
       <div className="max-w-lg mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-instant-tx-title">Instant Transaction</h1>
-          <p className="text-muted-foreground mt-1">Scan a QR code or look up a team member to credit or debit points instantly</p>
+          <p className="text-muted-foreground mt-1">Scan a QR code or look up a team member to credit or debit Bucks instantly</p>
         </div>
 
         {mode === "transaction" && scannedUser ? (
@@ -238,14 +238,14 @@ export default function AdminInstantTransactionPage() {
                   </Button>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="tx-amount">Amount (points)</Label>
+                  <Label htmlFor="tx-amount">Amount (Bucks)</Label>
                   <Input
                     id="tx-amount"
                     type="number"
                     min={1}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Enter points amount"
+                    placeholder="Enter Bucks amount"
                     data-testid="input-tx-amount"
                   />
                 </div>
@@ -269,7 +269,7 @@ export default function AdminInstantTransactionPage() {
                   {transactionMutation.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  {txType === "credit" ? "Credit" : "Debit"} {amount ? `${parseInt(amount).toLocaleString()} pts` : "Points"}
+                  {txType === "credit" ? "Credit" : "Debit"} {amount ? `${parseInt(amount).toLocaleString()} Bucks` : "Bucks"}
                 </Button>
               </CardContent>
             </Card>

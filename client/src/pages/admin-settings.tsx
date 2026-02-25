@@ -794,7 +794,7 @@ function ShopWebsitesSection() {
   const handleAdd = () => {
     const rate = parseInt(newRate);
     if (!newName.trim() || !newUrl.trim() || !rate || rate <= 0) {
-      toast({ title: "Error", description: "All fields are required. Points must be a positive number.", variant: "destructive" });
+      toast({ title: "Error", description: "All fields are required. Bucks must be a positive number.", variant: "destructive" });
       return;
     }
     addMutation.mutate({ name: newName.trim(), url: newUrl.trim(), pointsPerDollar: rate });
@@ -819,7 +819,7 @@ function ShopWebsitesSection() {
             Shop Websites & Conversion Rates
           </CardTitle>
           <CardDescription>
-            Add websites your employees can shop from and set how many points equal a dollar at each store.
+            Add websites your employees can shop from and set how many Bucks equal a dollar at each store.
           </CardDescription>
         </div>
         {!adding && (
@@ -860,7 +860,7 @@ function ShopWebsitesSection() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="shop-rate">Points per $1</Label>
+                <Label htmlFor="shop-rate">Bucks per $1</Label>
                 <Input
                   id="shop-rate"
                   type="number"
@@ -874,7 +874,7 @@ function ShopWebsitesSection() {
             </div>
             {newRate && parseInt(newRate) > 0 && (
               <p className="text-xs text-muted-foreground">
-                Example: {parseInt(newRate)} points = $1.00 {newName ? `on ${newName}` : ""}
+                Example: {parseInt(newRate)} Bucks = $1.00 {newName ? `on ${newName}` : ""}
               </p>
             )}
             <div className="flex items-center gap-2">
@@ -904,7 +904,7 @@ function ShopWebsitesSection() {
           </div>
         ) : (!websites || websites.length === 0) ? (
           <div className="text-center py-6 text-sm text-muted-foreground">
-            No shop websites added yet. Add a shop to let employees choose where to spend their points.
+            No shop websites added yet. Add a shop to let employees choose where to spend their Bucks.
           </div>
         ) : (
           <div className="space-y-3">
@@ -931,7 +931,7 @@ function ShopWebsitesSection() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label>Points per $1</Label>
+                        <Label>Bucks per $1</Label>
                         <Input
                           type="number"
                           min={1}

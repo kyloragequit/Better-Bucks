@@ -394,14 +394,14 @@ export async function registerRoutes(
         await storage.createTransaction({
           userId: user.id,
           amount: -amount,
-          reason: `Points given to ${targetUser.fullName}`,
+          reason: `Bucks given to ${targetUser.fullName}`,
           performedBy: user.id,
         });
       } else {
         await storage.createTransaction({
           userId: user.id,
           amount: -amount,
-          reason: `Points given to ${targetUser.fullName}`,
+          reason: `Bucks given to ${targetUser.fullName}`,
           performedBy: user.id,
         });
       }
@@ -439,27 +439,27 @@ export async function registerRoutes(
 
     // If not prime admin, deduct from current admin balance
     if (user.role !== "prime_admin") {
-      // For credits (giving points)
+      // For credits (giving Bucks)
       if (amount > 0) {
         if (user.balance < amount) {
-          return res.status(400).json({ message: "Insufficient balance to award points" });
+          return res.status(400).json({ message: "Insufficient balance to award Bucks" });
         }
         // Deduct from admin
         await storage.updateUserBalance(user.id, -amount);
         await storage.createTransaction({
           userId: user.id,
           amount: -amount,
-          reason: `Points given to ${targetUser.fullName}`,
+          reason: `Bucks given to ${targetUser.fullName}`,
           performedBy: user.id,
         });
       }
     } else {
-      // Prime admin also gets a debit record when giving points
+      // Prime admin also gets a debit record when giving Bucks
       if (amount > 0) {
         await storage.createTransaction({
           userId: user.id,
           amount: -amount,
-          reason: `Points given to ${targetUser.fullName}`,
+          reason: `Bucks given to ${targetUser.fullName}`,
           performedBy: user.id,
         });
       }
@@ -642,7 +642,7 @@ export async function registerRoutes(
     description: z.string().min(1, "Description is required"),
     photoUrls: z.array(z.string()).default([]),
     itemUrl: z.string().url().optional().or(z.literal("")),
-    pointsCost: z.number().int().positive("Points must be greater than 0"),
+    pointsCost: z.number().int().positive("Bucks must be greater than 0"),
     shopWebsiteId: z.number().int({ required_error: "Shop website is required" }),
   }).refine(
     (data) => data.photoUrls.length > 0 || (data.itemUrl && data.itemUrl.length > 0),
@@ -660,7 +660,7 @@ export async function registerRoutes(
       const { description, photoUrls, itemUrl, pointsCost, shopWebsiteId } = parsed.data;
 
       if (user.balance < pointsCost) {
-        return res.status(400).json({ message: "Insufficient points balance" });
+        return res.status(400).json({ message: "Insufficient Bucks balance" });
       }
 
       let convertedValue: string | null = null;
@@ -737,7 +737,7 @@ export async function registerRoutes(
       await storage.createTransaction({
         userId: order.userId,
         amount: order.pointsCost,
-        reason: `Order #${order.id} rejected - points refunded`,
+        reason: `Order #${order.id} rejected - Bucks refunded`,
       });
     }
 

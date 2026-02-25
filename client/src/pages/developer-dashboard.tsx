@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, Crown, LogOut, LogIn, Code2, Shield, Trash2 } from "lucide-react";
+import { Building2, Users, Crown, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization } from "@shared/schema";
 
@@ -58,6 +58,20 @@ export default function DeveloperDashboardPage() {
     },
     onSuccess: () => {
       window.location.href = "/admin/dashboard";
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const togglePauseMutation = useMutation({
+    mutationFn: async ({ orgId, newStatus }: { orgId: number; newStatus: "active" | "paused" }) => {
+      const res = await apiRequest("PATCH", `/api/developer/organizations/${orgId}/status`, { status: newStatus });
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/organizations"] });
+      toast({ title: "Updated", description: `Organization ${variables.newStatus === "paused" ? "paused" : "reactivated"}.` });
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -155,7 +169,7 @@ export default function DeveloperDashboardPage() {
           <Loader />
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
@@ -199,7 +213,103 @@ export default function DeveloperDashboardPage() {
                   </div>
                 </CardContent>
               </Card>
+              <Card className={organizations?.some(o => o.status === "paused") ? "border-amber-300 bg-amber-50" : ""}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-amber-100">
+                      <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Paused Accounts</p>
+                      <p className="text-2xl font-bold text-amber-600" data-testid="text-paused-orgs">
+                        {organizations?.filter(o => o.status === "paused").length || 0}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {organizations?.some(o => o.status === "paused") && (
+              <Card className="mb-8 border-amber-300 bg-amber-50/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-amber-700">
+                    <AlertTriangle className="h-5 w-5" />
+                    Paused Organizations
+                  </CardTitle>
+                  <CardDescription>
+                    These organizations have payment issues and their users are currently blocked from using the platform.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Organization</TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Package</TableHead>
+                          <TableHead>Prime Admin</TableHead>
+                          <TableHead>Users</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {organizations.filter(o => o.status === "paused").map((org) => (
+                          <TableRow key={org.id} data-testid={`row-paused-org-${org.id}`}>
+                            <TableCell className="font-medium">{org.name}</TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-amber-100 px-1.5 py-0.5 rounded">{org.code}</code>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{tierLabels[org.tier] || org.tier}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {org.primeAdmin ? (
+                                <div>
+                                  <div className="font-medium">{org.primeAdmin.fullName}</div>
+                                  <div className="text-xs text-muted-foreground">{org.primeAdmin.username}</div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Not set up</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center font-medium">{org.totalUsers}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => togglePauseMutation.mutate({ orgId: org.id, newStatus: "active" })}
+                                  disabled={togglePauseMutation.isPending}
+                                  data-testid={`button-reactivate-org-${org.id}`}
+                                >
+                                  <Play className="mr-1.5 h-3 w-3" />
+                                  Reactivate
+                                </Button>
+                                {org.primeAdmin && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => impersonateMutation.mutate(org.primeAdmin!.id)}
+                                    disabled={impersonateMutation.isPending}
+                                    data-testid={`button-enter-paused-org-${org.id}`}
+                                  >
+                                    <LogIn className="mr-1.5 h-3 w-3" />
+                                    Enter
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
@@ -250,7 +360,11 @@ export default function DeveloperDashboardPage() {
                                 {isFree ? "Free" : `$${tierPrices[org.tier] || 0}/mo`}
                               </TableCell>
                               <TableCell>
-                                <Badge variant={org.status === "active" ? "default" : "destructive"} className="capitalize">
+                                <Badge
+                                  variant={org.status === "active" ? "default" : "destructive"}
+                                  className={`capitalize ${org.status === "paused" ? "bg-amber-500 hover:bg-amber-600" : ""}`}
+                                  data-testid={`badge-status-org-${org.id}`}
+                                >
                                   {org.status}
                                 </Badge>
                               </TableCell>
@@ -268,7 +382,7 @@ export default function DeveloperDashboardPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  {org.primeAdmin && org.status === "active" ? (
+                                  {org.primeAdmin && (org.status === "active" || org.status === "paused") ? (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -279,9 +393,34 @@ export default function DeveloperDashboardPage() {
                                       <LogIn className="mr-1.5 h-3 w-3" />
                                       Enter
                                     </Button>
-                                  ) : !org.primeAdmin && org.status === "active" ? (
+                                  ) : !org.primeAdmin && (org.status === "active" || org.status === "paused") ? (
                                     <span className="text-xs text-muted-foreground">No prime admin</span>
                                   ) : null}
+                                  {org.status === "active" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                      onClick={() => togglePauseMutation.mutate({ orgId: org.id, newStatus: "paused" })}
+                                      disabled={togglePauseMutation.isPending}
+                                      data-testid={`button-pause-org-${org.id}`}
+                                    >
+                                      <Pause className="mr-1.5 h-3 w-3" />
+                                      Pause
+                                    </Button>
+                                  )}
+                                  {org.status === "paused" && (
+                                    <Button
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => togglePauseMutation.mutate({ orgId: org.id, newStatus: "active" })}
+                                      disabled={togglePauseMutation.isPending}
+                                      data-testid={`button-reactivate-org-${org.id}`}
+                                    >
+                                      <Play className="mr-1.5 h-3 w-3" />
+                                      Reactivate
+                                    </Button>
+                                  )}
                                   {(org.status === "pending" || org.stripeSubscriptionId === "pending_checkout") && (
                                     <Button
                                       size="sm"

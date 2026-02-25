@@ -1544,6 +1544,32 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/developer/organizations/:id/status", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const orgId = parseInt(req.params.id);
+    if (isNaN(orgId)) return res.status(400).json({ message: "Invalid organization ID" });
+
+    const { status } = req.body;
+    if (!["active", "paused", "inactive", "pending"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status. Must be active, paused, inactive, or pending." });
+    }
+
+    try {
+      const org = await storage.getOrganization(orgId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const updated = await storage.updateOrganizationStatus(orgId, status);
+      res.json(updated);
+    } catch (e) {
+      console.error("Developer update org status error:", e);
+      res.status(500).json({ message: "Failed to update organization status" });
+    }
+  });
+
   app.post("/api/developer/impersonate/:userId", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "developer") {

@@ -1037,8 +1037,8 @@ export async function registerRoutes(
         currency: "usd",
         recurring: { interval: "month" },
         product_data: {
-          name: `Better Bucks - ${config.name}`,
-          metadata: { tier },
+          name: `Better Bucks Reactivation - ${config.name}`,
+          metadata: { tier, type: "reactivation" },
         },
       });
 
@@ -1050,7 +1050,7 @@ export async function registerRoutes(
         mode: 'subscription',
         success_url: `${baseUrl}/admin/settings?reactivated=true`,
         cancel_url: `${baseUrl}/reactivate?cancelled=true`,
-        metadata: { organizationId: String(org.id), tier },
+        metadata: { organizationId: String(org.id), tier, type: "reactivation" },
       });
 
       await storage.updateOrganizationStripe(org.id, customerId, "pending_checkout");

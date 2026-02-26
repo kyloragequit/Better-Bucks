@@ -9,7 +9,17 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { ensureStripeReady } from "./stripeLazy";
+
+async function getStripeClient() {
+  const { getUncachableStripeClient } = await import("./stripeClient");
+  return getUncachableStripeClient();
+}
+
+async function getStripePubKey() {
+  const { getStripePublishableKey } = await import("./stripeClient");
+  return getStripePublishableKey();
+}
 import { sql, eq, and, gte, gt, lt, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { organizations, users, infoRequests, transactions, orders } from "@shared/schema";
@@ -931,7 +941,8 @@ export async function registerRoutes(
   // Stripe publishable key (public)
   app.get("/api/stripe/publishable-key", async (_req, res) => {
     try {
-      const key = await getStripePublishableKey();
+      await ensureStripeReady();
+      const key = await getStripePubKey();
       res.json({ publishableKey: key });
     } catch (error) {
       console.error("Error getting Stripe key:", error);
@@ -976,7 +987,8 @@ export async function registerRoutes(
         return res.json({ promoApplied: true, orgCode });
       }
 
-      const stripe = await getUncachableStripeClient();
+      await ensureStripeReady();
+      const stripe = await getStripeClient();
 
       const customer = await stripe.customers.create({
         email,
@@ -1034,7 +1046,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Organization is already active" });
       }
 
-      const stripe = await getUncachableStripeClient();
+      await ensureStripeReady();
+      const stripe = await getStripeClient();
 
       let customerId = org.stripeCustomerId;
       const needsNewCustomer = !customerId || customerId === "free_membership" || customerId.startsWith("promo_") || !customerId.startsWith("cus_");
@@ -1173,7 +1186,8 @@ export async function registerRoutes(
 
     if (org.stripeCustomerId && org.stripeCustomerId !== "pending_checkout") {
       try {
-        const stripe = await getUncachableStripeClient();
+        await ensureStripeReady();
+        const stripe = await getStripeClient();
         const subscriptions = await stripe.subscriptions.list({
           customer: org.stripeCustomerId,
           status: 'active',
@@ -1265,7 +1279,8 @@ export async function registerRoutes(
     }
 
     try {
-      const stripe = await getUncachableStripeClient();
+      await ensureStripeReady();
+      const stripe = await getStripeClient();
       await stripe.subscriptions.cancel(org.stripeSubscriptionId);
       await storage.updateOrganizationStatus(org.id, "inactive");
       res.json({ message: "Subscription cancelled successfully" });
@@ -1290,7 +1305,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "No billing account to manage" });
     }
     try {
-      const stripe = await getUncachableStripeClient();
+      await ensureStripeReady();
+      const stripe = await getStripeClient();
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const session = await stripe.billingPortal.sessions.create({
         customer: org.stripeCustomerId,
@@ -1322,7 +1338,8 @@ export async function registerRoutes(
 
     if (org.status === "active" && org.stripeCustomerId && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
       try {
-        const stripe = await getUncachableStripeClient();
+        await ensureStripeReady();
+        const stripe = await getStripeClient();
         const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
         if (sub.status === "past_due" || sub.status === "unpaid" || sub.status === "incomplete_expired") {
           await storage.updateOrganizationStatus(org.id, "paused");
@@ -1409,7 +1426,8 @@ export async function registerRoutes(
     }
 
     try {
-      const stripe = await getUncachableStripeClient();
+      await ensureStripeReady();
+      const stripe = await getStripeClient();
 
       if (org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
         const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);

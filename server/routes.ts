@@ -1,5 +1,5 @@
 
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
@@ -16,6 +16,12 @@ import { organizations, users, infoRequests, transactions, orders } from "@share
 import nodemailer from "nodemailer";
 
 import type { User } from "@shared/schema";
+
+function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req, res, next).catch(next);
+  };
+}
 
 async function sendVerificationEmail(email: string, code: string, fullName: string): Promise<void> {
   try {

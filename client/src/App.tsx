@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -6,27 +7,27 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useUser } from "@/hooks/use-auth";
 import { FullPageLoader } from "@/components/ui/loader";
 
-import NotFound from "@/pages/not-found";
-import LandingPage from "@/pages/landing";
-import SignupPage from "@/pages/signup";
-import SignupSuccessPage from "@/pages/signup-success";
-import SetupPrimePage from "@/pages/setup-prime";
-import LoginPage from "@/pages/login";
-import EmployeeDashboard from "@/pages/employee-dashboard";
-import EmployeeOrdersPage from "@/pages/employee-orders";
-import AdminDashboardPage from "@/pages/admin-dashboard";
-import AdminEmployeesPage from "@/pages/admin-employees";
-import AdminEmployeeDetailPage from "@/pages/admin-employee-detail";
-import AdminOrdersPage from "@/pages/admin-orders";
-import AdminPendingPage from "@/pages/admin-pending";
-import AdminSettingsPage from "@/pages/admin-settings";
-import PendingVerification from "@/pages/pending-verification";
-import ChangePasswordPage from "@/pages/change-password";
-import VerifyEmailPage from "@/pages/verify-email";
-import DeveloperLoginPage from "@/pages/developer-login";
-import DeveloperDashboardPage from "@/pages/developer-dashboard";
-import AdminInstantTransactionPage from "@/pages/admin-instant-transaction";
-import ReactivatePage from "@/pages/reactivate";
+const LandingPage = lazy(() => import("@/pages/landing"));
+const SignupPage = lazy(() => import("@/pages/signup"));
+const SignupSuccessPage = lazy(() => import("@/pages/signup-success"));
+const ReactivatePage = lazy(() => import("@/pages/reactivate"));
+const SetupPrimePage = lazy(() => import("@/pages/setup-prime"));
+const LoginPage = lazy(() => import("@/pages/login"));
+const EmployeeDashboard = lazy(() => import("@/pages/employee-dashboard"));
+const EmployeeOrdersPage = lazy(() => import("@/pages/employee-orders"));
+const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard"));
+const AdminEmployeesPage = lazy(() => import("@/pages/admin-employees"));
+const AdminEmployeeDetailPage = lazy(() => import("@/pages/admin-employee-detail"));
+const AdminOrdersPage = lazy(() => import("@/pages/admin-orders"));
+const AdminPendingPage = lazy(() => import("@/pages/admin-pending"));
+const AdminSettingsPage = lazy(() => import("@/pages/admin-settings"));
+const PendingVerification = lazy(() => import("@/pages/pending-verification"));
+const ChangePasswordPage = lazy(() => import("@/pages/change-password"));
+const VerifyEmailPage = lazy(() => import("@/pages/verify-email"));
+const DeveloperLoginPage = lazy(() => import("@/pages/developer-login"));
+const DeveloperDashboardPage = lazy(() => import("@/pages/developer-dashboard"));
+const AdminInstantTransactionPage = lazy(() => import("@/pages/admin-instant-transaction"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 function ProtectedRoute({ 
   component: Component, 
@@ -83,53 +84,55 @@ function VerifyEmailRoute() {
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={LandingPage} />
-      <Route path="/signup" component={SignupPage} />
-      <Route path="/signup/success" component={SignupSuccessPage} />
-      <Route path="/reactivate" component={ReactivatePage} />
-      <Route path="/setup" component={SetupPrimePage} />
-      <Route path="/login" component={LoginPage} />
-      
-      <Route path="/dashboard">
-        <ProtectedRoute component={EmployeeDashboard} />
-      </Route>
-      <Route path="/orders">
-        <ProtectedRoute component={EmployeeOrdersPage} />
-      </Route>
+    <Suspense fallback={<FullPageLoader />}>
+      <Switch>
+        <Route path="/" component={LandingPage} />
+        <Route path="/signup" component={SignupPage} />
+        <Route path="/signup/success" component={SignupSuccessPage} />
+        <Route path="/reactivate" component={ReactivatePage} />
+        <Route path="/setup" component={SetupPrimePage} />
+        <Route path="/login" component={LoginPage} />
+        
+        <Route path="/dashboard">
+          <ProtectedRoute component={EmployeeDashboard} />
+        </Route>
+        <Route path="/orders">
+          <ProtectedRoute component={EmployeeOrdersPage} />
+        </Route>
 
-      <Route path="/admin/dashboard">
-        <ProtectedRoute component={AdminDashboardPage} adminOnly />
-      </Route>
-      <Route path="/admin/employees">
-        <ProtectedRoute component={AdminEmployeesPage} adminOnly />
-      </Route>
-      <Route path="/admin/employees/:id">
-        <ProtectedRoute component={AdminEmployeeDetailPage} adminOnly />
-      </Route>
-      <Route path="/admin/orders">
-        <ProtectedRoute component={AdminOrdersPage} adminOnly />
-      </Route>
-      <Route path="/admin/pending">
-        <ProtectedRoute component={AdminPendingPage} adminOnly />
-      </Route>
-      <Route path="/admin/instant-transaction">
-        <ProtectedRoute component={AdminInstantTransactionPage} adminOnly />
-      </Route>
-      <Route path="/admin/settings">
-        <ProtectedRoute component={AdminSettingsPage} adminOnly />
-      </Route>
-      <Route path="/verify-email">
-        <VerifyEmailRoute />
-      </Route>
-      <Route path="/pending-verification" component={PendingVerification} />
-      <Route path="/change-password" component={ChangePasswordPage} />
-      
-      <Route path="/developer" component={DeveloperLoginPage} />
-      <Route path="/developer/dashboard" component={DeveloperDashboardPage} />
+        <Route path="/admin/dashboard">
+          <ProtectedRoute component={AdminDashboardPage} adminOnly />
+        </Route>
+        <Route path="/admin/employees">
+          <ProtectedRoute component={AdminEmployeesPage} adminOnly />
+        </Route>
+        <Route path="/admin/employees/:id">
+          <ProtectedRoute component={AdminEmployeeDetailPage} adminOnly />
+        </Route>
+        <Route path="/admin/orders">
+          <ProtectedRoute component={AdminOrdersPage} adminOnly />
+        </Route>
+        <Route path="/admin/pending">
+          <ProtectedRoute component={AdminPendingPage} adminOnly />
+        </Route>
+        <Route path="/admin/instant-transaction">
+          <ProtectedRoute component={AdminInstantTransactionPage} adminOnly />
+        </Route>
+        <Route path="/admin/settings">
+          <ProtectedRoute component={AdminSettingsPage} adminOnly />
+        </Route>
+        <Route path="/verify-email">
+          <VerifyEmailRoute />
+        </Route>
+        <Route path="/pending-verification" component={PendingVerification} />
+        <Route path="/change-password" component={ChangePasswordPage} />
+        
+        <Route path="/developer" component={DeveloperLoginPage} />
+        <Route path="/developer/dashboard" component={DeveloperDashboardPage} />
 
-      <Route component={NotFound} />
-    </Switch>
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

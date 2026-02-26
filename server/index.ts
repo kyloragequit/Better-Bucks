@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -49,7 +50,7 @@ async function initStripe() {
   }
 }
 
-initStripe().catch(err => console.error('Stripe init error:', err));
+const stripeReady = initStripe().catch(err => console.error('Stripe init error:', err));
 
 app.post(
   '/api/stripe/webhook',
@@ -74,6 +75,8 @@ app.post(
     }
   }
 );
+
+app.use(compression());
 
 app.use(
   express.json({

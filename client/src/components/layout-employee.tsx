@@ -19,7 +19,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
       <header className="border-b bg-white/50 backdrop-blur-md sticky top-0 z-[999]">
         <div className="container max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <Link href="/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-foreground cursor-pointer hover:opacity-80 transition-opacity">
-            <AppLogo size="sm" />
+            <AppLogo size="sm" linkTo="/dashboard" />
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
 

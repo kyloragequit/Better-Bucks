@@ -1,11 +1,6 @@
 import logoImg from "@assets/Final_Logo_1771908016318.png";
-import funLogoImg from "@assets/image_1771968786741.png";
-import { useFunMode } from "@/hooks/use-fun-mode";
 
 export function LogoBackground() {
-  const funMode = useFunMode();
-  const src = funMode ? funLogoImg : logoImg;
-
   const logos = [
     { top: "-80px", left: "-40px", size: "280px", rotate: "-20deg", opacity: 0.12 },
     { bottom: "-90px", right: "-50px", size: "300px", rotate: "25deg", opacity: 0.11 },
@@ -32,7 +27,7 @@ export function LogoBackground() {
       {logos.map((pos, i) => (
         <img
           key={i}
-          src={src}
+          src={logoImg}
           alt=""
           aria-hidden="true"
           className="absolute"

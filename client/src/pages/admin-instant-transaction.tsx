@@ -34,6 +34,7 @@ export default function AdminInstantTransactionPage() {
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const manualCardRef = useRef<HTMLDivElement>(null);
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
@@ -316,7 +317,7 @@ export default function AdminInstantTransactionPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card ref={manualCardRef}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Search className="h-5 w-5" />
@@ -333,7 +334,12 @@ export default function AdminInstantTransactionPage() {
                         setManualCode(e.target.value);
                         setShowSuggestions(true);
                       }}
-                      onFocus={() => setShowSuggestions(true)}
+                      onFocus={() => {
+                        setShowSuggestions(true);
+                        setTimeout(() => {
+                          manualCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }, 100);
+                      }}
                       placeholder="Search by name, username, or code..."
                       onKeyDown={(e) => e.key === "Enter" && handleManualLookup()}
                       data-testid="input-manual-lookup"

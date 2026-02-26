@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
 import { ArrowLeft } from "lucide-react";
+import { InstagramFloat } from "@/components/instagram-float";
 
 export default function AboutPage() {
   const [, setLocation] = useLocation();
@@ -53,6 +54,7 @@ export default function AboutPage() {
           <span>Better Bucks LLC</span>
         </div>
       </footer>
+      <InstagramFloat />
     </div>
   );
 }

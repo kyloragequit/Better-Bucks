@@ -8,6 +8,7 @@ import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
 import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Loader2, Menu, Lightbulb } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
+import { InstagramFloat } from "@/components/instagram-float";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
@@ -317,6 +318,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      <InstagramFloat />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
+import { InstagramFloat } from "@/components/instagram-float";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, CreditCard, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
@@ -415,6 +416,7 @@ export default function SignupPage() {
           </p>
         </div>
       </div>
+      <InstagramFloat />
     </div>
   );
 }

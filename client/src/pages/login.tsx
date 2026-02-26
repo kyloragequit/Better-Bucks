@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, User, Loader2, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
+import { InstagramFloat } from "@/components/instagram-float";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -93,6 +94,7 @@ export default function LoginPage() {
           </div>
         </Card>
       </div>
+      <InstagramFloat />
     </div>
   );
 }

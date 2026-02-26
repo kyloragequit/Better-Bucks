@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X } from "lucide-react";
+import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -107,6 +108,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </Tooltip>
                 );
               })}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    href="https://www.instagram.com/better_bucks"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-md p-2.5 transition-colors text-muted-foreground hover:bg-accent hover:text-pink-500"
+                    data-testid="link-instagram-admin-nav"
+                  >
+                    <SiInstagram className="h-5 w-5" />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">@better_bucks</TooltipContent>
+              </Tooltip>
             </TooltipProvider>
           </nav>
 
@@ -154,6 +169,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         </button>
                       );
                     })}
+                    <a
+                      href="https://www.instagram.com/better_bucks"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setMobileMenuOpen(false)}
+                      data-testid="mobile-link-instagram-admin"
+                    >
+                      <SiInstagram className="h-4 w-4 text-pink-500" />
+                      @better_bucks
+                    </a>
                     <div className="border-t my-1" />
                     <button
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"

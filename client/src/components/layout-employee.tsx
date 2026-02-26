@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink, Menu, X, LayoutDashboard, ShoppingCart, Store, Settings } from "lucide-react";
+import { SiInstagram } from "react-icons/si";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -50,6 +51,16 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
               data-testid="link-promo-store-nav"
             >
               Store <ExternalLink className="h-3 w-3" />
+            </a>
+            <a
+              href="https://www.instagram.com/better_bucks"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground transition-colors hover:text-pink-500"
+              data-testid="link-instagram-nav"
+              title="@better_bucks on Instagram"
+            >
+              <SiInstagram className="h-4 w-4" />
             </a>
           </nav>
 
@@ -100,6 +111,18 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
                     >
                       <Store className="h-4 w-4" />
                       Store
+                      <ExternalLink className="h-3 w-3 ml-auto" />
+                    </a>
+                    <a
+                      href="https://www.instagram.com/better_bucks"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setMobileMenuOpen(false)}
+                      data-testid="mobile-link-instagram"
+                    >
+                      <SiInstagram className="h-4 w-4 text-pink-500" />
+                      @better_bucks
                       <ExternalLink className="h-3 w-3 ml-auto" />
                     </a>
                     <div className="border-t my-1" />

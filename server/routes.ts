@@ -552,6 +552,8 @@ export async function registerRoutes(
     const isPrime = user.role === "prime_admin";
     const isAdmin = user.role === "admin";
 
+    await ensureStripeReady();
+
     // Users can delete their own account (except prime admins)
     if (user.id === id) {
       if (user.role === "prime_admin") return res.status(400).send("Cannot delete prime account");

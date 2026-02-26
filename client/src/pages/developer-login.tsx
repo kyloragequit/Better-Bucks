@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { AppLogo } from "@/components/app-logo";
-import { Code2, Loader2, ArrowLeft } from "lucide-react";
+import { Code2, ArrowLeft } from "lucide-react";
 
 export default function DeveloperLoginPage() {
   const [, setLocation] = useLocation();
@@ -104,7 +105,7 @@ export default function DeveloperLoginPage() {
                 disabled={loginMutation.isPending}
                 data-testid="button-dev-login"
               >
-                {loginMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Code2 className="mr-2 h-4 w-4" />}
+                {loginMutation.isPending ? <SpinningLogo className="mr-2 h-4 w-4" /> : <Code2 className="mr-2 h-4 w-4" />}
                 Sign In
               </Button>
             </form>

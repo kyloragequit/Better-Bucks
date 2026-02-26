@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLogin, useUser, useRegisterAdmin, useRegisterEmployee } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, Loader2, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone } from "lucide-react";
+import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
@@ -170,7 +171,7 @@ function EmployeeLoginForm() {
       >
         {isPending ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <SpinningLogo className="mr-2 h-4 w-4" />
             Authenticating...
           </>
         ) : (
@@ -363,7 +364,7 @@ function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string
       >
         {isPending ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <SpinningLogo className="mr-2 h-4 w-4" />
             Creating Account...
           </>
         ) : (
@@ -448,7 +449,7 @@ function AdminLoginForm() {
       >
         {isPending ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <SpinningLogo className="mr-2 h-4 w-4" />
             Authenticating...
           </>
         ) : (
@@ -641,7 +642,7 @@ function AdminRegisterForm() {
       >
         {isPending ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <SpinningLogo className="mr-2 h-4 w-4" />
             Creating Account...
           </>
         ) : (

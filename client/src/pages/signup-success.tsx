@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
-import { Check, Copy, ArrowRight, Loader2 } from "lucide-react";
+import { Check, Copy, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SignupSuccessPage() {
@@ -107,7 +108,7 @@ export default function SignupSuccessPage() {
               </Button>
             ) : (
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <SpinningLogo className="h-4 w-4" />
                 Activating your subscription...
               </div>
             )}

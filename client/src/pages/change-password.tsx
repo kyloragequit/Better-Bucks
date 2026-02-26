@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { useUser } from "@/hooks/use-auth";
 import { api } from "@shared/routes";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Loader2 } from "lucide-react";
+import { Lock } from "lucide-react";
 
 export default function ChangePasswordPage() {
   const { data: user, isLoading } = useUser();
@@ -92,7 +93,7 @@ export default function ChangePasswordPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={mutation.isPending}>
-              {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {mutation.isPending ? <SpinningLogo className="mr-2 h-4 w-4" /> : null}
               Update Password
             </Button>
           </form>

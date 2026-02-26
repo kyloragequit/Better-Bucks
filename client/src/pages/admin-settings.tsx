@@ -1,4 +1,5 @@
 import { AdminLayout } from "@/components/layout-admin";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useUser } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, Loader2, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Organization, ShopWebsite, Department } from "@shared/schema";
@@ -165,7 +166,7 @@ export default function AdminSettingsPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <SpinningLogo className="h-6 w-6" />
           </div>
         ) : org ? (
           <>
@@ -317,7 +318,7 @@ export default function AdminSettingsPage() {
                         disabled={isUpdatingUrl || !storeUrlValue}
                         data-testid="button-save-store-url"
                       >
-                        {isUpdatingUrl ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                        {isUpdatingUrl ? <SpinningLogo className="mr-2 h-3 w-3" /> : null}
                         Save
                       </Button>
                       <Button
@@ -436,7 +437,7 @@ export default function AdminSettingsPage() {
                             disabled={isChangingTier || !selectedTier}
                             data-testid="button-confirm-change-tier"
                           >
-                            {isChangingTier ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                            {isChangingTier ? <SpinningLogo className="mr-2 h-3 w-3" /> : null}
                             Confirm Change
                           </Button>
                           <Button
@@ -485,7 +486,7 @@ export default function AdminSettingsPage() {
                               >
                                 {isCancelling ? (
                                   <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <SpinningLogo className="mr-2 h-4 w-4" />
                                     Cancelling...
                                   </>
                                 ) : (
@@ -579,7 +580,7 @@ function RoleLabelsSection({ org }: { org: OrgWithFree }) {
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={() => mutation.mutate({ adminRoleLabel: adminLabel, employeeRoleLabel: employeeLabel })} disabled={mutation.isPending || !adminLabel.trim() || !employeeLabel.trim()} data-testid="button-save-role-labels">
-                {mutation.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                {mutation.isPending ? <SpinningLogo className="mr-2 h-3 w-3" /> : null}
                 Save
               </Button>
               <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
@@ -686,7 +687,7 @@ function DepartmentsSection() {
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={() => addMutation.mutate(newName.trim())} disabled={addMutation.isPending || !newName.trim()} data-testid="button-save-new-department">
-                {addMutation.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                {addMutation.isPending ? <SpinningLogo className="mr-2 h-3 w-3" /> : null}
                 Save
               </Button>
               <Button variant="outline" size="sm" onClick={() => { setAdding(false); setNewName(""); }}>Cancel</Button>
@@ -696,7 +697,7 @@ function DepartmentsSection() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <SpinningLogo className="h-5 w-5" />
           </div>
         ) : (!depts || depts.length === 0) ? (
           <div className="text-center py-6 text-sm text-muted-foreground">
@@ -905,7 +906,7 @@ function ShopWebsitesSection() {
                 disabled={addMutation.isPending}
                 data-testid="button-save-new-shop"
               >
-                {addMutation.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                {addMutation.isPending ? <SpinningLogo className="mr-2 h-3 w-3" /> : null}
                 Save
               </Button>
               <Button
@@ -921,7 +922,7 @@ function ShopWebsitesSection() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <SpinningLogo className="h-5 w-5" />
           </div>
         ) : (!websites || websites.length === 0) ? (
           <div className="text-center py-6 text-sm text-muted-foreground">
@@ -964,7 +965,7 @@ function ShopWebsitesSection() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" onClick={handleUpdate} disabled={updateMutation.isPending}>
-                        {updateMutation.isPending ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                        {updateMutation.isPending ? <SpinningLogo className="mr-2 h-3 w-3" /> : null}
                         Save
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>

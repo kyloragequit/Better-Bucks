@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Package, Check, X, Eye, Loader2, ExternalLink } from "lucide-react";
+import { Package, Check, X, Eye, ExternalLink } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -214,7 +215,7 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
       data-testid={`button-${action}-order-${orderId}`}
     >
       {mutation.isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <SpinningLogo className="h-4 w-4" />
       ) : action === "approved" ? (
         <><Check className="mr-1 h-4 w-4" /> {label}</>
       ) : action === "rejected" ? (

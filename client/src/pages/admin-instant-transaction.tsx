@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Camera, QrCode, Search, ArrowLeft, Loader2, Plus, Minus, X } from "lucide-react";
+import { Camera, QrCode, Search, ArrowLeft, Plus, Minus, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { User } from "@shared/schema";
@@ -271,7 +272,7 @@ export default function AdminInstantTransactionPage() {
                   data-testid="button-submit-tx"
                 >
                   {transactionMutation.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <SpinningLogo className="mr-2 h-4 w-4" />
                   ) : null}
                   {txType === "credit" ? "Credit" : "Debit"} {amount ? `${parseInt(amount).toLocaleString()} Bucks` : "Bucks"}
                 </Button>
@@ -314,7 +315,7 @@ export default function AdminInstantTransactionPage() {
                 )}
                 {lookupMutation.isPending && (
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Looking up team member...
+                    <SpinningLogo className="h-4 w-4" /> Looking up team member...
                   </div>
                 )}
               </CardContent>
@@ -363,7 +364,7 @@ export default function AdminInstantTransactionPage() {
                       disabled={lookupMutation.isPending || !manualCode.trim()}
                       data-testid="button-manual-lookup"
                     >
-                      {lookupMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Look Up"}
+                      {lookupMutation.isPending ? <SpinningLogo className="h-4 w-4" /> : "Look Up"}
                     </Button>
                   </div>
                   {showSuggestions && suggestions.length > 0 && (

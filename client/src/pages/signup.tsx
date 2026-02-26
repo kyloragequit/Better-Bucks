@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -12,7 +13,7 @@ import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, CreditCard, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
+import { ArrowLeft, CreditCard, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
 
 const tiers = [
   {
@@ -297,7 +298,7 @@ export default function SignupPage() {
                 >
                   {isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <SpinningLogo className="mr-2 h-4 w-4" />
                       Setting up...
                     </>
                   ) : (
@@ -397,7 +398,7 @@ export default function SignupPage() {
                   >
                     {isSubmittingRfi ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <SpinningLogo className="mr-2 h-4 w-4" />
                         Sending...
                       </>
                     ) : (

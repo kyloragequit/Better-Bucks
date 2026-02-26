@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { EmployeeLayout } from "@/components/layout-employee";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
-import { Lock, Mail, Trash2, Loader2 } from "lucide-react";
+import { Lock, Mail, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   AlertDialog,
@@ -143,7 +144,7 @@ export default function EmployeeSettingsPage() {
                 className="w-full"
                 data-testid="button-change-password"
               >
-                {passwordMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {passwordMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
                 Update Password
               </Button>
             </form>
@@ -181,7 +182,7 @@ export default function EmployeeSettingsPage() {
                 className="w-full"
                 data-testid="button-update-email"
               >
-                {emailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {emailMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
                 {user?.email ? "Update Email" : "Add Email"}
               </Button>
             </form>
@@ -217,7 +218,7 @@ export default function EmployeeSettingsPage() {
                     className="bg-red-600 hover:bg-red-700"
                     data-testid="button-confirm-delete"
                   >
-                    {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {deleteMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
                     Yes, delete my account
                   </AlertDialogAction>
                 </AlertDialogFooter>

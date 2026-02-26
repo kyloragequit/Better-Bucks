@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Loader2, Menu, Lightbulb } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 
@@ -305,7 +306,7 @@ export default function LandingPage() {
               data-testid="button-request-demo"
             >
               {contactSubmitting ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <SpinningLogo className="mr-2 h-5 w-5" />
               ) : (
                 <Send className="mr-2 h-5 w-5" />
               )}

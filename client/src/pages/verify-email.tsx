@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -8,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Phone, RefreshCw } from "lucide-react";
+import { Mail, Phone, RefreshCw } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface VerifyEmailPageProps {
@@ -111,7 +112,7 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
               >
                 {isVerifying ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <SpinningLogo className="mr-2 h-4 w-4" />
                     Verifying...
                   </>
                 ) : (
@@ -130,7 +131,7 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
                 >
                   {isResending ? (
                     <>
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      <SpinningLogo className="mr-2 h-3 w-3" />
                       Sending...
                     </>
                   ) : (

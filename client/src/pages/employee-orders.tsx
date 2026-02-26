@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useUser } from "@/hooks/use-auth";
 import { useUserDetails } from "@/hooks/use-users";
 import { EmployeeLayout } from "@/components/layout-employee";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, ExternalLink, Upload, X, ImageIcon, Loader2, Package, Link2, Store } from "lucide-react";
+import { ShoppingCart, ExternalLink, Upload, X, ImageIcon, Package, Link2, Store } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -402,7 +403,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
           <DialogFooter>
             <Button type="submit" disabled={uploading || createOrderMutation.isPending} data-testid="button-submit-order">
               {(uploading || createOrderMutation.isPending) ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                <><SpinningLogo className="mr-2 h-4 w-4" /> Submitting...</>
               ) : (
                 "Submit Order"
               )}

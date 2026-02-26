@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone } from "lucide-react";
+import { ArrowLeft, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone } from "lucide-react";
 
 export default function SetupPrimePage() {
   const [, setLocation] = useLocation();
@@ -170,7 +171,7 @@ export default function SetupPrimePage() {
                 >
                   {isValidating ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <SpinningLogo className="mr-2 h-4 w-4" />
                       Validating...
                     </>
                   ) : (
@@ -334,7 +335,7 @@ export default function SetupPrimePage() {
                 >
                   {isSettingUp ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <SpinningLogo className="mr-2 h-4 w-4" />
                       Creating Account...
                     </>
                   ) : (

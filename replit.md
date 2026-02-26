@@ -141,9 +141,20 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - API endpoint: GET /api/users/scan/:identifier for employee lookup
 
 ### Document Management System
-- Documents feature removed from UI (tabs/routes removed from both admin and employee layouts)
+- Documents feature removed from UI (tabs/routes removed, placeholder pages deleted)
 - Backend API endpoints still exist but are not linked from the UI
 - Documents table schema retained in database
+
+### Memory Optimizations
+- **Lazy-loaded server modules**: Stripe SDK, nodemailer, multer, compression, serveStatic all loaded on-demand
+- **Minimal startup imports**: server/index.ts only imports express, routes, and http at startup
+- **Response logging**: Logs method/path/status/duration only (no JSON body capture to prevent memory leaks)
+- **SIGHUP handler**: Prevents workflow runner from killing the server via default signal behavior
+- **process.exit(1) override**: Prevents Vite/esbuild transient crashes from killing the dev server
+- **Unused UI components removed**: aspect-ratio, calendar, collapsible, context-menu, drawer, hover-card, menubar, pagination, radio-group, sidebar, slider
+- **Unused hooks removed**: use-mobile
+- **All pages lazy-loaded**: Every page uses React.lazy() with dynamic imports in App.tsx
+- **DB pool limited**: max 5 connections to reduce memory overhead
 
 ### App Branding
 - Custom logo image used across all layouts (AppLogo component imports from @assets)

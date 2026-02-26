@@ -5,7 +5,6 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
@@ -111,18 +110,25 @@ async function sendVerificationSMS(phone: string, code: string): Promise<void> {
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
-  }),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|webp|pdf|doc|docx|xls|xlsx|csv|txt|rtf/;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    cb(null, ext);
-  },
-});
+let _upload: any = null;
+async function getUpload() {
+  if (!_upload) {
+    const multer = (await import("multer")).default;
+    _upload = multer({
+      storage: multer.diskStorage({
+        destination: (_req: any, _file: any, cb: any) => cb(null, uploadDir),
+        filename: (_req: any, file: any, cb: any) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req: any, file: any, cb: any) => {
+        const allowed = /jpeg|jpg|png|gif|webp|pdf|doc|docx|xls|xlsx|csv|txt|rtf/;
+        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+        cb(null, ext);
+      },
+    });
+  }
+  return _upload;
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -655,7 +661,7 @@ export async function registerRoutes(
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     next();
-  }, upload.array("photos", 10), (req, res) => {
+  }, async (req, res, next) => { const u = await getUpload(); u.array("photos", 10)(req, res, next); }, (req: any, res: any) => {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) return res.status(400).json({ message: "No files uploaded" });
     const urls = files.map(f => `/uploads/${f.filename}`);
@@ -1925,7 +1931,7 @@ export async function registerRoutes(
   });
 
   // ========== Document Management ==========
-  app.post("/api/documents", upload.single("file"), async (req, res) => {
+  app.post("/api/documents", async (req: any, res: any, next: any) => { const u = await getUpload(); u.single("file")(req, res, next); }, async (req: any, res: any) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");

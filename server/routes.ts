@@ -23,8 +23,6 @@ async function getStripePubKey() {
 import { sql, eq, and, gte, gt, lt, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { organizations, users, infoRequests, transactions, orders } from "@shared/schema";
-import nodemailer from "nodemailer";
-
 import type { User } from "@shared/schema";
 
 function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
@@ -41,7 +39,8 @@ async function sendVerificationEmail(email: string, code: string, fullName: stri
       console.log(`[Email Verification] SMTP not configured. Code for ${email}: ${code}`);
       return;
     }
-    const transporter = nodemailer.createTransport({
+    const nm = await import("nodemailer");
+    const transporter = nm.default.createTransport({
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
@@ -1485,7 +1484,8 @@ export async function registerRoutes(
       const smtpPort = parseInt(process.env.SMTP_PORT || "587");
 
       if (smtpUser && smtpPass) {
-        const transporter = nodemailer.createTransport({
+        const nm = await import("nodemailer");
+        const transporter = nm.default.createTransport({
           host: smtpHost,
           port: smtpPort,
           secure: smtpPort === 465,

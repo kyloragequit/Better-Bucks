@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings, ArrowLeft, Code2, Zap } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,15 +51,27 @@ function ImpersonationBanner() {
 }
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { mutate: logout } = useLogout();
   const { data: user } = useUser();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: devStatus } = useQuery<{ impersonating: boolean }>({
     queryKey: ["/api/developer/status"],
   });
   const isImpersonating = devStatus?.impersonating === true;
 
   const isActive = (path: string) => location === path || location.startsWith(`${path}/`);
+
+  const navItems = [
+    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin/employees", label: "Employees", icon: Users },
+    { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+    { href: "/admin/instant-transaction", label: "Instant Transaction", shortLabel: "Quick TX", icon: Zap, testId: "link-instant-transaction" },
+    ...(user?.role === "prime_admin" ? [
+      { href: "/admin/pending", label: "Pending Approvals", icon: ClipboardCheck },
+      { href: "/admin/settings", label: "Settings", icon: Settings },
+    ] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -70,70 +83,76 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline">Better Bucks</span>
           </div>
 
-          <nav className="flex items-center gap-6">
-            <Link
-              href="/admin/dashboard"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/admin/dashboard') ? "text-primary font-bold" : "text-muted-foreground"
-              }`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/admin/employees"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/admin/employees') ? "text-primary font-bold" : "text-muted-foreground"
-              }`}
-            >
-              Employees
-            </Link>
-            <Link
-              href="/admin/orders"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/admin/orders') ? "text-primary font-bold" : "text-muted-foreground"
-              }`}
-            >
-              Orders
-            </Link>
-            <Link
-              href="/admin/instant-transaction"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/admin/instant-transaction') ? "text-primary font-bold" : "text-muted-foreground"
-              }`}
-              data-testid="link-instant-transaction"
-            >
-              <span className="hidden lg:inline">Instant Transaction</span>
-              <span className="lg:hidden">Quick TX</span>
-            </Link>
-            {user?.role === "prime_admin" && (
+          <nav className="hidden md:flex items-center gap-6">
+            {navItems.map((item) => (
               <Link
-                href="/admin/pending"
+                key={item.href}
+                href={item.href}
                 className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive('/admin/pending') ? "text-primary font-bold" : "text-muted-foreground"
+                  isActive(item.href) ? "text-primary font-bold" : "text-muted-foreground"
                 }`}
+                data-testid={item.testId}
               >
-                Pending Approvals
+                {item.shortLabel ? (
+                  <>
+                    <span className="hidden lg:inline">{item.label}</span>
+                    <span className="lg:hidden">{item.shortLabel}</span>
+                  </>
+                ) : item.label}
               </Link>
-            )}
-            {user?.role === "prime_admin" && (
-              <Link
-                href="/admin/settings"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive('/admin/settings') ? "text-primary font-bold" : "text-muted-foreground"
-                }`}
-              >
-                Settings
-              </Link>
-            )}
+            ))}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <span className="hidden sm:inline-block text-sm text-muted-foreground">
               Hello, {user?.fullName}
             </span>
-            <Button variant="ghost" size="icon" onClick={() => logout()}>
+            <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={() => logout()} data-testid="button-logout">
               <LogOut className="h-5 w-5" />
             </Button>
+
+            <div className="md:hidden relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                data-testid="button-admin-mobile-menu"
+              >
+                {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
+              {mobileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-lg shadow-lg border py-1 z-50">
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.href}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            isActive(item.href) ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
+                          }`}
+                          onClick={() => { setLocation(item.href); setMobileMenuOpen(false); }}
+                          data-testid={`mobile-${item.testId || `link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}`}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                    <div className="border-t my-1" />
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => { logout(); setMobileMenuOpen(false); }}
+                      data-testid="mobile-button-logout"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Log Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

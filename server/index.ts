@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { createServer } from "http";
+import { ensureStripeReady } from "./stripeLazy";
+import { WebhookHandlers } from "./webhookHandlers";
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
@@ -42,14 +44,12 @@ app.post(
     }
 
     try {
-      const { ensureStripeReady } = await import("./stripeLazy");
       await ensureStripeReady();
       const sig = Array.isArray(signature) ? signature[0] : signature;
       if (!Buffer.isBuffer(req.body)) {
         console.error('STRIPE WEBHOOK ERROR: req.body is not a Buffer');
         return res.status(500).json({ error: 'Webhook processing error' });
       }
-      const { WebhookHandlers } = await import("./webhookHandlers");
       await WebhookHandlers.processWebhook(req.body as Buffer, sig);
       res.status(200).json({ received: true });
     } catch (error: any) {
@@ -110,15 +110,6 @@ app.use((req, res, next) => {
     const { serveStatic } = await import("./static");
     serveStatic(app);
   } else {
-    const originalExit = process.exit;
-    process.exit = ((code?: number) => {
-      if (code === 1) {
-        console.error("Vite/esbuild error — keeping server alive");
-        return undefined as never;
-      }
-      return originalExit(code);
-    }) as typeof process.exit;
-
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }

@@ -1,3 +1,6 @@
+import { runMigrations } from 'stripe-replit-sync';
+import { getStripeSync } from './stripeClient';
+
 let stripeInitialized = false;
 let stripeInitPromise: Promise<void> | null = null;
 
@@ -13,12 +16,10 @@ export async function ensureStripeReady() {
     }
 
     try {
-      const { runMigrations } = await import('stripe-replit-sync');
       console.log('Initializing Stripe schema...');
       await runMigrations({ databaseUrl });
       console.log('Stripe schema ready');
 
-      const { getStripeSync } = await import('./stripeClient');
       const stripeSync = await getStripeSync();
 
       console.log('Setting up managed webhook...');

@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { StripeSync } from 'stripe-replit-sync';
 
 let connectionSettings: any;
 
@@ -62,7 +63,6 @@ let stripeSync: any = null;
 
 export async function getStripeSync() {
   if (!stripeSync) {
-    const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
     stripeSync = new StripeSync({
       poolConfig: {

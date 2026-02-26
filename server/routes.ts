@@ -9,14 +9,13 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { ensureStripeReady } from "./stripeLazy";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
 async function getStripeClient() {
-  const { getUncachableStripeClient } = await import("./stripeClient");
   return getUncachableStripeClient();
 }
 
 async function getStripePubKey() {
-  const { getStripePublishableKey } = await import("./stripeClient");
   return getStripePublishableKey();
 }
 import { sql, eq, and, gte, gt, lt, inArray } from "drizzle-orm";

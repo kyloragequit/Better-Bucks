@@ -11,6 +11,15 @@ process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
 });
 
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err.stack || err);
+});
+
+process.on("SIGTERM", () => {
+  console.log("Received SIGTERM signal");
+  process.exit(0);
+});
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -80,7 +89,9 @@ app.post(
   }
 );
 
-app.use(compression());
+if (process.env.NODE_ENV === "production") {
+  app.use(compression());
+}
 
 app.use(
   express.json({

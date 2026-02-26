@@ -138,20 +138,18 @@ export default function LandingPage() {
             A "Bucks"-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.
           </p>
 
-          <div className="mt-6">
+          <div className="mt-10 flex flex-col items-center gap-4">
             <Button
-              variant="link"
-              className="text-base text-primary font-semibold"
+              size="lg"
+              variant="outline"
+              className="text-lg px-10 py-6 border-2 border-primary text-primary font-bold shadow-md hover:bg-primary hover:text-white transition-all"
               onClick={() => setLocation("/how-it-works")}
               data-testid="button-how-it-works"
             >
-              <Lightbulb className="mr-2 h-5 w-5" />
+              <Lightbulb className="mr-2 h-6 w-6" />
               How It Works
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-          </div>
-
-          <div className="mt-10">
             <Button
               size="lg"
               className="text-base px-8 shadow-lg shadow-primary/25"

@@ -18,6 +18,14 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
+process.on("SIGINT", () => {
+  console.log("Received SIGINT signal");
+  process.exit(0);
+});
+
+process.on("SIGHUP", () => {
+});
+
 const app = express();
 const httpServer = createServer(app);
 

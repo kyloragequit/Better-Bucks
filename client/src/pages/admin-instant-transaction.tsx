@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Camera, QrCode, Search, ArrowLeft, Loader2, Plus, Minus } from "lucide-react";
+import { Camera, QrCode, Search, ArrowLeft, Loader2, Plus, Minus, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { User } from "@shared/schema";
 
 type ScannedUser = {
@@ -31,10 +32,11 @@ export default function AdminInstantTransactionPage() {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [txType, setTxType] = useState<"credit" | "debit">("credit");
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
-  const manualCardRef = useRef<HTMLDivElement>(null);
+  const manualInputRef = useRef<HTMLInputElement>(null);
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
 
@@ -148,6 +150,7 @@ export default function AdminInstantTransactionPage() {
 
   const selectSuggestion = (user: User) => {
     setShowSuggestions(false);
+    setManualDialogOpen(false);
     setManualCode(user.fullName);
     setScannedUser({
       id: user.id,
@@ -317,29 +320,40 @@ export default function AdminInstantTransactionPage() {
               </CardContent>
             </Card>
 
-            <Card ref={manualCardRef}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  Manual Lookup
-                </CardTitle>
-                <CardDescription>Search by name, username, or employee code</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full py-6 text-base"
+              onClick={() => {
+                setManualDialogOpen(true);
+                setManualCode("");
+                setShowSuggestions(false);
+                setTimeout(() => manualInputRef.current?.focus(), 150);
+              }}
+              data-testid="button-open-manual-lookup"
+            >
+              <Search className="mr-2 h-5 w-5" />
+              Manual Lookup
+            </Button>
+
+            <Dialog open={manualDialogOpen} onOpenChange={(open) => { setManualDialogOpen(open); if (!open) setShowSuggestions(false); }}>
+              <DialogContent className="sm:max-w-[440px]" aria-describedby={undefined}>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Search className="h-5 w-5" />
+                    Manual Lookup
+                  </DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground -mt-2">Search by name, username, or employee code</p>
                 <div ref={suggestionsRef} className="relative">
                   <div className="flex gap-2">
                     <Input
+                      ref={manualInputRef}
                       value={manualCode}
                       onChange={(e) => {
                         setManualCode(e.target.value);
                         setShowSuggestions(true);
                       }}
-                      onFocus={() => {
-                        setShowSuggestions(true);
-                        setTimeout(() => {
-                          manualCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                        }, 100);
-                      }}
+                      onFocus={() => setShowSuggestions(true)}
                       placeholder="Search by name, username, or code..."
                       onKeyDown={(e) => e.key === "Enter" && handleManualLookup()}
                       data-testid="input-manual-lookup"
@@ -353,7 +367,7 @@ export default function AdminInstantTransactionPage() {
                     </Button>
                   </div>
                   {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-lg shadow-lg overflow-hidden">
+                    <div className="mt-2 bg-background border rounded-lg shadow-lg overflow-hidden max-h-[280px] overflow-y-auto">
                       {suggestions.map((u) => (
                         <button
                           key={u.id}
@@ -372,8 +386,8 @@ export default function AdminInstantTransactionPage() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </div>

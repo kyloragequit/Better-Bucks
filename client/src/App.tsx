@@ -27,6 +27,7 @@ const VerifyEmailPage = lazy(() => import("@/pages/verify-email"));
 const DeveloperLoginPage = lazy(() => import("@/pages/developer-login"));
 const DeveloperDashboardPage = lazy(() => import("@/pages/developer-dashboard"));
 const AdminInstantTransactionPage = lazy(() => import("@/pages/admin-instant-transaction"));
+const EmployeeSettingsPage = lazy(() => import("@/pages/employee-settings"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function ProtectedRoute({ 
@@ -98,6 +99,9 @@ function Router() {
         </Route>
         <Route path="/orders">
           <ProtectedRoute component={EmployeeOrdersPage} />
+        </Route>
+        <Route path="/settings">
+          <ProtectedRoute component={EmployeeSettingsPage} />
         </Route>
 
         <Route path="/admin/dashboard">

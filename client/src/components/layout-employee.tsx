@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, ExternalLink, Menu, X, LayoutDashboard, ShoppingCart, Store } from "lucide-react";
+import { LogOut, ExternalLink, Menu, X, LayoutDashboard, ShoppingCart, Store, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -19,6 +19,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
     { href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
+    { href: "/settings", label: "Settings", icon: Settings, testId: "link-settings" },
   ];
 
   return (

@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, ExternalLink } from "lucide-react";
+import { LogOut, ExternalLink, Menu, X, LayoutDashboard, ShoppingCart, Store } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -9,10 +10,16 @@ import { useStoreUrl } from "@/hooks/use-store-url";
 export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const { mutate: logout } = useLogout();
   const { data: user } = useUser();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { storeUrl } = useStoreUrl();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => location === path;
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
+    { href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
@@ -23,19 +30,17 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
 
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/dashboard') ? "text-primary font-bold" : "text-muted-foreground"}`}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/orders"
-              className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/orders') ? "text-primary font-bold" : "text-muted-foreground"}`}
-            >
-              Orders
-            </Link>
+          <nav className="hidden md:flex items-center gap-4">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`text-sm font-medium transition-colors hover:text-primary ${isActive(item.href) ? "text-primary font-bold" : "text-muted-foreground"}`}
+                data-testid={item.testId}
+              >
+                {item.label}
+              </Link>
+            ))}
             <a
               href={storeUrl}
               target="_blank"
@@ -47,14 +52,68 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
             </a>
           </nav>
 
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium hidden md:block text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline-block text-sm text-muted-foreground">
               {user?.fullName}
             </span>
-            <Button variant="ghost" size="sm" onClick={() => logout()} className="text-muted-foreground">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+            <Button variant="ghost" size="icon" className="hidden md:inline-flex text-muted-foreground" onClick={() => logout()} data-testid="button-logout">
+              <LogOut className="h-5 w-5" />
             </Button>
+
+            <div className="md:hidden relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                data-testid="button-employee-mobile-menu"
+              >
+                {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
+              {mobileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-lg shadow-lg border py-1 z-50">
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.href}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            isActive(item.href) ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
+                          }`}
+                          onClick={() => { setLocation(item.href); setMobileMenuOpen(false); }}
+                          data-testid={`mobile-${item.testId}`}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                    <a
+                      href={storeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setMobileMenuOpen(false)}
+                      data-testid="mobile-link-promo-store"
+                    >
+                      <Store className="h-4 w-4" />
+                      Store
+                      <ExternalLink className="h-3 w-3 ml-auto" />
+                    </a>
+                    <div className="border-t my-1" />
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => { logout(); setMobileMenuOpen(false); }}
+                      data-testid="mobile-button-logout"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Log Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

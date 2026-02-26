@@ -6,14 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown, Info, Send, Loader2, Menu } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Loader2, Menu, Lightbulb } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"home" | "about">("home");
-  const aboutRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,11 +20,6 @@ export default function LandingPage() {
   const [contactPhone, setContactPhone] = useState("");
   const [contactNeeds, setContactNeeds] = useState("");
   const [contactSubmitting, setContactSubmitting] = useState(false);
-
-  const scrollToAbout = () => {
-    setActiveTab("about");
-    setTimeout(() => aboutRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-  };
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +56,7 @@ export default function LandingPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={scrollToAbout}
+              onClick={() => setLocation("/about")}
               data-testid="button-header-about"
             >
               <Info className="mr-1.5 h-4 w-4" />
@@ -97,24 +90,35 @@ export default function LandingPage() {
               <Menu className="h-4 w-4" />
             </Button>
             {mobileMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-lg shadow-lg border py-1 z-50">
-                <button
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }}
-                  data-testid="button-mobile-login"
-                >
-                  <LogIn className="h-4 w-4" />
-                  Log In
-                </button>
-                <button
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => { setLocation("/signup"); setMobileMenuOpen(false); }}
-                  data-testid="button-mobile-signup"
-                >
-                  <Building2 className="h-4 w-4" />
-                  Sign Up
-                </button>
-              </div>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-lg shadow-lg border py-1 z-50">
+                  <button
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => { setLocation("/about"); setMobileMenuOpen(false); }}
+                    data-testid="button-mobile-about"
+                  >
+                    <Info className="h-4 w-4" />
+                    About
+                  </button>
+                  <button
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }}
+                    data-testid="button-mobile-login"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Log In
+                  </button>
+                  <button
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => { setLocation("/signup"); setMobileMenuOpen(false); }}
+                    data-testid="button-mobile-signup"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Sign Up
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -133,7 +137,21 @@ export default function LandingPage() {
           <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed" data-testid="text-hero-subheadline">
             A "Bucks"-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+
+          <div className="mt-6">
+            <Button
+              variant="link"
+              className="text-base text-primary font-semibold"
+              onClick={() => setLocation("/how-it-works")}
+              data-testid="button-how-it-works"
+            >
+              <Lightbulb className="mr-2 h-5 w-5" />
+              How It Works
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="mt-10">
             <Button
               size="lg"
               className="text-base px-8 shadow-lg shadow-primary/25"
@@ -144,19 +162,6 @@ export default function LandingPage() {
               Sign Up for Your Organization
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="text-base px-8"
-              onClick={() => setLocation("/login")}
-              data-testid="button-hero-login"
-            >
-              <LogIn className="mr-2 h-5 w-5" />
-              Log In
-            </Button>
-          </div>
-          <div className="mt-12 animate-bounce">
-            <ChevronDown className="mx-auto h-6 w-6 text-gray-400" />
           </div>
         </div>
       </section>
@@ -229,32 +234,6 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section ref={aboutRef} className="py-16 sm:py-24 bg-white" data-testid="section-about">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">About Better Bucks</h2>
-            <div className="h-1 w-16 bg-secondary mx-auto rounded-full" />
-          </div>
-          <div className="space-y-6 text-gray-700 text-base sm:text-lg leading-relaxed">
-            <p>
-              Better Bucks LLC was founded in 2026 by Southeastern Louisiana University Business Administration student, Miles Gideon Chase.
-            </p>
-            <p>
-              Throughout his college career, Miles saw the emphasis focused on behaviors in the workplace in 21st century business. Through his various jobs (7 to be precise) and internships throughout his college career, he saw how psychology and incentives play a major role in how to have happier and more effective employees. He also saw that poor incentives &mdash; things that the employees did not want &mdash; actually discouraged employees more than they made them want to be more effective. He also saw that managers had difficulty allocating their time to actually reward their employees.
-            </p>
-            <p className="text-xl font-semibold text-gray-900">
-              That's why he made Better Bucks.
-            </p>
-            <p>
-              Better Bucks streamlines the process for employee incentives. It allows them to tell you what they want and helps you to easily and instantly reward them with things they want.
-            </p>
-            <p className="text-2xl font-bold text-center text-primary mt-8">
-              Better Bucks for a Better Business!
-            </p>
           </div>
         </div>
       </section>

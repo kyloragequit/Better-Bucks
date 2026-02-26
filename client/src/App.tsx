@@ -28,6 +28,8 @@ const DeveloperLoginPage = lazy(() => import("@/pages/developer-login"));
 const DeveloperDashboardPage = lazy(() => import("@/pages/developer-dashboard"));
 const AdminInstantTransactionPage = lazy(() => import("@/pages/admin-instant-transaction"));
 const EmployeeSettingsPage = lazy(() => import("@/pages/employee-settings"));
+const AboutPage = lazy(() => import("@/pages/about"));
+const HowItWorksPage = lazy(() => import("@/pages/how-it-works"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function ProtectedRoute({ 
@@ -88,6 +90,8 @@ function Router() {
     <Suspense fallback={<FullPageLoader />}>
       <Switch>
         <Route path="/" component={LandingPage} />
+        <Route path="/about" component={AboutPage} />
+        <Route path="/how-it-works" component={HowItWorksPage} />
         <Route path="/signup" component={SignupPage} />
         <Route path="/signup/success" component={SignupSuccessPage} />
         <Route path="/reactivate" component={ReactivatePage} />

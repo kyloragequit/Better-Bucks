@@ -54,7 +54,7 @@ export default function LoginPage() {
           <Tabs defaultValue={urlTab} className="w-full px-4">
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="employee" className="flex items-center gap-2">
-                <LogIn className="h-4 w-4" />
+                <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Employee</span>
               </TabsTrigger>
               <TabsTrigger value="admin" className="flex items-center gap-2">

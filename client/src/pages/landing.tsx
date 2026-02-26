@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown, Info, Send, Loader2 } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, ChevronDown, Info, Send, Loader2, Menu } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 
 export default function LandingPage() {
@@ -16,6 +16,7 @@ export default function LandingPage() {
   const aboutRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -58,7 +59,7 @@ export default function LandingPage() {
             <AppLogo size="sm" />
             <span className="text-lg font-bold text-gray-900" data-testid="text-brand-name">Better Bucks</span>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="hidden sm:flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -85,6 +86,36 @@ export default function LandingPage() {
               <Building2 className="mr-1.5 h-4 w-4" />
               Sign Up
             </Button>
+          </div>
+          <div className="sm:hidden relative">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              data-testid="button-mobile-menu"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+            {mobileMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-lg shadow-lg border py-1 z-50">
+                <button
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }}
+                  data-testid="button-mobile-login"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Log In
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => { setLocation("/signup"); setMobileMenuOpen(false); }}
+                  data-testid="button-mobile-signup"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Sign Up
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>

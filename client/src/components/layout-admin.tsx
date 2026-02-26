@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 function ImpersonationBanner() {
@@ -83,33 +84,46 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive(item.href) ? "text-primary font-bold" : "text-muted-foreground"
-                }`}
-                data-testid={item.testId}
-              >
-                {item.shortLabel ? (
-                  <>
-                    <span className="hidden lg:inline">{item.label}</span>
-                    <span className="lg:hidden">{item.shortLabel}</span>
-                  </>
-                ) : item.label}
-              </Link>
-            ))}
+          <nav className="hidden md:flex items-center gap-1">
+            <TooltipProvider delayDuration={200}>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={item.href}
+                        className={`inline-flex items-center justify-center rounded-md p-2.5 transition-colors hover:bg-accent hover:text-primary ${
+                          isActive(item.href) ? "text-primary bg-accent" : "text-muted-foreground"
+                        }`}
+                        data-testid={item.testId || `link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </TooltipProvider>
           </nav>
 
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline-block text-sm text-muted-foreground">
               Hello, {user?.fullName}
             </span>
-            <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={() => logout()} data-testid="button-logout">
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={() => logout()} data-testid="button-logout">
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Log Out</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             <div className="md:hidden relative">
               <Button

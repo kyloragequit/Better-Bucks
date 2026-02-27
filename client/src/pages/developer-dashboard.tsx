@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization } from "@shared/schema";
 
@@ -224,6 +224,21 @@ export default function DeveloperDashboardPage() {
               <Code2 className="inline h-4 w-4 mr-1" />
               {user.username}
             </span>
+            <a
+              href="https://analytics.google.com/analytics/web/"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="link-ga-dashboard"
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-gray-600 text-gray-300 hover:text-white hover:bg-gray-800"
+              >
+                <BarChart3 className="mr-1.5 h-4 w-4" />
+                Analytics
+              </Button>
+            </a>
             <Button
               variant="outline"
               size="sm"
@@ -269,6 +284,31 @@ export default function DeveloperDashboardPage() {
             </Button>
           </div>
         </div>
+
+        <a
+          href="https://analytics.google.com/analytics/web/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mb-6"
+          data-testid="card-ga-analytics-link"
+        >
+          <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors cursor-pointer">
+            <CardContent className="pt-5 pb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-blue-600 text-white">
+                    <BarChart3 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-blue-900">Google Analytics 4</p>
+                    <p className="text-sm text-blue-700">View traffic, user sessions, and page analytics for the Better Bucks website</p>
+                  </div>
+                </div>
+                <ExternalLink className="h-4 w-4 text-blue-500 flex-shrink-0" />
+              </div>
+            </CardContent>
+          </Card>
+        </a>
 
         {cmsTab ? (
           <Card>

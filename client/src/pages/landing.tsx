@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
+import { PageSEO } from "@/components/page-seo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,8 +73,32 @@ export default function LandingPage() {
     }
   };
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Better Bucks",
+    "url": "https://better-bucks.replit.app",
+    "logo": "https://better-bucks.replit.app/favicon.png",
+    "description": "Better Bucks helps organizations reward employees with a digital Bucks currency redeemable for real products. Simple, scalable, and motivating.",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "miles@betterbucks.net",
+      "contactType": "sales"
+    },
+    "sameAs": [
+      "https://www.instagram.com/betterbucks"
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <PageSEO
+        title="Better Bucks – Motivate & Reward Your Team"
+        description="Replace spreadsheets with a modern Bucks-based incentive system. Employees earn and redeem Bucks for real rewards. Simple setup, full control."
+        canonicalPath="/"
+        jsonLd={jsonLd}
+      />
+
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">

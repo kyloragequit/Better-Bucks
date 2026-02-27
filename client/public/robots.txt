@@ -1,0 +1,25 @@
+User-agent: *
+
+# Allow public marketing pages
+Allow: /$
+Allow: /about
+Allow: /how-it-works
+Allow: /login
+Allow: /signup
+Allow: /signup/success
+
+# Disallow authenticated and private routes
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /orders
+Disallow: /store
+Disallow: /settings
+Disallow: /developer
+Disallow: /verify-email
+Disallow: /pending-verification
+Disallow: /change-password
+Disallow: /setup
+Disallow: /reactivate
+Disallow: /api
+
+Sitemap: https://better-bucks.replit.app/sitemap.xml

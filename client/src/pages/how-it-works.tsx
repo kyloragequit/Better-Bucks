@@ -2,12 +2,19 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
 import { ArrowLeft, Construction } from "lucide-react";
+import { PageSEO } from "@/components/page-seo";
 
 export default function HowItWorksPage() {
   const [, setLocation] = useLocation();
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <PageSEO
+        title="How It Works – Better Bucks"
+        description="Admins set up reward rules, employees earn Bucks for hitting goals, and redeem them in your organization's store. See how easy it is."
+        canonicalPath="/how-it-works"
+      />
+
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocation("/")}>

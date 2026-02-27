@@ -3,12 +3,19 @@ import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
 import { ArrowLeft } from "lucide-react";
 import { InstagramFloat } from "@/components/instagram-float";
+import { PageSEO } from "@/components/page-seo";
 
 export default function AboutPage() {
   const [, setLocation] = useLocation();
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <PageSEO
+        title="About Better Bucks – Our Mission"
+        description="Learn how Better Bucks was built to help organizations recognize and reward employee performance with a flexible digital currency."
+        canonicalPath="/about"
+      />
+
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocation("/")}>

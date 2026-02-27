@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { useLogin, useUser, useRegisterAdmin, useRegisterEmployee } from "@/hooks/use-auth";
+import { PageSEO } from "@/components/page-seo";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,12 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
+      <PageSEO
+        title="Log In – Better Bucks"
+        description="Access your Better Bucks organization portal. Employee and administrator login."
+        canonicalPath="/login"
+      />
+
       <LogoBackground />
 
       <div className="relative z-10 w-full max-w-md space-y-4">

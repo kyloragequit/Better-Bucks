@@ -217,3 +217,12 @@ The `shared/` directory contains code used by both frontend and backend:
 - Vite for frontend development and building
 - esbuild for server bundling
 - TypeScript for type safety
+
+## SEO
+- Per-page SEO implemented via custom `PageSEO` component (`client/src/components/page-seo.tsx`)
+- Uses `useEffect` + native DOM APIs to set `document.title`, meta description, Open Graph, Twitter Card, and canonical tags on each navigation
+- JSON-LD Organization schema injected on the landing page (`/`)
+- `client/public/robots.txt` — blocks crawlers from `/admin`, `/dashboard`, `/api`, and other authenticated routes
+- `client/public/sitemap.xml` — lists all public indexable pages with priority and changefreq
+- Google Fonts trimmed to only the two fonts in use: Outfit (headings) + Inter (body)
+- Update `SITE_URL` in `page-seo.tsx` and `sitemap.xml` when a custom domain is configured

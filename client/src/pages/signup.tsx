@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
+import { PageSEO } from "@/components/page-seo";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -140,6 +141,12 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
+      <PageSEO
+        title="Get Started – Better Bucks"
+        description="Sign up your organization for Better Bucks. Choose a plan and start rewarding your team today."
+        canonicalPath="/signup"
+      />
+
       <LogoBackground />
 
       <div className="relative z-10 w-full max-w-5xl space-y-6">

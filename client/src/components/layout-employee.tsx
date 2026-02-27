@@ -1,25 +1,23 @@
 import { useState } from "react";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { LogOut, ExternalLink, Menu, X, LayoutDashboard, ShoppingCart, Store, Settings, ShoppingBag } from "lucide-react";
+import { LogOut, Menu, X, LayoutDashboard, ShoppingCart, Store, Settings } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
-import { useStoreUrl } from "@/hooks/use-store-url";
 
 export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const { mutate: logout } = useLogout();
   const { data: user } = useUser();
   const [location, setLocation] = useLocation();
-  const { storeUrl } = useStoreUrl();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => location === path;
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
-    { href: "/store", label: "Shop", icon: ShoppingBag, testId: "link-shop" },
+    { href: "/store", label: "Store", icon: Store, testId: "link-store" },
     { href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
     { href: "/settings", label: "Settings", icon: Settings, testId: "link-settings" },
   ];
@@ -44,15 +42,6 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
                 {item.label}
               </Link>
             ))}
-            <a
-              href={storeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary flex items-center gap-1"
-              data-testid="link-promo-store-nav"
-            >
-              Store <ExternalLink className="h-3 w-3" />
-            </a>
             <a
               href="https://www.instagram.com/better_bucks"
               target="_blank"
@@ -103,18 +92,6 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
                       );
                     })}
                     <a
-                      href={storeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setMobileMenuOpen(false)}
-                      data-testid="mobile-link-promo-store"
-                    >
-                      <Store className="h-4 w-4" />
-                      Store
-                      <ExternalLink className="h-3 w-3 ml-auto" />
-                    </a>
-                    <a
                       href="https://www.instagram.com/better_bucks"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -124,7 +101,6 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
                     >
                       <SiInstagram className="h-4 w-4 text-pink-500" />
                       @better_bucks
-                      <ExternalLink className="h-3 w-3 ml-auto" />
                     </a>
                     <div className="border-t my-1" />
                     <button

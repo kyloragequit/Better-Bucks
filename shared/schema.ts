@@ -151,6 +151,16 @@ export const pageContent = pgTable("page_content", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const storeItems = pgTable("store_items", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+  url: text("url").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const infoRequests = pgTable("info_requests", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -160,6 +170,7 @@ export const infoRequests = pgTable("info_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const insertStoreItemSchema = createInsertSchema(storeItems).omit({ id: true, createdAt: true });
 export const insertInfoRequestSchema = createInsertSchema(infoRequests).omit({ id: true, createdAt: true });
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true, status: true, stripeCustomerId: true, stripeSubscriptionId: true });
@@ -187,3 +198,5 @@ export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type InfoRequest = typeof infoRequests.$inferSelect;
 export type InsertInfoRequest = z.infer<typeof insertInfoRequestSchema>;
 export type PageContent = typeof pageContent.$inferSelect;
+export type StoreItem = typeof storeItems.$inferSelect;
+export type InsertStoreItem = z.infer<typeof insertStoreItemSchema>;

@@ -1941,6 +1941,114 @@ export async function registerRoutes(
     res.sendStatus(200);
   });
 
+  // ========== Store Items ==========
+  app.get("/api/store-items", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || !user.organizationId) {
+      return res.status(401).send("Unauthorized");
+    }
+    const items = await storage.getStoreItemsByOrganization(user.organizationId);
+    res.json(items);
+  });
+
+  app.post("/api/store-items", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const { name, price, url, imageUrl } = req.body;
+    if (!name || !price || !url || !imageUrl) {
+      return res.status(400).json({ message: "name, price, url, and imageUrl are required" });
+    }
+    const item = await storage.createStoreItem({
+      organizationId: user.organizationId!,
+      name,
+      price: parseInt(price),
+      url,
+      imageUrl,
+    });
+    res.json(item);
+  });
+
+  app.patch("/api/store-items/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+    const existing = await storage.getStoreItem(id);
+    if (!existing || existing.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Store item not found" });
+    }
+
+    const { name, price, url, imageUrl } = req.body;
+    const updated = await storage.updateStoreItem(id, {
+      ...(name !== undefined && { name }),
+      ...(price !== undefined && { price: parseInt(price) }),
+      ...(url !== undefined && { url }),
+      ...(imageUrl !== undefined && { imageUrl }),
+    });
+    res.json(updated);
+  });
+
+  app.delete("/api/store-items/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+    const existing = await storage.getStoreItem(id);
+    if (!existing || existing.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Store item not found" });
+    }
+
+    await storage.deleteStoreItem(id);
+    res.sendStatus(200);
+  });
+
+  app.post("/api/store-items/:id/purchase", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "employee") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+    const item = await storage.getStoreItem(id);
+    if (!item || item.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "Store item not found" });
+    }
+
+    const currentUser = await storage.getUser(user.id);
+    if (!currentUser || currentUser.balance < item.price) {
+      return res.status(400).json({ message: "Insufficient balance" });
+    }
+
+    await storage.updateUserBalance(user.id, -item.price);
+    await storage.createTransaction({
+      userId: user.id,
+      amount: -item.price,
+      reason: `Store purchase: ${item.name}`,
+      performedBy: user.id,
+    });
+
+    const order = await storage.createOrder({
+      userId: user.id,
+      pointsCost: item.price,
+      description: `Store Purchase: ${item.name}`,
+      photoUrls: [item.imageUrl],
+      itemUrl: item.url,
+      shopWebsiteId: null,
+      convertedValue: null,
+    });
+
+    res.json(order);
+  });
+
   // ========== Departments ==========
   app.get("/api/departments", async (req, res) => {
     const user = req.user as User | undefined;

@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
@@ -68,6 +68,12 @@ export interface IStorage {
 
   getPageContent(): Promise<Record<string, string>>;
   setPageContent(entries: Record<string, string>): Promise<void>;
+
+  createStoreItem(item: InsertStoreItem): Promise<StoreItem>;
+  getStoreItemsByOrganization(organizationId: number): Promise<StoreItem[]>;
+  getStoreItem(id: number): Promise<StoreItem | undefined>;
+  updateStoreItem(id: number, data: Partial<InsertStoreItem>): Promise<StoreItem>;
+  deleteStoreItem(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -474,7 +480,31 @@ export class DatabaseStorage implements IStorage {
       }
       await db.delete(users).where(eq(users.organizationId, id));
     }
+    await db.delete(storeItems).where(eq(storeItems.organizationId, id));
     await db.delete(organizations).where(eq(organizations.id, id));
+  }
+
+  async createStoreItem(item: InsertStoreItem): Promise<StoreItem> {
+    const [newItem] = await db.insert(storeItems).values(item).returning();
+    return newItem;
+  }
+
+  async getStoreItemsByOrganization(organizationId: number): Promise<StoreItem[]> {
+    return await db.select().from(storeItems).where(eq(storeItems.organizationId, organizationId)).orderBy(desc(storeItems.createdAt));
+  }
+
+  async getStoreItem(id: number): Promise<StoreItem | undefined> {
+    const [item] = await db.select().from(storeItems).where(eq(storeItems.id, id));
+    return item;
+  }
+
+  async updateStoreItem(id: number, data: Partial<InsertStoreItem>): Promise<StoreItem> {
+    const [updated] = await db.update(storeItems).set(data).where(eq(storeItems.id, id)).returning();
+    return updated;
+  }
+
+  async deleteStoreItem(id: number): Promise<void> {
+    await db.delete(storeItems).where(eq(storeItems.id, id));
   }
 }
 

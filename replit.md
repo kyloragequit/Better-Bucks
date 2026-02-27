@@ -68,6 +68,19 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - `emailVerified` field is reused for both email and phone verification status
 - getUserByPhoneAndOrg storage method for phone uniqueness checks
 
+### Employee Store (Internal Shop)
+- Admins can create a curated store of items employees can browse and purchase with Bucks
+- Store items have: name, price (in Bucks), item URL, and a preview image (uploadable or URL)
+- Employees browse items at `/store` in a scrollable image grid
+- Clicking an item image opens the item's URL in a new tab
+- "Purchase" button opens a confirmation dialog: "Purchase for X Bucks?"
+- If employee has insufficient balance: dialog shows "You do not have enough Bucks for this"
+- Successful purchase deducts Bucks from balance, creates a transaction record, and submits an order for admin approval
+- Purchase orders appear in admin orders with description "Store Purchase: [Item Name]", photo preview, and item link
+- Admin settings (Settings > Employee Store section): prime admins can add/edit/delete store items
+- Table: `store_items` (id, organizationId, name, price, url, imageUrl, createdAt)
+- API routes: GET/POST /api/store-items, PATCH/DELETE /api/store-items/:id, POST /api/store-items/:id/purchase
+
 ### Order System
 - Employees browse items at a configurable store URL and submit orders with photo screenshots
 - Store URL is set during initial org setup (no default); prime admins can also edit it from Settings page

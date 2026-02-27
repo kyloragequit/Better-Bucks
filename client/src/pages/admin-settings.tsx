@@ -10,10 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ShoppingBag, Upload, ImageIcon, Link2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Organization, ShopWebsite, Department } from "@shared/schema";
+import type { Organization, ShopWebsite, Department, StoreItem } from "@shared/schema";
 
 type OrgWithFree = Organization & { isFree: boolean; employeeCount: number };
 import {
@@ -349,6 +349,8 @@ export default function AdminSettingsPage() {
             </Card>
 
             <ShopWebsitesSection />
+
+            <StoreItemsSection />
 
             <RoleLabelsSection org={org} />
             <DepartmentsSection />
@@ -1033,6 +1035,237 @@ function ShopWebsitesSection() {
                     </div>
                   </div>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function StoreItemsSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: items, isLoading } = useQuery<StoreItem[]>({ queryKey: ["/api/store-items"] });
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<StoreItem | null>(null);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [url, setUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const resetForm = () => {
+    setName(""); setPrice(""); setUrl(""); setImageUrl("");
+    setShowAddForm(false); setEditingItem(null);
+  };
+
+  const openEdit = (item: StoreItem) => {
+    setEditingItem(item);
+    setName(item.name);
+    setPrice(String(item.price));
+    setUrl(item.url);
+    setImageUrl(item.imageUrl);
+    setShowAddForm(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) throw new Error("Upload failed");
+      const urls: string[] = await res.json();
+      setImageUrl(urls[0]);
+    } catch {
+      toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/store-items", { name, price, url, imageUrl });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/store-items"] });
+      toast({ title: "Item added" });
+      resetForm();
+    },
+    onError: () => toast({ title: "Error", description: "Could not add item.", variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", `/api/store-items/${editingItem!.id}`, { name, price, url, imageUrl });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/store-items"] });
+      toast({ title: "Item updated" });
+      resetForm();
+    },
+    onError: () => toast({ title: "Error", description: "Could not update item.", variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/store-items/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/store-items"] });
+      toast({ title: "Item deleted" });
+    },
+    onError: () => toast({ title: "Error", description: "Could not delete item.", variant: "destructive" }),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !price || !url || !imageUrl) {
+      toast({ title: "Missing fields", description: "All fields are required.", variant: "destructive" });
+      return;
+    }
+    if (editingItem) updateMutation.mutate();
+    else createMutation.mutate();
+  };
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5" /> Employee Store
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Add items employees can browse and purchase with their Bucks.
+            </CardDescription>
+          </div>
+          {!showAddForm && !editingItem && (
+            <Button size="sm" onClick={() => setShowAddForm(true)} data-testid="button-add-store-item">
+              <Plus className="h-4 w-4 mr-1" /> Add Item
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {(showAddForm || editingItem) && (
+          <form onSubmit={handleSubmit} className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <p className="font-semibold text-sm">{editingItem ? "Edit Item" : "New Store Item"}</p>
+            <div className="grid gap-1.5">
+              <Label htmlFor="si-name">Item Name</Label>
+              <Input id="si-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Company T-Shirt" data-testid="input-store-item-name" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="si-price">Price (Bucks)</Label>
+              <Input id="si-price" type="number" min="1" value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 500" data-testid="input-store-item-price" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="si-url">Item URL</Label>
+              <div className="relative">
+                <Link2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input id="si-url" className="pl-9" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/item" data-testid="input-store-item-url" />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Preview Image</Label>
+              <div className="flex items-center gap-3">
+                {imageUrl ? (
+                  <img src={imageUrl} alt="preview" className="h-16 w-16 object-cover rounded border flex-shrink-0" />
+                ) : (
+                  <div className="h-16 w-16 bg-muted rounded border flex items-center justify-center flex-shrink-0">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1 space-y-1.5">
+                  <label className="cursor-pointer">
+                    <Button type="button" variant="outline" size="sm" disabled={uploading} className="pointer-events-none" data-testid="button-upload-image">
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                      {uploading ? "Uploading..." : "Upload Image"}
+                    </Button>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                  <p className="text-xs text-muted-foreground">Or paste an image URL below</p>
+                  <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" className="h-7 text-xs" data-testid="input-store-item-image-url" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="submit" size="sm" disabled={isSubmitting} data-testid="button-save-store-item">
+                {isSubmitting ? "Saving..." : editingItem ? "Save Changes" : "Add Item"}
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={resetForm}>Cancel</Button>
+            </div>
+          </form>
+        )}
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : !items || items.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No store items yet. Add your first item above.</p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 border rounded-lg p-3" data-testid={`store-item-row-${item.id}`}>
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="h-12 w-12 object-cover rounded border flex-shrink-0"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/48x48?text=?"; }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate" data-testid={`text-store-item-name-${item.id}`}>{item.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-primary font-bold" data-testid={`text-store-item-price-${item.id}`}>{item.price.toLocaleString()} Bucks</span>
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-0.5">
+                      <ExternalLink className="h-3 w-3" /> View
+                    </a>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => openEdit(item)}
+                    data-testid={`button-edit-store-item-${item.id}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" data-testid={`button-delete-store-item-${item.id}`}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Store Item</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{item.name}"? This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteMutation.mutate(item.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             ))}
           </div>

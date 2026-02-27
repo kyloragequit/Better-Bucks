@@ -10,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Organization, ShopWebsite, Department } from "@shared/schema";
@@ -350,6 +351,8 @@ export default function AdminSettingsPage() {
 
             <ShopWebsitesSection />
 
+            <FeatureFlagsSection org={org} />
+
             <RoleLabelsSection org={org} />
             <DepartmentsSection />
 
@@ -520,6 +523,73 @@ export default function AdminSettingsPage() {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [storeEnabled, setStoreEnabled] = useState(org.storeEnabled ?? true);
+  const [manualOrdersEnabled, setManualOrdersEnabled] = useState(org.manualOrdersEnabled ?? true);
+
+  const mutation = useMutation({
+    mutationFn: async (flags: { storeEnabled: boolean; manualOrdersEnabled: boolean }) => {
+      const res = await apiRequest("PATCH", "/api/organizations/feature-flags", flags);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/features"] });
+      toast({ title: "Settings saved" });
+    },
+    onError: () => toast({ title: "Error", description: "Could not save settings.", variant: "destructive" }),
+  });
+
+  const handleToggle = (field: "storeEnabled" | "manualOrdersEnabled", value: boolean) => {
+    const next = field === "storeEnabled"
+      ? { storeEnabled: value, manualOrdersEnabled }
+      : { storeEnabled, manualOrdersEnabled: value };
+    if (field === "storeEnabled") setStoreEnabled(value);
+    else setManualOrdersEnabled(value);
+    mutation.mutate(next);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ToggleLeft className="h-5 w-5" />
+          Employee Features
+        </CardTitle>
+        <CardDescription>Control which features are available to employees in your organization.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div>
+            <p className="font-medium text-sm">Employee Store</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Allow employees to browse and purchase items from the store.</p>
+          </div>
+          <Switch
+            checked={storeEnabled}
+            onCheckedChange={(v) => handleToggle("storeEnabled", v)}
+            disabled={mutation.isPending}
+            data-testid="switch-store-enabled"
+          />
+        </div>
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div>
+            <p className="font-medium text-sm">Manual Order Requests</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Allow employees to submit custom order requests for admin approval.</p>
+          </div>
+          <Switch
+            checked={manualOrdersEnabled}
+            onCheckedChange={(v) => handleToggle("manualOrdersEnabled", v)}
+            disabled={mutation.isPending}
+            data-testid="switch-manual-orders-enabled"
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

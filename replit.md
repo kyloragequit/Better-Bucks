@@ -76,10 +76,27 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - "Purchase" button opens a confirmation dialog: "Purchase for X Bucks?"
 - If employee has insufficient balance: dialog shows "You do not have enough Bucks for this"
 - Successful purchase deducts Bucks from balance, creates a transaction record, and submits an order for admin approval
-- Purchase orders appear in admin orders with description "Store Purchase: [Item Name]", photo preview, and item link
-- Admin settings (Settings > Employee Store section): prime admins can add/edit/delete store items
+- Purchase orders appear in admin orders with description "Store Purchase: [Item Name]", photo preview, item link, and bucks-to-dollar conversion value
+- Store purchase orders auto-compute a `convertedValue` using the org's first shop website with a valid `pointsPerDollar` rate
+- Admin store management page: `/admin/store` (prime_admin only nav tab) with CRUD for items
 - Table: `store_items` (id, organizationId, name, price, url, imageUrl, createdAt)
 - API routes: GET/POST /api/store-items, PATCH/DELETE /api/store-items/:id, POST /api/store-items/:id/purchase
+
+### Wishlist System
+- Employees can "heart" any store item to save it to their wishlist (no Bucks deducted)
+- Heart button overlays each store item in the grid; toggling adds/removes from wishlist
+- Wishlist section appears on employee dashboard when items are saved
+- Admins can view all employee wishlists from the admin Store page (grouped by item with employee name tags)
+- Table: `wishlists` (id, userId, storeItemId, createdAt)
+- API routes: GET /api/wishlist, POST /api/wishlist/:itemId, DELETE /api/wishlist/:itemId, GET /api/admin/wishlists
+
+### Employee Feature Flags
+- Prime admins can disable the employee store and/or manual order requests from the Settings page
+- "Employee Features" card in admin settings has toggle switches for each feature
+- When store is disabled: Store nav tab disappears for employees
+- When manual orders disabled: New Order button replaced with "currently disabled" message on the orders page
+- Feature flags stored as `storeEnabled` (boolean, default true) and `manualOrdersEnabled` (boolean, default true) on organizations table
+- API routes: GET /api/organizations/features (any auth), PATCH /api/organizations/feature-flags (prime_admin only)
 
 ### Order System
 - Employees browse items at a configurable store URL and submit orders with photo screenshots

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2 } from "lucide-react";
+import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,12 +19,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { StoreItem } from "@shared/schema";
+import type { StoreItem, User, Wishlist } from "@shared/schema";
+
+type WishlistEntry = Wishlist & { storeItem: StoreItem; user: User };
 
 export default function AdminStorePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useQuery<StoreItem[]>({ queryKey: ["/api/store-items"] });
+  const { data: wishlists } = useQuery<WishlistEntry[]>({ queryKey: ["/api/admin/wishlists"] });
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<StoreItem | null>(null);
@@ -267,6 +270,62 @@ export default function AdminStorePage() {
               </div>
             )}
           </CardContent>
+        </Card>
+
+        {/* Wishlists */}
+        <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+            Employee Wishlists
+          </CardTitle>
+          <CardDescription>Items your employees have saved to their wishlists.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!wishlists || wishlists.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Heart className="h-8 w-8 mx-auto mb-2 opacity-25" />
+              <p className="text-sm">No items have been wishlisted yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(() => {
+                const grouped = new Map<number, { item: StoreItem; users: User[] }>();
+                for (const w of wishlists) {
+                  if (!grouped.has(w.storeItemId)) {
+                    grouped.set(w.storeItemId, { item: w.storeItem, users: [] });
+                  }
+                  grouped.get(w.storeItemId)!.users.push(w.user);
+                }
+                return Array.from(grouped.values()).map(({ item, users }) => (
+                  <div key={item.id} className="flex items-start gap-3 rounded-lg border p-3" data-testid={`wishlist-row-${item.id}`}>
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="h-12 w-12 object-cover rounded-md border flex-shrink-0"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/48x48?text=?"; }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{item.name}</p>
+                      <p className="text-xs text-primary font-bold mt-0.5">{item.price.toLocaleString()} Bucks</p>
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {users.map(u => (
+                          <span key={u.id} className="inline-flex items-center gap-1 text-xs bg-muted rounded-full px-2 py-0.5 text-muted-foreground" data-testid={`wishlist-user-${item.id}-${u.id}`}>
+                            <Heart className="h-2.5 w-2.5 text-red-400 fill-red-400" />
+                            {u.fullName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-semibold text-muted-foreground">{users.length} wishlisted</span>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+        </CardContent>
         </Card>
       </div>
     </AdminLayout>

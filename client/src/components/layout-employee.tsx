@@ -6,18 +6,23 @@ import { SiInstagram } from "react-icons/si";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
+import { useQuery } from "@tanstack/react-query";
 
 export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const { mutate: logout } = useLogout();
   const { data: user } = useUser();
   const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: features } = useQuery<{ storeEnabled: boolean; manualOrdersEnabled: boolean }>({
+    queryKey: ["/api/organizations/features"],
+    enabled: !!user,
+  });
 
   const isActive = (path: string) => location === path;
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
-    { href: "/store", label: "Store", icon: Store, testId: "link-store" },
+    ...(features?.storeEnabled !== false ? [{ href: "/store", label: "Store", icon: Store, testId: "link-store" }] : []),
     { href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
     { href: "/settings", label: "Settings", icon: Settings, testId: "link-settings" },
   ];

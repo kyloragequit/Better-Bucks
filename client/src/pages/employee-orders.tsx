@@ -37,6 +37,10 @@ export default function EmployeeOrdersPage() {
     queryKey: ["/api/orders"],
   });
   const { storeUrl } = useStoreUrl();
+  const { data: features } = useQuery<{ storeEnabled: boolean; manualOrdersEnabled: boolean }>({
+    queryKey: ["/api/organizations/features"],
+    enabled: !!authUser,
+  });
 
   if (isLoading) return <EmployeeLayout><Loader /></EmployeeLayout>;
 
@@ -80,7 +84,13 @@ export default function EmployeeOrdersPage() {
               {(userDetails?.balance || 0).toLocaleString()}
               <span className="text-xl text-muted-foreground ml-2 font-normal">bcks</span>
             </div>
-            <CreateOrderDialog balance={userDetails?.balance || 0} />
+            {features?.manualOrdersEnabled === false ? (
+              <p className="text-sm text-muted-foreground mt-2 bg-muted rounded-md px-3 py-2" data-testid="text-orders-disabled">
+                Manual order requests are currently disabled by your administrator.
+              </p>
+            ) : (
+              <CreateOrderDialog balance={userDetails?.balance || 0} />
+            )}
           </CardContent>
         </Card>
       </div>

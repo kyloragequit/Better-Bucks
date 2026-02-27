@@ -1370,6 +1370,28 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Get feature flags for current org (all authenticated users)
+  app.get("/api/organizations/features", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.json({ storeEnabled: true, manualOrdersEnabled: true });
+    const org = await storage.getOrganization(user.organizationId);
+    res.json({ storeEnabled: org?.storeEnabled ?? true, manualOrdersEnabled: org?.manualOrdersEnabled ?? true });
+  });
+
+  // Update feature flags (prime admin only)
+  app.patch("/api/organizations/feature-flags", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { storeEnabled, manualOrdersEnabled } = z.object({
+      storeEnabled: z.boolean(),
+      manualOrdersEnabled: z.boolean(),
+    }).parse(req.body);
+    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled);
+    res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled });
+  });
+
   // Get store URL for the current user's organization
   app.get("/api/organizations/store-url", async (req, res) => {
     const user = req.user as User | undefined;
@@ -2036,6 +2058,16 @@ export async function registerRoutes(
       performedBy: user.id,
     });
 
+    let storeConvertedValue: string | null = null;
+    if (user.organizationId) {
+      const shops = await storage.getShopWebsitesByOrganization(user.organizationId);
+      const shop = shops.find(s => s.pointsPerDollar > 0);
+      if (shop) {
+        const dollars = (item.price / shop.pointsPerDollar).toFixed(2);
+        storeConvertedValue = `$${dollars} (${shop.pointsPerDollar} bcks = $1)`;
+      }
+    }
+
     const order = await storage.createOrder({
       userId: user.id,
       pointsCost: item.price,
@@ -2043,10 +2075,46 @@ export async function registerRoutes(
       photoUrls: [item.imageUrl],
       itemUrl: item.url,
       shopWebsiteId: null,
-      convertedValue: null,
+      convertedValue: storeConvertedValue,
     });
 
     res.json(order);
+  });
+
+  // ========== Wishlists ==========
+  app.get("/api/wishlist", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "employee") return res.status(401).send("Unauthorized");
+    const items = await storage.getWishlistByUser(user.id);
+    res.json(items);
+  });
+
+  app.post("/api/wishlist/:itemId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "employee") return res.status(401).send("Unauthorized");
+    const itemId = parseInt(req.params.itemId);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
+    const item = await storage.getStoreItem(itemId);
+    if (!item || item.organizationId !== user.organizationId) return res.status(404).json({ message: "Item not found" });
+    const entry = await storage.addToWishlist(user.id, itemId);
+    res.status(201).json(entry);
+  });
+
+  app.delete("/api/wishlist/:itemId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "employee") return res.status(401).send("Unauthorized");
+    const itemId = parseInt(req.params.itemId);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
+    await storage.removeFromWishlist(user.id, itemId);
+    res.status(204).send();
+  });
+
+  app.get("/api/admin/wishlists", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.json([]);
+    const items = await storage.getWishlistsByOrganization(user.organizationId);
+    res.json(items);
   });
 
   // ========== Departments ==========

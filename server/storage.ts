@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
@@ -69,11 +69,18 @@ export interface IStorage {
   getPageContent(): Promise<Record<string, string>>;
   setPageContent(entries: Record<string, string>): Promise<void>;
 
+  updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean): Promise<Organization>;
+
   createStoreItem(item: InsertStoreItem): Promise<StoreItem>;
   getStoreItemsByOrganization(organizationId: number): Promise<StoreItem[]>;
   getStoreItem(id: number): Promise<StoreItem | undefined>;
   updateStoreItem(id: number, data: Partial<InsertStoreItem>): Promise<StoreItem>;
   deleteStoreItem(id: number): Promise<void>;
+
+  addToWishlist(userId: number, storeItemId: number): Promise<Wishlist>;
+  removeFromWishlist(userId: number, storeItemId: number): Promise<void>;
+  getWishlistByUser(userId: number): Promise<(Wishlist & { storeItem: StoreItem })[]>;
+  getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -505,6 +512,47 @@ export class DatabaseStorage implements IStorage {
 
   async deleteStoreItem(id: number): Promise<void> {
     await db.delete(storeItems).where(eq(storeItems.id, id));
+  }
+
+  async updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ storeEnabled, manualOrdersEnabled }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async addToWishlist(userId: number, storeItemId: number): Promise<Wishlist> {
+    const existing = await db.select().from(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.storeItemId, storeItemId)));
+    if (existing.length > 0) return existing[0];
+    const [entry] = await db.insert(wishlists).values({ userId, storeItemId }).returning();
+    return entry;
+  }
+
+  async removeFromWishlist(userId: number, storeItemId: number): Promise<void> {
+    await db.delete(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.storeItemId, storeItemId)));
+  }
+
+  async getWishlistByUser(userId: number): Promise<(Wishlist & { storeItem: StoreItem })[]> {
+    const rows = await db.select().from(wishlists).where(eq(wishlists.userId, userId)).orderBy(desc(wishlists.createdAt));
+    const result: (Wishlist & { storeItem: StoreItem })[] = [];
+    for (const row of rows) {
+      const [item] = await db.select().from(storeItems).where(eq(storeItems.id, row.storeItemId));
+      if (item) result.push({ ...row, storeItem: item });
+    }
+    return result;
+  }
+
+  async getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]> {
+    const orgUsers = await db.select().from(users).where(eq(users.organizationId, organizationId));
+    const userIds = orgUsers.map(u => u.id);
+    if (userIds.length === 0) return [];
+    const allWishlists = await db.select().from(wishlists).orderBy(desc(wishlists.createdAt));
+    const orgWishlists = allWishlists.filter(w => userIds.includes(w.userId));
+    const result: (Wishlist & { storeItem: StoreItem; user: User })[] = [];
+    for (const row of orgWishlists) {
+      const [item] = await db.select().from(storeItems).where(eq(storeItems.id, row.storeItemId));
+      const user = orgUsers.find(u => u.id === row.userId);
+      if (item && user) result.push({ ...row, storeItem: item, user });
+    }
+    return result;
   }
 }
 

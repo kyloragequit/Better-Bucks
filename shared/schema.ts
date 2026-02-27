@@ -16,6 +16,8 @@ export const organizations = pgTable("organizations", {
   status: text("status", { enum: ["active", "inactive", "pending", "paused"] }).default("pending").notNull(),
   adminRoleLabel: text("admin_role_label").default("Admin").notNull(),
   employeeRoleLabel: text("employee_role_label").default("Employee").notNull(),
+  storeEnabled: boolean("store_enabled").default(true).notNull(),
+  manualOrdersEnabled: boolean("manual_orders_enabled").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -161,6 +163,13 @@ export const storeItems = pgTable("store_items", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const wishlists = pgTable("wishlists", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  storeItemId: integer("store_item_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const infoRequests = pgTable("info_requests", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -170,6 +179,7 @@ export const infoRequests = pgTable("info_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const insertWishlistSchema = createInsertSchema(wishlists).omit({ id: true, createdAt: true });
 export const insertStoreItemSchema = createInsertSchema(storeItems).omit({ id: true, createdAt: true });
 export const insertInfoRequestSchema = createInsertSchema(infoRequests).omit({ id: true, createdAt: true });
 
@@ -200,3 +210,5 @@ export type InsertInfoRequest = z.infer<typeof insertInfoRequestSchema>;
 export type PageContent = typeof pageContent.$inferSelect;
 export type StoreItem = typeof storeItems.$inferSelect;
 export type InsertStoreItem = z.infer<typeof insertStoreItemSchema>;
+export type Wishlist = typeof wishlists.$inferSelect;
+export type InsertWishlist = z.infer<typeof insertWishlistSchema>;

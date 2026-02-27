@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wallet, History, CreditCard, Mail, Store } from "lucide-react";
+import { Wallet, History, CreditCard, Mail, Store, Heart, ExternalLink } from "lucide-react";
+import type { StoreItem, Wishlist } from "@shared/schema";
+import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
@@ -19,6 +21,10 @@ export default function EmployeeDashboard() {
   const { data: userDetails, isLoading } = useUserDetails(authUser?.id || 0);
   const { data: shops } = useQuery<{ id: number; name: string; url: string; pointsPerDollar: number }[]>({
     queryKey: ["/api/shop-websites"],
+    enabled: !!authUser,
+  });
+  const { data: wishlist } = useQuery<(Wishlist & { storeItem: StoreItem })[]>({
+    queryKey: ["/api/wishlist"],
     enabled: !!authUser,
   });
 
@@ -95,6 +101,40 @@ export default function EmployeeDashboard() {
 
       {/* Email for Updates */}
       <EmailUpdateSection userId={userDetails.id} currentEmail={userDetails.email} />
+
+      {/* Wishlist */}
+      {wishlist && wishlist.length > 0 && (
+        <Card className="shadow-md border-border/60 mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-red-500 fill-red-500" /> My Wishlist
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {wishlist.map((entry) => (
+                <div key={entry.id} className="group rounded-lg border overflow-hidden" data-testid={`wishlist-item-${entry.storeItemId}`}>
+                  <a href={entry.storeItem.url} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden bg-gray-100">
+                    <img
+                      src={entry.storeItem.imageUrl}
+                      alt={entry.storeItem.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/200x200?text=?"; }}
+                    />
+                  </a>
+                  <div className="p-2">
+                    <p className="text-xs font-semibold leading-snug line-clamp-2" data-testid={`wishlist-item-name-${entry.storeItemId}`}>{entry.storeItem.name}</p>
+                    <p className="text-xs text-primary font-bold mt-0.5">{entry.storeItem.price.toLocaleString()} Bucks</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 text-right">
+              <Link href="/store" className="text-xs text-primary underline">Go to Store</Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Transaction History */}
       <Card className="shadow-md border-border/60">

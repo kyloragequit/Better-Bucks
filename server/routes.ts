@@ -18,7 +18,7 @@ async function getStripeClient() {
 async function getStripePubKey() {
   return getStripePublishableKey();
 }
-import { sql, eq, and, gte, gt, lt, inArray } from "drizzle-orm";
+import { sql, eq, and, gte, lte, gt, lt, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { organizations, users, infoRequests, transactions, orders } from "@shared/schema";
 import type { User } from "@shared/schema";

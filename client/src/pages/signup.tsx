@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
@@ -92,6 +92,12 @@ export default function SignupPage() {
     },
   });
 
+  const rfiRef = useRef<HTMLDivElement>(null);
+
+  const scrollToRfi = () => {
+    rfiRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const params = new URLSearchParams(window.location.search);
   const cancelled = params.get("cancelled");
 
@@ -172,17 +178,20 @@ export default function SignupPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {tiers.map((tier) => {
+            const isEnterprise = tier.id === "enterprise";
             const isSelected = selectedTier === tier.id;
             const TierIcon = tier.icon;
             return (
               <Card
                 key={tier.id}
-                className={`relative cursor-pointer transition-all duration-200 ${
-                  isSelected
-                    ? "ring-2 ring-primary border-primary shadow-lg"
-                    : "border-muted hover-elevate"
+                className={`relative transition-all duration-200 ${
+                  isEnterprise
+                    ? "cursor-default border-muted hover-elevate"
+                    : isSelected
+                    ? "cursor-pointer ring-2 ring-primary border-primary shadow-lg"
+                    : "cursor-pointer border-muted hover-elevate"
                 } ${tier.popular ? "border-primary/50" : ""}`}
-                onClick={() => setSelectedTier(tier.id)}
+                onClick={() => { if (!isEnterprise) setSelectedTier(tier.id); }}
                 data-testid={`card-tier-${tier.id}`}
               >
                 {tier.popular && (
@@ -199,8 +208,14 @@ export default function SignupPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-center">
                   <div>
-                    <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
-                    <span className="text-sm text-muted-foreground">/mo</span>
+                    {isEnterprise ? (
+                      <span className="text-2xl font-bold text-primary">Contact Us</span>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
+                        <span className="text-sm text-muted-foreground">/mo</span>
+                      </>
+                    )}
                   </div>
                   <div className="inline-block rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1" data-testid={`badge-trial-${tier.id}`}>
                     60-Day Free Pilot
@@ -217,18 +232,34 @@ export default function SignupPage() {
                     ))}
                   </div>
                   <div className="pt-2">
-                    <Button
-                      variant={isSelected ? "default" : "outline"}
-                      size="sm"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTier(tier.id);
-                      }}
-                      data-testid={`button-select-tier-${tier.id}`}
-                    >
-                      {isSelected ? "Selected" : "Select Plan"}
-                    </Button>
+                    {isEnterprise ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          scrollToRfi();
+                        }}
+                        data-testid="button-select-tier-enterprise"
+                      >
+                        <Mail className="mr-1.5 h-3 w-3" />
+                        Contact Us
+                      </Button>
+                    ) : (
+                      <Button
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTier(tier.id);
+                        }}
+                        data-testid={`button-select-tier-${tier.id}`}
+                      >
+                        {isSelected ? "Selected" : "Select Plan"}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -313,7 +344,7 @@ export default function SignupPage() {
           </Card>
         )}
 
-        <div className="border-t border-border/50 pt-8 mt-8">
+        <div ref={rfiRef} className="border-t border-border/50 pt-8 mt-8">
           <Card className="shadow-xl shadow-black/5 border-muted bg-white/80 backdrop-blur-sm max-w-lg mx-auto">
             <CardHeader className="text-center pb-3">
               <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">

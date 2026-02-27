@@ -53,7 +53,7 @@ const tiers = [
     price: 299.99,
     maxEmployees: -1,
     description: "500+ employees",
-    perEmployee: "Best value",
+    perEmployee: "More dedicated support",
     icon: Crown,
     features: ["60-day free pilot program", "Unlimited logins", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"],
   },
@@ -221,7 +221,7 @@ export default function SignupPage() {
                     60-Day Free Pilot
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {tier.perEmployee} per employee
+                    {isEnterprise ? tier.perEmployee : `${tier.perEmployee} per employee`}
                   </div>
                   <div className="space-y-1.5 text-left">
                     {tier.features.map((feature, i) => (

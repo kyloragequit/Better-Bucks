@@ -1725,10 +1725,16 @@ export async function registerRoutes(
     try {
       const allOrgs = await storage.getAllOrganizations();
       const qualifiedOrgs = allOrgs.filter(org => {
+        // Always show free/promo orgs
         const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_");
         if (isFree) return true;
+        // Always show paused or inactive orgs
         if (org.status === "paused" || org.status === "inactive") return true;
-        return org.status === "active" && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout";
+        // Show all active orgs (developer reactivation should always be visible)
+        if (org.status === "active") return true;
+        // Show pending orgs that have started checkout (so devs can delete them)
+        if (org.status === "pending") return true;
+        return false;
       });
       const orgData = await Promise.all(qualifiedOrgs.map(async (org) => {
         const orgUsers = await storage.getUsersByOrganization(org.id);

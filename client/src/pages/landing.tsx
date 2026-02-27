@@ -79,7 +79,7 @@ export default function LandingPage() {
     "name": "Better Bucks",
     "url": "https://better-bucks.replit.app",
     "logo": "https://better-bucks.replit.app/favicon.png",
-    "description": "Better Bucks helps organizations reward employees with a digital Bucks currency redeemable for real products. Simple, scalable, and motivating.",
+    "description": "Better Bucks replaces manual spreadsheet reward tracking with automated employee incentive management. Built for logistics, warehousing, manufacturing, and distribution operations — improving safety compliance motivation, employee engagement, and performance visibility for frontline and hourly workforces.",
     "contactPoint": {
       "@type": "ContactPoint",
       "email": "miles@betterbucks.net",
@@ -93,8 +93,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <PageSEO
-        title="Better Bucks – Motivate & Reward Your Team"
-        description="Replace spreadsheets with a modern Bucks-based incentive system. Employees earn and redeem Bucks for real rewards. Simple setup, full control."
+        title="Better Bucks – Stop Tracking Employee Incentives on Spreadsheets"
+        description="Built for logistics, warehousing, and manufacturing teams. Better Bucks replaces manual reward tracking with automated incentive management — improving safety compliance, employee engagement, and performance visibility for frontline workforces."
         canonicalPath="/"
         jsonLd={jsonLd}
       />

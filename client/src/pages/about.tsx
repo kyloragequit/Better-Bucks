@@ -11,8 +11,8 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <PageSEO
-        title="About Better Bucks – Our Mission"
-        description="Learn how Better Bucks was built to help organizations recognize and reward employee performance with a flexible digital currency."
+        title="About Better Bucks – Built for Frontline Workforce Incentive Programs"
+        description="Better Bucks was built to eliminate inconsistent employee recognition and time-consuming admin tasks in logistics, warehousing, manufacturing, and distribution operations with 50–500 employees."
         canonicalPath="/about"
       />
 

@@ -10,8 +10,8 @@ export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <PageSEO
-        title="How It Works – Better Bucks"
-        description="Admins set up reward rules, employees earn Bucks for hitting goals, and redeem them in your organization's store. See how easy it is."
+        title="How It Works – Automated Incentive Tracking for Shift-Based Teams | Better Bucks"
+        description="Replace your spreadsheet reward system in minutes. Operations and HR managers get full performance visibility — hourly employees earn Bucks for safety compliance, attendance, and KPIs, then redeem them in your company store."
         canonicalPath="/how-it-works"
       />
 

@@ -32,8 +32,8 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
       <PageSEO
-        title="Log In – Better Bucks"
-        description="Access your Better Bucks organization portal. Employee and administrator login."
+        title="Log In – Better Bucks Employee Incentive Platform"
+        description="Access your Better Bucks portal. Purpose-built reward program management for logistics, warehousing, and manufacturing operations."
         canonicalPath="/login"
       />
 

@@ -142,8 +142,8 @@ export default function SignupPage() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
       <PageSEO
-        title="Get Started – Better Bucks"
-        description="Sign up your organization for Better Bucks. Choose a plan and start rewarding your team today."
+        title="Get Started – Eliminate Manual Reward Tracking | Better Bucks"
+        description="Solve employee engagement issues and cut time-consuming admin tasks. Better Bucks is built for 50–500 employee operations in logistics, distribution, warehousing, and manufacturing. Set up your incentive program today."
         canonicalPath="/signup"
       />
 

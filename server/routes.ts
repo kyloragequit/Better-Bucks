@@ -928,6 +928,133 @@ export async function registerRoutes(
     });
   });
 
+  // Time-series stats for line charts on the dashboard
+  app.get("/api/stats/timeseries", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const type = req.query.type as string;      // "credited" | "debited" | "orders"
+    const period = (req.query.period as string) || "week"; // "week" | "month" | "year"
+
+    let orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const deptIdParam = req.query.departmentId ? parseInt(req.query.departmentId as string) : null;
+    if (deptIdParam !== null) {
+      orgUsers = orgUsers.filter(u => u.departmentId === deptIdParam);
+    }
+    const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
+    const adminIds = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id);
+
+    const adminIdFilter = req.query.adminId ? parseInt(req.query.adminId as string) : null;
+    const performedByFilter = adminIdFilter
+      ? eq(transactions.performedBy, adminIdFilter)
+      : adminIds.length > 0 ? inArray(transactions.performedBy, adminIds) : sql`false`;
+
+    const now = new Date();
+
+    // Build the bucket labels and date range
+    type Bucket = { label: string; key: string; start: Date; end: Date };
+    let buckets: Bucket[] = [];
+
+    if (period === "week") {
+      // Last 7 days including today
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+        buckets.push({
+          label: start.toLocaleDateString("en-US", { weekday: "short" }),
+          key: start.toISOString().split("T")[0],
+          start,
+          end,
+        });
+      }
+    } else if (period === "month") {
+      // Last 30 days including today
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+        buckets.push({
+          label: `${start.getMonth() + 1}/${start.getDate()}`,
+          key: start.toISOString().split("T")[0],
+          start,
+          end,
+        });
+      }
+    } else {
+      // "year" — 12 months of current year
+      const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      for (let i = 0; i < 12; i++) {
+        const start = new Date(now.getFullYear(), i, 1, 0, 0, 0, 0);
+        const end = new Date(now.getFullYear(), i + 1, 0, 23, 59, 59, 999);
+        buckets.push({
+          label: MONTHS[i],
+          key: `${now.getFullYear()}-${String(i + 1).padStart(2, "0")}`,
+          start,
+          end,
+        });
+      }
+    }
+
+    const overallStart = buckets[0].start;
+    const overallEnd = buckets[buckets.length - 1].end;
+
+    const dataMap: Record<string, number> = {};
+
+    if ((type === "credited" || type === "debited") && employeeIds.length > 0 && adminIds.length > 0) {
+      const amountCondition = type === "credited" ? gt(transactions.amount, 0) : lt(transactions.amount, 0);
+      const rows = await db.select({
+        createdAt: transactions.createdAt,
+        amount: transactions.amount,
+      }).from(transactions).where(and(
+        inArray(transactions.userId, employeeIds),
+        amountCondition,
+        type === "credited" ? performedByFilter : sql`true`,
+        gte(transactions.createdAt, overallStart),
+        lte(transactions.createdAt, overallEnd),
+      ));
+
+      for (const row of rows) {
+        const d = new Date(row.createdAt);
+        let key: string;
+        if (period === "year") {
+          key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        } else {
+          key = d.toISOString().split("T")[0];
+        }
+        const val = Math.abs(Number(row.amount));
+        dataMap[key] = (dataMap[key] || 0) + val;
+      }
+    } else if (type === "orders" && employeeIds.length > 0) {
+      const orderRows = await db.select({
+        createdAt: orders.createdAt,
+      }).from(orders).where(and(
+        inArray(orders.userId, employeeIds),
+        gte(orders.createdAt, overallStart),
+        lte(orders.createdAt, overallEnd),
+      ));
+
+      for (const row of orderRows) {
+        const d = new Date(row.createdAt);
+        let key: string;
+        if (period === "year") {
+          key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        } else {
+          key = d.toISOString().split("T")[0];
+        }
+        dataMap[key] = (dataMap[key] || 0) + 1;
+      }
+    }
+
+    const result = buckets.map(b => ({ label: b.label, value: dataMap[b.key] || 0 }));
+    res.json(result);
+  });
+
   // Get admins for the current organization (for dashboard filter)
   app.get("/api/org/admins", async (req, res) => {
     const user = req.user as User | undefined;

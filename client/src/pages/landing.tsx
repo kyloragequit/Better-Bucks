@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,35 @@ import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send,
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 
+const DEFAULTS: Record<string, string> = {
+  hero_headline: "Reward What's Important",
+  hero_subheadline: `A "Bucks"-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.`,
+  benefit1_title: "Simple Rewards, Zero Hassle",
+  benefit1_subtitle: "Streamline how you recognize employees.",
+  benefit1_bullet1: "Replace spreadsheets and manual tracking",
+  benefit1_bullet2: "Reward employees in seconds",
+  benefit1_bullet3: "Centralized platform for all incentives",
+  benefit2_title: "Motivate Performance That Matters",
+  benefit2_subtitle: "Turn everyday actions into measurable results.",
+  benefit2_bullet1: "Tie rewards to KPIs, attendance, or goals",
+  benefit2_bullet2: "Reinforce productivity and accountability",
+  benefit2_bullet3: "Encourage behaviors aligned with company success",
+  benefit3_title: "Control Costs While Boosting Engagement",
+  benefit3_subtitle: "Incentives employees love — with budgets you control.",
+  benefit3_bullet1: "Predictable incentive spending",
+  benefit3_bullet2: "Flexible reward options employees choose",
+  benefit3_bullet3: "Scales easily as your workforce grows",
+  cta_headline: "Ready to transform your employee rewards?",
+  cta_subtext: "Fill out the form below and we'll get back to you about how Better Bucks can work for your team.",
+  instagram_handle: "better_bucks",
+};
+
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const contactRef = useRef<HTMLDivElement>(null);
+  const { data: rawContent } = useQuery<Record<string, string>>({ queryKey: ["/api/page-content"] });
+  const c = (key: string) => rawContent?.[key] ?? DEFAULTS[key] ?? "";
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [contactName, setContactName] = useState("");
@@ -134,10 +160,10 @@ export default function LandingPage() {
             <AppLogo size="lg" />
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 leading-tight" data-testid="text-hero-headline">
-            Reward What's Important
+            {c("hero_headline")}
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed" data-testid="text-hero-subheadline">
-            A "Bucks"-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.
+            {c("hero_subheadline")}
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-4">
@@ -173,20 +199,20 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
                 <Star className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Simple Rewards, Zero Hassle</h3>
-              <p className="text-gray-600 mb-4">Streamline how you recognize employees.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit1_title")}</h3>
+              <p className="text-gray-600 mb-4">{c("benefit1_subtitle")}</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Replace spreadsheets and manual tracking
+                  {c("benefit1_bullet1")}
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Reward employees in seconds
+                  {c("benefit1_bullet2")}
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Centralized platform for all incentives
+                  {c("benefit1_bullet3")}
                 </li>
               </ul>
             </div>
@@ -195,20 +221,20 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
                 <TrendingUp className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Motivate Performance That Matters</h3>
-              <p className="text-gray-600 mb-4">Turn everyday actions into measurable results.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit2_title")}</h3>
+              <p className="text-gray-600 mb-4">{c("benefit2_subtitle")}</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Tie rewards to KPIs, attendance, or goals
+                  {c("benefit2_bullet1")}
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Reinforce productivity and accountability
+                  {c("benefit2_bullet2")}
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Encourage behaviors aligned with company success
+                  {c("benefit2_bullet3")}
                 </li>
               </ul>
             </div>
@@ -217,20 +243,20 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
                 <DollarSign className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Control Costs While Boosting Engagement</h3>
-              <p className="text-gray-600 mb-4">Incentives employees love — with budgets you control.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit3_title")}</h3>
+              <p className="text-gray-600 mb-4">{c("benefit3_subtitle")}</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Predictable incentive spending
+                  {c("benefit3_bullet1")}
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Flexible reward options employees choose
+                  {c("benefit3_bullet2")}
                 </li>
                 <li className="flex items-start gap-2 text-gray-600">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
-                  Scales easily as your workforce grows
+                  {c("benefit3_bullet3")}
                 </li>
               </ul>
             </div>
@@ -242,10 +268,10 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16">
           <div className="text-center mb-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3" data-testid="text-cta-headline">
-              Ready to transform your employee rewards?
+              {c("cta_headline")}
             </h2>
             <p className="text-gray-600 max-w-lg mx-auto">
-              Fill out the form below and we'll get back to you about how Better Bucks can work for your team.
+              {c("cta_subtext")}
             </p>
           </div>
           <form onSubmit={handleContactSubmit} className="bg-white rounded-lg border shadow-sm p-6 sm:p-8 space-y-4">

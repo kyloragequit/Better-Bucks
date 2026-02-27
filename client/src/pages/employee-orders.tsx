@@ -348,12 +348,20 @@ function CreateOrderDialog({ balance }: { balance: number }) {
               data-testid="input-order-points"
             />
             <p className="text-xs text-muted-foreground">You have {balance.toLocaleString()} Bucks available</p>
-            {convertedDollars && selectedShop && (
-              <div className="bg-muted/50 rounded-md p-2 text-sm flex items-center gap-2">
-                <Store className="h-4 w-4 text-primary" />
-                <span>
-                  {pointsNum.toLocaleString()} Bucks = <strong>${convertedDollars}</strong> on {selectedShop.name}
-                </span>
+            {selectedShop && selectedShop.pointsPerDollar > 0 && (
+              <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-sm space-y-1">
+                <div className="flex items-center gap-2 font-medium text-primary">
+                  <Store className="h-4 w-4 shrink-0" />
+                  Conversion Rate — {selectedShop.name}
+                </div>
+                <p className="text-muted-foreground pl-6">
+                  {selectedShop.pointsPerDollar.toLocaleString()} Bucks = $1.00
+                </p>
+                {convertedDollars && (
+                  <p className="pl-6 font-semibold text-gray-900">
+                    {pointsNum.toLocaleString()} Bucks = <span className="text-primary">${convertedDollars}</span>
+                  </p>
+                )}
               </div>
             )}
           </div>

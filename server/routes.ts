@@ -2004,6 +2004,22 @@ export async function registerRoutes(
     res.sendStatus(200);
   });
 
+  // Page content (public read, developer write)
+  app.get("/api/page-content", async (_req, res) => {
+    const content = await storage.getPageContent();
+    res.json(content);
+  });
+
+  app.patch("/api/page-content", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+    const entries = z.record(z.string()).parse(req.body);
+    await storage.setPageContent(entries);
+    res.json({ ok: true });
+  });
+
   // Ensure PRIME1 organization exists (free membership)
   let prime1Org = await storage.getOrganizationByCode("PRIME1");
   if (!prime1Org) {

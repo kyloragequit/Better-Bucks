@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
@@ -65,6 +65,9 @@ export interface IStorage {
   deleteDepartment(id: number): Promise<void>;
   updateUserDepartment(userId: number, departmentId: number | null): Promise<User>;
   updateOrganizationRoleLabels(id: number, adminLabel: string, employeeLabel: string): Promise<Organization>;
+
+  getPageContent(): Promise<Record<string, string>>;
+  setPageContent(entries: Record<string, string>): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -439,6 +442,23 @@ export class DatabaseStorage implements IStorage {
   async updateOrganizationRoleLabels(id: number, adminLabel: string, employeeLabel: string): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ adminRoleLabel: adminLabel, employeeRoleLabel: employeeLabel }).where(eq(organizations.id, id)).returning();
     return updated;
+  }
+
+  async getPageContent(): Promise<Record<string, string>> {
+    const rows = await db.select().from(pageContent);
+    const result: Record<string, string> = {};
+    for (const row of rows) {
+      result[row.key] = row.value;
+    }
+    return result;
+  }
+
+  async setPageContent(entries: Record<string, string>): Promise<void> {
+    for (const [key, value] of Object.entries(entries)) {
+      await db.insert(pageContent)
+        .values({ key, value })
+        .onConflictDoUpdate({ target: pageContent.key, set: { value, updatedAt: new Date() } });
+    }
   }
 
   async deleteOrganization(id: number): Promise<void> {

@@ -145,6 +145,12 @@ export const documentsRelations = relations(documents, ({ one }) => ({
   }),
 }));
 
+export const pageContent = pgTable("page_content", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const infoRequests = pgTable("info_requests", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -180,3 +186,4 @@ export type Department = typeof departments.$inferSelect;
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type InfoRequest = typeof infoRequests.$inferSelect;
 export type InsertInfoRequest = z.infer<typeof insertInfoRequestSchema>;
+export type PageContent = typeof pageContent.$inferSelect;

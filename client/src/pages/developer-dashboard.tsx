@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useUser } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -5,12 +6,61 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, Crown, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization } from "@shared/schema";
+
+const CMS_FIELDS: { key: string; label: string; multiline?: boolean }[] = [
+  { key: "hero_headline", label: "Hero Headline" },
+  { key: "hero_subheadline", label: "Hero Sub-headline", multiline: true },
+  { key: "benefit1_title", label: "Benefit 1 — Title" },
+  { key: "benefit1_subtitle", label: "Benefit 1 — Subtitle" },
+  { key: "benefit1_bullet1", label: "Benefit 1 — Bullet 1" },
+  { key: "benefit1_bullet2", label: "Benefit 1 — Bullet 2" },
+  { key: "benefit1_bullet3", label: "Benefit 1 — Bullet 3" },
+  { key: "benefit2_title", label: "Benefit 2 — Title" },
+  { key: "benefit2_subtitle", label: "Benefit 2 — Subtitle" },
+  { key: "benefit2_bullet1", label: "Benefit 2 — Bullet 1" },
+  { key: "benefit2_bullet2", label: "Benefit 2 — Bullet 2" },
+  { key: "benefit2_bullet3", label: "Benefit 2 — Bullet 3" },
+  { key: "benefit3_title", label: "Benefit 3 — Title" },
+  { key: "benefit3_subtitle", label: "Benefit 3 — Subtitle" },
+  { key: "benefit3_bullet1", label: "Benefit 3 — Bullet 1" },
+  { key: "benefit3_bullet2", label: "Benefit 3 — Bullet 2" },
+  { key: "benefit3_bullet3", label: "Benefit 3 — Bullet 3" },
+  { key: "cta_headline", label: "CTA Headline" },
+  { key: "cta_subtext", label: "CTA Sub-text", multiline: true },
+  { key: "instagram_handle", label: "Instagram Handle (without @)" },
+];
+
+const CMS_DEFAULTS: Record<string, string> = {
+  hero_headline: "Reward What's Important",
+  hero_subheadline: `A "Bucks"-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.`,
+  benefit1_title: "Simple Rewards, Zero Hassle",
+  benefit1_subtitle: "Streamline how you recognize employees.",
+  benefit1_bullet1: "Replace spreadsheets and manual tracking",
+  benefit1_bullet2: "Reward employees in seconds",
+  benefit1_bullet3: "Centralized platform for all incentives",
+  benefit2_title: "Motivate Performance That Matters",
+  benefit2_subtitle: "Turn everyday actions into measurable results.",
+  benefit2_bullet1: "Tie rewards to KPIs, attendance, or goals",
+  benefit2_bullet2: "Reinforce productivity and accountability",
+  benefit2_bullet3: "Encourage behaviors aligned with company success",
+  benefit3_title: "Control Costs While Boosting Engagement",
+  benefit3_subtitle: "Incentives employees love — with budgets you control.",
+  benefit3_bullet1: "Predictable incentive spending",
+  benefit3_bullet2: "Flexible reward options employees choose",
+  benefit3_bullet3: "Scales easily as your workforce grows",
+  cta_headline: "Ready to transform your employee rewards?",
+  cta_subtext: "Fill out the form below and we'll get back to you about how Better Bucks can work for your team.",
+  instagram_handle: "better_bucks",
+};
 
 type OrgWithStats = Organization & {
   adminCount: number;
@@ -38,10 +88,43 @@ export default function DeveloperDashboardPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
+  const [cmsTab, setCmsTab] = useState(false);
 
   const { data: organizations, isLoading } = useQuery<OrgWithStats[]>({
     queryKey: ["/api/developer/organizations"],
     enabled: user?.role === "developer",
+  });
+
+  const { data: cmsContent } = useQuery<Record<string, string>>({
+    queryKey: ["/api/page-content"],
+    enabled: user?.role === "developer",
+  });
+
+  useEffect(() => {
+    if (cmsContent) {
+      const merged: Record<string, string> = {};
+      for (const f of CMS_FIELDS) {
+        merged[f.key] = cmsContent[f.key] ?? CMS_DEFAULTS[f.key] ?? "";
+      }
+      setCmsValues(merged);
+    } else {
+      setCmsValues({ ...CMS_DEFAULTS });
+    }
+  }, [cmsContent]);
+
+  const saveCmsMutation = useMutation({
+    mutationFn: async (entries: Record<string, string>) => {
+      const res = await apiRequest("PATCH", "/api/page-content", entries);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/page-content"] });
+      toast({ title: "Saved", description: "Landing page content updated successfully." });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
   });
 
   const impersonateMutation = useMutation({
@@ -156,16 +239,94 @@ export default function DeveloperDashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900" data-testid="text-dev-dashboard-title">
-            Developer Dashboard
-          </h1>
-          <p className="text-gray-600 mt-1">
-            View all organizations and manage customer accounts.
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900" data-testid="text-dev-dashboard-title">
+              Developer Dashboard
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {cmsTab ? "Edit landing page text and links." : "View all organizations and manage customer accounts."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={cmsTab ? "outline" : "default"}
+              size="sm"
+              onClick={() => setCmsTab(false)}
+              data-testid="button-tab-orgs"
+            >
+              <Building2 className="mr-1.5 h-4 w-4" />
+              Organizations
+            </Button>
+            <Button
+              variant={cmsTab ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCmsTab(true)}
+              data-testid="button-tab-cms"
+            >
+              <FileEdit className="mr-1.5 h-4 w-4" />
+              Edit Home Page
+            </Button>
+          </div>
         </div>
 
-        {isLoading ? (
+        {cmsTab ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileEdit className="h-5 w-5" />
+                Home Page Content Editor
+              </CardTitle>
+              <CardDescription>
+                Changes are saved permanently and appear live on the public landing page immediately.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {CMS_FIELDS.map((field) => (
+                  <div key={field.key} className={field.multiline ? "md:col-span-2" : ""}>
+                    <Label htmlFor={`cms-${field.key}`} className="mb-1.5 block text-sm font-medium">
+                      {field.label}
+                    </Label>
+                    {field.multiline ? (
+                      <Textarea
+                        id={`cms-${field.key}`}
+                        rows={3}
+                        value={cmsValues[field.key] ?? ""}
+                        onChange={(e) => setCmsValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        data-testid={`input-cms-${field.key}`}
+                        className="resize-y"
+                      />
+                    ) : (
+                      <Input
+                        id={`cms-${field.key}`}
+                        value={cmsValues[field.key] ?? ""}
+                        onChange={(e) => setCmsValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        data-testid={`input-cms-${field.key}`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Button
+                  onClick={() => saveCmsMutation.mutate(cmsValues)}
+                  disabled={saveCmsMutation.isPending}
+                  data-testid="button-save-cms"
+                >
+                  {saveCmsMutation.isPending ? (
+                    <>Saving...</>
+                  ) : (
+                    <>
+                      <Save className="mr-1.5 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : isLoading ? (
           <Loader />
         ) : (
           <>

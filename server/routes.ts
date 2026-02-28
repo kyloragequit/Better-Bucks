@@ -29,36 +29,47 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
   };
 }
 
+async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }): Promise<void> {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  if (!smtpUser || !smtpPass) {
+    console.warn(`[Email] SMTP not configured (SMTP_USER / SMTP_PASS missing). Would have sent "${subject}" to ${to}.`);
+    return;
+  }
+  const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+  const smtpPort = parseInt(process.env.SMTP_PORT || "587");
+  const nm = await import("nodemailer");
+  const transporter = nm.default.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+  await transporter.sendMail({
+    from: `"Better Bucks" <${smtpUser}>`,
+    to,
+    subject,
+    html,
+    ...(text ? { text } : {}),
+  });
+  console.log(`[Email] Sent "${subject}" to ${to}`);
+}
+
 async function sendVerificationEmail(email: string, code: string, fullName: string): Promise<void> {
   try {
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    if (!smtpUser || !smtpPass) {
-      console.log(`[Email Verification] SMTP not configured. Code for ${email}: ${code}`);
-      return;
-    }
-    const nm = await import("nodemailer");
-    const transporter = nm.default.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: { user: smtpUser, pass: smtpPass },
-    });
-    await transporter.sendMail({
-      from: `"Better Bucks" <${smtpUser}>`,
+    await sendEmail({
       to: email,
       subject: "Verify your email - Better Bucks",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #d946a8;">Better Bucks</h2>
+          <h2 style="color: #162A4A;">Better Bucks</h2>
           <p>Hi ${fullName},</p>
           <p>Your verification code is:</p>
-          <div style="background: #fce4ec; padding: 16px; border-radius: 8px; text-align: center; font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #d946a8;">${code}</div>
+          <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #162A4A;">${code}</div>
           <p style="margin-top: 16px; color: #666;">Enter this code in the app to verify your email address.</p>
         </div>
       `,
     });
-    console.log(`[Email Verification] Sent to ${email}`);
   } catch (err) {
     console.error(`[Email Verification] Failed to send to ${email}:`, err);
   }
@@ -168,35 +179,23 @@ export async function registerRoutes(
     const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await storage.setPasswordResetToken(user.id, code, expiry);
 
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
     if (isEmail && user.email) {
-      if (smtpUser && smtpPass) {
-        try {
-          const nm = await import("nodemailer");
-          const transporter = nm.default.createTransport({
-            host: "smtp.gmail.com", port: 587, secure: false,
-            auth: { user: smtpUser, pass: smtpPass },
-          });
-          await transporter.sendMail({
-            from: `"Better Bucks" <${smtpUser}>`,
-            to: user.email,
-            subject: "Reset your Better Bucks password",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-                <h2 style="color: #162A4A;">Better Bucks</h2>
-                <p>Hi ${user.fullName},</p>
-                <p>We received a request to reset your password. Your reset code is:</p>
-                <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #162A4A;">${code}</div>
-                <p style="margin-top: 16px; color: #666;">This code expires in 1 hour. If you did not request a password reset, please ignore this email.</p>
-              </div>
-            `,
-          });
-        } catch (err) {
-          console.error("[Password Reset] Email failed:", err);
-        }
-      } else {
-        console.log(`[Password Reset] SMTP not configured. Code for ${user.email}: ${code}`);
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: "Reset your Better Bucks password",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+              <h2 style="color: #162A4A;">Better Bucks</h2>
+              <p>Hi ${user.fullName},</p>
+              <p>We received a request to reset your password. Your reset code is:</p>
+              <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #162A4A;">${code}</div>
+              <p style="margin-top: 16px; color: #666;">This code expires in 1 hour. If you did not request a password reset, please ignore this email.</p>
+            </div>
+          `,
+        });
+      } catch (err) {
+        console.error("[Password Reset] Email failed:", err);
       }
     } else if (!isEmail && user.phone) {
       const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -1369,8 +1368,8 @@ export async function registerRoutes(
       if (existingUser) return res.status(409).json({ message: "Username already taken" });
 
       if (hasEmail) {
-        const existingEmail = await storage.getUserByEmailAndOrg(email, org.id);
-        if (existingEmail) return res.status(400).json({ message: "This email is already in use within this organization" });
+        const existingEmail = await storage.getUserByEmailGlobal(email);
+        if (existingEmail) return res.status(400).json({ message: "This email is already associated with an existing account. Please use a different email address." });
       }
       if (hasPhone) {
         const existingPhone = await storage.getUserByPhoneAndOrg(phone, org.id);
@@ -1733,22 +1732,8 @@ export async function registerRoutes(
       const dateStr = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
       const subject = `RFI Better Bucks ${data.name} ${dateStr}`;
 
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
-      const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-      const smtpPort = parseInt(process.env.SMTP_PORT || "587");
-
-      if (smtpUser && smtpPass) {
-        const nm = await import("nodemailer");
-        const transporter = nm.default.createTransport({
-          host: smtpHost,
-          port: smtpPort,
-          secure: smtpPort === 465,
-          auth: { user: smtpUser, pass: smtpPass },
-        });
-
-        await transporter.sendMail({
-          from: smtpUser,
+      try {
+        await sendEmail({
           to: "miles@betterbucks.net",
           subject,
           text: `New Information Request\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\nEmployee Incentive Needs:\n${data.needs}`,
@@ -1761,6 +1746,8 @@ export async function registerRoutes(
             <p>${data.needs.replace(/\n/g, "<br>")}</p>
           `,
         });
+      } catch (err) {
+        console.error("[RFI] Email failed:", err);
       }
 
       res.json({ message: "Your request has been submitted. We'll be in touch!" });

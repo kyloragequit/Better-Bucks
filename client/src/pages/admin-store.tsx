@@ -214,16 +214,6 @@ export default function AdminStorePage() {
     <AdminLayout>
       {showHelp && <NeedHelpPanel onClose={() => setShowHelp(false)} />}
 
-      <button
-        onClick={() => setShowHelp(true)}
-        className="fixed bottom-6 right-6 z-[999] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
-        style={{ background: "#4E9F3D" }}
-        data-testid="button-need-help"
-      >
-        <HelpCircle className="h-4 w-4" />
-        Need help?
-      </button>
-
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -232,11 +222,22 @@ export default function AdminStorePage() {
               Add items that employees can browse and purchase with their Bucks.
             </p>
           </div>
-          {!showAddForm && !editingItem && (
-            <Button onClick={() => setShowAddForm(true)} data-testid="button-add-store-item">
-              <Plus className="h-4 w-4 mr-2" /> Add Item
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowHelp(true)}
+              className="gap-2"
+              data-testid="button-need-help"
+            >
+              <HelpCircle className="h-4 w-4" />
+              Need help?
             </Button>
-          )}
+            {!showAddForm && !editingItem && (
+              <Button onClick={() => setShowAddForm(true)} data-testid="button-add-store-item">
+                <Plus className="h-4 w-4 mr-2" /> Add Item
+              </Button>
+            )}
+          </div>
         </div>
 
         {(showAddForm || editingItem) && (

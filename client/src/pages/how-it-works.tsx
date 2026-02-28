@@ -213,32 +213,32 @@ export default function HowItWorksPage() {
                 }}
               >
                 {/* Mock app header */}
-                <div className="flex items-center justify-between px-5 py-4" style={{ background: NAVY }}>
+                <div className="flex items-center justify-between px-4 py-2.5" style={{ background: NAVY }}>
                   <div className="flex items-center gap-2">
                     <AppLogo size="sm" />
                     <div>
-                      <p className="text-white font-bold text-sm leading-tight">Better Bucks Store</p>
+                      <p className="text-white font-bold text-xs leading-tight">Better Bucks Store</p>
                       <p className="text-white/50 text-xs">Acme Corp</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: BUCKS_COLOR, color: "white" }}>
-                    <Coins className="h-3.5 w-3.5" />
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: BUCKS_COLOR, color: "white" }}>
+                    <Coins className="h-3 w-3" />
                     <span>850 Bucks</span>
                   </div>
                 </div>
 
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <ShoppingBag className="h-4 w-4" style={{ color: NAVY }} />
-                    <h3 className="font-semibold text-sm" style={{ color: NAVY }}>Redeem Your Bucks</h3>
+                <div className="p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ShoppingBag className="h-3.5 w-3.5" style={{ color: NAVY }} />
+                    <h3 className="font-semibold text-xs" style={{ color: NAVY }}>Redeem Your Bucks</h3>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {products.map((p, i) => {
                       const Icon = p.icon;
                       return (
                         <div
                           key={p.name}
-                          className="rounded-xl border overflow-hidden flex flex-col cursor-pointer"
+                          className="rounded-lg border overflow-hidden flex flex-col cursor-pointer"
                           style={{
                             background: selectedProduct === i ? `${NAVY}08` : "#F8FAFC",
                             border: selectedProduct === i ? `2px solid ${BUCKS_COLOR}` : "1px solid #f0f0f0",
@@ -249,25 +249,24 @@ export default function HowItWorksPage() {
                           onClick={() => handleSelect(i)}
                           data-testid={`card-product-${i}`}
                         >
-                          <div className="flex justify-end px-2 pt-2">
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}22`, color: BUCKS_COLOR }}>{p.tag}</span>
+                          <div className="flex justify-end px-1.5 pt-1.5">
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}22`, color: BUCKS_COLOR }}>{p.tag}</span>
                           </div>
-                          <div className="flex justify-center py-3">
-                            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: `${NAVY}12` }}>
-                              <Icon className="h-6 w-6" style={{ color: NAVY }} />
+                          <div className="flex justify-center py-1.5">
+                            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${NAVY}12` }}>
+                              <Icon className="h-4.5 w-4.5" style={{ color: NAVY, width: 18, height: 18 }} />
                             </div>
                           </div>
-                          <div className="px-3 pb-3 flex flex-col gap-1.5 flex-1">
-                            <p className="font-bold text-xs leading-tight" style={{ color: NAVY }}>{p.name}</p>
-                            <p className="text-xs text-gray-400 leading-snug flex-1">{p.description}</p>
+                          <div className="px-2 pb-2 flex flex-col gap-1 flex-1">
+                            <p className="font-bold text-[10px] leading-tight" style={{ color: NAVY }}>{p.name}</p>
                             <div className="flex gap-0.5">
                               {Array.from({ length: 5 }).map((_, si) => (
-                                <Star key={si} className="h-2.5 w-2.5" style={{ fill: si < p.stars ? "#f59e0b" : "none", color: si < p.stars ? "#f59e0b" : "#d1d5db" }} />
+                                <Star key={si} className="h-2 w-2" style={{ fill: si < p.stars ? "#f59e0b" : "none", color: si < p.stars ? "#f59e0b" : "#d1d5db" }} />
                               ))}
                             </div>
-                            <span className="font-black text-sm" style={{ color: BUCKS_COLOR }} data-testid={`text-price-${i}`}>{p.price} Bucks</span>
+                            <span className="font-black text-[10px]" style={{ color: BUCKS_COLOR }} data-testid={`text-price-${i}`}>{p.price} Bucks</span>
                             <button
-                              className="w-full py-2.5 sm:py-1.5 rounded-lg text-xs font-semibold"
+                              className="w-full py-1 rounded-md text-[10px] font-semibold"
                               style={{ background: BUCKS_COLOR, color: "white" }}
                               onClick={(e) => { e.stopPropagation(); handleSelect(i); }}
                               data-testid={`button-redeem-${i}`}
@@ -279,7 +278,7 @@ export default function HowItWorksPage() {
                       );
                     })}
                   </div>
-                  <p className="text-center text-xs text-gray-400 mt-3">Select any item to see how ordering works</p>
+                  <p className="text-center text-[10px] text-gray-400 mt-2">Select any item to see how ordering works</p>
                 </div>
               </div>
 

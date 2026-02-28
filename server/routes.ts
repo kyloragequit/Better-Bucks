@@ -33,8 +33,9 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   if (!smtpUser || !smtpPass) {
-    console.warn(`[Email] SMTP not configured (SMTP_USER / SMTP_PASS missing). Would have sent "${subject}" to ${to}.`);
-    return;
+    const msg = `SMTP not configured — SMTP_USER / SMTP_PASS env vars are missing. Cannot send "${subject}" to ${to}.`;
+    console.error(`[Email] ${msg}`);
+    throw new Error(msg);
   }
   const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
   const smtpPort = parseInt(process.env.SMTP_PORT || "587");
@@ -45,14 +46,19 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
     secure: smtpPort === 465,
     auth: { user: smtpUser, pass: smtpPass },
   });
-  await transporter.sendMail({
-    from: `"Better Bucks" <${smtpUser}>`,
-    to,
-    subject,
-    html,
-    ...(text ? { text } : {}),
-  });
-  console.log(`[Email] Sent "${subject}" to ${to}`);
+  try {
+    await transporter.sendMail({
+      from: `"Better Bucks" <${smtpUser}>`,
+      to,
+      subject,
+      html,
+      ...(text ? { text } : {}),
+    });
+    console.log(`[Email] Sent "${subject}" to ${to}`);
+  } catch (err: any) {
+    console.error(`[Email] Failed to send "${subject}" to ${to}:`, err?.message ?? err);
+    throw err;
+  }
 }
 
 const ADMIN_NOTIFY_EMAIL = "miles.chase@betterbucks.net";

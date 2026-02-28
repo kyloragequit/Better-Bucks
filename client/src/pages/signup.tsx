@@ -140,24 +140,24 @@ export default function SignupPage() {
   const selectedTierData = tiers.find(t => t.id === selectedTier);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
+    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
       <PageSEO
         title="Get Started – Eliminate Manual Reward Tracking | Better Bucks"
         description="Solve employee engagement issues and cut time-consuming admin tasks. Better Bucks is built for 50–500 employee operations in logistics, distribution, warehousing, and manufacturing. Set up your incentive program today."
         canonicalPath="/signup"
       />
 
-      <LogoBackground />
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 70% 30%, #4E9F3D15 0%, transparent 60%)" }} />
 
       <div className="relative z-10 w-full max-w-5xl space-y-6">
-        <div className="bg-primary text-primary-foreground text-center py-3 px-4 rounded-lg shadow-md" data-testid="banner-small-business">
+        <div className="bg-white/10 border border-white/20 text-white text-center py-3 px-4 rounded-lg" data-testid="banner-small-business">
           <p className="text-sm font-semibold">Contact us for small business pricing</p>
-          <a href="mailto:miles@betterbucks.net" className="text-xs underline opacity-90 hover:opacity-100">miles@betterbucks.net</a>
+          <a href="mailto:miles@betterbucks.net" className="text-xs underline opacity-80 hover:opacity-100">miles@betterbucks.net</a>
         </div>
 
         <Button
           variant="ghost"
-          className="mb-2"
+          className="mb-2 text-white/70 hover:text-white hover:bg-white/10"
           onClick={() => setLocation("/")}
           data-testid="button-back-landing"
         >
@@ -169,10 +169,10 @@ export default function SignupPage() {
           <div className="mx-auto mb-2">
             <AppLogo size="lg" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900" data-testid="text-signup-title">
+          <h1 className="text-2xl font-bold text-white" data-testid="text-signup-title">
             Choose Your Plan
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-white/65">
             Select the right plan for your organization's size
           </p>
         </div>

@@ -29,19 +29,23 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
-      <header className="border-b bg-white/50 backdrop-blur-md sticky top-0 z-[999]">
+      <header className="border-b border-white/10 bg-primary sticky top-0 z-[999]">
         <div className="container max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-foreground cursor-pointer hover:opacity-80 transition-opacity">
+          <Link href="/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity">
             <AppLogo size="sm" linkTo="/dashboard" />
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-4">
+          <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`text-sm font-medium transition-colors hover:text-primary ${isActive(item.href) ? "text-primary font-bold" : "text-muted-foreground"}`}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive(item.href)
+                    ? "bg-white/15 text-white"
+                    : "text-white/65 hover:bg-white/10 hover:text-white"
+                }`}
                 data-testid={item.testId}
               >
                 {item.label}
@@ -51,7 +55,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
               href="https://www.instagram.com/better_bucks"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-pink-500"
+              className="inline-flex items-center justify-center rounded-md p-2 transition-colors text-white/65 hover:bg-white/10 hover:text-pink-300"
               data-testid="link-instagram-nav"
               title="@better_bucks on Instagram"
             >
@@ -60,10 +64,10 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-block text-sm text-muted-foreground">
+            <span className="hidden sm:inline-block text-sm text-white/60">
               {user?.fullName}
             </span>
-            <Button variant="ghost" size="icon" className="hidden md:inline-flex text-muted-foreground" onClick={() => logout()} data-testid="button-logout">
+            <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
               <LogOut className="h-5 w-5" />
             </Button>
 
@@ -71,6 +75,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
               <Button
                 variant="outline"
                 size="sm"
+                className="border-white/20 text-white hover:bg-white/10 hover:text-white"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 data-testid="button-employee-mobile-menu"
               >

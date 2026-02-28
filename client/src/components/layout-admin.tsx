@@ -79,9 +79,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-muted/20">
       <ImpersonationBanner />
-      <header className="sticky top-0 z-[999] w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-[999] w-full border-b border-white/10 bg-primary">
         <div className="container flex h-16 items-center justify-between gap-4 px-4">
-          <Link href="/admin/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-foreground cursor-pointer hover:opacity-80 transition-opacity no-underline">
+          <Link href="/admin/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity no-underline">
             <AppLogo size="sm" linkTo="/admin/dashboard" />
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
@@ -95,8 +95,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     <TooltipTrigger asChild>
                       <Link
                         href={item.href}
-                        className={`inline-flex items-center justify-center rounded-md p-2.5 transition-colors hover:bg-accent hover:text-primary ${
-                          isActive(item.href) ? "text-primary bg-accent" : "text-muted-foreground"
+                        className={`inline-flex items-center justify-center rounded-md p-2.5 transition-colors ${
+                          isActive(item.href)
+                            ? "bg-white/15 text-white"
+                            : "text-white/65 hover:bg-white/10 hover:text-white"
                         }`}
                         data-testid={item.testId || `link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                       >
@@ -115,7 +117,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     href="https://www.instagram.com/better_bucks"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-md p-2.5 transition-colors text-muted-foreground hover:bg-accent hover:text-pink-500"
+                    className="inline-flex items-center justify-center rounded-md p-2.5 transition-colors text-white/65 hover:bg-white/10 hover:text-pink-300"
                     data-testid="link-instagram-admin-nav"
                   >
                     <SiInstagram className="h-5 w-5" />
@@ -127,13 +129,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-block text-sm text-muted-foreground">
+            <span className="hidden sm:inline-block text-sm text-white/60">
               Hello, {user?.fullName}
             </span>
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={() => logout()} data-testid="button-logout">
+                  <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
                     <LogOut className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
@@ -145,6 +147,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Button
                 variant="outline"
                 size="sm"
+                className="border-white/20 text-white hover:bg-white/10 hover:text-white"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 data-testid="button-admin-mobile-menu"
               >

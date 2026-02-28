@@ -30,18 +30,19 @@ export default function LoginPage() {
   }, [user, setLocation]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
+    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
       <PageSEO
         title="Log In – Better Bucks Employee Incentive Platform"
         description="Access your Better Bucks portal. Purpose-built reward program management for logistics, warehousing, and manufacturing operations."
         canonicalPath="/login"
       />
 
-      <LogoBackground />
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 30% 50%, #4E9F3D18 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, #ffffff08 0%, transparent 50%)" }} />
 
       <div className="relative z-10 w-full max-w-md space-y-4">
         <Button
           variant="ghost"
+          className="text-white/70 hover:text-white hover:bg-white/10"
           onClick={() => setLocation("/")}
           data-testid="button-back-landing"
         >

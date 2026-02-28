@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export default function DeveloperLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gray-950">
+    <div className="flex min-h-screen items-center justify-center p-4 bg-gray-950 relative">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-4">
           <div className="mx-auto mb-2">
@@ -124,6 +125,7 @@ export default function DeveloperLoginPage() {
           </Button>
         </div>
       </div>
+      <SiteFooter dark absolute />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -243,6 +244,7 @@ export default function ReactivatePage() {
           </Card>
         )}
       </div>
+      <SiteFooter absolute />
     </div>
   );
 }

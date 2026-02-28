@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -115,6 +116,7 @@ export default function SignupSuccessPage() {
           </CardContent>
         </Card>
       </div>
+      <SiteFooter absolute />
     </div>
   );
 }

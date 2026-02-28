@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
 import { PageSEO } from "@/components/page-seo";
 import { useMutation } from "@tanstack/react-query";
@@ -150,11 +151,6 @@ export default function SignupPage() {
       <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 70% 30%, #4E9F3D15 0%, transparent 60%)" }} />
 
       <div className="relative z-10 w-full max-w-5xl space-y-6">
-        <div className="bg-white/10 border border-white/20 text-white text-center py-3 px-4 rounded-lg" data-testid="banner-small-business">
-          <p className="text-sm font-semibold">Contact us for small business pricing</p>
-          <a href="mailto:miles@betterbucks.net" className="text-xs underline opacity-80 hover:opacity-100">miles@betterbucks.net</a>
-        </div>
-
         <Button
           variant="ghost"
           className="mb-2 text-white/70 hover:text-white hover:bg-white/10"
@@ -455,12 +451,10 @@ export default function SignupPage() {
               )}
             </CardContent>
           </Card>
-          <p className="text-center mt-4 text-sm">
-            <strong>Are you a small business?</strong>
-          </p>
         </div>
         )}
       </div>
+      <SiteFooter dark absolute />
       <InstagramFloat />
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
 import { useUser } from "@/hooks/use-auth";
 import { api } from "@shared/routes";
@@ -59,7 +60,7 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/20 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-muted/20 p-4 relative">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
@@ -99,6 +100,7 @@ export default function ChangePasswordPage() {
           </form>
         </CardContent>
       </Card>
+      <SiteFooter absolute />
     </div>
   );
 }

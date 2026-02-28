@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { SiteFooter } from "@/components/site-footer";
 import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
@@ -204,6 +205,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <main className="container py-8 px-4 animate-in">
         {children}
       </main>
+      <SiteFooter />
       <PaymentPausedDialog />
     </div>
   );

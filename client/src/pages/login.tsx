@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { useLogin, useUser, useRegisterAdmin, useRegisterEmployee } from "@/hooks/use-auth";
 import { PageSEO } from "@/components/page-seo";
 import { useLocation } from "wouter";
@@ -103,6 +104,7 @@ export default function LoginPage() {
           </div>
         </Card>
       </div>
+      <SiteFooter dark absolute />
       <InstagramFloat />
     </div>
   );

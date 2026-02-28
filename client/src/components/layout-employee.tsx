@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { SiteFooter } from "@/components/site-footer";
 import { LogOut, Menu, X, LayoutDashboard, ShoppingCart, Store, Settings } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { Link, useLocation } from "wouter";
@@ -132,6 +133,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
       <main className="container max-w-5xl mx-auto px-4 py-8 animate-in">
         {children}
       </main>
+      <SiteFooter />
       <PaymentPausedDialog />
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,6 +147,7 @@ export default function ForgotPasswordPage() {
           </CardContent>
         </Card>
       </div>
+      <SiteFooter absolute />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SiteFooter } from "@/components/site-footer";
 import { useLogout } from "@/hooks/use-auth";
 import { Clock, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
@@ -17,7 +18,7 @@ export default function PendingVerification() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/30 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/30 p-4 relative">
       <Card className="w-full max-w-md shadow-2xl border-primary/10 text-center">
         <CardHeader>
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -40,6 +41,7 @@ export default function PendingVerification() {
           </Button>
         </CardFooter>
       </Card>
+      <SiteFooter absolute />
     </div>
   );
 }

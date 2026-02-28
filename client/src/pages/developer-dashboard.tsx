@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SiteFooter } from "@/components/site-footer";
 import { useUser } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -652,6 +653,7 @@ export default function DeveloperDashboardPage() {
           </>
         )}
       </main>
+      <SiteFooter />
     </div>
   );
 }

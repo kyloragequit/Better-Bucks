@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -146,6 +147,7 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
           </CardContent>
         </Card>
       </div>
+      <SiteFooter absolute />
     </div>
   );
 }

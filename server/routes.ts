@@ -57,7 +57,13 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
 
 const ADMIN_NOTIFY_EMAIL = "miles.chase@betterbucks.net";
 
-async function notifyAdmin(subject: string, details: Record<string, string>): Promise<void> {
+async function getOrgPrimeAdminEmail(organizationId: number): Promise<string | null> {
+  const orgUsers = await storage.getUsersByOrganization(organizationId);
+  const primeAdmin = orgUsers.find(u => u.role === "prime_admin" && u.email);
+  return primeAdmin?.email ?? null;
+}
+
+async function notifyAdmin(to: string, subject: string, details: Record<string, string>): Promise<void> {
   const rows = Object.entries(details)
     .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#666;font-weight:500;white-space:nowrap">${k}</td><td style="padding:4px 8px;">${v || "—"}</td></tr>`)
     .join("");
@@ -72,7 +78,7 @@ async function notifyAdmin(subject: string, details: Record<string, string>): Pr
     </div>
   `;
   try {
-    await sendEmail({ to: ADMIN_NOTIFY_EMAIL, subject: `[Better Bucks] ${subject}`, html });
+    await sendEmail({ to, subject: `[Better Bucks] ${subject}`, html });
   } catch (err) {
     console.error("[Admin Notify] Failed:", err);
   }
@@ -333,14 +339,17 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? adminEmail : null, hasPhone ? adminPhone : null, verificationCode, adminData.fullName);
-      notifyAdmin("New Admin Account — Pending Approval", {
-        "Name": adminData.fullName,
-        "Username": adminData.username,
-        "Organization": org.name,
-        "Email": adminEmail || "—",
-        "Phone": adminPhone || "—",
-        "Status": "Pending verification",
-      });
+      const orgPrimeEmail = await getOrgPrimeAdminEmail(org.id);
+      if (orgPrimeEmail) {
+        notifyAdmin(orgPrimeEmail, "New Admin Account — Pending Approval", {
+          "Name": adminData.fullName,
+          "Username": adminData.username,
+          "Organization": org.name,
+          "Email": adminEmail || "—",
+          "Phone": adminPhone || "—",
+          "Status": "Pending verification",
+        });
+      }
       console.log(`New admin registration: ${user.username} for org ${org.name} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
@@ -410,14 +419,17 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, empData.fullName);
-      notifyAdmin("New Employee Account — Pending Approval", {
-        "Name": empData.fullName,
-        "Username": empData.username,
-        "Organization": org.name,
-        "Email": empEmail || "—",
-        "Phone": empPhone || "—",
-        "Status": "Pending admin approval",
-      });
+      const orgPrimeEmail = await getOrgPrimeAdminEmail(org.id);
+      if (orgPrimeEmail) {
+        notifyAdmin(orgPrimeEmail, "New Employee Account — Pending Approval", {
+          "Name": empData.fullName,
+          "Username": empData.username,
+          "Organization": org.name,
+          "Email": empEmail || "—",
+          "Phone": empPhone || "—",
+          "Status": "Pending admin approval",
+        });
+      }
       console.log(`New employee registration: ${user.username} for org ${org.name} (pending approval)`);
       res.status(201).json({ ...user, message: "Employee registration submitted. Awaiting admin approval." });
     } catch (e) {
@@ -485,14 +497,19 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, userData.fullName);
-      notifyAdmin("New Employee Account — Created by Admin", {
-        "Name": userData.fullName,
-        "Username": userData.username,
-        "Organization ID": String(user.organizationId || "—"),
-        "Email": empEmail || "—",
-        "Phone": empPhone || "—",
-        "Status": "Active (admin-created)",
-      });
+      if (user.organizationId) {
+        const orgPrimeEmail = await getOrgPrimeAdminEmail(user.organizationId);
+        if (orgPrimeEmail) {
+          notifyAdmin(orgPrimeEmail, "New Employee Account — Created by Admin", {
+            "Name": userData.fullName,
+            "Username": userData.username,
+            "Organization ID": String(user.organizationId),
+            "Email": empEmail || "—",
+            "Phone": empPhone || "—",
+            "Status": "Active (admin-created)",
+          });
+        }
+      }
 
       res.status(201).json(newUser);
     } catch (e) {
@@ -1441,7 +1458,7 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? email : null, hasPhone ? phone : null, verificationCode, fullName);
-      notifyAdmin("New Prime Admin Account Created", {
+      notifyAdmin(ADMIN_NOTIFY_EMAIL, "New Prime Admin Account Created", {
         "Name": fullName,
         "Username": username,
         "Organization": org.name,

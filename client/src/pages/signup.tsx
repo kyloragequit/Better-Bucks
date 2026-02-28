@@ -279,7 +279,7 @@ export default function SignupPage() {
             <p className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide" data-testid="text-free-trial-banner">
               Free 60 Day Trial + Founder Pricing!
             </p>
-            <p className="text-white/90 text-sm mt-1">Lock in your pricing for being a founding customer of Better Bucks</p>
+            <p className="text-white/90 text-sm mt-1">Cancel anytime, no commitments</p>
           </div>
         </div>
 

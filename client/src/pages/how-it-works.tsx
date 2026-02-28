@@ -199,19 +199,17 @@ export default function HowItWorksPage() {
               </p>
             </div>
 
-            {/* Sliding panel container */}
-            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff" }}>
+            {/* Sliding panel container — fixed height so both views keep the same box size */}
+            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff", height: 340 }}>
 
               {/* ── Shop view ─────────────────────────────────────── */}
               <div
-                className="w-full"
+                className="absolute inset-0 w-full overflow-y-auto"
                 style={{
                   opacity: orderMode ? 0 : 1,
                   transform: orderMode ? "translateX(-48px)" : "translateX(0)",
                   transition: "opacity 0.4s ease, transform 0.4s ease",
                   pointerEvents: orderMode ? "none" : "auto",
-                  position: orderMode ? "absolute" : "relative",
-                  top: 0, left: 0,
                 }}
               >
                 {/* Mock app header */}
@@ -287,14 +285,12 @@ export default function HowItWorksPage() {
 
               {/* ── Order flow view ────────────────────────────────── */}
               <div
-                className="w-full"
+                className="absolute inset-0 w-full overflow-y-auto"
                 style={{
                   opacity: orderMode ? 1 : 0,
                   transform: orderMode ? "translateX(0)" : "translateX(48px)",
                   transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
                   pointerEvents: orderMode ? "auto" : "none",
-                  position: orderMode ? "relative" : "absolute",
-                  top: 0, left: 0,
                 }}
               >
                 {/* Order view header */}

@@ -97,7 +97,7 @@ function Router() {
   return (
     <Suspense fallback={<FullPageLoader />}>
       <Switch>
-        <Route path="/" component={LandingPage} />
+        <Route path="/" component={HowItWorksPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/how-it-works" component={HowItWorksPage} />
         <Route path="/signup" component={SignupPage} />

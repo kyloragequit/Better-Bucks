@@ -113,15 +113,23 @@ export default function HowItWorksPage() {
       />
 
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocation("/")}>
-            <AppLogo size="sm" linkTo="/" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            data-testid="link-home-logo"
+          >
+            <AppLogo size="sm" />
             <span className="text-lg font-bold text-gray-900">Better Bucks</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/")} data-testid="button-back-home">
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Back to Home
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/login")} data-testid="button-header-login">
+              Log In
+            </Button>
+            <Button size="sm" onClick={() => setLocation("/signup")} data-testid="button-header-signup" style={{ background: BUCKS_COLOR, color: "white" }}>
+              Sign Up
+            </Button>
+          </div>
         </div>
       </header>
 

@@ -465,7 +465,7 @@ export default function SignupPage() {
         </div>
         )}
       </div>
-      <SiteFooter dark absolute />
+      <SiteFooter dark />
       <InstagramFloat />
     </div>
   );

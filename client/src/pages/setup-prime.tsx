@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone } from "lucide-react";
+import { ArrowLeft, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone, Eye, EyeOff } from "lucide-react";
 
 export default function SetupPrimePage() {
   const [, setLocation] = useLocation();
@@ -32,6 +32,8 @@ export default function SetupPrimePage() {
   const [storeUrl, setStoreUrl] = useState("");
   const [codeValidated, setCodeValidated] = useState(false);
   const [orgName, setOrgName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { mutate: validateCode, isPending: isValidating } = useMutation({
     mutationFn: async () => {
@@ -299,15 +301,23 @@ export default function SetupPrimePage() {
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="setup-password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="At least 6 characters"
-                      className="pl-9"
+                      className="pl-9 pr-9"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       minLength={6}
                       required
                       data-testid="input-setup-password"
                     />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                      data-testid="button-toggle-password"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -317,14 +327,22 @@ export default function SetupPrimePage() {
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="setup-confirm"
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm your password"
-                      className="pl-9"
+                      className="pl-9 pr-9"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       data-testid="input-setup-confirm"
                     />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      data-testid="button-toggle-confirm-password"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 

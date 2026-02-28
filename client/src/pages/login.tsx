@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone } from "lucide-react";
+import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
@@ -134,6 +134,7 @@ function EmployeeTabs({ defaultMode = "login", defaultOrgCode = "" }: { defaultM
 function EmployeeLoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [, setLocation] = useLocation();
   const { mutate: login, isPending } = useLogin();
 
@@ -176,14 +177,22 @@ function EmployeeLoginForm() {
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="emp-password"
-            type="password"
-            className="pl-9"
+            type={showPassword ? "text" : "password"}
+            className="pl-9 pr-9"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
             data-testid="input-employee-password"
           />
+          <button
+            type="button"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowPassword(!showPassword)}
+            data-testid="button-toggle-emp-password"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <Button 
@@ -217,6 +226,8 @@ function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registered, setRegistered] = useState(false);
   const { mutate: register, isPending } = useRegisterEmployee();
 
@@ -352,8 +363,8 @@ function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="emp-reg-password"
-            type="password"
-            className="pl-9"
+            type={showPassword ? "text" : "password"}
+            className="pl-9 pr-9"
             placeholder="At least 6 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -361,6 +372,14 @@ function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string
             required
             data-testid="input-emp-register-password"
           />
+          <button
+            type="button"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowPassword(!showPassword)}
+            data-testid="button-toggle-emp-reg-password"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <div className="space-y-2">
@@ -369,14 +388,22 @@ function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="emp-reg-confirm-password"
-            type="password"
-            className="pl-9"
+            type={showConfirmPassword ? "text" : "password"}
+            className="pl-9 pr-9"
             placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             data-testid="input-emp-register-confirm-password"
           />
+          <button
+            type="button"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            data-testid="button-toggle-emp-reg-confirm-password"
+          >
+            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <Button 
@@ -425,6 +452,7 @@ function AdminTabs() {
 function AdminLoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [, setLocation] = useLocation();
   const { mutate: login, isPending } = useLogin();
 
@@ -467,14 +495,22 @@ function AdminLoginForm() {
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="admin-password"
-            type="password"
-            className="pl-9"
+            type={showPassword ? "text" : "password"}
+            className="pl-9 pr-9"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
             data-testid="input-admin-password"
           />
+          <button
+            type="button"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowPassword(!showPassword)}
+            data-testid="button-toggle-admin-password"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <Button 
@@ -508,6 +544,8 @@ function AdminRegisterForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registered, setRegistered] = useState(false);
   const { mutate: register, isPending } = useRegisterAdmin();
 
@@ -643,8 +681,8 @@ function AdminRegisterForm() {
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="reg-password"
-            type="password"
-            className="pl-9"
+            type={showPassword ? "text" : "password"}
+            className="pl-9 pr-9"
             placeholder="At least 6 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -652,6 +690,14 @@ function AdminRegisterForm() {
             required
             data-testid="input-register-password"
           />
+          <button
+            type="button"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowPassword(!showPassword)}
+            data-testid="button-toggle-reg-password"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <div className="space-y-2">
@@ -660,14 +706,22 @@ function AdminRegisterForm() {
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="reg-confirm-password"
-            type="password"
-            className="pl-9"
+            type={showConfirmPassword ? "text" : "password"}
+            className="pl-9 pr-9"
             placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             data-testid="input-register-confirm-password"
           />
+          <button
+            type="button"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            data-testid="button-toggle-reg-confirm-password"
+          >
+            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <Button 

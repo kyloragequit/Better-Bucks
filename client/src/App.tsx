@@ -8,6 +8,7 @@ import { useUser } from "@/hooks/use-auth";
 import { FullPageLoader } from "@/components/ui/loader";
 import { initGA } from "@/lib/analytics";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { TutorialModal } from "@/components/tutorial-modal";
 
 const LandingPage = lazy(() => import("@/pages/landing"));
 const SignupPage = lazy(() => import("@/pages/signup"));
@@ -175,6 +176,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Router />
+        <TutorialModal />
       </TooltipProvider>
     </QueryClientProvider>
   );

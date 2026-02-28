@@ -7,7 +7,7 @@ import {
   Wallet, ShoppingBag, ShoppingCart, LayoutDashboard, Users, Zap,
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
-  ArrowRight, Gift, Heart,
+  ArrowRight, Heart,
 } from "lucide-react";
 
 const NAVY = "#162A4A";
@@ -605,15 +605,19 @@ function buildSlides(role: string, name: string): Slide[] {
   return adminSlides;
 }
 
+const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/admin/"];
+
 export function TutorialModal() {
   const { data: user } = useUser();
   const { shouldShow, completeTutorial, skipTutorial } = useTutorial();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [shopDone, setShopDone] = useState(false);
   const [shopBalance] = useState(850);
 
-  if (!shouldShow || !user) return null;
+  const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
+
+  if (!shouldShow || !user || !isOnAppPage || user.role === "developer") return null;
 
   const slides = buildSlides(user.role, user.fullName || "there");
   const slide = slides[currentSlide];

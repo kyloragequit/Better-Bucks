@@ -177,8 +177,8 @@ export default function HowItWorksPage() {
       </div>
 
       {/* ─── SECTION 3: Shop + Order Flow (merged) ────────────────── */}
-      <div className="relative" style={{ height: "140vh" }}>
-        <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden py-10" style={{ background: "#F0F4F8", zIndex: 30 }}>
+      <div className="relative sm:h-[140vh]">
+        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-8 sm:py-10" style={{ background: "#F0F4F8", zIndex: 30 }}>
           <div
             ref={s3.ref}
             className="w-full max-w-4xl mx-auto px-4"
@@ -234,7 +234,7 @@ export default function HowItWorksPage() {
                     <ShoppingBag className="h-4 w-4" style={{ color: NAVY }} />
                     <h3 className="font-semibold text-sm" style={{ color: NAVY }}>Redeem Your Bucks</h3>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {products.map((p, i) => {
                       const Icon = p.icon;
                       return (
@@ -261,7 +261,7 @@ export default function HowItWorksPage() {
                           </div>
                           <div className="px-3 pb-3 flex flex-col gap-1.5 flex-1">
                             <p className="font-bold text-xs leading-tight" style={{ color: NAVY }}>{p.name}</p>
-                            <p className="text-xs text-gray-400 leading-snug flex-1 hidden sm:block">{p.description}</p>
+                            <p className="text-xs text-gray-400 leading-snug flex-1">{p.description}</p>
                             <div className="flex gap-0.5">
                               {Array.from({ length: 5 }).map((_, si) => (
                                 <Star key={si} className="h-2.5 w-2.5" style={{ fill: si < p.stars ? "#f59e0b" : "none", color: si < p.stars ? "#f59e0b" : "#d1d5db" }} />
@@ -269,7 +269,7 @@ export default function HowItWorksPage() {
                             </div>
                             <span className="font-black text-sm" style={{ color: BUCKS_COLOR }} data-testid={`text-price-${i}`}>{p.price} Bucks</span>
                             <button
-                              className="w-full py-1.5 rounded-lg text-xs font-semibold"
+                              className="w-full py-2.5 sm:py-1.5 rounded-lg text-xs font-semibold"
                               style={{ background: BUCKS_COLOR, color: "white" }}
                               onClick={(e) => { e.stopPropagation(); handleSelect(i); }}
                               data-testid={`button-redeem-${i}`}
@@ -322,7 +322,7 @@ export default function HowItWorksPage() {
                   </div>
                 </div>
 
-                <div className="p-5 flex flex-col gap-4" style={{ minHeight: 260 }}>
+                <div className="p-5 flex flex-col gap-4 min-h-[200px] sm:min-h-[260px]">
                   {/* Step indicators */}
                   <div className="flex items-center gap-2 justify-center">
                     {["Select", "Confirm", "Ordered!"].map((label, i) => (

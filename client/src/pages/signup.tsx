@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
@@ -95,10 +95,19 @@ export default function SignupPage() {
   });
 
   const rfiRef = useRef<HTMLDivElement>(null);
+  const signupFormRef = useRef<HTMLDivElement>(null);
 
   const scrollToRfi = () => {
     rfiRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  useEffect(() => {
+    if (selectedTier) {
+      setTimeout(() => {
+        signupFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
+  }, [selectedTier]);
 
   const params = new URLSearchParams(window.location.search);
   const cancelled = params.get("cancelled");
@@ -283,6 +292,7 @@ export default function SignupPage() {
           </div>
         </div>
 
+        <div ref={signupFormRef}>
         {selectedTier && (
           <Card className="shadow-2xl shadow-black/10 border-muted bg-white/80 backdrop-blur-sm max-w-lg mx-auto">
             <CardHeader className="text-center pb-3">
@@ -350,6 +360,7 @@ export default function SignupPage() {
             </CardContent>
           </Card>
         )}
+        </div>
 
         {!selectedTier && (
         <div ref={rfiRef} className="border-t border-border/50 pt-8 mt-8">

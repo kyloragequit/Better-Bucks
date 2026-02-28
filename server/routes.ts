@@ -55,6 +55,29 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
   console.log(`[Email] Sent "${subject}" to ${to}`);
 }
 
+const ADMIN_NOTIFY_EMAIL = "miles.chase@betterbucks.net";
+
+async function notifyAdmin(subject: string, details: Record<string, string>): Promise<void> {
+  const rows = Object.entries(details)
+    .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#666;font-weight:500;white-space:nowrap">${k}</td><td style="padding:4px 8px;">${v || "—"}</td></tr>`)
+    .join("");
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+      <h2 style="color:#162A4A;margin-bottom:4px;">Better Bucks</h2>
+      <h3 style="color:#4E9F3D;margin-top:0;">${subject}</h3>
+      <table style="border-collapse:collapse;width:100%;background:#F8FAFC;border-radius:8px;overflow:hidden;">
+        ${rows}
+      </table>
+      <p style="margin-top:16px;color:#999;font-size:12px;">Sent automatically by Better Bucks.</p>
+    </div>
+  `;
+  try {
+    await sendEmail({ to: ADMIN_NOTIFY_EMAIL, subject: `[Better Bucks] ${subject}`, html });
+  } catch (err) {
+    console.error("[Admin Notify] Failed:", err);
+  }
+}
+
 async function sendVerificationEmail(email: string, code: string, fullName: string): Promise<void> {
   try {
     await sendEmail({
@@ -310,6 +333,14 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? adminEmail : null, hasPhone ? adminPhone : null, verificationCode, adminData.fullName);
+      notifyAdmin("New Admin Account — Pending Approval", {
+        "Name": adminData.fullName,
+        "Username": adminData.username,
+        "Organization": org.name,
+        "Email": adminEmail || "—",
+        "Phone": adminPhone || "—",
+        "Status": "Pending verification",
+      });
       console.log(`New admin registration: ${user.username} for org ${org.name} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
@@ -379,6 +410,14 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, empData.fullName);
+      notifyAdmin("New Employee Account — Pending Approval", {
+        "Name": empData.fullName,
+        "Username": empData.username,
+        "Organization": org.name,
+        "Email": empEmail || "—",
+        "Phone": empPhone || "—",
+        "Status": "Pending admin approval",
+      });
       console.log(`New employee registration: ${user.username} for org ${org.name} (pending approval)`);
       res.status(201).json({ ...user, message: "Employee registration submitted. Awaiting admin approval." });
     } catch (e) {
@@ -446,6 +485,14 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, userData.fullName);
+      notifyAdmin("New Employee Account — Created by Admin", {
+        "Name": userData.fullName,
+        "Username": userData.username,
+        "Organization ID": String(user.organizationId || "—"),
+        "Email": empEmail || "—",
+        "Phone": empPhone || "—",
+        "Status": "Active (admin-created)",
+      });
 
       res.status(201).json(newUser);
     } catch (e) {
@@ -1394,6 +1441,14 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? email : null, hasPhone ? phone : null, verificationCode, fullName);
+      notifyAdmin("New Prime Admin Account Created", {
+        "Name": fullName,
+        "Username": username,
+        "Organization": org.name,
+        "Email": email || "—",
+        "Phone": phone || "—",
+        "Status": "Active",
+      });
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Account created but login failed" });
@@ -1734,7 +1789,7 @@ export async function registerRoutes(
 
       try {
         await sendEmail({
-          to: "miles@betterbucks.net",
+          to: ADMIN_NOTIFY_EMAIL,
           subject,
           text: `New Information Request\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\nEmployee Incentive Needs:\n${data.needs}`,
           html: `

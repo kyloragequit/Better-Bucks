@@ -3,8 +3,12 @@ import { useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PageSEO } from "@/components/page-seo";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
+  ArrowRight,
   ChevronDown,
   Gamepad2,
   Tv,
@@ -12,7 +16,15 @@ import {
   ShoppingBag,
   Coins,
   Star,
+  CheckCircle2,
+  Package,
+  Truck,
+  Send,
+  X,
+  Sparkles,
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 function useInView(threshold = 0.3) {
   const ref = useRef<HTMLDivElement>(null);
@@ -44,7 +56,7 @@ const products = [
   },
   {
     icon: Tv,
-    name: "Smart TV 55\"",
+    name: 'Smart TV 55"',
     description: "4K Ultra HD smart TV with built-in streaming apps.",
     price: 450,
     stars: 4,
@@ -62,10 +74,44 @@ const products = [
 
 export default function HowItWorksPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const s1 = useInView(0.2);
   const s2 = useInView(0.2);
   const s3 = useInView(0.15);
+  const s4 = useInView(0.15);
+  const s5 = useInView(0.15);
+
+  const [orderStep, setOrderStep] = useState(0);
+  const [selectedProduct, setSelectedProduct] = useState(0);
+
+  useEffect(() => {
+    if (!s4.inView) return;
+    const t1 = setTimeout(() => setOrderStep(1), 1400);
+    const t2 = setTimeout(() => setOrderStep(2), 2800);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [s4.inView]);
+
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoForm, setDemoForm] = useState({ name: "", email: "", phone: "", needs: "" });
+  const [demoSubmitting, setDemoSubmitting] = useState(false);
+  const [demoSent, setDemoSent] = useState(false);
+
+  const handleDemoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDemoSubmitting(true);
+    try {
+      await apiRequest("POST", "/api/info-request", demoForm);
+      setDemoSent(true);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Something went wrong.", variant: "destructive" });
+    } finally {
+      setDemoSubmitting(false);
+    }
+  };
+
+  const selectedP = products[selectedProduct];
+  const SelectedIcon = selectedP.icon;
 
   return (
     <div className="relative">
@@ -88,115 +134,59 @@ export default function HowItWorksPage() {
         </div>
       </header>
 
-      {/* ─── SECTION 1: The Question ──────────────────────────────────── */}
+      {/* ─── SECTION 1: The Question ──────────────────────────────── */}
       <div className="relative" style={{ height: "100vh" }}>
-        <section
-          className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden"
-          style={{ background: NAVY, zIndex: 10 }}
-        >
+        <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: NAVY, zIndex: 10 }}>
           <div
             ref={s1.ref}
             className="flex flex-col items-center text-center px-6 max-w-3xl"
-            style={{
-              opacity: s1.inView ? 1 : 0,
-              transform: s1.inView ? "translateY(0)" : "translateY(32px)",
-              transition: "opacity 0.9s ease, transform 0.9s ease",
-            }}
+            style={{ opacity: s1.inView ? 1 : 0, transform: s1.inView ? "translateY(0)" : "translateY(32px)", transition: "opacity 0.9s ease, transform 0.9s ease" }}
           >
             <AppLogo size="lg" />
-            <h1
-              className="mt-10 text-white font-display font-bold leading-tight"
-              style={{ fontSize: "clamp(1.75rem, 4vw, 3rem)" }}
-              data-testid="text-parallax-question"
-            >
+            <h1 className="mt-10 text-white font-display font-bold leading-tight" style={{ fontSize: "clamp(1.75rem, 4vw, 3rem)" }} data-testid="text-parallax-question">
               Have you ever felt like you don't know what will make your employees happy?
             </h1>
-            <p className="mt-4 text-white/50 text-sm tracking-widest uppercase">
-              Scroll to find out
-            </p>
+            <p className="mt-4 text-white/50 text-sm tracking-widest uppercase">Scroll to find out</p>
           </div>
-
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/40">
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/40">
             <ChevronDown className="h-6 w-6 animate-bounce" />
           </div>
-
-          {/* subtle radial glow */}
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background: `radial-gradient(ellipse at center, ${BUCKS_COLOR}18 0%, transparent 70%)`,
-            }}
-          />
+          <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(ellipse at center, ${BUCKS_COLOR}18 0%, transparent 70%)` }} />
         </section>
       </div>
 
-      {/* ─── SECTION 2: The Answer ───────────────────────────────────── */}
+      {/* ─── SECTION 2: The Answer ────────────────────────────────── */}
       <div className="relative" style={{ height: "100vh" }}>
-        <section
-          className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden bg-white"
-          style={{ zIndex: 20 }}
-        >
+        <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden bg-white" style={{ zIndex: 20 }}>
           <div
             ref={s2.ref}
             className="flex flex-col items-center text-center px-6 max-w-2xl"
-            style={{
-              opacity: s2.inView ? 1 : 0,
-              transform: s2.inView ? "scale(1)" : "scale(0.92)",
-              transition: "opacity 0.8s ease, transform 0.8s ease",
-            }}
+            style={{ opacity: s2.inView ? 1 : 0, transform: s2.inView ? "scale(1)" : "scale(0.92)", transition: "opacity 0.8s ease, transform 0.8s ease" }}
           >
-            <h2
-              className="font-display font-black leading-none tracking-tight"
-              style={{
-                fontSize: "clamp(4rem, 12vw, 9rem)",
-                color: NAVY,
-              }}
-              data-testid="text-parallax-answer"
-            >
+            <h2 className="font-display font-black leading-none tracking-tight" style={{ fontSize: "clamp(4rem, 12vw, 9rem)", color: NAVY }} data-testid="text-parallax-answer">
               Now you can.
             </h2>
-            <p
-              className="mt-6 text-lg text-gray-500 max-w-md"
-            >
+            <p className="mt-6 text-lg text-gray-500 max-w-md">
               Better Bucks gives employees the power to choose what matters to them — redeemable from a curated store you control.
             </p>
-            <div
-              className="mt-8 h-1.5 w-24 rounded-full"
-              style={{ background: BUCKS_COLOR }}
-            />
+            <div className="mt-8 h-1.5 w-24 rounded-full" style={{ background: BUCKS_COLOR }} />
           </div>
-
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-gray-300">
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-gray-300">
             <ChevronDown className="h-6 w-6 animate-bounce" />
           </div>
         </section>
       </div>
 
-      {/* ─── SECTION 3: The Shop ─────────────────────────────────────── */}
-      <div className="relative" style={{ minHeight: "100vh" }}>
-        <section
-          className="sticky top-0 min-h-screen flex flex-col items-center justify-center overflow-hidden py-20"
-          style={{ background: "#F0F4F8", zIndex: 30 }}
-        >
+      {/* ─── SECTION 3: The Shop ──────────────────────────────────── */}
+      <div className="relative" style={{ height: "100vh" }}>
+        <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden py-20" style={{ background: "#F0F4F8", zIndex: 30 }}>
           <div
             ref={s3.ref}
             className="w-full max-w-3xl mx-auto px-4"
-            style={{
-              opacity: s3.inView ? 1 : 0,
-              transform: s3.inView ? "translateY(0)" : "translateY(40px)",
-              transition: "opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s",
-            }}
+            style={{ opacity: s3.inView ? 1 : 0, transform: s3.inView ? "translateY(0)" : "translateY(40px)", transition: "opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s" }}
           >
-            {/* Mock app window */}
-            <div
-              className="rounded-2xl overflow-hidden shadow-2xl border border-white/60"
-              style={{ background: "#fff" }}
-            >
-              {/* Mock app header */}
-              <div
-                className="flex items-center justify-between px-5 py-4"
-                style={{ background: NAVY }}
-              >
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/60" style={{ background: "#fff" }}>
+              <div className="flex items-center justify-between px-5 py-4" style={{ background: NAVY }}>
                 <div className="flex items-center gap-2">
                   <AppLogo size="sm" />
                   <div>
@@ -204,104 +194,57 @@ export default function HowItWorksPage() {
                     <p className="text-white/50 text-xs">Acme Corp</p>
                   </div>
                 </div>
-                <div
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold"
-                  style={{ background: BUCKS_COLOR, color: "white" }}
-                >
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: BUCKS_COLOR, color: "white" }}>
                   <Coins className="h-3.5 w-3.5" />
                   <span>850 Bucks</span>
                 </div>
               </div>
-
-              {/* Product grid */}
               <div className="p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <ShoppingBag className="h-4 w-4" style={{ color: NAVY }} />
-                  <h3 className="font-semibold text-sm" style={{ color: NAVY }}>
-                    Redeem Your Bucks
-                  </h3>
+                  <h3 className="font-semibold text-sm" style={{ color: NAVY }}>Redeem Your Bucks</h3>
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {products.map((p, i) => {
                     const Icon = p.icon;
-                    const canAfford = 850 >= p.price;
                     return (
                       <div
                         key={p.name}
-                        className="rounded-xl border border-gray-100 overflow-hidden flex flex-col"
+                        className="rounded-xl border overflow-hidden flex flex-col cursor-pointer transition-all duration-200"
                         style={{
-                          background: "#F8FAFC",
+                          background: selectedProduct === i ? `${NAVY}08` : "#F8FAFC",
+                          border: selectedProduct === i ? `2px solid ${BUCKS_COLOR}` : "1px solid #f0f0f0",
                           opacity: s3.inView ? 1 : 0,
                           transform: s3.inView ? "translateY(0)" : "translateY(20px)",
-                          transition: `opacity 0.6s ease ${0.2 + i * 0.12}s, transform 0.6s ease ${0.2 + i * 0.12}s`,
+                          transition: `opacity 0.6s ease ${0.2 + i * 0.12}s, transform 0.6s ease ${0.2 + i * 0.12}s, border 0.2s, background 0.2s`,
                         }}
+                        onClick={() => setSelectedProduct(i)}
                         data-testid={`card-product-${i}`}
                       >
-                        {/* Badge */}
                         <div className="flex justify-end px-3 pt-3">
-                          <span
-                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: `${BUCKS_COLOR}22`, color: BUCKS_COLOR }}
-                          >
-                            {p.tag}
-                          </span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}22`, color: BUCKS_COLOR }}>{p.tag}</span>
                         </div>
-
-                        {/* Icon */}
                         <div className="flex justify-center py-4">
-                          <div
-                            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                            style={{ background: `${NAVY}12` }}
-                          >
+                          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${NAVY}12` }}>
                             <Icon className="h-8 w-8" style={{ color: NAVY }} />
                           </div>
                         </div>
-
-                        {/* Info */}
                         <div className="px-4 pb-4 flex flex-col gap-2 flex-1">
-                          <p className="font-bold text-sm leading-tight" style={{ color: NAVY }}>
-                            {p.name}
-                          </p>
-                          <p className="text-xs text-gray-400 leading-snug flex-1">
-                            {p.description}
-                          </p>
-
-                          {/* Stars */}
+                          <p className="font-bold text-sm leading-tight" style={{ color: NAVY }}>{p.name}</p>
+                          <p className="text-xs text-gray-400 leading-snug flex-1">{p.description}</p>
                           <div className="flex gap-0.5">
                             {Array.from({ length: 5 }).map((_, si) => (
-                              <Star
-                                key={si}
-                                className="h-3 w-3"
-                                style={{
-                                  fill: si < p.stars ? "#f59e0b" : "none",
-                                  color: si < p.stars ? "#f59e0b" : "#d1d5db",
-                                }}
-                              />
+                              <Star key={si} className="h-3 w-3" style={{ fill: si < p.stars ? "#f59e0b" : "none", color: si < p.stars ? "#f59e0b" : "#d1d5db" }} />
                             ))}
                           </div>
-
-                          {/* Price + Button */}
-                          <div className="flex items-center justify-between mt-1">
-                            <span
-                              className="font-black text-base"
-                              style={{ color: BUCKS_COLOR }}
-                              data-testid={`text-price-${i}`}
-                            >
-                              {p.price} Bucks
-                            </span>
-                          </div>
+                          <span className="font-black text-base" style={{ color: BUCKS_COLOR }} data-testid={`text-price-${i}`}>{p.price} Bucks</span>
                           <button
-                            className="w-full py-2 rounded-lg text-sm font-semibold transition-opacity"
-                            style={{
-                              background: canAfford ? BUCKS_COLOR : "#e5e7eb",
-                              color: canAfford ? "white" : "#9ca3af",
-                              cursor: canAfford ? "pointer" : "not-allowed",
-                            }}
+                            className="w-full py-2 rounded-lg text-sm font-semibold"
+                            style={{ background: BUCKS_COLOR, color: "white" }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedProduct(i); }}
                             data-testid={`button-redeem-${i}`}
-                            disabled={!canAfford}
                           >
-                            {canAfford ? "Redeem" : "Not Enough Bucks"}
+                            Select
                           </button>
                         </div>
                       </div>
@@ -310,22 +253,309 @@ export default function HowItWorksPage() {
                 </div>
               </div>
             </div>
-
-            <p className="text-center text-sm text-gray-400 mt-6">
-              Admins curate the store. Employees choose what they love.
-            </p>
+            <p className="text-center text-sm text-gray-400 mt-4">Click an item — then see how easy ordering is ↓</p>
           </div>
         </section>
       </div>
 
-      {/* ─── Footer ──────────────────────────────────────────────────── */}
-      <footer
-        className="relative border-t py-6 text-sm text-gray-400 flex items-center justify-center gap-2"
-        style={{ background: "#fff", zIndex: 40 }}
-      >
+      {/* ─── SECTION 4: The Order Flow ────────────────────────────── */}
+      <div className="relative" style={{ height: "100vh" }}>
+        <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: "#fff", zIndex: 40 }}>
+          <div
+            ref={s4.ref}
+            className="w-full max-w-sm mx-auto px-4"
+            style={{ opacity: s4.inView ? 1 : 0, transform: s4.inView ? "translateY(0)" : "translateY(30px)", transition: "opacity 0.7s ease, transform 0.7s ease" }}
+          >
+            <p className="text-center text-xs font-semibold tracking-widest uppercase mb-6" style={{ color: BUCKS_COLOR }}>
+              The Ordering Experience
+            </p>
+
+            {/* Mock phone frame */}
+            <div className="rounded-[2rem] overflow-hidden shadow-2xl border-4 border-gray-200 bg-white" style={{ minHeight: 480 }}>
+              {/* Phone status bar */}
+              <div className="px-5 py-2 flex items-center justify-between" style={{ background: NAVY }}>
+                <span className="text-white text-xs font-semibold">9:41</span>
+                <div className="flex gap-1">
+                  <div className="w-1 h-1 rounded-full bg-white/60" />
+                  <div className="w-1 h-1 rounded-full bg-white/60" />
+                  <div className="w-1 h-1 rounded-full bg-white/60" />
+                </div>
+              </div>
+
+              {/* App header */}
+              <div className="px-4 py-3 border-b flex items-center gap-2" style={{ background: NAVY }}>
+                <AppLogo size="sm" />
+                <span className="text-white font-bold text-sm">My Order</span>
+              </div>
+
+              <div className="p-5 flex flex-col gap-4" style={{ minHeight: 380 }}>
+                {/* Step indicators */}
+                <div className="flex items-center gap-2 justify-center">
+                  {["Select", "Confirm", "Ordered!"].map((label, i) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500"
+                        style={{ background: orderStep >= i ? BUCKS_COLOR : "#e5e7eb", color: orderStep >= i ? "white" : "#9ca3af" }}
+                      >
+                        {orderStep > i ? "✓" : i + 1}
+                      </div>
+                      <span className="text-xs hidden sm:inline" style={{ color: orderStep >= i ? NAVY : "#9ca3af" }}>{label}</span>
+                      {i < 2 && <div className="w-4 h-px" style={{ background: orderStep > i ? BUCKS_COLOR : "#e5e7eb" }} />}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Step 0: Item selected */}
+                <div
+                  className="flex-1 flex flex-col gap-4 transition-all duration-500"
+                  style={{ opacity: orderStep === 0 ? 1 : 0, transform: orderStep === 0 ? "translateX(0)" : "translateX(-30px)", position: orderStep === 0 ? "relative" : "absolute", pointerEvents: orderStep === 0 ? "auto" : "none" }}
+                >
+                  <div className="rounded-xl border border-gray-100 p-4 flex items-center gap-4" style={{ background: "#F8FAFC" }}>
+                    <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${NAVY}12` }}>
+                      <SelectedIcon className="h-7 w-7" style={{ color: NAVY }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate" style={{ color: NAVY }}>{selectedP.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{selectedP.description}</p>
+                      <p className="font-black text-sm mt-1" style={{ color: BUCKS_COLOR }}>{selectedP.price} Bucks</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 p-3 flex items-center justify-between" style={{ background: "#F8FAFC" }}>
+                    <span className="text-xs text-gray-500">Your Balance</span>
+                    <span className="font-bold text-sm" style={{ color: BUCKS_COLOR }}>850 Bucks</span>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 p-3 flex items-center justify-between" style={{ background: "#F8FAFC" }}>
+                    <span className="text-xs text-gray-500">After Redemption</span>
+                    <span className="font-bold text-sm" style={{ color: NAVY }}>{850 - selectedP.price} Bucks</span>
+                  </div>
+                  <button
+                    className="w-full py-3 rounded-xl font-bold text-white text-sm animate-pulse"
+                    style={{ background: BUCKS_COLOR }}
+                  >
+                    Confirm Order
+                  </button>
+                </div>
+
+                {/* Step 1: Processing */}
+                {orderStep === 1 && (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-4">
+                    <div className="w-16 h-16 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: `${BUCKS_COLOR}33`, borderTopColor: BUCKS_COLOR }} />
+                    <p className="font-semibold text-sm" style={{ color: NAVY }}>Processing your order…</p>
+                  </div>
+                )}
+
+                {/* Step 2: Confirmed */}
+                {orderStep === 2 && (
+                  <div
+                    className="flex-1 flex flex-col items-center justify-center gap-3 text-center"
+                    style={{ animation: "fadeUp 0.5s ease forwards" }}
+                  >
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}18` }}>
+                      <CheckCircle2 className="h-10 w-10" style={{ color: BUCKS_COLOR }} />
+                    </div>
+                    <p className="font-black text-xl" style={{ color: NAVY }}>Order Placed!</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Package className="h-3.5 w-3.5" />
+                      <span>{selectedP.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${BUCKS_COLOR}18`, color: BUCKS_COLOR }}>
+                      <Truck className="h-3 w-3" />
+                      <span>Your manager will fulfill your request</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 max-w-[200px]">
+                      You'll be notified when your item is ready for pickup.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="text-center text-xs text-gray-400 mt-4">
+              Employees redeem instantly. Managers fulfill on their schedule.
+            </p>
+          </div>
+
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-gray-300">
+            <ChevronDown className="h-6 w-6 animate-bounce" />
+          </div>
+        </section>
+      </div>
+
+      {/* ─── SECTION 5: CTA ───────────────────────────────────────── */}
+      <div className="relative" style={{ minHeight: "100vh" }}>
+        <section className="sticky top-0 min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 py-24" style={{ background: NAVY, zIndex: 50 }}>
+          <div
+            ref={s5.ref}
+            className="w-full max-w-4xl mx-auto"
+            style={{ opacity: s5.inView ? 1 : 0, transform: s5.inView ? "translateY(0)" : "translateY(30px)", transition: "opacity 0.8s ease, transform 0.8s ease" }}
+          >
+            {!demoOpen ? (
+              <div className="flex flex-col items-center text-center gap-6">
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/20 text-white/60 text-xs font-semibold tracking-widest uppercase">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Ready to get started?
+                </div>
+                <h2
+                  className="font-display font-black text-white leading-tight"
+                  style={{ fontSize: "clamp(2.5rem, 6vw, 5rem)" }}
+                  data-testid="text-cta-headline"
+                >
+                  Your team deserves better.
+                </h2>
+                <p className="text-white/60 text-lg max-w-xl">
+                  Launch a rewards program your employees will actually love — in minutes, not months.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4 mt-2 w-full max-w-md">
+                  <button
+                    onClick={() => setLocation("/signup")}
+                    className="flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base transition-all duration-200 hover:opacity-90 active:scale-95"
+                    style={{ background: BUCKS_COLOR }}
+                    data-testid="button-cta-signup"
+                  >
+                    Get Started Free
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setDemoOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95"
+                    data-testid="button-cta-demo"
+                  >
+                    Request a Demo
+                  </button>
+                </div>
+
+                <p className="text-white/30 text-xs mt-2">No credit card required to get started.</p>
+              </div>
+            ) : (
+              <div
+                className="w-full max-w-lg mx-auto rounded-2xl overflow-hidden shadow-2xl"
+                style={{ background: "white" }}
+              >
+                {/* Form header */}
+                <div className="flex items-center justify-between px-6 py-4" style={{ background: NAVY, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                  <div className="flex items-center gap-2">
+                    <AppLogo size="sm" />
+                    <p className="text-white font-bold text-sm">Request a Demo</p>
+                  </div>
+                  <button onClick={() => { setDemoOpen(false); setDemoSent(false); }} className="text-white/50 hover:text-white transition-colors" data-testid="button-close-demo">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {demoSent ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-6 gap-4 text-center">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}18` }}>
+                      <CheckCircle2 className="h-8 w-8" style={{ color: BUCKS_COLOR }} />
+                    </div>
+                    <h3 className="font-bold text-xl" style={{ color: NAVY }}>Request Received!</h3>
+                    <p className="text-gray-500 text-sm max-w-xs">
+                      We'll reach out within one business day to schedule your personalized demo.
+                    </p>
+                    <button
+                      className="mt-2 px-6 py-2 rounded-xl font-semibold text-white text-sm"
+                      style={{ background: BUCKS_COLOR }}
+                      onClick={() => { setDemoOpen(false); setDemoSent(false); setDemoForm({ name: "", email: "", phone: "", needs: "" }); }}
+                      data-testid="button-demo-close-success"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleDemoSubmit} className="p-6 flex flex-col gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="demo-name" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Full Name</Label>
+                        <Input
+                          id="demo-name"
+                          placeholder="Jane Smith"
+                          value={demoForm.name}
+                          onChange={e => setDemoForm(f => ({ ...f, name: e.target.value }))}
+                          required
+                          autoComplete="name"
+                          data-testid="input-demo-name"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="demo-email" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Work Email</Label>
+                        <Input
+                          id="demo-email"
+                          type="email"
+                          placeholder="jane@company.com"
+                          value={demoForm.email}
+                          onChange={e => setDemoForm(f => ({ ...f, email: e.target.value }))}
+                          required
+                          autoComplete="email"
+                          data-testid="input-demo-email"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="demo-phone" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Phone Number</Label>
+                      <Input
+                        id="demo-phone"
+                        type="tel"
+                        placeholder="+1 (555) 000-0000"
+                        value={demoForm.phone}
+                        onChange={e => setDemoForm(f => ({ ...f, phone: e.target.value }))}
+                        required
+                        autoComplete="tel"
+                        data-testid="input-demo-phone"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="demo-needs" className="text-xs font-semibold text-gray-600 uppercase tracking-wide">What are your incentive goals?</Label>
+                      <Textarea
+                        id="demo-needs"
+                        placeholder="e.g. We want to improve attendance and safety compliance for our 120 warehouse employees..."
+                        rows={3}
+                        value={demoForm.needs}
+                        onChange={e => setDemoForm(f => ({ ...f, needs: e.target.value }))}
+                        required
+                        data-testid="input-demo-needs"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={demoSubmitting}
+                      className="w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-opacity disabled:opacity-60"
+                      style={{ background: BUCKS_COLOR }}
+                      data-testid="button-demo-submit"
+                    >
+                      {demoSubmitting ? "Sending…" : (<><Send className="h-4 w-4" /> Send Request</>)}
+                    </button>
+                    <p className="text-center text-xs text-gray-400">
+                      Or{" "}
+                      <button
+                        type="button"
+                        className="underline underline-offset-2 hover:text-gray-700"
+                        onClick={() => setLocation("/signup")}
+                      >
+                        sign up and start free today
+                      </button>
+                    </p>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(ellipse at 60% 40%, ${BUCKS_COLOR}15 0%, transparent 65%)` }} />
+        </section>
+      </div>
+
+      {/* ─── Footer ────────────────────────────────────────────────── */}
+      <footer className="relative border-t py-6 text-sm text-gray-400 flex items-center justify-center gap-2" style={{ background: "#fff", zIndex: 60 }}>
         <AppLogo size="sm" />
         <span>Better Bucks LLC</span>
       </footer>
+
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

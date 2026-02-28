@@ -34,6 +34,8 @@ const AdminInstantTransactionPage = lazy(() => import("@/pages/admin-instant-tra
 const EmployeeSettingsPage = lazy(() => import("@/pages/employee-settings"));
 const AboutPage = lazy(() => import("@/pages/about"));
 const HowItWorksPage = lazy(() => import("@/pages/how-it-works"));
+const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
+const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function ProtectedRoute({ 
@@ -147,6 +149,9 @@ function Router() {
         <Route path="/pending-verification" component={PendingVerification} />
         <Route path="/change-password" component={ChangePasswordPage} />
         
+        <Route path="/forgot-password" component={ForgotPasswordPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
+
         <Route path="/developer" component={DeveloperLoginPage} />
         <Route path="/developer/dashboard" component={DeveloperDashboardPage} />
 

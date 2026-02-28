@@ -152,6 +152,107 @@ export async function registerRoutes(
     res.json(allUsers);
   });
 
+  // Forgot password — send 6-digit reset code via email or phone
+  app.post("/api/auth/forgot-password", asyncHandler(async (req, res) => {
+    const { contact } = z.object({ contact: z.string().min(1) }).parse(req.body);
+    const isEmail = contact.includes("@");
+    const user = isEmail
+      ? await storage.getUserByEmailGlobal(contact.toLowerCase().trim())
+      : await storage.getUserByPhoneGlobal(contact.trim());
+
+    // Always return success to avoid account enumeration
+    const genericMsg = "If an account with that contact exists, a reset code has been sent.";
+    if (!user) return res.json({ message: genericMsg });
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await storage.setPasswordResetToken(user.id, code, expiry);
+
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    if (isEmail && user.email) {
+      if (smtpUser && smtpPass) {
+        try {
+          const nm = await import("nodemailer");
+          const transporter = nm.default.createTransport({
+            host: "smtp.gmail.com", port: 587, secure: false,
+            auth: { user: smtpUser, pass: smtpPass },
+          });
+          await transporter.sendMail({
+            from: `"Better Bucks" <${smtpUser}>`,
+            to: user.email,
+            subject: "Reset your Better Bucks password",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+                <h2 style="color: #162A4A;">Better Bucks</h2>
+                <p>Hi ${user.fullName},</p>
+                <p>We received a request to reset your password. Your reset code is:</p>
+                <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #162A4A;">${code}</div>
+                <p style="margin-top: 16px; color: #666;">This code expires in 1 hour. If you did not request a password reset, please ignore this email.</p>
+              </div>
+            `,
+          });
+        } catch (err) {
+          console.error("[Password Reset] Email failed:", err);
+        }
+      } else {
+        console.log(`[Password Reset] SMTP not configured. Code for ${user.email}: ${code}`);
+      }
+    } else if (!isEmail && user.phone) {
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
+      const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+      if (accountSid && authToken && fromNumber) {
+        try {
+          await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+            method: "POST",
+            headers: {
+              "Authorization": "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              To: user.phone,
+              From: fromNumber,
+              Body: `Your Better Bucks password reset code is: ${code}. It expires in 1 hour.`,
+            }),
+          });
+        } catch (err) {
+          console.error("[Password Reset] SMS failed:", err);
+        }
+      } else {
+        console.log(`[Password Reset] Twilio not configured. Code for ${user.phone}: ${code}`);
+      }
+    }
+
+    res.json({ message: genericMsg });
+  }));
+
+  // Reset password — validate code and set new password
+  app.post("/api/auth/reset-password", asyncHandler(async (req, res) => {
+    const { contact, code, newPassword } = z.object({
+      contact: z.string().min(1),
+      code: z.string().min(4),
+      newPassword: z.string().min(6),
+    }).parse(req.body);
+
+    const isEmail = contact.includes("@");
+    const user = isEmail
+      ? await storage.getUserByEmailGlobal(contact.toLowerCase().trim())
+      : await storage.getUserByPhoneGlobal(contact.trim());
+
+    if (!user || !user.passwordResetToken || user.passwordResetToken !== code) {
+      return res.status(400).json({ message: "Invalid or expired reset code." });
+    }
+    if (!user.passwordResetExpiry || new Date() > new Date(user.passwordResetExpiry)) {
+      return res.status(400).json({ message: "Reset code has expired. Please request a new one." });
+    }
+
+    await storage.updateUserPassword(user.id, newPassword);
+    await storage.setPasswordResetToken(user.id, null, null);
+
+    res.json({ message: "Password reset successfully. You can now log in with your new password." });
+  }));
+
   // Register new admin account - requires org code, goes into pending queue
   app.post(api.auth.registerAdmin.path, async (req, res) => {
     try {

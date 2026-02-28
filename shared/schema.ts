@@ -43,6 +43,8 @@ export const users = pgTable("users", {
   phone: text("phone"),
   emailVerified: boolean("email_verified").default(false).notNull(),
   emailVerificationCode: text("email_verification_code"),
+  passwordResetToken: text("password_reset_token"),
+  passwordResetExpiry: timestamp("password_reset_expiry"),
   organizationId: integer("organization_id"),
   departmentId: integer("department_id"),
 });

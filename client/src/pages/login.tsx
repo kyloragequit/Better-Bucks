@@ -131,6 +131,7 @@ function EmployeeTabs({ defaultMode = "login", defaultOrgCode = "" }: { defaultM
 function EmployeeLoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [, setLocation] = useLocation();
   const { mutate: login, isPending } = useLogin();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -151,12 +152,23 @@ function EmployeeLoginForm() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
+            autoComplete="username"
             data-testid="input-employee-code"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="emp-password">Password</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="emp-password">Password</Label>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+            onClick={() => setLocation("/forgot-password")}
+            data-testid="link-emp-forgot-password"
+          >
+            Forgot password?
+          </button>
+        </div>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
@@ -166,6 +178,7 @@ function EmployeeLoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
             data-testid="input-employee-password"
           />
         </div>
@@ -409,6 +422,7 @@ function AdminTabs() {
 function AdminLoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [, setLocation] = useLocation();
   const { mutate: login, isPending } = useLogin();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -429,12 +443,23 @@ function AdminLoginForm() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
+            autoComplete="username"
             data-testid="input-admin-username"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="admin-password">Password</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="admin-password">Password</Label>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+            onClick={() => setLocation("/forgot-password")}
+            data-testid="link-admin-forgot-password"
+          >
+            Forgot password?
+          </button>
+        </div>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
@@ -444,6 +469,7 @@ function AdminLoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
             data-testid="input-admin-password"
           />
         </div>

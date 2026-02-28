@@ -20,6 +20,7 @@ export interface IStorage {
   getUserByEmailGlobal(email: string): Promise<User | undefined>;
   getUserByPhoneGlobal(phone: string): Promise<User | undefined>;
   updateUserEmailVerification(userId: number, code: string | null, verified: boolean): Promise<User>;
+  setPasswordResetToken(userId: number, token: string | null, expiry: Date | null): Promise<User>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransactionsByUser(userId: number): Promise<Transaction[]>;
@@ -203,6 +204,14 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(users).set({
       emailVerificationCode: code,
       emailVerified: verified,
+    }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async setPasswordResetToken(userId: number, token: string | null, expiry: Date | null): Promise<User> {
+    const [updated] = await db.update(users).set({
+      passwordResetToken: token,
+      passwordResetExpiry: expiry,
     }).where(eq(users.id, userId)).returning();
     return updated;
   }

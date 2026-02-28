@@ -4,9 +4,10 @@ import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useUser } from "@/hooks/use-auth";
+import { useTutorial } from "@/hooks/use-tutorial";
 import type { Department } from "@shared/schema";
 import {
   ResponsiveContainer,
@@ -72,6 +73,7 @@ export default function AdminDashboardPage() {
   const [debitPeriod, setDebitPeriod] = useState<"week" | "month" | "year">("week");
   const [orderPeriod, setOrderPeriod] = useState<"week" | "month" | "year">("week");
   const { data: currentUser } = useUser();
+  const { restartTutorial } = useTutorial();
 
   const buildStatsUrl = (base: string, extra?: Record<string, string>) => {
     const params = new URLSearchParams();
@@ -147,9 +149,19 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground" data-testid="heading-dashboard">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Bucks distributed from administrators to employees</p>
+        <div className="flex items-start gap-4">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground" data-testid="heading-dashboard">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Bucks distributed from administrators to employees</p>
+          </div>
+          <button
+            onClick={restartTutorial}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 mt-2 px-3 py-1.5 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5"
+            data-testid="button-replay-tutorial"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Take the tour again
+          </button>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>

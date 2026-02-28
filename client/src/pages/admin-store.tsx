@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart } from "lucide-react";
+import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +21,97 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { StoreItem, User, Wishlist } from "@shared/schema";
 
+const HELP_TIPS = [
+  {
+    icon: Tag,
+    field: "Item Name",
+    color: "#162A4A",
+    tip: "Use a clear, specific name employees will recognize. Good: \"Sony WH-1000XM5 Headphones\" — not just \"Headphones\". This is exactly what shows up in the store and in order notifications.",
+  },
+  {
+    icon: DollarSign,
+    field: "Price (Bucks)",
+    color: "#4E9F3D",
+    tip: "Set a Bucks price that fits your reward economy. If employees typically earn 500 Bucks/month, price everyday items at 100–300 Bucks and aspirational items at 500–2,000+. You can edit prices anytime without affecting past orders.",
+  },
+  {
+    icon: Link2,
+    field: "Item URL",
+    color: "#6366f1",
+    tip: "Paste the direct product page link — Amazon, Target, any retailer works. This link is only visible to you when you're fulfilling orders, so employees can't see where you're ordering from.",
+  },
+  {
+    icon: Image,
+    field: "Preview Image",
+    color: "#f59e0b",
+    tip: "Upload a photo or paste an image URL. A clear product photo dramatically increases employee engagement — items with images get selected 3× more often. Use the retailer's product image URL if you don't have one handy.",
+  },
+  {
+    icon: CheckCircle2,
+    field: "Managing Items",
+    color: "#10b981",
+    tip: "You can edit or delete items at any time. Deleting removes it from the store immediately — employees can no longer select it, but any past orders are not affected. Keep your store fresh by rotating seasonal items.",
+  },
+  {
+    icon: Star,
+    field: "Pro Tip",
+    color: "#ec4899",
+    tip: "Check the Wishlists section at the bottom of this page to see what your employees are hoping for. Adding those items is a guaranteed engagement boost!",
+  },
+];
+
+function NeedHelpPanel({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[9998] flex justify-end" data-testid="need-help-panel">
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ background: "#162A4A" }}>
+          <div>
+            <p className="text-white font-bold text-base">Store Setup Guide</p>
+            <p className="text-white/60 text-xs mt-0.5">Everything you need to know</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-white/60 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+            data-testid="button-close-help-panel"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Here's a walkthrough of every field in the Add Item form and tips to get the most from your store.
+          </p>
+          {HELP_TIPS.map(({ icon: Icon, field, color, tip }) => (
+            <div key={field} className="flex gap-3">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                style={{ background: `${color}15` }}
+              >
+                <Icon className="h-4.5 w-4.5" style={{ color }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold" style={{ color: "#162A4A" }}>{field}</p>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{tip}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-4 border-t bg-gray-50 shrink-0">
+          <p className="text-xs text-gray-400 text-center">
+            Still have questions? Contact your Better Bucks rep.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type WishlistEntry = Wishlist & { storeItem: StoreItem; user: User };
 
 export default function AdminStorePage() {
@@ -29,6 +120,7 @@ export default function AdminStorePage() {
   const { data: items, isLoading } = useQuery<StoreItem[]>({ queryKey: ["/api/store-items"] });
   const { data: wishlists } = useQuery<WishlistEntry[]>({ queryKey: ["/api/admin/wishlists"] });
 
+  const [showHelp, setShowHelp] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingItem, setEditingItem] = useState<StoreItem | null>(null);
   const [name, setName] = useState("");
@@ -120,6 +212,18 @@ export default function AdminStorePage() {
 
   return (
     <AdminLayout>
+      {showHelp && <NeedHelpPanel onClose={() => setShowHelp(false)} />}
+
+      <button
+        onClick={() => setShowHelp(true)}
+        className="fixed bottom-6 right-6 z-[999] flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
+        style={{ background: "#4E9F3D" }}
+        data-testid="button-need-help"
+      >
+        <HelpCircle className="h-4 w-4" />
+        Need help?
+      </button>
+
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>

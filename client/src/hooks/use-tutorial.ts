@@ -21,5 +21,11 @@ export function useTutorial() {
 
   const skipTutorial = completeTutorial;
 
-  return { shouldShow, completeTutorial, skipTutorial };
+  const restartTutorial = () => {
+    if (!user) return;
+    localStorage.removeItem(`bb_tutorial_done_${user.id}`);
+    setShouldShow(true);
+  };
+
+  return { shouldShow, completeTutorial, skipTutorial, restartTutorial };
 }

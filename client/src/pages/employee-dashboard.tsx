@@ -9,16 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wallet, History, CreditCard, Mail, Store, Heart, ExternalLink } from "lucide-react";
+import { Wallet, History, CreditCard, Mail, Store, Heart, ExternalLink, BookOpen } from "lucide-react";
 import type { StoreItem, Wishlist } from "@shared/schema";
 import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
+import { useTutorial } from "@/hooks/use-tutorial";
 
 export default function EmployeeDashboard() {
   const { data: authUser } = useUser();
   const { data: userDetails, isLoading } = useUserDetails(authUser?.id || 0);
+  const { restartTutorial } = useTutorial();
   const { data: shops } = useQuery<{ id: number; name: string; url: string; pointsPerDollar: number }[]>({
     queryKey: ["/api/shop-websites"],
     enabled: !!authUser,
@@ -33,11 +35,21 @@ export default function EmployeeDashboard() {
 
   return (
     <EmployeeLayout>
-      <div className="mb-8 animate-in">
-        <h1 className="text-3xl font-display font-bold text-foreground">
-          Welcome, {userDetails.fullName.split(' ')[0]}!
-        </h1>
-        <p className="text-muted-foreground mt-1">Here is an overview of your rewards and activity.</p>
+      <div className="mb-8 animate-in flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-foreground">
+            Welcome, {userDetails.fullName.split(' ')[0]}!
+          </h1>
+          <p className="text-muted-foreground mt-1">Here is an overview of your rewards and activity.</p>
+        </div>
+        <button
+          onClick={restartTutorial}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 mt-1 px-3 py-1.5 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5"
+          data-testid="button-replay-tutorial"
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          Take the tour again
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

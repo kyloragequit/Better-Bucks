@@ -178,13 +178,28 @@ export default function HowItWorksPage() {
       </div>
 
       {/* ─── SECTION 3: The Shop ──────────────────────────────────── */}
-      <div className="relative" style={{ height: "100vh" }}>
-        <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden py-20" style={{ background: "#F0F4F8", zIndex: 30 }}>
+      <div className="relative" style={{ height: "130vh" }}>
+        <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden py-10" style={{ background: "#F0F4F8", zIndex: 30 }}>
           <div
             ref={s3.ref}
             className="w-full max-w-3xl mx-auto px-4"
             style={{ opacity: s3.inView ? 1 : 0, transform: s3.inView ? "translateY(0)" : "translateY(40px)", transition: "opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s" }}
           >
+            <div className="text-center mb-7">
+              <h2
+                className="font-display font-black leading-tight"
+                style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.6rem)", color: NAVY }}
+                data-testid="text-shop-headline"
+              >
+                Admins curate the shop and easily
+                <br />
+                <span style={{ color: BUCKS_COLOR }}>reward employees with what they want.</span>
+              </h2>
+              <p className="mt-3 text-gray-500 text-sm max-w-md mx-auto">
+                Build your company store in minutes. Set item prices in Bucks, upload products, and let employees spend what they've earned — no manual gift cards or guesswork.
+              </p>
+            </div>
+
             <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/60" style={{ background: "#fff" }}>
               <div className="flex items-center justify-between px-5 py-4" style={{ background: NAVY }}>
                 <div className="flex items-center gap-2">
@@ -253,7 +268,7 @@ export default function HowItWorksPage() {
                 </div>
               </div>
             </div>
-            <p className="text-center text-sm text-gray-400 mt-4">Click an item — then see how easy ordering is ↓</p>
+            <p className="text-center text-xs text-gray-400 mt-4">Tap an item to select it — then scroll to see the ordering flow ↓</p>
           </div>
         </section>
       </div>

@@ -198,7 +198,10 @@ export default function SignupPage() {
                     ? "cursor-pointer ring-2 ring-primary border-primary shadow-lg"
                     : "cursor-pointer border-muted hover-elevate"
                 } ${tier.popular ? "border-primary/50" : ""}`}
-                onClick={() => { if (!isEnterprise) setSelectedTier(tier.id); }}
+                onClick={() => {
+                  if (isEnterprise) { setSelectedTier(null); setTimeout(scrollToRfi, 80); }
+                  else setSelectedTier(tier.id);
+                }}
                 data-testid={`card-tier-${tier.id}`}
               >
                 {tier.popular && (
@@ -246,7 +249,8 @@ export default function SignupPage() {
                         className="w-full"
                         onClick={(e) => {
                           e.stopPropagation();
-                          scrollToRfi();
+                          setSelectedTier(null);
+                          setTimeout(scrollToRfi, 80);
                         }}
                         data-testid="button-select-tier-enterprise"
                       >
@@ -351,6 +355,7 @@ export default function SignupPage() {
           </Card>
         )}
 
+        {!selectedTier && (
         <div ref={rfiRef} className="border-t border-border/50 pt-8 mt-8">
           <Card className="shadow-xl shadow-black/5 border-muted bg-white/80 backdrop-blur-sm max-w-lg mx-auto">
             <CardHeader className="text-center pb-3">
@@ -454,6 +459,7 @@ export default function SignupPage() {
             <strong>Are you a small business?</strong>
           </p>
         </div>
+        )}
       </div>
       <InstagramFloat />
     </div>

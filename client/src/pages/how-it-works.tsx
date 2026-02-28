@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { PageSEO } from "@/components/page-seo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -525,11 +526,7 @@ export default function HowItWorksPage() {
         </section>
       </div>
 
-      {/* ─── Footer ────────────────────────────────────────────────── */}
-      <footer className="relative border-t py-6 text-sm text-gray-400 flex items-center justify-center gap-2" style={{ background: "#fff", zIndex: 50 }}>
-        <AppLogo size="sm" />
-        <span>Better Bucks LLC</span>
-      </footer>
+      <SiteFooter />
 
       <style>{`
         @keyframes fadeUp {

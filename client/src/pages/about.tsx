@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
+import { SiteFooter } from "@/components/site-footer";
 import { ArrowLeft } from "lucide-react";
 import { InstagramFloat } from "@/components/instagram-float";
 import { PageSEO } from "@/components/page-seo";
@@ -55,12 +56,7 @@ export default function AboutPage() {
         </div>
       </main>
 
-      <footer className="border-t bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-sm text-gray-400 flex items-center justify-center gap-2">
-          <AppLogo size="sm" />
-          <span>Better Bucks LLC</span>
-        </div>
-      </footer>
+      <SiteFooter />
       <InstagramFloat />
     </div>
   );

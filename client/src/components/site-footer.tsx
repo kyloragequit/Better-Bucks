@@ -9,7 +9,7 @@ export function SiteFooter({ dark = false, absolute = false }: { dark?: boolean;
         dark ? "text-white/30" : "text-muted-foreground/60"
       }`}
     >
-      <AppLogo size="sm" />
+      <AppLogo size="xs" />
       <span className="text-xs">Better Bucks LLC</span>
     </footer>
   );

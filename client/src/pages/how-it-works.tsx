@@ -211,6 +211,7 @@ export default function HowItWorksPage() {
                   transform: orderMode ? "translateX(-48px)" : "translateX(0)",
                   transition: "opacity 0.4s ease, transform 0.4s ease",
                   pointerEvents: orderMode ? "none" : "auto",
+                  zIndex: orderMode ? 1 : 2,
                 }}
               >
                 {/* Mock app header */}
@@ -291,6 +292,7 @@ export default function HowItWorksPage() {
                   transform: orderMode ? "translateX(0)" : "translateX(48px)",
                   transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
                   pointerEvents: orderMode ? "auto" : "none",
+                  zIndex: orderMode ? 2 : 1,
                 }}
               >
                 {/* Order view header */}

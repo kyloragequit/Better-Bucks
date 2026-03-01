@@ -1,10 +1,11 @@
 import { useLocation } from "wouter";
 import logoImg from "@assets/Final_Logo_1771908016318.png";
 
-export function AppLogo({ size = "md", linkTo }: { size?: "sm" | "md" | "lg"; linkTo?: string }) {
+export function AppLogo({ size = "md", linkTo }: { size?: "xs" | "sm" | "md" | "lg"; linkTo?: string }) {
   const [, navigate] = useLocation();
 
   const sizeClasses = {
+    xs: "h-[28px] w-[28px]",
     sm: "h-[60px] w-[60px]",
     md: "h-[84px] w-[84px]",
     lg: "h-[120px] w-[120px]",

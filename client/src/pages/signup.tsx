@@ -150,7 +150,7 @@ export default function SignupPage() {
   const selectedTierData = tiers.find(t => t.id === selectedTier);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
+    <div className="flex flex-col min-h-screen relative overflow-hidden bg-primary">
       <PageSEO
         title="Get Started – Eliminate Manual Reward Tracking | Better Bucks"
         description="Solve employee engagement issues and cut time-consuming admin tasks. Better Bucks is built for 50–500 employee operations in logistics, distribution, warehousing, and manufacturing. Set up your incentive program today."
@@ -159,6 +159,7 @@ export default function SignupPage() {
 
       <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 70% 30%, #4E9F3D15 0%, transparent 60%)" }} />
 
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="relative z-10 w-full max-w-5xl space-y-6">
         <Button
           variant="ghost"
@@ -464,6 +465,7 @@ export default function SignupPage() {
           </Card>
         </div>
         )}
+      </div>
       </div>
       <SiteFooter dark />
       <InstagramFloat />

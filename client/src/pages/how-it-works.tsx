@@ -215,7 +215,7 @@ export default function HowItWorksPage() {
             </div>
 
             {/* Sliding panel container — fixed height so both views keep the same box size */}
-            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff", height: 340 }}>
+            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff", height: 520 }}>
 
               {/* ── Shop view ─────────────────────────────────────── */}
               <div

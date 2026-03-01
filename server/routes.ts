@@ -2011,6 +2011,35 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/developer/organizations/:id/cancel-subscription", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+    const orgId = parseInt(req.params.id);
+    if (isNaN(orgId)) return res.status(400).json({ message: "Invalid organization ID" });
+
+    try {
+      const org = await storage.getOrganization(orgId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const isFree = org.stripeCustomerId === "free_membership";
+      const isPromo = org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
+
+      if (!isFree && !isPromo && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
+        await ensureStripeReady();
+        const stripe = await getStripeClient();
+        await stripe.subscriptions.cancel(org.stripeSubscriptionId);
+      }
+
+      await storage.updateOrganizationStatus(orgId, "paused");
+      res.json({ message: "Subscription cancelled and organization paused." });
+    } catch (e) {
+      console.error("Developer cancel subscription error:", e);
+      res.status(500).json({ message: "Failed to cancel subscription" });
+    }
+  });
+
   app.post("/api/developer/impersonate/:userId", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "developer") {

@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization } from "@shared/schema";
 
@@ -196,7 +196,23 @@ export default function DeveloperDashboardPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/developer/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/metrics"] });
       toast({ title: "Deleted", description: "Organization has been removed." });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const cancelSubMutation = useMutation({
+    mutationFn: async (orgId: number) => {
+      const res = await apiRequest("POST", `/api/developer/organizations/${orgId}/cancel-subscription`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/metrics"] });
+      toast({ title: "Subscription Cancelled", description: "Stripe billing stopped and organization paused." });
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -722,6 +738,25 @@ export default function DeveloperDashboardPage() {
                                     >
                                       <Play className="mr-1.5 h-3 w-3" />
                                       Reactivate
+                                    </Button>
+                                  )}
+                                  {org.status === "active" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-amber-700 border-amber-400 hover:bg-amber-50"
+                                      onClick={() => {
+                                        const hasPaidSub = !isFree && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout";
+                                        const msg = hasPaidSub
+                                          ? `Cancel subscription for "${org.name}"? This will stop Stripe billing and immediately pause all users' access. Data is preserved.`
+                                          : `Pause "${org.name}"? All users will lose access. Data is preserved.`;
+                                        if (confirm(msg)) cancelSubMutation.mutate(org.id);
+                                      }}
+                                      disabled={cancelSubMutation.isPending}
+                                      data-testid={`button-cancel-sub-org-${org.id}`}
+                                    >
+                                      <XCircle className="mr-1.5 h-3 w-3" />
+                                      Cancel Sub
                                     </Button>
                                   )}
                                   <Button

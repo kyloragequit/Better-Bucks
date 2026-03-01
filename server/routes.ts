@@ -1603,7 +1603,7 @@ export async function registerRoutes(
     const isPromoOrg = org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
 
     if (isPromoOrg) {
-      await storage.updateOrganizationStatus(org.id, "inactive");
+      await storage.updateOrganizationStatus(org.id, "paused");
       return res.json({ message: "Subscription cancelled successfully" });
     }
 
@@ -1615,7 +1615,7 @@ export async function registerRoutes(
       await ensureStripeReady();
       const stripe = await getStripeClient();
       await stripe.subscriptions.cancel(org.stripeSubscriptionId);
-      await storage.updateOrganizationStatus(org.id, "inactive");
+      await storage.updateOrganizationStatus(org.id, "paused");
       res.json({ message: "Subscription cancelled successfully" });
     } catch (error) {
       console.error("Error cancelling subscription:", error);

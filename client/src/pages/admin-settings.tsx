@@ -474,9 +474,11 @@ export default function AdminSettingsPage() {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will immediately cancel your organization's subscription. 
-                                All team members will lose access to the portal. This action cannot be undone.
+                              <AlertDialogDescription asChild>
+                                <div className="space-y-2 text-sm text-muted-foreground">
+                                  <p>This will <strong>immediately stop your Stripe automatic payment</strong> and pause your organization. All team members will lose access to the platform.</p>
+                                  <p>Your organization data, employee accounts, and history are fully preserved. You can reactivate at any time from your organization settings.</p>
+                                </div>
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -503,11 +505,22 @@ export default function AdminSettingsPage() {
                     )}
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
-                    <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">Subscription Cancelled</div>
-                      <div>Your organization's subscription has been cancelled.</div>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 rounded-md bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                      <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold">Subscription Paused</div>
+                        <div className="mt-0.5 text-amber-700">Your Stripe billing has been stopped and all team members have been blocked from accessing the platform. Your data is fully preserved.</div>
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <p className="text-sm text-muted-foreground mb-3">Ready to come back? Pick a plan and reactivate — your employees, settings, and history will be right where you left them.</p>
+                      <a href="/admin/reactivate">
+                        <Button data-testid="button-reactivate-from-settings">
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Reactivate Subscription
+                        </Button>
+                      </a>
                     </div>
                   </div>
                 )}

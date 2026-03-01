@@ -55,6 +55,12 @@ export default function AdminOrdersPage() {
               Pending Orders
               <Badge variant="secondary" className="ml-2">{pendingOrders.length}</Badge>
             </CardTitle>
+            <div className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 mt-1">
+              <ExternalLink className="h-4 w-4 mt-0.5 shrink-0 text-primary/60" />
+              <p className="text-sm text-muted-foreground">
+                <strong className="text-foreground">Remember:</strong> after approving an order, you must visit your <strong className="text-foreground">store website</strong> to place the physical order on behalf of the employee. The Bucks are deducted here, but the item ships from the store.
+              </p>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>

@@ -25,6 +25,7 @@ import {
   Sparkles,
   ClipboardList,
   BadgeCheck,
+  ExternalLink,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -482,6 +483,10 @@ export default function HowItWorksPage() {
                         <div className="flex items-center justify-between pt-1 border-t border-gray-100">
                           <span className="text-xs text-gray-400">Cost</span>
                           <span className="font-black text-sm" style={{ color: BUCKS_COLOR }}>{selectedP.price} Bucks</span>
+                        </div>
+                        <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-[10px] leading-snug" style={{ background: `${NAVY}08`, color: NAVY + "99" }}>
+                          <ExternalLink className="h-3 w-3 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
+                          <span>You'll need to visit your <strong style={{ color: NAVY }}>store website</strong> to place the physical order for this employee.</span>
                         </div>
                         <button
                           onClick={handleApprove}

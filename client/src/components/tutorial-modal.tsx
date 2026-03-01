@@ -7,7 +7,7 @@ import {
   Wallet, ShoppingBag, ShoppingCart, LayoutDashboard, Users, Zap,
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
-  ArrowRight, Heart,
+  ArrowRight, Heart, ExternalLink,
 } from "lucide-react";
 
 const NAVY = "#162A4A";
@@ -313,9 +313,10 @@ function buildSlides(role: string, name: string): Slide[] {
               ))}
             </div>
           </div>
-          <p className="text-xs text-gray-400 text-center">
-            Orders move from Pending → Approved → Fulfilled as your manager processes them.
-          </p>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: `${NAVY}08` }}>
+            <ExternalLink className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
+            <p className="text-gray-500"><strong className="text-gray-700">Items are ordered on your store website</strong> — this platform tracks the request and lets your manager approve it.</p>
+          </div>
         </div>
       ),
     },
@@ -416,9 +417,10 @@ function buildSlides(role: string, name: string): Slide[] {
               ))}
             </div>
           </div>
-          <p className="text-xs text-gray-400 text-center">
-            Approved orders notify the employee. You can add fulfillment photos too.
-          </p>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: `${NAVY}08` }}>
+            <ExternalLink className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
+            <p className="text-gray-500">After approving, <strong className="text-gray-700">visit your store website to place the physical order</strong> for the employee. Upload a fulfillment photo to confirm delivery.</p>
+          </div>
         </div>
       ),
     },

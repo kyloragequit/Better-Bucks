@@ -23,6 +23,8 @@ import {
   Send,
   X,
   Sparkles,
+  ClipboardList,
+  BadgeCheck,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +84,18 @@ export default function HowItWorksPage() {
   const handleBackToShop = () => {
     setOrderMode(false);
     setOrderStep(0);
+    setAdminMode(false);
+    setAdminApproved(false);
+  };
+
+  const [adminMode, setAdminMode] = useState(false);
+  const [adminApproved, setAdminApproved] = useState(false);
+
+  const handleShowAdmin = () => setAdminMode(true);
+
+  const handleApprove = () => {
+    setAdminApproved(true);
+    setTimeout(() => handleBackToShop(), 2800);
   };
 
   const [demoOpen, setDemoOpen] = useState(false);
@@ -192,7 +206,7 @@ export default function HowItWorksPage() {
                 style={{ fontSize: "clamp(1.5rem, 3vw, 2.4rem)", color: NAVY }}
                 data-testid="text-shop-headline"
               >
-                Admins curate the shop and easily{" "}
+                You curate the shop and easily{" "}
                 <span style={{ color: BUCKS_COLOR }}>reward employees with what they want.</span>
               </h2>
               <p className="mt-2 text-gray-500 text-sm max-w-lg mx-auto">
@@ -207,11 +221,11 @@ export default function HowItWorksPage() {
               <div
                 className="absolute inset-0 w-full overflow-y-auto"
                 style={{
-                  opacity: orderMode ? 0 : 1,
+                  opacity: (orderMode || adminMode) ? 0 : 1,
                   transform: orderMode ? "translateX(-48px)" : "translateX(0)",
                   transition: "opacity 0.4s ease, transform 0.4s ease",
-                  pointerEvents: orderMode ? "none" : "auto",
-                  zIndex: orderMode ? 1 : 2,
+                  pointerEvents: (orderMode || adminMode) ? "none" : "auto",
+                  zIndex: (!orderMode && !adminMode) ? 2 : 1,
                 }}
               >
                 {/* Mock app header */}
@@ -280,7 +294,7 @@ export default function HowItWorksPage() {
                       );
                     })}
                   </div>
-                  <p className="text-center text-[10px] text-gray-400 mt-2">Select any item to see how ordering works</p>
+                  <p className="text-center text-sm font-semibold mt-3" style={{ color: NAVY + "80" }}>Select any item to see how ordering works</p>
                 </div>
               </div>
 
@@ -291,8 +305,8 @@ export default function HowItWorksPage() {
                   opacity: orderMode ? 1 : 0,
                   transform: orderMode ? "translateX(0)" : "translateX(48px)",
                   transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
-                  pointerEvents: orderMode ? "auto" : "none",
-                  zIndex: orderMode ? 2 : 1,
+                  pointerEvents: (orderMode && !adminMode) ? "auto" : "none",
+                  zIndex: (orderMode && !adminMode) ? 2 : 1,
                 }}
               >
                 {/* Order view header */}
@@ -395,15 +409,110 @@ export default function HowItWorksPage() {
                       </div>
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${BUCKS_COLOR}18`, color: BUCKS_COLOR }}>
                         <Truck className="h-3 w-3" />
-                        <span>Your manager will fulfill your request</span>
+                        <span>Waiting for manager approval</span>
                       </div>
                       <button
+                        onClick={handleShowAdmin}
+                        className="mt-1 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
+                        style={{ background: NAVY }}
+                        data-testid="button-show-admin"
+                      >
+                        See how <span style={{ color: BUCKS_COLOR }}>you</span> approve it
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                      <button
                         onClick={handleBackToShop}
-                        className="mt-1 text-xs underline underline-offset-2 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="text-xs underline underline-offset-2 text-gray-400 hover:text-gray-600 transition-colors"
                         data-testid="button-back-after-order"
                       >
                         ← Browse more items
                       </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Admin approval view ─────────────────────────────── */}
+              <div
+                className="absolute inset-0 w-full overflow-y-auto"
+                style={{
+                  opacity: adminMode ? 1 : 0,
+                  transform: adminMode ? "translateX(0)" : "translateX(48px)",
+                  transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
+                  pointerEvents: adminMode ? "auto" : "none",
+                  zIndex: adminMode ? 2 : 1,
+                }}
+              >
+                {/* Admin header */}
+                <div className="flex items-center justify-between px-5 py-4" style={{ background: NAVY }}>
+                  <div className="flex items-center gap-2">
+                    <AppLogo size="sm" />
+                    <div>
+                      <p className="text-white font-bold text-sm leading-tight">Admin Dashboard</p>
+                      <p className="text-white/50 text-xs">You — Manager · Acme Corp</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: "#ef444420", color: "#ef4444" }}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                    1 Pending
+                  </div>
+                </div>
+
+                <div className="p-5 flex flex-col gap-4">
+                  {!adminApproved ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4" style={{ color: NAVY }} />
+                        <p className="font-bold text-sm" style={{ color: NAVY }}>Pending Requests</p>
+                      </div>
+                      {/* Order card */}
+                      <div className="rounded-xl border-2 p-4 flex flex-col gap-3" style={{ borderColor: `${BUCKS_COLOR}40`, background: "#F8FAFC" }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${NAVY}12` }}>
+                              <selectedP.icon className="h-5 w-5" style={{ color: NAVY }} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm" style={{ color: NAVY }}>{selectedP.name}</p>
+                              <p className="text-xs text-gray-400">Requested by James L.</p>
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#d97706" }}>Pending</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                          <span className="text-xs text-gray-400">Cost</span>
+                          <span className="font-black text-sm" style={{ color: BUCKS_COLOR }}>{selectedP.price} Bucks</span>
+                        </div>
+                        <button
+                          onClick={handleApprove}
+                          className="w-full py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                          style={{ background: BUCKS_COLOR }}
+                          data-testid="button-approve-order"
+                        >
+                          <BadgeCheck className="h-4 w-4" />
+                          Approve &amp; Fulfill
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setAdminMode(false)}
+                        className="text-xs underline underline-offset-2 text-gray-400 hover:text-gray-600 transition-colors text-center"
+                        data-testid="button-back-from-admin"
+                      >
+                        ← Back to order confirmation
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 text-center py-6" style={{ animation: "fadeUp 0.5s ease forwards" }}>
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}18` }}>
+                        <BadgeCheck className="h-8 w-8" style={{ color: BUCKS_COLOR }} />
+                      </div>
+                      <p className="font-black text-xl" style={{ color: NAVY }}>Order Approved!</p>
+                      <p className="text-sm text-gray-500">James L. has been notified</p>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${NAVY}10`, color: NAVY }}>
+                        <Package className="h-3 w-3" />
+                        <span>Marked as Fulfilled</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Returning to demo…</p>
                     </div>
                   )}
                 </div>

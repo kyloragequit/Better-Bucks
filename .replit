@@ -44,3 +44,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["stripe:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+VITE_GA_MEASUREMENT_ID = "G-574N31Q4JE"

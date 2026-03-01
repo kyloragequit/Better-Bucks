@@ -96,7 +96,6 @@ export default function HowItWorksPage() {
 
   const handleApprove = () => {
     setAdminApproved(true);
-    setTimeout(() => handleBackToShop(), 2800);
   };
 
   const [demoOpen, setDemoOpen] = useState(false);
@@ -507,17 +506,41 @@ export default function HowItWorksPage() {
                       </button>
                     </>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-3 text-center py-6" style={{ animation: "fadeUp 0.5s ease forwards" }}>
-                      <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}18` }}>
-                        <BadgeCheck className="h-8 w-8" style={{ color: BUCKS_COLOR }} />
+                    <div className="flex flex-col gap-3 p-5" style={{ animation: "fadeUp 0.5s ease forwards" }}>
+                      {/* Success header */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: `${BUCKS_COLOR}18` }}>
+                          <BadgeCheck className="h-5 w-5" style={{ color: BUCKS_COLOR }} />
+                        </div>
+                        <div>
+                          <p className="font-black text-base leading-tight" style={{ color: NAVY }}>Order Approved!</p>
+                          <p className="text-xs text-gray-400">James L. has been notified</p>
+                        </div>
+                        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold" style={{ background: `${NAVY}10`, color: NAVY }}>
+                          <Package className="h-3 w-3" />
+                          <span>Fulfilled</span>
+                        </div>
                       </div>
-                      <p className="font-black text-xl" style={{ color: NAVY }}>Order Approved!</p>
-                      <p className="text-sm text-gray-500">James L. has been notified</p>
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${NAVY}10`, color: NAVY }}>
-                        <Package className="h-3 w-3" />
-                        <span>Marked as Fulfilled</span>
+
+                      {/* Prominent store website callout */}
+                      <div className="rounded-xl border-2 p-4 flex flex-col gap-2" style={{ borderColor: BUCKS_COLOR, background: `${BUCKS_COLOR}0C` }}>
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 shrink-0" style={{ color: BUCKS_COLOR }} />
+                          <p className="font-bold text-sm" style={{ color: NAVY }}>One more step — visit your store website</p>
+                        </div>
+                        <p className="text-xs text-gray-600 leading-relaxed">
+                          The Bucks have been deducted and the employee notified — but you still need to <strong>go to your store website and place the physical order</strong> on their behalf. The item ships from there, not from Better Bucks.
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">Returning to demo…</p>
+
+                      <button
+                        onClick={handleBackToShop}
+                        className="w-full py-2 rounded-xl font-semibold text-sm border-2 transition-all hover:opacity-80"
+                        style={{ borderColor: `${NAVY}30`, color: NAVY, background: "transparent" }}
+                        data-testid="button-demo-restart"
+                      >
+                        ← Try the demo again
+                      </button>
                     </div>
                   )}
                 </div>

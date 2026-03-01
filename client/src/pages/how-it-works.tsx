@@ -302,8 +302,8 @@ export default function HowItWorksPage() {
               <div
                 className="absolute inset-0 w-full overflow-y-auto"
                 style={{
-                  opacity: orderMode ? 1 : 0,
-                  transform: orderMode ? "translateX(0)" : "translateX(48px)",
+                  opacity: (orderMode && !adminMode) ? 1 : 0,
+                  transform: (orderMode && !adminMode) ? "translateX(0)" : "translateX(48px)",
                   transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
                   pointerEvents: (orderMode && !adminMode) ? "auto" : "none",
                   zIndex: (orderMode && !adminMode) ? 2 : 1,

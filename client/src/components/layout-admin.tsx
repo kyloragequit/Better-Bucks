@@ -37,7 +37,7 @@ function ImpersonationBanner() {
   return (
     <div className="bg-gray-900 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm">
       <Code2 className="h-4 w-4 text-secondary" />
-      <span>Developer Mode: Viewing as prime admin</span>
+      <span>Developer Mode: Viewing as organization</span>
       <Button
         size="sm"
         variant="outline"

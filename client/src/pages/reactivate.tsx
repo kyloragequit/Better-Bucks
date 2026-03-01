@@ -101,7 +101,7 @@ export default function ReactivatePage() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground">Only the prime admin can reactivate an organization subscription.</p>
+            <p className="text-muted-foreground">Only the organization owner can reactivate a subscription.</p>
             <Button className="mt-4" onClick={() => setLocation("/login")} data-testid="button-go-login">
               Go to Login
             </Button>

@@ -70,7 +70,7 @@ export default function LoginPage() {
               </TabsTrigger>
               <TabsTrigger value="admin" className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Admin</span>
+                <span className="hidden sm:inline">Administrator</span>
               </TabsTrigger>
             </TabsList>
 
@@ -99,7 +99,7 @@ export default function LoginPage() {
               data-testid="button-first-time"
             >
               <HelpCircle className="mr-2 h-4 w-4" />
-              First time login? (Prime Admin Setup)
+              First time login? (Organization Setup)
             </Button>
           </div>
         </Card>
@@ -579,7 +579,7 @@ function AdminRegisterForm() {
         </div>
         <h3 className="font-bold text-lg">Account Created!</h3>
         <p className="text-sm text-muted-foreground">
-          Your account has been submitted and is waiting for the prime administrator to approve it. You'll be able to log in once approved.
+          Your account has been submitted and is waiting for the organization to approve it. You'll be able to log in once approved.
         </p>
       </div>
     );

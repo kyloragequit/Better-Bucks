@@ -130,7 +130,7 @@ function buildSlides(role: string, name: string): Slide[] {
     id: "welcome",
     title: `Welcome, ${firstName}! 👋`,
     subtitle: role === "prime_admin"
-      ? "You're the Prime Administrator"
+      ? "You're the Organization Owner"
       : role === "admin"
       ? "You're an Administrator"
       : "You're an Employee",
@@ -556,7 +556,7 @@ function buildSlides(role: string, name: string): Slide[] {
             ))}
           </div>
           <p className="text-xs text-gray-400 text-center">
-            Settings are only visible to Prime Admins. Share the Org Code so your team can register.
+            Settings are only visible to Organization Owners. Share the Org Code so your team can register.
           </p>
         </div>
       ),
@@ -572,7 +572,7 @@ function buildSlides(role: string, name: string): Slide[] {
       ...primeAdminExtraSlides,
       {
         id: "done",
-        title: "You're the Prime Admin! 👑",
+        title: "You're the Organization Owner! 👑",
         subtitle: "Full control. Let's make your team's day.",
         body: (
           <div className="flex flex-col items-center gap-5">

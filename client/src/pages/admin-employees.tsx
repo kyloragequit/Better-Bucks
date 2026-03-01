@@ -561,7 +561,7 @@ function CreateEmployeeDialog() {
               <SelectContent>
                 <SelectItem value="employee">Employee</SelectItem>
                 <SelectItem value="admin">Administrator</SelectItem>
-                <SelectItem value="prime_admin">Prime Admin</SelectItem>
+                <SelectItem value="prime_admin">Organization</SelectItem>
               </SelectContent>
             </Select>
           </div>

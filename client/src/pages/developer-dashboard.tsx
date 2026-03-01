@@ -539,7 +539,7 @@ export default function DeveloperDashboardPage() {
                           <TableHead>Organization</TableHead>
                           <TableHead>Code</TableHead>
                           <TableHead>Package</TableHead>
-                          <TableHead>Prime Admin</TableHead>
+                          <TableHead>Organization Owner</TableHead>
                           <TableHead>Users</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -608,7 +608,7 @@ export default function DeveloperDashboardPage() {
                   All Organizations
                 </CardTitle>
                 <CardDescription>
-                  Click "Enter" to impersonate a prime admin and view their account.
+                  Click "Enter" to impersonate an organization and view their account.
                 </CardDescription>
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <div className="relative flex-1">
@@ -652,7 +652,7 @@ export default function DeveloperDashboardPage() {
                         <TableHead>Status</TableHead>
                         <TableHead>Admins</TableHead>
                         <TableHead>Employees</TableHead>
-                        <TableHead>Prime Admin</TableHead>
+                        <TableHead>Organization Owner</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -713,7 +713,7 @@ export default function DeveloperDashboardPage() {
                                       Enter
                                     </Button>
                                   ) : !org.primeAdmin && (org.status === "active" || org.status === "paused") ? (
-                                    <span className="text-xs text-muted-foreground">No prime admin</span>
+                                    <span className="text-xs text-muted-foreground">No owner set</span>
                                   ) : null}
                                   {org.status === "active" && (
                                     <Button

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { useUser } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization } from "@shared/schema";
 
@@ -101,6 +101,33 @@ export default function DeveloperDashboardPage() {
     queryKey: ["/api/page-content"],
     enabled: user?.role === "developer",
   });
+
+  const { data: metrics } = useQuery<{ totalCreated: number; totalDeleted: number; monthlyBilling: number }>({
+    queryKey: ["/api/developer/metrics"],
+    enabled: user?.role === "developer",
+  });
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 25;
+
+  const filteredOrgs = useMemo(() => {
+    let list = organizations ?? [];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(o => o.name.toLowerCase().includes(q) || o.code.toLowerCase().includes(q));
+    }
+    if (typeFilter !== "all") {
+      if (typeFilter === "free") list = list.filter(o => o.stripeCustomerId === "free_membership");
+      else if (typeFilter === "promo") list = list.filter(o => !!o.stripeCustomerId?.startsWith("promo_"));
+      else list = list.filter(o => o.tier === typeFilter && o.stripeCustomerId !== "free_membership" && !o.stripeCustomerId?.startsWith("promo_"));
+    }
+    return list;
+  }, [organizations, searchQuery, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrgs.length / PAGE_SIZE));
+  const paginatedOrgs = filteredOrgs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   useEffect(() => {
     if (cmsContent) {
@@ -432,6 +459,51 @@ export default function DeveloperDashboardPage() {
               </Card>
             </div>
 
+            {/* ── Platform metrics row ─────────────────────── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-green-100">
+                      <PlusCircle className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Accounts Created (all time)</p>
+                      <p className="text-2xl font-bold text-green-600" data-testid="text-total-created">{metrics?.totalCreated ?? "—"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-red-100">
+                      <UserX className="h-5 w-5 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Accounts Deleted (all time)</p>
+                      <p className="text-2xl font-bold text-red-500" data-testid="text-total-deleted">{metrics?.totalDeleted ?? "—"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-secondary/10">
+                      <DollarSign className="h-5 w-5 text-secondary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Est. Monthly Billing</p>
+                      <p className="text-2xl font-bold" style={{ color: "var(--secondary)" }} data-testid="text-monthly-billing">
+                        {metrics ? `$${metrics.monthlyBilling.toFixed(2)}/mo` : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {organizations?.some(o => o.status === "paused") && (
               <Card className="mb-8 border-amber-300 bg-amber-50/50">
                 <CardHeader className="pb-3">
@@ -522,6 +594,35 @@ export default function DeveloperDashboardPage() {
                 <CardDescription>
                   Click "Enter" to impersonate a prime admin and view their account.
                 </CardDescription>
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search by name or code…"
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                      className="pl-9"
+                      data-testid="input-search-orgs"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-400 shrink-0" />
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
+                      className="border rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                      data-testid="select-type-filter"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="free">Free</option>
+                      <option value="promo">Promo</option>
+                      <option value="small">Small ($49.99/mo)</option>
+                      <option value="mid">Mid ($99.99/mo)</option>
+                      <option value="large">Large ($149.99/mo)</option>
+                      <option value="enterprise">Enterprise ($299.99/mo)</option>
+                    </select>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -540,14 +641,14 @@ export default function DeveloperDashboardPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(!organizations || organizations.length === 0) ? (
+                      {paginatedOrgs.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                            No organizations found.
+                            {searchQuery || typeFilter !== "all" ? "No organizations match your filters." : "No organizations found."}
                           </TableCell>
                         </TableRow>
                       ) : (
-                        organizations.map((org) => {
+                        paginatedOrgs.map((org) => {
                           const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_");
                           return (
                             <TableRow key={org.id} data-testid={`row-org-${org.id}`}>
@@ -623,22 +724,20 @@ export default function DeveloperDashboardPage() {
                                       Reactivate
                                     </Button>
                                   )}
-                                  {(org.status === "pending" || org.stripeSubscriptionId === "pending_checkout") && (
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={() => {
-                                        if (confirm(`Delete "${org.name}"? This cannot be undone.`)) {
-                                          deleteMutation.mutate(org.id);
-                                        }
-                                      }}
-                                      disabled={deleteMutation.isPending}
-                                      data-testid={`button-delete-org-${org.id}`}
-                                    >
-                                      <Trash2 className="mr-1.5 h-3 w-3" />
-                                      Delete
-                                    </Button>
-                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      if (confirm(`Delete "${org.name}"? It will be hidden from the dashboard but data is preserved for auditing.`)) {
+                                        deleteMutation.mutate(org.id);
+                                      }
+                                    }}
+                                    disabled={deleteMutation.isPending}
+                                    data-testid={`button-delete-org-${org.id}`}
+                                  >
+                                    <Trash2 className="mr-1.5 h-3 w-3" />
+                                    Delete
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -647,6 +746,36 @@ export default function DeveloperDashboardPage() {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between pt-4 border-t mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    {filteredOrgs.length === 0
+                      ? "No results"
+                      : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredOrgs.length)} of ${filteredOrgs.length}`}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium px-2">{currentPage} / {totalPages}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      data-testid="button-next-page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

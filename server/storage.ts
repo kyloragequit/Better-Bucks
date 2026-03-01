@@ -34,6 +34,7 @@ export interface IStorage {
   updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
 
   getAllOrganizations(): Promise<Organization[]>;
+  getAllOrganizationsIncludingDeleted(): Promise<Organization[]>;
   
   createShopWebsite(website: InsertShopWebsite): Promise<ShopWebsite>;
   getShopWebsitesByOrganization(organizationId: number): Promise<ShopWebsite[]>;
@@ -48,7 +49,7 @@ export interface IStorage {
   getOrganizationByCode(code: string): Promise<Organization | undefined>;
   getOrganizationByStripeCustomerId(customerId: string): Promise<Organization | undefined>;
   updateOrganizationStripe(id: number, stripeCustomerId: string, stripeSubscriptionId: string): Promise<Organization>;
-  updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused"): Promise<Organization>;
+  updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused" | "deleted"): Promise<Organization>;
   updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization>;
   updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization>;
   deleteOrganization(id: number): Promise<void>;
@@ -311,7 +312,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused"): Promise<Organization> {
+  async updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused" | "deleted"): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ status }).where(eq(organizations.id, id)).returning();
     return updated;
   }
@@ -327,6 +328,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllOrganizations(): Promise<Organization[]> {
+    return await db.select().from(organizations).where(ne(organizations.status, "deleted")).orderBy(organizations.name);
+  }
+
+  async getAllOrganizationsIncludingDeleted(): Promise<Organization[]> {
     return await db.select().from(organizations).orderBy(organizations.name);
   }
 

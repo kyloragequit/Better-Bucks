@@ -1944,6 +1944,26 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/developer/metrics", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+    try {
+      const allOrgs = await storage.getAllOrganizationsIncludingDeleted();
+      const totalCreated = allOrgs.length;
+      const totalDeleted = allOrgs.filter(o => o.status === "deleted").length;
+      const tierPrices: Record<string, number> = { small: 49.99, mid: 99.99, large: 149.99, enterprise: 299.99 };
+      const monthlyBilling = allOrgs
+        .filter(o => o.status === "active" && o.stripeCustomerId !== "free_membership" && !o.stripeCustomerId?.startsWith("promo_"))
+        .reduce((sum, o) => sum + (tierPrices[o.tier] || 0), 0);
+      res.json({ totalCreated, totalDeleted, monthlyBilling });
+    } catch (e) {
+      console.error("Developer metrics error:", e);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
   app.delete("/api/developer/organizations/:id", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "developer") {
@@ -1957,11 +1977,7 @@ export async function registerRoutes(
       const org = await storage.getOrganization(orgId);
       if (!org) return res.status(404).json({ message: "Organization not found" });
 
-      if (org.status === "active" && org.stripeSubscriptionId !== "pending_checkout") {
-        return res.status(400).json({ message: "Cannot delete an active paid organization. Cancel the subscription first." });
-      }
-
-      await storage.deleteOrganization(orgId);
+      await storage.updateOrganizationStatus(orgId, "deleted");
       res.json({ success: true });
     } catch (e) {
       console.error("Developer delete org error:", e);

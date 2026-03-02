@@ -37,6 +37,7 @@ const AboutPage = lazy(() => import("@/pages/about"));
 const HowItWorksPage = lazy(() => import("@/pages/how-it-works"));
 const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
+const TermsPage = lazy(() => import("@/pages/terms"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function ProtectedRoute({ 
@@ -101,6 +102,7 @@ function Router() {
         <Route path="/" component={HowItWorksPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/how-it-works" component={HowItWorksPage} />
+        <Route path="/terms" component={TermsPage} />
         <Route path="/signup" component={SignupPage} />
         <Route path="/signup/success" component={SignupSuccessPage} />
         <Route path="/reactivate" component={ReactivatePage} />

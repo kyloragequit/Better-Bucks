@@ -13,8 +13,9 @@ export default function AboutPage() {
     <div className="min-h-screen bg-white flex flex-col">
       <PageSEO
         title="About Better Bucks – Built for Frontline Workforce Incentive Programs"
-        description="Better Bucks was built to eliminate inconsistent employee recognition and time-consuming admin tasks in logistics, warehousing, manufacturing, and distribution operations with 50–500 employees."
+        description="Better Bucks was built to eliminate manual incentive tracking, inconsistent employee recognition, and time-consuming reward admin tasks. Purpose-built for 50–500 employee operations in logistics, warehousing, manufacturing, and distribution."
         canonicalPath="/about"
+        keywords="about Better Bucks, employee incentive software company, frontline workforce recognition, operations employee engagement, reward program management, logistics HR software"
       />
 
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">

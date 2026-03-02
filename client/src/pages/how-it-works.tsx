@@ -122,9 +122,41 @@ export default function HowItWorksPage() {
   return (
     <div className="relative">
       <PageSEO
-        title="How It Works – Automated Incentive Tracking for Shift-Based Teams | Better Bucks"
-        description="Replace your spreadsheet reward system in minutes. Operations and HR managers get full performance visibility — hourly employees earn Bucks for safety compliance, attendance, and KPIs, then redeem them in your company store."
+        title="How It Works – Stop Manual Incentive Tracking for Shift-Based Teams | Better Bucks"
+        description="Replace your spreadsheet reward system in minutes. Managers get full performance visibility — hourly employees earn Bucks for safety compliance, attendance, and KPIs, solving employee engagement issues and reducing time-consuming admin tasks."
         canonicalPath="/how-it-works"
+        keywords="how employee incentive software works, replace spreadsheet reward system, employee engagement solution, safety compliance rewards, performance visibility tool, reward program management demo, frontline worker incentives, automated incentive tracking"
+        jsonLd={[
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How does Better Bucks replace a manual spreadsheet reward system?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Managers award Bucks through a simple dashboard. Employees see their balance instantly. No spreadsheets, no manual calculations, no inconsistent recognition — just a clear, auditable record of every award and redemption."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How do employees redeem their Bucks?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Each organization gets a private company store where employees browse and select items. When an employee chooses an item, the order is submitted to the admin for fulfillment — keeping the entire reward program management process in one place."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does Better Bucks improve safety compliance motivation?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Admins can award Bucks specifically for safety compliance milestones. When employees connect safe behavior to real, tangible rewards they can choose, motivation to follow procedures increases across logistics, warehousing, and manufacturing teams."
+                }
+              }
+            ]
+          }
+        ]}
       />
 
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b">

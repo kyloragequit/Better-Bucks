@@ -73,29 +73,130 @@ export default function LandingPage() {
     }
   };
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "Better Bucks",
-    "url": "https://better-bucks.replit.app",
-    "logo": "https://better-bucks.replit.app/favicon.png",
-    "description": "Better Bucks replaces manual spreadsheet reward tracking with automated employee incentive management. Built for logistics, warehousing, manufacturing, and distribution operations — improving safety compliance motivation, employee engagement, and performance visibility for frontline and hourly workforces.",
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "email": "miles@betterbucks.net",
-      "contactType": "sales"
+  const jsonLd = [
+    {
+      "@type": "Organization",
+      "name": "Better Bucks",
+      "url": "https://better-bucks.replit.app",
+      "logo": "https://better-bucks.replit.app/favicon.png",
+      "description": "Better Bucks eliminates manual employee incentive tracking and replaces spreadsheet reward systems with automated, consistent employee recognition. Built for logistics, warehousing, manufacturing, and distribution operations with 50–500 employees.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "miles@betterbucks.net",
+        "contactType": "sales"
+      },
+      "sameAs": [
+        "https://www.instagram.com/betterbucks"
+      ]
     },
-    "sameAs": [
-      "https://www.instagram.com/betterbucks"
-    ]
-  };
+    {
+      "@type": "SoftwareApplication",
+      "name": "Better Bucks",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": "https://better-bucks.replit.app",
+      "description": "Employee incentive software that eliminates manual reward tracking, replaces spreadsheet reward systems, solves inconsistent employee recognition, motivates safety compliance, improves employee engagement, reduces time-consuming admin tasks, and gives managers full performance visibility.",
+      "screenshot": "https://better-bucks.replit.app/haring-background.png",
+      "offers": {
+        "@type": "AggregateOffer",
+        "priceCurrency": "USD",
+        "lowPrice": "0",
+        "offerCount": "4",
+        "description": "Free starter plan through enterprise tiers for organizations with 50–500 employees"
+      },
+      "featureList": [
+        "Automated employee incentive tracking",
+        "Replace spreadsheet reward systems",
+        "Consistent employee recognition",
+        "Safety compliance motivation tools",
+        "Employee engagement dashboard",
+        "Reward program management",
+        "Real-time performance visibility",
+        "Custom company store for Bucks redemption"
+      ],
+      "audience": {
+        "@type": "BusinessAudience",
+        "audienceType": "Operations managers, HR managers, and shift supervisors in logistics, warehousing, and manufacturing"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I stop tracking employee incentives manually?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Better Bucks automates employee incentive tracking entirely. Administrators award Bucks for performance, attendance, safety compliance, and KPIs — no spreadsheets, no manual calculations. Employees see their balance in real time."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What replaces a spreadsheet-based employee reward system?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Better Bucks is purpose-built to replace spreadsheet reward systems. It provides a centralized platform where managers award Bucks currency, employees track their earnings, and both parties can see history and balances — all without a single spreadsheet."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I make employee recognition consistent across my team?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Inconsistent employee recognition is a common problem in shift-based environments. Better Bucks gives every manager a shared, auditable system — so recognition follows the same rules and is visible to everyone, eliminating favoritism and gaps."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I motivate employees to follow safety compliance guidelines?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Better Bucks lets you directly reward safety compliance with Bucks. When employees know that following safety procedures earns them tangible rewards redeemable in a real company store, compliance rates improve significantly across logistics, manufacturing, and warehousing teams."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I fix employee engagement issues in logistics or manufacturing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Employee engagement issues in frontline and hourly roles often stem from a lack of recognition. Better Bucks gives employees a real stake in their performance — they earn Bucks for hitting targets and spend them on items they actually want."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What reduces time-consuming admin tasks in reward program management?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Better Bucks automates the most time-consuming reward admin tasks: calculating totals, distributing awards, tracking redemptions, and managing employee balances. What used to take hours of spreadsheet work takes minutes."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I manage a reward program for 50 to 500 employees?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Better Bucks is designed specifically for organizations with 50–500 employees. It scales from small operations to multi-department warehouses and manufacturing floors, with tiered pricing and admin tools built for real-world operations management."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I get performance visibility for hourly and frontline employees?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Better Bucks gives operations and HR managers a real-time view of employee Bucks activity, redemptions, and department-level engagement. No more guessing who is performing — the data is always current and accessible."
+          }
+        }
+      ]
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <PageSEO
         title="Better Bucks – Stop Tracking Employee Incentives on Spreadsheets"
-        description="Built for logistics, warehousing, and manufacturing teams. Better Bucks replaces manual reward tracking with automated incentive management — improving safety compliance, employee engagement, and performance visibility for frontline workforces."
+        description="Built for logistics, warehousing, and manufacturing teams. Better Bucks replaces manual reward tracking and spreadsheet reward systems — improving safety compliance motivation, consistent employee recognition, and performance visibility for frontline workforces."
         canonicalPath="/"
+        keywords="employee incentive software, employee reward tracking, spreadsheet reward system, employee recognition platform, safety compliance motivation, employee engagement platform, reward program management, performance visibility, logistics employee incentives, warehousing employee recognition, manufacturing incentive program, frontline worker rewards"
         jsonLd={jsonLd}
       />
 

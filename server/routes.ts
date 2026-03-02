@@ -182,6 +182,33 @@ export async function registerRoutes(
   // Setup Auth first
   setupAuth(app);
 
+  // robots.txt
+  app.get("/robots.txt", (_req, res) => {
+    res.type("text/plain").send(
+      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard\nDisallow: /admin\nDisallow: /change-password\nDisallow: /reactivate\n\nSitemap: https://better-bucks.replit.app/sitemap.xml`
+    );
+  });
+
+  // sitemap.xml
+  app.get("/sitemap.xml", (_req, res) => {
+    const base = "https://better-bucks.replit.app";
+    const pages = [
+      { loc: "/", priority: "1.0", changefreq: "weekly" },
+      { loc: "/how-it-works", priority: "0.9", changefreq: "monthly" },
+      { loc: "/about", priority: "0.7", changefreq: "monthly" },
+      { loc: "/signup", priority: "0.8", changefreq: "monthly" },
+    ];
+    const urls = pages
+      .map(
+        (p) =>
+          `  <url>\n    <loc>${base}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`
+      )
+      .join("\n");
+    res
+      .type("application/xml")
+      .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`);
+  });
+
   // Users
   app.get(api.users.list.path, async (req, res) => {
     const user = req.user as User | undefined;

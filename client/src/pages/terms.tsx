@@ -1,5 +1,6 @@
 import { SiteFooter } from "@/components/site-footer";
 import { AppLogo } from "@/components/app-logo";
+import { PageSEO } from "@/components/page-seo";
 import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
 
@@ -8,6 +9,12 @@ export default function TermsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <PageSEO
+        title="Terms of Service & Privacy Policy | Better Bucks"
+        description="Read the Better Bucks Terms of Service and Privacy Policy."
+        canonicalPath="/terms"
+        noindex
+      />
       <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
         <button
           onClick={() => window.history.length > 1 ? window.history.back() : setLocation("/")}

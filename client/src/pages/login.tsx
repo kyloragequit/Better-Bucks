@@ -34,8 +34,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
       <PageSEO
         title="Log In – Better Bucks Employee Incentive Platform"
-        description="Access your Better Bucks portal. Purpose-built reward program management for logistics, warehousing, and manufacturing operations."
+        description="Access your Better Bucks portal. Purpose-built reward program management for logistics, warehousing, and manufacturing operations — eliminating manual incentive tracking and spreadsheet reward systems."
         canonicalPath="/login"
+        keywords="Better Bucks login, employee incentive platform login, reward program management login"
+        noindex
       />
 
       <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 30% 50%, #4E9F3D18 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, #ffffff08 0%, transparent 50%)" }} />

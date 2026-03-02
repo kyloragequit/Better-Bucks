@@ -153,8 +153,9 @@ export default function SignupPage() {
     <div className="flex flex-col min-h-screen relative overflow-hidden bg-primary">
       <PageSEO
         title="Get Started – Eliminate Manual Reward Tracking | Better Bucks"
-        description="Solve employee engagement issues and cut time-consuming admin tasks. Better Bucks is built for 50–500 employee operations in logistics, distribution, warehousing, and manufacturing. Set up your incentive program today."
+        description="Solve employee engagement issues and cut time-consuming admin tasks. Better Bucks replaces spreadsheet reward systems with automated incentive tracking for 50–500 employee operations in logistics, distribution, warehousing, and manufacturing."
         canonicalPath="/signup"
+        keywords="employee incentive software signup, replace spreadsheet rewards, reward program management setup, employee recognition platform, logistics incentive program, warehousing employee rewards, manufacturing employee engagement"
       />
 
       <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 70% 30%, #4E9F3D15 0%, transparent 60%)" }} />

@@ -9,7 +9,9 @@ interface PageSEOProps {
   description: string;
   canonicalPath?: string;
   ogImage?: string;
-  jsonLd?: object;
+  keywords?: string;
+  noindex?: boolean;
+  jsonLd?: object | object[];
 }
 
 function setMeta(attr: string, attrName: string, content: string) {
@@ -22,6 +24,11 @@ function setMeta(attr: string, attrName: string, content: string) {
   el.content = content;
 }
 
+function removeMeta(attr: string, attrName: string) {
+  const el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${attrName}"]`);
+  if (el) el.remove();
+}
+
 function setCanonical(href: string) {
   let el = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if (!el) {
@@ -32,7 +39,7 @@ function setCanonical(href: string) {
   el.href = href;
 }
 
-function setJsonLd(data: object) {
+function setJsonLd(data: object | object[]) {
   const id = "page-json-ld";
   let el = document.getElementById(id) as HTMLScriptElement | null;
   if (!el) {
@@ -41,7 +48,9 @@ function setJsonLd(data: object) {
     el.type = "application/ld+json";
     document.head.appendChild(el);
   }
-  el.textContent = JSON.stringify(data);
+  el.textContent = JSON.stringify(
+    Array.isArray(data) ? { "@context": "https://schema.org", "@graph": data } : data
+  );
 }
 
 function removeJsonLd() {
@@ -54,6 +63,8 @@ export function PageSEO({
   description,
   canonicalPath = "/",
   ogImage = DEFAULT_OG_IMAGE,
+  keywords,
+  noindex = false,
   jsonLd,
 }: PageSEOProps) {
   useEffect(() => {
@@ -64,6 +75,13 @@ export function PageSEO({
     document.title = fullTitle;
 
     setMeta("name", "description", description);
+    setMeta("name", "robots", noindex ? "noindex, nofollow" : "index, follow");
+
+    if (keywords) {
+      setMeta("name", "keywords", keywords);
+    } else {
+      removeMeta("name", "keywords");
+    }
 
     setCanonical(canonicalUrl);
 
@@ -88,7 +106,7 @@ export function PageSEO({
     return () => {
       removeJsonLd();
     };
-  }, [title, description, canonicalPath, ogImage, jsonLd]);
+  }, [title, description, canonicalPath, ogImage, keywords, noindex, jsonLd]);
 
   return null;
 }

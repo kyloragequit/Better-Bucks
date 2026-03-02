@@ -9,6 +9,7 @@ import { FullPageLoader } from "@/components/ui/loader";
 import { initGA } from "@/lib/analytics";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { TutorialModal } from "@/components/tutorial-modal";
+import { TermsAgreementModal } from "@/components/terms-agreement-modal";
 
 const LandingPage = lazy(() => import("@/pages/landing"));
 const SignupPage = lazy(() => import("@/pages/signup"));
@@ -179,6 +180,7 @@ function App() {
         <Toaster />
         <Router />
         <TutorialModal />
+        <TermsAgreementModal />
       </TooltipProvider>
     </QueryClientProvider>
   );

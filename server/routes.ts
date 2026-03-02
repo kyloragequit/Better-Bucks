@@ -752,6 +752,17 @@ export async function registerRoutes(
     res.status(403).send("Forbidden");
   });
 
+  // Accept terms of service
+  app.post("/api/user/accept-terms", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) {
+      return res.status(401).send("Unauthorized");
+    }
+    const { marketingOptIn } = z.object({ marketingOptIn: z.boolean().default(false) }).parse(req.body);
+    const updated = await storage.acceptTerms(user.id, marketingOptIn);
+    res.json(updated);
+  });
+
   // Get pending admins (prime account only)
   app.get("/api/users/pending-admins", async (req, res) => {
     const user = req.user as User | undefined;

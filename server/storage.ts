@@ -83,6 +83,8 @@ export interface IStorage {
   removeFromWishlist(userId: number, storeItemId: number): Promise<void>;
   getWishlistByUser(userId: number): Promise<(Wishlist & { storeItem: StoreItem })[]>;
   getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]>;
+
+  acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -567,6 +569,15 @@ export class DatabaseStorage implements IStorage {
       if (item && user) result.push({ ...row, storeItem: item, user });
     }
     return result;
+  }
+
+  async acceptTerms(userId: number, marketingOptIn: boolean): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ termsAcceptedAt: new Date(), marketingOptIn })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
   }
 }
 

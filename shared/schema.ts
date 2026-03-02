@@ -47,6 +47,8 @@ export const users = pgTable("users", {
   passwordResetExpiry: timestamp("password_reset_expiry"),
   organizationId: integer("organization_id"),
   departmentId: integer("department_id"),
+  termsAcceptedAt: timestamp("terms_accepted_at"),
+  marketingOptIn: boolean("marketing_opt_in").default(false).notNull(),
 });
 
 export const transactions = pgTable("transactions", {

@@ -95,7 +95,7 @@ export default function LandingPage() {
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
       "url": "https://better-bucks.replit.app",
-      "description": "Employee incentive software that eliminates manual reward tracking, replaces spreadsheet reward systems, solves inconsistent employee recognition, motivates safety compliance, improves employee engagement, reduces time-consuming admin tasks, and gives managers full performance visibility.",
+      "description": "Better Bucks is employee incentive software and employee recognition platform that eliminates manual reward tracking, replaces spreadsheet reward systems with workplace rewards software, automates incentive tracking, provides employee engagement tools, and serves as a complete performance recognition system for logistics, warehousing, and manufacturing teams.",
       "screenshot": "https://better-bucks.replit.app/haring-background.png",
       "offers": {
         "@type": "AggregateOffer",
@@ -105,13 +105,13 @@ export default function LandingPage() {
         "description": "Free starter plan through enterprise tiers for organizations with 50–500 employees"
       },
       "featureList": [
-        "Automated employee incentive tracking",
-        "Replace spreadsheet reward systems",
-        "Consistent employee recognition",
+        "Employee incentive software for frontline workforces",
+        "Employee recognition platform with real-time balances",
+        "Workplace rewards software — no spreadsheets required",
+        "Incentive tracking software with full audit trail",
+        "Employee engagement tools tied to KPIs and attendance",
+        "Performance recognition system for logistics and manufacturing",
         "Safety compliance motivation tools",
-        "Employee engagement dashboard",
-        "Reward program management",
-        "Real-time performance visibility",
         "Custom company store for Bucks redemption"
       ],
       "audience": {
@@ -193,10 +193,10 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <PageSEO
-        title="Better Bucks – Stop Tracking Employee Incentives on Spreadsheets"
-        description="Built for logistics, warehousing, and manufacturing teams. Better Bucks replaces manual reward tracking and spreadsheet reward systems — improving safety compliance motivation, consistent employee recognition, and performance visibility for frontline workforces."
+        title="Better Bucks – Employee Incentive Software for Logistics & Manufacturing"
+        description="Better Bucks is employee incentive software and employee recognition platform built for logistics, warehousing, and manufacturing teams. Replace spreadsheets with workplace rewards software that automates incentive tracking, boosts employee engagement, and powers your performance recognition system."
         canonicalPath="/"
-        keywords="employee incentive software, employee reward tracking, spreadsheet reward system, employee recognition platform, safety compliance motivation, employee engagement platform, reward program management, performance visibility, logistics employee incentives, warehousing employee recognition, manufacturing incentive program, frontline worker rewards"
+        keywords="employee incentive software, employee recognition platform, workplace rewards software, incentive tracking software, employee engagement tools, performance recognition system, employee reward tracking, spreadsheet reward system, safety compliance motivation, employee engagement platform, reward program management, performance visibility, logistics employee incentives, warehousing employee recognition, manufacturing incentive program, frontline worker rewards"
         jsonLd={jsonLd}
       />
 
@@ -386,6 +386,34 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 sm:py-20 bg-white border-t" data-testid="section-what-is">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4" data-testid="text-what-is-heading">
+            The Complete Employee Recognition Platform
+          </h2>
+          <p className="text-gray-600 text-lg leading-relaxed max-w-3xl mx-auto mb-10" data-testid="text-what-is-body">
+            Better Bucks is <strong>employee incentive software</strong> built for operations teams that need more than a spreadsheet. As a purpose-built <strong>employee recognition platform</strong>, it replaces manual processes with <strong>workplace rewards software</strong> that runs automatically. Our <strong>incentive tracking software</strong> gives managers real-time visibility into every award and redemption — while giving employees <strong>employee engagement tools</strong> they actually feel motivated by. The result is a <strong>performance recognition system</strong> that drives measurable results across logistics, warehousing, and manufacturing teams.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm text-gray-500 max-w-2xl mx-auto">
+            {[
+              "Employee Incentive Software",
+              "Employee Recognition Platform",
+              "Workplace Rewards Software",
+              "Incentive Tracking Software",
+              "Employee Engagement Tools",
+              "Performance Recognition System",
+            ].map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 font-medium text-gray-600"
+              >
+                {tag}
+              </span>
+            ))}
           </div>
         </div>
       </section>

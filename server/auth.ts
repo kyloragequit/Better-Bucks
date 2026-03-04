@@ -5,6 +5,7 @@ import { Express } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { pool } from "./db";
 import { User } from "@shared/schema";
@@ -20,6 +21,41 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
     return bcrypt.compare(plain, stored);
   }
   return plain === stored;
+}
+
+function getCaptchaSecret(): string {
+  return process.env.SESSION_SECRET || "super secret session key";
+}
+
+export function generateCaptchaChallenge(): { question: string; token: string } {
+  const num1 = Math.floor(Math.random() * 20) + 1;
+  const num2 = Math.floor(Math.random() * 20) + 1;
+  const answer = num1 + num2;
+  const expiresAt = Date.now() + 5 * 60 * 1000;
+  const payload = Buffer.from(JSON.stringify({ answer, expiresAt })).toString("base64url");
+  const sig = crypto.createHmac("sha256", getCaptchaSecret()).update(`${answer}:${expiresAt}`).digest("hex");
+  return {
+    question: `What is ${num1} + ${num2}?`,
+    token: `${payload}.${sig}`,
+  };
+}
+
+export function verifyCaptchaToken(token: string, userAnswer: string): boolean {
+  try {
+    const [payloadB64, sig] = token.split(".");
+    if (!payloadB64 || !sig) return false;
+    const { answer, expiresAt } = JSON.parse(Buffer.from(payloadB64, "base64url").toString());
+    if (Date.now() > expiresAt) return false;
+    const expected = crypto.createHmac("sha256", getCaptchaSecret()).update(`${answer}:${expiresAt}`).digest("hex");
+    if (!crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) return false;
+    return parseInt(userAnswer, 10) === answer;
+  } catch {
+    return false;
+  }
+}
+
+export function isCaptchaRequired(successfulLoginCount: number): boolean {
+  return (successfulLoginCount + 1) % 5 === 0;
 }
 
 export function setupAuth(app: Express) {
@@ -56,7 +92,6 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Incorrect username or password" });
         }
 
-        // Transparent migration: if stored password is plaintext, re-hash it now
         if (!user.password.startsWith("$2b$") && !user.password.startsWith("$2a$")) {
           const hashed = await hashPassword(password);
           await storage.updateUserPassword(user.id, hashed);
@@ -86,12 +121,39 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: User, info: any) => {
+    const { captchaToken, captchaAnswer } = req.body;
+
+    passport.authenticate("local", async (err: any, user: User, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json(info);
-      req.login(user, (err) => {
-        if (err) return next(err);
-        res.json(user);
+
+      const count = user.successfulLoginCount ?? 0;
+
+      if (isCaptchaRequired(count)) {
+        if (!captchaToken || !captchaAnswer) {
+          const challenge = generateCaptchaChallenge();
+          return res.status(200).json({
+            captchaRequired: true,
+            question: challenge.question,
+            token: challenge.token,
+          });
+        }
+
+        if (!verifyCaptchaToken(captchaToken, captchaAnswer)) {
+          const challenge = generateCaptchaChallenge();
+          return res.status(200).json({
+            captchaRequired: true,
+            question: challenge.question,
+            token: challenge.token,
+            error: "Incorrect answer. Please try again.",
+          });
+        }
+      }
+
+      req.login(user, async (loginErr) => {
+        if (loginErr) return next(loginErr);
+        const updated = await storage.incrementSuccessfulLoginCount(user.id);
+        res.json(updated);
       });
     })(req, res, next);
   });

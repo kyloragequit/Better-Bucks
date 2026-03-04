@@ -1,7 +1,7 @@
 
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
-import { setupAuth, hashPassword, verifyPassword } from "./auth";
+import { setupAuth, hashPassword, verifyPassword, generateCaptchaChallenge, verifyCaptchaToken, isCaptchaRequired } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -1914,9 +1914,11 @@ export async function registerRoutes(
 
   app.post("/api/developer-login", async (req, res) => {
     try {
-      const { username, password } = z.object({
+      const { username, password, captchaToken, captchaAnswer } = z.object({
         username: z.string(),
         password: z.string(),
+        captchaToken: z.string().optional(),
+        captchaAnswer: z.string().optional(),
       }).parse(req.body);
 
       const user = await storage.getUserByUsername(username);
@@ -1929,6 +1931,19 @@ export async function registerRoutes(
         await storage.updateUserPassword(user.id, await hashPassword(password));
       }
 
+      // CAPTCHA check every 5 successful logins
+      const count = user.successfulLoginCount ?? 0;
+      if (isCaptchaRequired(count)) {
+        if (!captchaToken || !captchaAnswer) {
+          const challenge = generateCaptchaChallenge();
+          return res.status(200).json({ captchaRequired: true, question: challenge.question, token: challenge.token });
+        }
+        if (!verifyCaptchaToken(captchaToken, captchaAnswer)) {
+          const challenge = generateCaptchaChallenge();
+          return res.status(200).json({ captchaRequired: true, question: challenge.question, token: challenge.token, error: "Incorrect answer. Please try again." });
+        }
+      }
+
       // Check if password needs to be changed (monthly)
       if (user.passwordLastChanged) {
         const daysSinceChange = (Date.now() - new Date(user.passwordLastChanged).getTime()) / (1000 * 60 * 60 * 24);
@@ -1938,9 +1953,10 @@ export async function registerRoutes(
         }
       }
 
-      req.login(user, (err) => {
+      req.login(user, async (err) => {
         if (err) return res.status(500).json({ message: "Login failed" });
-        res.json(user);
+        const updated = await storage.incrementSuccessfulLoginCount(user.id);
+        res.json(updated);
       });
     } catch (e) {
       res.status(400).json({ message: "Invalid request" });

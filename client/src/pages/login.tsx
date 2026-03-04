@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
-import { useLogin, useUser, useRegisterAdmin, useRegisterEmployee } from "@/hooks/use-auth";
+import { useUser, useRegisterAdmin, useRegisterEmployee } from "@/hooks/use-auth";
 import { PageSEO } from "@/components/page-seo";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff } from "lucide-react";
+import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff, ShieldCheck, RefreshCw } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -112,6 +114,148 @@ export default function LoginPage() {
   );
 }
 
+type CaptchaChallenge = {
+  question: string;
+  token: string;
+  error?: string;
+};
+
+function CaptchaStep({
+  challenge,
+  answer,
+  onAnswerChange,
+  onSubmit,
+  onBack,
+  isPending,
+}: {
+  challenge: CaptchaChallenge;
+  answer: string;
+  onAnswerChange: (v: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onBack: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="flex flex-col items-center gap-3 py-2">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+          <ShieldCheck className="h-6 w-6 text-primary" />
+        </div>
+        <div className="text-center space-y-1">
+          <p className="font-semibold text-sm">Security Check</p>
+          <p className="text-xs text-muted-foreground">
+            Please answer this question to continue
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center">
+        <p className="text-lg font-semibold" data-testid="text-captcha-question">
+          {challenge.question}
+        </p>
+      </div>
+
+      {challenge.error && (
+        <p className="text-sm text-destructive text-center" data-testid="text-captcha-error">
+          {challenge.error}
+        </p>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="captcha-answer">Your Answer</Label>
+        <Input
+          id="captcha-answer"
+          type="number"
+          placeholder="Enter the answer"
+          value={answer}
+          onChange={(e) => onAnswerChange(e.target.value)}
+          required
+          autoFocus
+          data-testid="input-captcha-answer"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1"
+          onClick={onBack}
+          disabled={isPending}
+          data-testid="button-captcha-back"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        <Button
+          type="submit"
+          className="flex-1 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
+          disabled={isPending || !answer}
+          data-testid="button-captcha-submit"
+        >
+          {isPending ? (
+            <>
+              <SpinningLogo className="mr-2 h-4 w-4" />
+              Verifying...
+            </>
+          ) : (
+            <>
+              <LogIn className="mr-2 h-4 w-4" />
+              Continue
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function useLoginFlow() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isPending, setIsPending] = useState(false);
+  const [captchaChallenge, setCaptchaChallenge] = useState<CaptchaChallenge | null>(null);
+
+  async function submitLogin(payload: {
+    username: string;
+    password: string;
+    captchaToken?: string;
+    captchaAnswer?: string;
+  }): Promise<{ captchaRequired: boolean }> {
+    setIsPending(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data?.message || (res.status === 401 ? "Invalid username or password" : "Login failed");
+        toast({ title: "Login Failed", description: msg, variant: "destructive" });
+        return { captchaRequired: false };
+      }
+
+      if (data.captchaRequired) {
+        setCaptchaChallenge({ question: data.question, token: data.token, error: data.error });
+        return { captchaRequired: true };
+      }
+
+      queryClient.setQueryData(["/api/user"], data);
+      toast({ title: "Welcome back!", description: `Logged in as ${data.fullName}` });
+      setCaptchaChallenge(null);
+      return { captchaRequired: false };
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return { submitLogin, isPending, captchaChallenge, setCaptchaChallenge };
+}
+
 function EmployeeTabs({ defaultMode = "login", defaultOrgCode = "" }: { defaultMode?: "login" | "register"; defaultOrgCode?: string }) {
   const [tab, setTab] = useState<"login" | "register">(defaultMode);
 
@@ -137,16 +281,44 @@ function EmployeeLoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [, setLocation] = useLocation();
-  const { mutate: login, isPending } = useLogin();
+  const { submitLogin, isPending, captchaChallenge, setCaptchaChallenge } = useLoginFlow();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login({ username, password });
+    await submitLogin({ username, password });
   };
 
+  const handleCaptchaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!captchaChallenge) return;
+    const result = await submitLogin({
+      username,
+      password,
+      captchaToken: captchaChallenge.token,
+      captchaAnswer,
+    });
+    if (result.captchaRequired) {
+      setCaptchaAnswer("");
+    }
+  };
+
+  if (captchaChallenge) {
+    return (
+      <CaptchaStep
+        challenge={captchaChallenge}
+        answer={captchaAnswer}
+        onAnswerChange={setCaptchaAnswer}
+        onSubmit={handleCaptchaSubmit}
+        onBack={() => { setCaptchaChallenge(null); setCaptchaAnswer(""); }}
+        isPending={isPending}
+      />
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleCredentialsSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="emp-username">Employee Code</Label>
         <div className="relative">
@@ -197,8 +369,8 @@ function EmployeeLoginForm() {
           </button>
         </div>
       </div>
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
         disabled={isPending}
         data-testid="button-employee-login"
@@ -243,11 +415,11 @@ function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string
       alert("Password must be at least 6 characters");
       return;
     }
-    register({ 
-      fullName, username, password, 
-      email: contactMethod === "email" ? email : "", 
-      phone: contactMethod === "phone" ? phone : "", 
-      orgCode: orgCode.toUpperCase() 
+    register({
+      fullName, username, password,
+      email: contactMethod === "email" ? email : "",
+      phone: contactMethod === "phone" ? phone : "",
+      orgCode: orgCode.toUpperCase()
     } as any, {
       onSuccess: () => {
         setRegistered(true);
@@ -408,8 +580,8 @@ function EmployeeRegisterForm({ defaultOrgCode = "" }: { defaultOrgCode?: string
           </button>
         </div>
       </div>
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
         disabled={isPending}
         data-testid="button-emp-register"
@@ -455,16 +627,44 @@ function AdminLoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [, setLocation] = useLocation();
-  const { mutate: login, isPending } = useLogin();
+  const { submitLogin, isPending, captchaChallenge, setCaptchaChallenge } = useLoginFlow();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login({ username, password });
+    await submitLogin({ username, password });
   };
 
+  const handleCaptchaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!captchaChallenge) return;
+    const result = await submitLogin({
+      username,
+      password,
+      captchaToken: captchaChallenge.token,
+      captchaAnswer,
+    });
+    if (result.captchaRequired) {
+      setCaptchaAnswer("");
+    }
+  };
+
+  if (captchaChallenge) {
+    return (
+      <CaptchaStep
+        challenge={captchaChallenge}
+        answer={captchaAnswer}
+        onAnswerChange={setCaptchaAnswer}
+        onSubmit={handleCaptchaSubmit}
+        onBack={() => { setCaptchaChallenge(null); setCaptchaAnswer(""); }}
+        isPending={isPending}
+      />
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleCredentialsSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="admin-username">Username</Label>
         <div className="relative">
@@ -515,8 +715,8 @@ function AdminLoginForm() {
           </button>
         </div>
       </div>
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
         disabled={isPending}
         data-testid="button-admin-login"
@@ -561,11 +761,11 @@ function AdminRegisterForm() {
       alert("Password must be at least 6 characters");
       return;
     }
-    register({ 
-      fullName, username, password, 
-      email: contactMethod === "email" ? email : "", 
-      phone: contactMethod === "phone" ? phone : "", 
-      orgCode: orgCode.toUpperCase() 
+    register({
+      fullName, username, password,
+      email: contactMethod === "email" ? email : "",
+      phone: contactMethod === "phone" ? phone : "",
+      orgCode: orgCode.toUpperCase()
     } as any, {
       onSuccess: () => {
         setRegistered(true);
@@ -624,7 +824,7 @@ function AdminRegisterForm() {
             size="sm"
             className="flex-1"
             onClick={() => setContactMethod("email")}
-            data-testid="button-reg-method-email"
+            data-testid="button-admin-reg-method-email"
           >
             <Mail className="mr-1 h-3 w-3" /> Email
           </Button>
@@ -634,55 +834,55 @@ function AdminRegisterForm() {
             size="sm"
             className="flex-1"
             onClick={() => setContactMethod("phone")}
-            data-testid="button-reg-method-phone"
+            data-testid="button-admin-reg-method-phone"
           >
             <Phone className="mr-1 h-3 w-3" /> Phone
           </Button>
         </div>
         {contactMethod === "email" ? (
           <Input
-            id="reg-email"
+            id="admin-reg-email"
             type="email"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            data-testid="input-register-email"
+            data-testid="input-admin-register-email"
           />
         ) : (
           <Input
-            id="reg-phone"
+            id="admin-reg-phone"
             type="tel"
             placeholder="+1 (555) 123-4567"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
-            data-testid="input-register-phone"
+            data-testid="input-admin-register-phone"
           />
         )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="reg-username">Username</Label>
+        <Label htmlFor="admin-reg-username">Username</Label>
         <div className="relative">
           <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id="reg-username"
+            id="admin-reg-username"
             placeholder="Choose a username"
             className="pl-9"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             minLength={3}
             required
-            data-testid="input-register-username"
+            data-testid="input-admin-register-username"
           />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="reg-password">Password</Label>
+        <Label htmlFor="admin-reg-password">Password</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id="reg-password"
+            id="admin-reg-password"
             type={showPassword ? "text" : "password"}
             className="pl-9 pr-9"
             placeholder="At least 6 characters"
@@ -690,44 +890,44 @@ function AdminRegisterForm() {
             onChange={(e) => setPassword(e.target.value)}
             minLength={6}
             required
-            data-testid="input-register-password"
+            data-testid="input-admin-register-password"
           />
           <button
             type="button"
             className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setShowPassword(!showPassword)}
-            data-testid="button-toggle-reg-password"
+            data-testid="button-toggle-admin-reg-password"
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="reg-confirm-password">Confirm Password</Label>
+        <Label htmlFor="admin-reg-confirm-password">Confirm Password</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id="reg-confirm-password"
+            id="admin-reg-confirm-password"
             type={showConfirmPassword ? "text" : "password"}
             className="pl-9 pr-9"
             placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
-            data-testid="input-register-confirm-password"
+            data-testid="input-admin-register-confirm-password"
           />
           <button
             type="button"
             className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            data-testid="button-toggle-reg-confirm-password"
+            data-testid="button-toggle-admin-reg-confirm-password"
           >
             {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
         disabled={isPending}
         data-testid="button-admin-register"

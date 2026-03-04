@@ -85,6 +85,7 @@ export interface IStorage {
   getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]>;
 
   acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
+  incrementSuccessfulLoginCount(userId: number): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -581,6 +582,17 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(users)
       .set({ termsAcceptedAt: new Date(), marketingOptIn })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  async incrementSuccessfulLoginCount(userId: number): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) throw new Error("User not found");
+    const [updated] = await db
+      .update(users)
+      .set({ successfulLoginCount: (user.successfulLoginCount ?? 0) + 1 })
       .where(eq(users.id, userId))
       .returning();
     return updated;

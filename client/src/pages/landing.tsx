@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb, BookOpen } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 
@@ -217,6 +217,15 @@ export default function LandingPage() {
               About
             </Button>
             <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/blog")}
+              data-testid="button-header-blog"
+            >
+              <BookOpen className="mr-1.5 h-4 w-4" />
+              Blog
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               onClick={() => setLocation("/login")}
@@ -254,6 +263,14 @@ export default function LandingPage() {
                   >
                     <Info className="h-4 w-4" />
                     About
+                  </button>
+                  <button
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => { setLocation("/blog"); setMobileMenuOpen(false); }}
+                    data-testid="button-mobile-blog"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    Blog
                   </button>
                   <button
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"

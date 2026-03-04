@@ -39,6 +39,10 @@ if (process.env.NODE_ENV === "production") {
 const app = express();
 const httpServer = createServer(app);
 
+// Trust the first proxy hop (Replit's reverse proxy) so rate limiters
+// use the real client IP from X-Forwarded-For rather than the proxy's IP.
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;

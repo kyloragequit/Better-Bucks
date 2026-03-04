@@ -13,9 +13,9 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import type { Organization } from "@shared/schema";
+import type { Organization, BlogPost } from "@shared/schema";
 
 const CMS_FIELDS: { key: string; label: string; multiline?: boolean }[] = [
   { key: "hero_headline", label: "Hero Headline" },
@@ -90,7 +90,8 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [cmsTab, setCmsTab] = useState(false);
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog">("orgs");
+  const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
 
   const { data: organizations, isLoading } = useQuery<OrgWithStats[]>({
     queryKey: ["/api/developer/organizations"],
@@ -219,6 +220,45 @@ export default function DeveloperDashboardPage() {
     },
   });
 
+  const { data: blogPosts, isLoading: blogLoading } = useQuery<BlogPost[]>({
+    queryKey: ["/api/blog"],
+    enabled: user?.role === "developer",
+  });
+
+  const saveBlogMutation = useMutation({
+    mutationFn: async (data: Partial<BlogPost> & { isNew?: boolean }) => {
+      const { isNew, id, createdAt, ...payload } = data as any;
+      if (isNew) {
+        const res = await apiRequest("POST", "/api/developer/blog", payload);
+        return res.json();
+      } else {
+        const res = await apiRequest("PATCH", `/api/developer/blog/${id}`, payload);
+        return res.json();
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/blog"] });
+      setBlogForm(null);
+      toast({ title: "Saved", description: "Blog post saved successfully." });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const deleteBlogMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/developer/blog/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/blog"] });
+      toast({ title: "Deleted", description: "Blog post deleted." });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await fetch("/api/logout", { method: "POST", credentials: "include" });
@@ -304,27 +344,36 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {cmsTab ? "Edit landing page text and links." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : "View all organizations and manage customer accounts."}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
-              variant={cmsTab ? "outline" : "default"}
+              variant={activeTab === "orgs" ? "default" : "outline"}
               size="sm"
-              onClick={() => setCmsTab(false)}
+              onClick={() => { setActiveTab("orgs"); setBlogForm(null); }}
               data-testid="button-tab-orgs"
             >
               <Building2 className="mr-1.5 h-4 w-4" />
               Organizations
             </Button>
             <Button
-              variant={cmsTab ? "default" : "outline"}
+              variant={activeTab === "cms" ? "default" : "outline"}
               size="sm"
-              onClick={() => setCmsTab(true)}
+              onClick={() => { setActiveTab("cms"); setBlogForm(null); }}
               data-testid="button-tab-cms"
             >
               <FileEdit className="mr-1.5 h-4 w-4" />
               Edit Home Page
+            </Button>
+            <Button
+              variant={activeTab === "blog" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("blog"); setBlogForm(null); }}
+              data-testid="button-tab-blog"
+            >
+              <BookOpen className="mr-1.5 h-4 w-4" />
+              Blog
             </Button>
           </div>
         </div>
@@ -354,7 +403,202 @@ export default function DeveloperDashboardPage() {
           </Card>
         </a>
 
-        {cmsTab ? (
+        {activeTab === "blog" ? (
+          <Card>
+            <CardHeader className="flex-row items-center justify-between flex gap-4 flex-wrap">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Blog Posts
+                </CardTitle>
+                <CardDescription>
+                  Manage blog content visible at /blog. Posts are public.
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setBlogForm({ isNew: true, title: "", slug: "", excerpt: "", content: "", imageUrl: "", authorName: "Better Bucks Team", authorPhotoUrl: "", sources: "[]", publishedAt: new Date() })}
+                data-testid="button-new-blog-post"
+                disabled={blogForm?.isNew === true}
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                New Post
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {blogForm && (
+                <div className="mb-6 p-5 border rounded-xl bg-gray-50 space-y-4">
+                  <h3 className="font-semibold text-gray-900 text-base">{blogForm.isNew ? "New Blog Post" : "Edit Blog Post"}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="mb-1.5 block text-sm font-medium">Title *</Label>
+                      <Input
+                        value={blogForm.title ?? ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, title: e.target.value }))}
+                        placeholder="How Better Bucks Transforms Teams"
+                        data-testid="input-blog-title"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-1.5 block text-sm font-medium">URL Slug *</Label>
+                      <Input
+                        value={blogForm.slug ?? ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, slug: e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") }))}
+                        placeholder="how-better-bucks-transforms-teams"
+                        data-testid="input-blog-slug"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="mb-1.5 block text-sm font-medium">Excerpt (max 500 chars) *</Label>
+                      <Textarea
+                        rows={2}
+                        value={blogForm.excerpt ?? ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, excerpt: e.target.value }))}
+                        placeholder="A short summary shown on the blog listing page."
+                        data-testid="input-blog-excerpt"
+                        className="resize-none"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="mb-1.5 block text-sm font-medium">Content (HTML) *</Label>
+                      <Textarea
+                        rows={10}
+                        value={blogForm.content ?? ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, content: e.target.value }))}
+                        placeholder="<p>Your full blog post HTML here...</p>"
+                        data-testid="input-blog-content"
+                        className="font-mono text-sm resize-y"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-1.5 block text-sm font-medium">Hero Image URL *</Label>
+                      <Input
+                        value={blogForm.imageUrl ?? ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, imageUrl: e.target.value }))}
+                        placeholder="https://images.unsplash.com/..."
+                        data-testid="input-blog-image-url"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-1.5 block text-sm font-medium">Author Name *</Label>
+                      <Input
+                        value={blogForm.authorName ?? ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, authorName: e.target.value }))}
+                        placeholder="Better Bucks Team"
+                        data-testid="input-blog-author-name"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-1.5 block text-sm font-medium">Author Photo URL (optional)</Label>
+                      <Input
+                        value={blogForm.authorPhotoUrl ?? ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, authorPhotoUrl: e.target.value }))}
+                        placeholder="https://..."
+                        data-testid="input-blog-author-photo"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-1.5 block text-sm font-medium">Publish Date</Label>
+                      <Input
+                        type="date"
+                        value={blogForm.publishedAt ? new Date(blogForm.publishedAt).toISOString().split("T")[0] : ""}
+                        onChange={e => setBlogForm(p => ({ ...p!, publishedAt: new Date(e.target.value) }))}
+                        data-testid="input-blog-published-at"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="mb-1.5 block text-sm font-medium">Sources (JSON array, optional)</Label>
+                      <Textarea
+                        rows={3}
+                        value={blogForm.sources ?? "[]"}
+                        onChange={e => setBlogForm(p => ({ ...p!, sources: e.target.value }))}
+                        placeholder={'[{"label": "Source Name", "url": "https://..."}]'}
+                        data-testid="input-blog-sources"
+                        className="font-mono text-sm resize-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 justify-end pt-2">
+                    <Button variant="outline" size="sm" onClick={() => setBlogForm(null)} data-testid="button-blog-cancel">Cancel</Button>
+                    <Button
+                      size="sm"
+                      onClick={() => saveBlogMutation.mutate(blogForm!)}
+                      disabled={saveBlogMutation.isPending}
+                      data-testid="button-blog-save"
+                    >
+                      <Save className="mr-1.5 h-4 w-4" />
+                      {saveBlogMutation.isPending ? "Saving..." : "Save Post"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {blogLoading ? (
+                <div className="flex justify-center py-10"><Loader /></div>
+              ) : !blogPosts || blogPosts.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No blog posts yet.</p>
+                  <p className="text-sm mt-1">Click "New Post" to write your first one.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Slug</TableHead>
+                      <TableHead>Author</TableHead>
+                      <TableHead>Published</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {blogPosts.map(post => (
+                      <TableRow key={post.id} data-testid={`row-blog-post-${post.id}`}>
+                        <TableCell className="font-medium max-w-xs truncate">{post.title}</TableCell>
+                        <TableCell>
+                          <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{post.slug}</code>
+                        </TableCell>
+                        <TableCell className="text-sm">{post.authorName}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {new Date(post.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setBlogForm({ ...post, isNew: false })}
+                              data-testid={`button-edit-blog-${post.id}`}
+                            >
+                              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                if (confirm(`Delete "${post.title}"?`)) deleteBlogMutation.mutate(post.id);
+                              }}
+                              disabled={deleteBlogMutation.isPending}
+                              data-testid={`button-delete-blog-${post.id}`}
+                            >
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        ) : activeTab === "cms" ? (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -34,11 +34,12 @@ Preferred communication style: Simple, everyday language.
     - `orders`: Employee store orders with status and photos.
     - `store_items`: Items available for purchase in the employee store.
     - `wishlists`: Employee wishlists for store items.
+    - `blogPosts`: Public blog articles with HTML content, author info, and sources.
 - **File Uploads**: Multer-based to local storage.
 - **Migrations**: Drizzle-kit.
 
 ### Authentication & Authorization
-- Session-based with 30-day cookie expiry.
+- Session-based with 7-day cookie expiry.
 - **Roles**: `employee`, `admin`, `prime_admin`. Admin accounts require prime admin approval.
 - **Verification**: Email or Phone verification (Twilio SMS) for new users, with uniqueness enforced per organization.
 - **Feature Flags**: Prime admins can enable/disable the employee store and manual order requests.
@@ -53,8 +54,24 @@ Preferred communication style: Simple, everyday language.
 
 ### Performance & Security
 - **Memory Optimizations**: Lazy-loaded server modules, minimal startup imports, limited DB connection pool, removed unused UI components.
-- **Security**: Session-based auth, email/phone verification, password change enforcement.
+- **Security (OWASP-hardened)**:
+  - All passwords hashed with bcrypt (12 rounds); transparent migration on first login for existing plaintext passwords
+  - Session cookies: `httpOnly`, `secure` (prod), `sameSite: "lax"`, 7-day expiry; startup guard refuses boot without `SESSION_SECRET` in production
+  - `helmet` security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, HSTS, etc.)
+  - Rate limiting: 10 login attempts / 15 min per IP; 300 API requests / min per IP
+  - Request body size capped at 50kb to prevent oversized payload attacks
+  - Zod validation on all API routes
+  - Error handler strips internal details from 500 responses in production
+  - CAPTCHA (HMAC-SHA256 signed math challenge) every 5th successful login
+  - `trust proxy` set so rate limiters use real client IP behind Replit's reverse proxy
 - **SEO**: Per-page SEO with `PageSEO` component, `robots.txt`, and `sitemap.xml`.
+
+### Blog System
+- `blogPosts` table: id, title, slug (unique), excerpt, content (HTML), imageUrl, authorName, authorPhotoUrl, sources (JSON), publishedAt, createdAt
+- Public routes: `GET /api/blog`, `GET /api/blog/:slug`
+- Developer-only CRUD: `POST/PATCH/DELETE /api/developer/blog/:id`
+- Frontend: `/blog` (post grid with square image cards), `/blog/:slug` (full post with prose styling + sources)
+- Blog link in landing page header; Blog tab in developer dashboard with inline create/edit form
 
 ## External Dependencies
 

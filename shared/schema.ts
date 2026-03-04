@@ -184,9 +184,24 @@ export const infoRequests = pgTable("info_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url").notNull(),
+  authorName: text("author_name").notNull(),
+  authorPhotoUrl: text("author_photo_url"),
+  sources: text("sources"),
+  publishedAt: timestamp("published_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertWishlistSchema = createInsertSchema(wishlists).omit({ id: true, createdAt: true });
 export const insertStoreItemSchema = createInsertSchema(storeItems).omit({ id: true, createdAt: true });
 export const insertInfoRequestSchema = createInsertSchema(infoRequests).omit({ id: true, createdAt: true });
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true, createdAt: true });
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({ id: true, createdAt: true, status: true, stripeCustomerId: true, stripeSubscriptionId: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, balance: true, status: true });
@@ -217,3 +232,5 @@ export type StoreItem = typeof storeItems.$inferSelect;
 export type InsertStoreItem = z.infer<typeof insertStoreItemSchema>;
 export type Wishlist = typeof wishlists.$inferSelect;
 export type InsertWishlist = z.infer<typeof insertWishlistSchema>;
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;

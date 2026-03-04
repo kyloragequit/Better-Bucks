@@ -2611,6 +2611,85 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // ==================== BLOG ROUTES ====================
+
+  app.get("/api/blog", async (_req, res) => {
+    const posts = await storage.getAllBlogPosts();
+    res.json(posts);
+  });
+
+  app.get("/api/blog/:slug", async (req, res) => {
+    const post = await storage.getBlogPostBySlug(req.params.slug);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+    res.json(post);
+  });
+
+  app.post("/api/developer/blog", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+    try {
+      const data = z.object({
+        title: z.string().min(1).max(200),
+        slug: z.string().min(1).max(200),
+        excerpt: z.string().min(1).max(500),
+        content: z.string().min(1),
+        imageUrl: z.string().url(),
+        authorName: z.string().min(1).max(100),
+        authorPhotoUrl: z.string().url().or(z.literal("")).optional(),
+        sources: z.string().optional(),
+        publishedAt: z.string().optional(),
+      }).parse(req.body);
+      const post = await storage.createBlogPost({
+        ...data,
+        authorPhotoUrl: data.authorPhotoUrl || null,
+        sources: data.sources ?? null,
+        publishedAt: data.publishedAt ? new Date(data.publishedAt) : new Date(),
+      } as any);
+      res.status(201).json(post);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message || "Invalid data" });
+    }
+  });
+
+  app.patch("/api/developer/blog/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+    try {
+      const id = parseInt(req.params.id);
+      const data = z.object({
+        title: z.string().min(1).max(200).optional(),
+        slug: z.string().min(1).max(200).optional(),
+        excerpt: z.string().min(1).max(500).optional(),
+        content: z.string().min(1).optional(),
+        imageUrl: z.string().url().optional(),
+        authorName: z.string().min(1).max(100).optional(),
+        authorPhotoUrl: z.string().url().or(z.literal("")).nullable().optional(),
+        sources: z.string().nullable().optional(),
+        publishedAt: z.string().optional(),
+      }).parse(req.body);
+      const update: any = { ...data };
+      if (data.publishedAt) update.publishedAt = new Date(data.publishedAt);
+      if (update.authorPhotoUrl === "") update.authorPhotoUrl = null;
+      const post = await storage.updateBlogPost(id, update);
+      res.json(post);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message || "Invalid data" });
+    }
+  });
+
+  app.delete("/api/developer/blog/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).send("Unauthorized");
+    }
+    await storage.deleteBlogPost(parseInt(req.params.id));
+    res.sendStatus(200);
+  });
+
   // Ensure PRIME1 organization exists (free membership)
   let prime1Org = await storage.getOrganizationByCode("PRIME1");
   if (!prime1Org) {

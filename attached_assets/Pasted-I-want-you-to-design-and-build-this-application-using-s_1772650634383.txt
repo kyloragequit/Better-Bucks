@@ -1,0 +1,81 @@
+I want you to design and build this application using secure-by-design principles and industry best practices to minimize vulnerabilities, exploits, and data breaches.
+
+Follow these strict security requirements:
+
+1. Authentication & Authorization
+
+Implement secure authentication (JWT with short expiration + refresh tokens OR secure server-side sessions).
+
+Hash passwords using bcrypt or Argon2 (never store plaintext passwords).
+
+Implement role-based access control (RBAC).
+
+Protect all sensitive routes with proper middleware.
+
+Prevent privilege escalation.
+
+2. Input Validation & Injection Protection
+
+Sanitize and validate all user input (frontend and backend).
+
+Prevent SQL injection (use parameterized queries/ORM only).
+
+Prevent NoSQL injection.
+
+Prevent XSS (escape output properly).
+
+Prevent CSRF (use CSRF tokens if using cookies).
+
+3. API & Server Security
+
+Enable rate limiting to prevent brute-force attacks.
+
+Add request size limits.
+
+Implement proper CORS configuration (no wildcard in production).
+
+Use Helmet (or equivalent) to set secure HTTP headers.
+
+Disable stack traces and sensitive error messages in production.
+
+4. Data Protection
+
+Encrypt sensitive data at rest (if applicable).
+
+Enforce HTTPS everywhere.
+
+Store secrets in environment variables (never hardcode).
+
+Ensure secure cookie flags (HttpOnly, Secure, SameSite=strict).
+
+5. Infrastructure & Dependency Security
+
+Use the latest stable package versions.
+
+Audit dependencies for vulnerabilities.
+
+Avoid unnecessary packages.
+
+Implement logging for suspicious activity.
+
+6. Secure Coding Practices
+
+Follow OWASP Top 10 mitigation practices.
+
+Use least privilege principles.
+
+Write defensive code with proper error handling.
+
+Do not expose internal API keys or system architecture.
+
+After building the application:
+
+Perform a security self-audit.
+
+Identify potential vulnerabilities.
+
+Suggest additional hardening steps.
+
+Simulate common attack vectors and confirm protections.
+
+Prioritize security over speed or simplicity. If any feature introduces risk, explain the risk before implementing it.

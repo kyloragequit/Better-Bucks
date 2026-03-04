@@ -127,8 +127,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserProfile(userId: number, data: { username?: string; password?: string; email?: string | null; departmentId?: number | null }): Promise<User> {
+    const { hashPassword } = await import("./auth");
     const updateData: any = { ...data };
     if (data.password) {
+      updateData.password = await hashPassword(data.password);
       updateData.mustChangePassword = false;
       updateData.passwordLastChanged = new Date();
     }
@@ -361,8 +363,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserPassword(userId: number, password: string): Promise<User> {
-    const [updated] = await db.update(users).set({ 
-      password, 
+    const { hashPassword } = await import("./auth");
+    const stored = password.startsWith("$2b$") || password.startsWith("$2a$")
+      ? password
+      : await hashPassword(password);
+    const [updated] = await db.update(users).set({
+      password: stored,
       mustChangePassword: false,
       passwordLastChanged: new Date()
     }).where(eq(users.id, userId)).returning();

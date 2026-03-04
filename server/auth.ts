@@ -4,9 +4,23 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { pool } from "./db";
 import { User } from "@shared/schema";
+
+export const BCRYPT_ROUNDS = 12;
+
+export async function hashPassword(plain: string): Promise<string> {
+  return bcrypt.hash(plain, BCRYPT_ROUNDS);
+}
+
+export async function verifyPassword(plain: string, stored: string): Promise<boolean> {
+  if (stored.startsWith("$2b$") || stored.startsWith("$2a$")) {
+    return bcrypt.compare(plain, stored);
+  }
+  return plain === stored;
+}
 
 export function setupAuth(app: Express) {
   const PgSession = connectPgSimple(session);
@@ -17,7 +31,12 @@ export function setupAuth(app: Express) {
       secret: process.env.SESSION_SECRET || "super secret session key",
       resave: false,
       saveUninitialized: false,
-      cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }, // 30 days
+      cookie: {
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      },
     })
   );
 
@@ -28,11 +47,21 @@ export function setupAuth(app: Express) {
     new LocalStrategy(async (username, password, done) => {
       try {
         const user = await storage.getUserByUsername(username);
-        // INSECURE: Plain text password comparison for demo speed. 
-        // In production, use scrypt/bcrypt
-        if (!user || user.password !== password) {
+        if (!user) {
           return done(null, false, { message: "Incorrect username or password" });
         }
+
+        const match = await verifyPassword(password, user.password);
+        if (!match) {
+          return done(null, false, { message: "Incorrect username or password" });
+        }
+
+        // Transparent migration: if stored password is plaintext, re-hash it now
+        if (!user.password.startsWith("$2b$") && !user.password.startsWith("$2a$")) {
+          const hashed = await hashPassword(password);
+          await storage.updateUserPassword(user.id, hashed);
+        }
+
         return done(null, user);
       } catch (err) {
         return done(err);

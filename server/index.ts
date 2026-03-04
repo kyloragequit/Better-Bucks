@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { createServer } from "http";
 import { ensureStripeReady } from "./stripeLazy";
 import { WebhookHandlers } from "./webhookHandlers";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
@@ -25,6 +27,15 @@ process.on("SIGINT", () => {
 process.on("SIGHUP", () => {
 });
 
+// Refuse to start in production without a real session secret
+if (process.env.NODE_ENV === "production") {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret === "super secret session key" || secret.length < 32) {
+    console.error("FATAL: SESSION_SECRET is not set or is insecure. Refusing to start in production.");
+    process.exit(1);
+  }
+}
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -34,6 +45,13 @@ declare module "http" {
   }
 }
 
+// Security headers (must be before routes)
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP managed separately; disabling avoids breaking Vite HMR in dev
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Stripe webhook must be before express.json() so it gets the raw buffer
 app.post(
   '/api/stripe/webhook',
   express.raw({ type: 'application/json' }),
@@ -59,15 +77,39 @@ app.post(
   }
 );
 
+// Body parsers with explicit size limits (50kb prevents oversized payload attacks)
 app.use(
   express.json({
+    limit: "50kb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "50kb" }));
+
+// General API rate limiter: 300 requests/minute per IP
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests. Please slow down." },
+});
+app.use("/api", apiLimiter);
+
+// Strict login rate limiter: 10 attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts. Please try again in 15 minutes." },
+  skipSuccessfulRequests: true,
+});
+app.use("/api/login", loginLimiter);
+app.use("/api/developer-login", loginLimiter);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -97,11 +139,17 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
+  // Global error handler — scrubs internal details from 500 responses in production
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
     console.error("Express error:", err.stack || err);
-    res.status(status).json({ message });
+
+    if (status >= 500 && process.env.NODE_ENV === "production") {
+      res.status(status).json({ message: "An unexpected error occurred." });
+    } else {
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+    }
   });
 
   if (process.env.NODE_ENV === "production") {

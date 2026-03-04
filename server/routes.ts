@@ -1,7 +1,7 @@
 
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
-import { setupAuth } from "./auth";
+import { setupAuth, hashPassword, verifyPassword } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -360,7 +360,7 @@ export async function registerRoutes(
 
       const user = await storage.createUser({
         username: adminData.username,
-        password: adminData.password,
+        password: await hashPassword(adminData.password),
         fullName: adminData.fullName,
         email: hasEmail ? adminEmail : null,
         phone: hasPhone ? adminPhone : null,
@@ -440,7 +440,7 @@ export async function registerRoutes(
 
       const user = await storage.createUser({
         username: empData.username,
-        password: empData.password,
+        password: await hashPassword(empData.password),
         fullName: empData.fullName,
         email: hasEmail ? empEmail : null,
         phone: hasPhone ? empPhone : null,
@@ -1920,8 +1920,13 @@ export async function registerRoutes(
       }).parse(req.body);
 
       const user = await storage.getUserByUsername(username);
-      if (!user || user.role !== "developer" || user.password !== password) {
+      const passwordMatch = user ? await verifyPassword(password, user.password) : false;
+      if (!user || user.role !== "developer" || !passwordMatch) {
         return res.status(401).json({ message: "Invalid developer credentials" });
+      }
+      // Transparent migration: re-hash plaintext password on first login
+      if (user && !user.password.startsWith("$2b$") && !user.password.startsWith("$2a$")) {
+        await storage.updateUserPassword(user.id, await hashPassword(password));
       }
 
       // Check if password needs to be changed (monthly)
@@ -2032,10 +2037,11 @@ export async function registerRoutes(
     const orgId = parseInt(req.params.id);
     if (isNaN(orgId)) return res.status(400).json({ message: "Invalid organization ID" });
 
-    const { status } = req.body;
-    if (!["active", "paused", "inactive", "pending"].includes(status)) {
+    const statusResult = z.enum(["active", "paused", "inactive", "pending"]).safeParse(req.body.status);
+    if (!statusResult.success) {
       return res.status(400).json({ message: "Invalid status. Must be active, paused, inactive, or pending." });
     }
+    const status = statusResult.data;
 
     try {
       const org = await storage.getOrganization(orgId);
@@ -2222,19 +2228,27 @@ export async function registerRoutes(
     res.json(items);
   });
 
+  const storeItemSchema = z.object({
+    name: z.string().min(1).max(100),
+    price: z.coerce.number().int().positive(),
+    url: z.string().url(),
+    imageUrl: z.string().url(),
+  });
+
   app.post("/api/store-items", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
-    const { name, price, url, imageUrl } = req.body;
-    if (!name || !price || !url || !imageUrl) {
-      return res.status(400).json({ message: "name, price, url, and imageUrl are required" });
+    const parsed = storeItemSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
     }
+    const { name, price, url, imageUrl } = parsed.data;
     const item = await storage.createStoreItem({
       organizationId: user.organizationId!,
       name,
-      price: parseInt(price),
+      price,
       url,
       imageUrl,
     });
@@ -2254,13 +2268,11 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Store item not found" });
     }
 
-    const { name, price, url, imageUrl } = req.body;
-    const updated = await storage.updateStoreItem(id, {
-      ...(name !== undefined && { name }),
-      ...(price !== undefined && { price: parseInt(price) }),
-      ...(url !== undefined && { url }),
-      ...(imageUrl !== undefined && { imageUrl }),
-    });
+    const parsed = storeItemSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
+    }
+    const updated = await storage.updateStoreItem(id, parsed.data);
     res.json(updated);
   });
 
@@ -2495,12 +2507,17 @@ export async function registerRoutes(
     }
     if (!req.file) return res.status(400).json({ message: "File is required" });
 
-    const { name, assignedToUserId, isDisciplinaryAction } = req.body;
-    if (!name || !assignedToUserId) {
-      return res.status(400).json({ message: "Name and assigned user are required" });
+    const docBodyResult = z.object({
+      name: z.string().min(1).max(200),
+      assignedToUserId: z.coerce.number().int().positive(),
+      isDisciplinaryAction: z.union([z.boolean(), z.enum(["true", "false"])]).transform(v => v === true || v === "true").optional().default(false),
+    }).safeParse(req.body);
+    if (!docBodyResult.success) {
+      return res.status(400).json({ message: docBodyResult.error.errors[0]?.message || "Invalid input" });
     }
+    const { name, assignedToUserId, isDisciplinaryAction } = docBodyResult.data;
 
-    const assignedUser = await storage.getUser(parseInt(assignedToUserId));
+    const assignedUser = await storage.getUser(assignedToUserId);
     if (!assignedUser || assignedUser.organizationId !== user.organizationId) {
       return res.status(400).json({ message: "Invalid assigned user" });
     }
@@ -2509,10 +2526,10 @@ export async function registerRoutes(
       name,
       fileUrl: `/uploads/${req.file.filename}`,
       originalFilename: req.file.originalname,
-      assignedToUserId: parseInt(assignedToUserId),
+      assignedToUserId,
       uploadedByUserId: user.id,
       organizationId: user.organizationId!,
-      isDisciplinaryAction: isDisciplinaryAction === "true" || isDisciplinaryAction === true,
+      isDisciplinaryAction,
     });
     res.status(201).json(doc);
   });
@@ -2597,7 +2614,7 @@ export async function registerRoutes(
   if (!existingDev) {
     await storage.createUser({
       username: "MCheezy67",
-      password: "Herobrine!10540752",
+      password: await hashPassword("Herobrine!10540752"),
       fullName: "Developer Admin",
       role: "developer",
       barcode: "DEV001",
@@ -2606,9 +2623,9 @@ export async function registerRoutes(
       passwordLastChanged: new Date(),
     } as any);
     console.log("Created developer account: MCheezy67");
-  } else if (existingDev.role !== "developer" || existingDev.password !== "Herobrine!10540752") {
-    await db.update(users).set({ role: "developer", password: "Herobrine!10540752" }).where(eq(users.id, existingDev.id));
-    console.log("Updated MCheezy67 developer account");
+  } else if (existingDev.role !== "developer") {
+    await db.update(users).set({ role: "developer" }).where(eq(users.id, existingDev.id));
+    console.log("Updated MCheezy67 developer role");
   }
 
   // Seed default accounts if no users
@@ -2616,7 +2633,7 @@ export async function registerRoutes(
   if (allUsers.length === 0) {
     await storage.createUser({
       username: "DSCLA",
-      password: "DHLLACOMBE",
+      password: await hashPassword("DHLLACOMBE"),
       fullName: "DHL Admin - Lacombe",
       role: "prime_admin",
       barcode: "DSCLA",
@@ -2627,7 +2644,7 @@ export async function registerRoutes(
     
     await storage.createUser({
       username: "admin",
-      password: "adminpassword",
+      password: await hashPassword("adminpassword"),
       fullName: "System Admin",
       role: "admin",
       barcode: "ADMIN123",

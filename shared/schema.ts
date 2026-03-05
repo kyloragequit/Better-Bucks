@@ -191,6 +191,7 @@ export const blogPosts = pgTable("blog_posts", {
   excerpt: text("excerpt").notNull(),
   content: text("content").notNull(),
   imageUrl: text("image_url").notNull(),
+  imageAlt: text("image_alt"),
   authorName: text("author_name").notNull(),
   authorPhotoUrl: text("author_photo_url"),
   sources: text("sources"),

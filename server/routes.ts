@@ -155,6 +155,9 @@ async function sendVerificationSMS(phone: string, code: string): Promise<void> {
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
+const blogImageDir = path.join(process.cwd(), "blog-images");
+if (!fs.existsSync(blogImageDir)) fs.mkdirSync(blogImageDir, { recursive: true });
+
 let _upload: any = null;
 async function getUpload() {
   if (!_upload) {

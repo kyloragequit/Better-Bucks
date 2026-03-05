@@ -26,6 +26,7 @@ import {
   ClipboardList,
   BadgeCheck,
   ExternalLink,
+  BookOpen,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -170,6 +171,10 @@ export default function HowItWorksPage() {
             <span className="text-lg font-bold text-gray-900">Better Bucks</span>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/blog")} data-testid="button-header-blog">
+              <BookOpen className="mr-1.5 h-4 w-4" />
+              Blog
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setLocation("/login")} data-testid="button-header-login">
               Log In
             </Button>

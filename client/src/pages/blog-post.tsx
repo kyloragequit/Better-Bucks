@@ -56,7 +56,7 @@ export default function BlogPostPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <button
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            onClick={() => setLocation("/home")}
+            onClick={() => setLocation("/")}
           >
             <AppLogo size="sm" />
             <span className="text-lg font-bold text-gray-900">Better Bucks</span>

@@ -859,12 +859,43 @@ export async function registerRoutes(
     }
   });
 
-  // Serve uploaded files
+  // Serve uploaded files (auth-gated)
   app.use("/uploads", (req, res, next) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     next();
   }, (await import("express")).default.static(uploadDir));
+
+  // Serve blog images publicly (no auth — blog posts are public)
+  app.use("/blog-images", (await import("express")).default.static(blogImageDir));
+
+  // Developer: upload a hero image for blog posts
+  app.post("/api/developer/blog-image", (req, res, next) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    next();
+  }, async (req: any, res: any, next: any) => {
+    const multer = (await import("multer")).default;
+    const blogImageUpload = multer({
+      storage: multer.diskStorage({
+        destination: (_req: any, _file: any, cb: any) => cb(null, blogImageDir),
+        filename: (_req: any, file: any, cb: any) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req: any, file: any, cb: any) => {
+        const allowed = /jpeg|jpg|png|gif|webp|avif/;
+        if (allowed.test(path.extname(file.originalname).toLowerCase()) && file.mimetype.startsWith("image/")) {
+          cb(null, true);
+        } else {
+          cb(new Error("Only image files are allowed"));
+        }
+      },
+    });
+    blogImageUpload.single("image")(req, res, next);
+  }, (req: any, res: any) => {
+    if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+    res.json({ url: `/blog-images/${req.file.filename}` });
+  });
 
   // Upload photos
   app.post("/api/upload", (req, res, next) => {
@@ -2638,7 +2669,8 @@ export async function registerRoutes(
         slug: z.string().min(1).max(200),
         excerpt: z.string().min(1).max(500),
         content: z.string().min(1),
-        imageUrl: z.string().url(),
+        imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")),
+        imageAlt: z.string().max(300).optional().nullable(),
         authorName: z.string().min(1).max(100),
         authorPhotoUrl: z.string().url().or(z.literal("")).optional(),
         sources: z.string().optional(),
@@ -2646,6 +2678,7 @@ export async function registerRoutes(
       }).parse(req.body);
       const post = await storage.createBlogPost({
         ...data,
+        imageAlt: data.imageAlt ?? null,
         authorPhotoUrl: data.authorPhotoUrl || null,
         sources: data.sources ?? null,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : new Date(),
@@ -2668,7 +2701,8 @@ export async function registerRoutes(
         slug: z.string().min(1).max(200).optional(),
         excerpt: z.string().min(1).max(500).optional(),
         content: z.string().min(1).optional(),
-        imageUrl: z.string().url().optional(),
+        imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")).optional(),
+        imageAlt: z.string().max(300).nullable().optional(),
         authorName: z.string().min(1).max(100).optional(),
         authorPhotoUrl: z.string().url().or(z.literal("")).nullable().optional(),
         sources: z.string().nullable().optional(),

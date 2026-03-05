@@ -135,7 +135,7 @@ export default function BlogPostPage() {
             <div className="rounded-2xl overflow-hidden mb-8 shadow-sm border border-gray-100">
               <img
                 src={post.imageUrl}
-                alt={post.title}
+                alt={post.imageAlt || post.title}
                 className="w-full max-h-96 object-cover"
                 data-testid="img-blog-hero"
                 onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/800x400/162A4A/white?text=Better+Bucks"; }}

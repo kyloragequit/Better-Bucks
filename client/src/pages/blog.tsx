@@ -117,7 +117,7 @@ export default function BlogPage() {
                 <div className="aspect-square w-full overflow-hidden bg-gray-100 relative">
                   <img
                     src={post.imageUrl}
-                    alt={post.title}
+                    alt={post.imageAlt || post.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/400x400/162A4A/white?text=Better+Bucks"; }}
                   />

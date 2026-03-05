@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost } from "@shared/schema";
 
@@ -92,6 +92,27 @@ export default function DeveloperDashboardPage() {
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
+  const [blogImageUploading, setBlogImageUploading] = useState(false);
+
+  async function handleBlogImageUpload(file: File) {
+    setBlogImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch("/api/developer/blog-image", { method: "POST", body: fd, credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(err.message || "Upload failed");
+      }
+      const { url } = await res.json();
+      setBlogForm(p => ({ ...p!, imageUrl: url }));
+      toast({ title: "Uploaded", description: "Hero image uploaded successfully." });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally {
+      setBlogImageUploading(false);
+    }
+  }
 
   const { data: organizations, isLoading } = useQuery<OrgWithStats[]>({
     queryKey: ["/api/developer/organizations"],
@@ -417,7 +438,7 @@ export default function DeveloperDashboardPage() {
               </div>
               <Button
                 size="sm"
-                onClick={() => setBlogForm({ isNew: true, title: "", slug: "", excerpt: "", content: "", imageUrl: "", authorName: "Better Bucks Team", authorPhotoUrl: "", sources: "[]", publishedAt: new Date() })}
+                onClick={() => setBlogForm({ isNew: true, title: "", slug: "", excerpt: "", content: "", imageUrl: "", imageAlt: "", authorName: "Better Bucks Team", authorPhotoUrl: "", sources: "[]", publishedAt: new Date() })}
                 data-testid="button-new-blog-post"
                 disabled={blogForm?.isNew === true}
               >
@@ -470,14 +491,65 @@ export default function DeveloperDashboardPage() {
                         className="font-mono text-sm resize-y"
                       />
                     </div>
-                    <div>
-                      <Label className="mb-1.5 block text-sm font-medium">Hero Image URL *</Label>
-                      <Input
-                        value={blogForm.imageUrl ?? ""}
-                        onChange={e => setBlogForm(p => ({ ...p!, imageUrl: e.target.value }))}
-                        placeholder="https://images.unsplash.com/..."
-                        data-testid="input-blog-image-url"
-                      />
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="mb-1.5 block text-sm font-medium">Hero Image *</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={blogForm.imageUrl ?? ""}
+                            onChange={e => setBlogForm(p => ({ ...p!, imageUrl: e.target.value }))}
+                            placeholder="https://images.unsplash.com/... or upload →"
+                            data-testid="input-blog-image-url"
+                            className="flex-1 min-w-0"
+                          />
+                          <label className="shrink-0">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              data-testid="input-blog-image-upload"
+                              disabled={blogImageUploading}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) handleBlogImageUpload(file);
+                                e.target.value = "";
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-10 px-3 pointer-events-none"
+                              disabled={blogImageUploading}
+                              data-testid="button-blog-image-upload"
+                              asChild
+                            >
+                              <span>
+                                {blogImageUploading
+                                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                                  : <Upload className="h-4 w-4" />}
+                              </span>
+                            </Button>
+                          </label>
+                        </div>
+                        {blogForm.imageUrl?.startsWith("/blog-images/") && (
+                          <img
+                            src={blogForm.imageUrl}
+                            alt="Preview"
+                            className="mt-2 h-20 w-full object-cover rounded-md border"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <Label className="mb-1.5 block text-sm font-medium">Image Alt Text</Label>
+                        <Input
+                          value={blogForm.imageAlt ?? ""}
+                          onChange={e => setBlogForm(p => ({ ...p!, imageAlt: e.target.value }))}
+                          placeholder="A team reviewing employee rewards data..."
+                          data-testid="input-blog-image-alt"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Describes the image for screen readers and SEO.</p>
+                      </div>
                     </div>
                     <div>
                       <Label className="mb-1.5 block text-sm font-medium">Author Name *</Label>

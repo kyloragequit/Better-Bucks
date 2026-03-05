@@ -2602,6 +2602,21 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // ========== Tutorial ==========
+  app.post("/api/users/complete-tutorial", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const updated = await storage.setTutorialCompleted(user.id, true);
+    res.json(updated);
+  });
+
+  app.post("/api/users/reset-tutorial", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const updated = await storage.setTutorialCompleted(user.id, false);
+    res.json(updated);
+  });
+
   // ========== Role Labels ==========
   app.get("/api/organizations/role-labels", async (req, res) => {
     const user = req.user as User | undefined;

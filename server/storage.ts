@@ -21,6 +21,7 @@ export interface IStorage {
   getUserByPhoneGlobal(phone: string): Promise<User | undefined>;
   updateUserEmailVerification(userId: number, code: string | null, verified: boolean): Promise<User>;
   setPasswordResetToken(userId: number, token: string | null, expiry: Date | null): Promise<User>;
+  setTutorialCompleted(userId: number, completed: boolean): Promise<User>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransactionsByUser(userId: number): Promise<Transaction[]>;
@@ -481,6 +482,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserDepartment(userId: number, departmentId: number | null): Promise<User> {
     const [updated] = await db.update(users).set({ departmentId }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async setTutorialCompleted(userId: number, completed: boolean): Promise<User> {
+    const [updated] = await db.update(users).set({ tutorialCompleted: completed }).where(eq(users.id, userId)).returning();
     return updated;
   }
 

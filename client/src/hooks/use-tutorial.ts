@@ -1,38 +1,23 @@
-import { useEffect, useState } from "react";
 import { useUser } from "@/hooks/use-auth";
-
-const RESTART_EVENT = "bb-tutorial-restart";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export function useTutorial() {
   const { data: user } = useUser();
-  const [shouldShow, setShouldShow] = useState(false);
 
-  useEffect(() => {
-    if (!user) { setShouldShow(false); return; }
-    const key = `bb_tutorial_done_${user.id}`;
-    if (!localStorage.getItem(key)) {
-      setShouldShow(true);
-    }
-  }, [user?.id]);
+  const shouldShow = !!user && !user.tutorialCompleted;
 
-  useEffect(() => {
-    const handler = () => setShouldShow(true);
-    window.addEventListener(RESTART_EVENT, handler);
-    return () => window.removeEventListener(RESTART_EVENT, handler);
-  }, []);
-
-  const completeTutorial = () => {
+  const completeTutorial = async () => {
     if (!user) return;
-    localStorage.setItem(`bb_tutorial_done_${user.id}`, "1");
-    setShouldShow(false);
+    await apiRequest("POST", "/api/users/complete-tutorial");
+    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
   };
 
   const skipTutorial = completeTutorial;
 
-  const restartTutorial = () => {
+  const restartTutorial = async () => {
     if (!user) return;
-    localStorage.removeItem(`bb_tutorial_done_${user.id}`);
-    window.dispatchEvent(new CustomEvent(RESTART_EVENT));
+    await apiRequest("POST", "/api/users/reset-tutorial");
+    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
   };
 
   return { shouldShow, completeTutorial, skipTutorial, restartTutorial };

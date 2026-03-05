@@ -5,7 +5,7 @@ import { AppLogo } from "@/components/app-logo";
 import { PageSEO } from "@/components/page-seo";
 import { SiteFooter } from "@/components/site-footer";
 import { InstagramFloat } from "@/components/instagram-float";
-import { ArrowLeft, Calendar, ExternalLink, LogIn, Building2, Info, Menu } from "lucide-react";
+import { ArrowLeft, Calendar, ExternalLink, LogIn, Building2, Info, Menu, ArrowRight } from "lucide-react";
 import type { BlogPost } from "@shared/schema";
 import { useState } from "react";
 import { Loader } from "@/components/ui/loader";
@@ -173,6 +173,22 @@ export default function BlogPostPage() {
               dangerouslySetInnerHTML={{ __html: post.content }}
               data-testid="div-blog-content"
             />
+
+            <div className="mt-10 rounded-2xl px-8 py-10 text-center" style={{ background: "linear-gradient(135deg, #162A4A 0%, #1e3a63 100%)" }} data-testid="div-blog-cta">
+              <p className="text-sm font-semibold tracking-widest uppercase mb-3" style={{ color: "#4E9F3D" }}>Ready to get started?</p>
+              <h2 className="text-2xl font-bold text-white mb-3">Reward your team. Retain your people.</h2>
+              <p className="text-gray-300 mb-6 max-w-md mx-auto text-sm leading-relaxed">Join organizations using Better Bucks to drive engagement and reduce turnover — no complicated setup required.</p>
+              <Button
+                size="lg"
+                onClick={() => setLocation("/signup")}
+                data-testid="button-blog-cta-signup"
+                className="font-semibold text-white shadow-lg"
+                style={{ background: "#4E9F3D" }}
+              >
+                Sign up and see the difference
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
 
             {sources.length > 0 && (
               <div className="mt-10 pt-6 border-t border-gray-100">

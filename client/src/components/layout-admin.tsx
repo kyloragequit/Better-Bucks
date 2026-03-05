@@ -139,20 +139,39 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   </Tooltip>
                 );
               })}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href="https://www.instagram.com/better_bucks"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-md p-2.5 transition-colors text-white/65 hover:bg-white/10 hover:text-pink-300"
-                    data-testid="link-instagram-admin-nav"
-                  >
-                    <SiInstagram className="h-5 w-5" />
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">@better_bucks</TooltipContent>
-              </Tooltip>
+              {user?.role === "admin" ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/admin/account-settings"
+                      className={`inline-flex items-center justify-center rounded-md p-2.5 transition-colors ${
+                        isActive("/admin/account-settings")
+                          ? "bg-white/15 text-white"
+                          : "text-white/65 hover:bg-white/10 hover:text-white"
+                      }`}
+                      data-testid="link-account-settings"
+                    >
+                      <Settings className="h-5 w-5" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Account Settings</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <a
+                      href="https://www.instagram.com/better_bucks"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded-md p-2.5 transition-colors text-white/65 hover:bg-white/10 hover:text-pink-300"
+                      data-testid="link-instagram-admin-nav"
+                    >
+                      <SiInstagram className="h-5 w-5" />
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">@better_bucks</TooltipContent>
+                </Tooltip>
+              )}
             </TooltipProvider>
           </nav>
 
@@ -220,17 +239,30 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         </button>
                       );
                     })}
-                    <a
-                      href="https://www.instagram.com/better_bucks"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setMobileMenuOpen(false)}
-                      data-testid="mobile-link-instagram-admin"
-                    >
-                      <SiInstagram className="h-4 w-4 text-pink-500" />
-                      @better_bucks
-                    </a>
+                    {user?.role === "admin" ? (
+                      <button
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                          isActive("/admin/account-settings") ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                        onClick={() => { setLocation("/admin/account-settings"); setMobileMenuOpen(false); }}
+                        data-testid="mobile-link-account-settings"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Account Settings
+                      </button>
+                    ) : (
+                      <a
+                        href="https://www.instagram.com/better_bucks"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setMobileMenuOpen(false)}
+                        data-testid="mobile-link-instagram-admin"
+                      >
+                        <SiInstagram className="h-4 w-4 text-pink-500" />
+                        @better_bucks
+                      </a>
+                    )}
                     <div className="border-t my-1" />
                     <button
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"

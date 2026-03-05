@@ -510,7 +510,7 @@ export async function registerRoutes(
         if (org && org.maxEmployees > 0) {
           const orgUsers = await storage.getUsersByOrganization(user.organizationId);
           if (orgUsers.length >= org.maxEmployees) {
-            const tierNames: Record<string, string> = { small: "Small Site (100)", mid: "Mid-Size Site (300)", large: "Large Site (500)", enterprise: "Enterprise (Unlimited)" };
+            const tierNames: Record<string, string> = { small: "Small Site (25)", mid: "Mid-Size Site (75)", large: "Large Site (150)", enterprise: "Enterprise (Unlimited)" };
             return res.status(400).json({ message: `Employee limit reached for your ${tierNames[org.tier] || org.tier} plan (${org.maxEmployees} max). Please upgrade your plan to add more team members.` });
           }
         }
@@ -1293,9 +1293,9 @@ export async function registerRoutes(
 
   // Tier pricing configuration
   const tierConfig = {
-    small: { price: 4999, maxEmployees: 100, name: "Small Site" },
-    mid: { price: 9999, maxEmployees: 300, name: "Mid-Size Site" },
-    large: { price: 14999, maxEmployees: 500, name: "Large Site" },
+    small: { price: 4999, maxEmployees: 25, name: "Small Site" },
+    mid: { price: 9999, maxEmployees: 75, name: "Mid-Size Site" },
+    large: { price: 14999, maxEmployees: 150, name: "Large Site" },
     enterprise: { price: 29999, maxEmployees: -1, name: "Enterprise Site" },
   } as const;
 

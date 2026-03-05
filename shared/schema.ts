@@ -9,7 +9,7 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
   tier: text("tier", { enum: ["small", "mid", "large", "enterprise"] }).default("small").notNull(),
-  maxEmployees: integer("max_employees").default(100).notNull(),
+  maxEmployees: integer("max_employees").default(25).notNull(),
   storeUrl: text("store_url").default("https://dscpromostore.com/").notNull(),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),

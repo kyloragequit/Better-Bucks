@@ -173,7 +173,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersByOrganization(organizationId: number): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.organizationId, organizationId)).orderBy(users.fullName);
+    return await db.select().from(users).where(
+      and(eq(users.organizationId, organizationId), ne(users.role, "developer"))
+    ).orderBy(users.fullName);
   }
 
   async getPendingAdminsByOrganization(organizationId: number): Promise<User[]> {

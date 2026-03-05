@@ -2185,6 +2185,108 @@ export async function registerRoutes(
     });
   });
 
+  // ==================== DEMO MODE ROUTES ====================
+
+  app.get("/api/demo/status", async (req, res) => {
+    const demoOriginalUserId = (req.session as any).demoOriginalUserId as number | undefined;
+    if (!demoOriginalUserId || !req.isAuthenticated()) {
+      return res.json({ inDemo: false, originalUserId: null, users: [] });
+    }
+    const currentUser = req.user as User;
+    const originalUser = await storage.getUser(demoOriginalUserId);
+    if (!originalUser) return res.json({ inDemo: false, originalUserId: null, users: [] });
+
+    const orgUsers = await storage.getUsersByOrganization(originalUser.organizationId!);
+    const users = orgUsers
+      .filter(u => u.id !== demoOriginalUserId)
+      .map(u => ({ id: u.id, fullName: u.fullName, username: u.username, role: u.role }));
+
+    res.json({
+      inDemo: true,
+      originalUserId: demoOriginalUserId,
+      originalUser: { id: originalUser.id, fullName: originalUser.fullName, role: originalUser.role },
+      currentUserId: currentUser.id,
+      users,
+    });
+  });
+
+  app.post("/api/demo/start", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    if ((req.session as any).demoOriginalUserId) {
+      return res.status(400).json({ message: "Already in demo mode" });
+    }
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+    const switchable = orgUsers
+      .filter(u => u.id !== user.id)
+      .map(u => ({ id: u.id, fullName: u.fullName, username: u.username, role: u.role }));
+
+    (req.session as any).demoOriginalUserId = user.id;
+    req.session.save((err) => {
+      if (err) return res.status(500).json({ message: "Session save failed" });
+      res.json({ inDemo: true, users: switchable });
+    });
+  });
+
+  app.post("/api/demo/switch/:userId", async (req, res) => {
+    const demoOriginalUserId = (req.session as any).demoOriginalUserId as number | undefined;
+    if (!req.isAuthenticated() || !demoOriginalUserId) {
+      return res.status(401).json({ message: "Not in demo mode" });
+    }
+
+    const originalUser = await storage.getUser(demoOriginalUserId);
+    if (!originalUser) return res.status(400).json({ message: "Original user not found" });
+
+    const targetId = parseInt(req.params.userId);
+    if (isNaN(targetId)) return res.status(400).json({ message: "Invalid user ID" });
+
+    // Switching back to self
+    if (targetId === demoOriginalUserId) {
+      req.login(originalUser, (err) => {
+        if (err) return res.status(500).json({ message: "Switch failed" });
+        req.session.save((saveErr) => {
+          if (saveErr) return res.status(500).json({ message: "Session save failed" });
+          res.json(originalUser);
+        });
+      });
+      return;
+    }
+
+    const targetUser = await storage.getUser(targetId);
+    if (!targetUser || targetUser.organizationId !== originalUser.organizationId) {
+      return res.status(404).json({ message: "User not found in your organization" });
+    }
+
+    req.login(targetUser, (err) => {
+      if (err) return res.status(500).json({ message: "Switch failed" });
+      (req.session as any).demoOriginalUserId = demoOriginalUserId;
+      req.session.save((saveErr) => {
+        if (saveErr) return res.status(500).json({ message: "Session save failed" });
+        res.json(targetUser);
+      });
+    });
+  });
+
+  app.post("/api/demo/exit", async (req, res) => {
+    const demoOriginalUserId = (req.session as any).demoOriginalUserId as number | undefined;
+    if (!demoOriginalUserId) {
+      return res.status(400).json({ message: "Not in demo mode" });
+    }
+    const originalUser = await storage.getUser(demoOriginalUserId);
+    if (!originalUser) return res.status(400).json({ message: "Original account not found" });
+
+    req.login(originalUser, (err) => {
+      if (err) return res.status(500).json({ message: "Failed to exit demo" });
+      delete (req.session as any).demoOriginalUserId;
+      req.session.save((saveErr) => {
+        if (saveErr) return res.status(500).json({ message: "Session save failed" });
+        res.json(originalUser);
+      });
+    });
+  });
+
   // ==================== SHOP WEBSITE ROUTES ====================
 
   app.get("/api/shop-websites", async (req, res) => {

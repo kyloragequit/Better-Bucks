@@ -3,12 +3,14 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DemoBanner } from "@/components/demo-banner";
+import { useToast } from "@/hooks/use-toast";
 
 function ImpersonationBanner() {
   const [, setLocation] = useLocation();
@@ -57,11 +59,35 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { mutate: logout } = useLogout();
   const { data: user } = useUser();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: devStatus } = useQuery<{ impersonating: boolean }>({
     queryKey: ["/api/developer/status"],
   });
+  const { data: demoStatus } = useQuery<{ inDemo: boolean }>({
+    queryKey: ["/api/demo/status"],
+  });
   const isImpersonating = devStatus?.impersonating === true;
+  const isInDemo = demoStatus?.inDemo === true;
+
+  const startDemoMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/demo/start", { method: "POST", credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Failed to start demo" }));
+        throw new Error(err.message);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/demo/status"] });
+      toast({ title: "Demo Mode active", description: "Use the green bar to switch accounts." });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
 
   const isActive = (path: string) => location === path || location.startsWith(`${path}/`);
 
@@ -80,6 +106,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-muted/20">
       <ImpersonationBanner />
+      <DemoBanner />
       <header className="sticky top-0 z-[999] w-full border-b border-white/10 bg-primary">
         <div className="container flex h-16 items-center justify-between gap-4 px-4">
           <Link href="/admin/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity no-underline">
@@ -133,6 +160,25 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline-block text-sm text-white/60">
               Hello, {user?.fullName}
             </span>
+            {user?.role === "prime_admin" && !isInDemo && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10"
+                      onClick={() => startDemoMutation.mutate()}
+                      disabled={startDemoMutation.isPending}
+                      data-testid="button-start-demo"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Start Demo Mode</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>

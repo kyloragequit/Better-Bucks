@@ -8,6 +8,7 @@ import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { useQuery } from "@tanstack/react-query";
+import { DemoBanner } from "@/components/demo-banner";
 
 export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const { mutate: logout } = useLogout();
@@ -30,6 +31,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
+      <DemoBanner />
       <header className="border-b border-white/10 bg-primary sticky top-0 z-[999]">
         <div className="container max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <Link href="/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity">

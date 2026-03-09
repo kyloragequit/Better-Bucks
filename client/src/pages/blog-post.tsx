@@ -132,7 +132,7 @@ export default function BlogPostPage() {
 
         {post && (
           <article>
-            <figure className="rounded-2xl overflow-hidden mb-8 shadow-sm border border-gray-100">
+            <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100 mb-2">
               <img
                 src={post.imageUrl}
                 alt={post.imageAlt || post.title}
@@ -140,12 +140,13 @@ export default function BlogPostPage() {
                 data-testid="img-blog-hero"
                 onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/800x400/162A4A/white?text=Better+Bucks"; }}
               />
-              {post.imageSource && (
-                <figcaption className="px-4 py-1.5 text-xs text-muted-foreground bg-gray-50 border-t border-gray-100" data-testid="text-blog-image-source">
-                  {post.imageSource}
-                </figcaption>
-              )}
-            </figure>
+            </div>
+
+            {post.imageSource && (
+              <p className="text-xs text-muted-foreground mb-6" data-testid="text-blog-image-source">
+                {post.imageSource}
+              </p>
+            )}
 
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight mb-4" data-testid="text-blog-post-title">
               {post.title}

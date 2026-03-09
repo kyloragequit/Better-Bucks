@@ -365,6 +365,9 @@ export default function SignupPage() {
                     </>
                   )}
                 </Button>
+                <p className="text-center text-xs text-muted-foreground" data-testid="text-cancellation-policy">
+                  Cancel anytime with no added charges
+                </p>
               </form>
             </CardContent>
           </Card>

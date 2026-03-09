@@ -510,9 +510,18 @@ export default function LandingPage() {
               {contactSubmitting ? "Sending..." : "Request a Demo"}
             </Button>
           </form>
-          <div className="mt-10 pt-6 border-t text-sm text-gray-400 flex items-center justify-center gap-2">
-            <AppLogo size="sm" />
-            <span>Better Bucks LLC</span>
+          <div className="mt-10 pt-6 border-t text-sm text-gray-400 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2">
+              <AppLogo size="sm" />
+              <span>Better Bucks LLC</span>
+            </div>
+            <a
+              href="mailto:miles.chase@betterbucks.net"
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+              data-testid="link-contact-email"
+            >
+              miles.chase@betterbucks.net
+            </a>
           </div>
         </div>
       </footer>

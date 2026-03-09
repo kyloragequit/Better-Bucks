@@ -438,7 +438,7 @@ export default function DeveloperDashboardPage() {
               </div>
               <Button
                 size="sm"
-                onClick={() => setBlogForm({ isNew: true, title: "", slug: "", excerpt: "", content: "", imageUrl: "", imageAlt: "", authorName: "Better Bucks Team", authorPhotoUrl: "", sources: "[]", publishedAt: new Date() })}
+                onClick={() => setBlogForm({ isNew: true, title: "", slug: "", excerpt: "", content: "", imageUrl: "", imageAlt: "", imageSource: "", authorName: "Better Bucks Team", authorPhotoUrl: "", sources: "[]", publishedAt: new Date() })}
                 data-testid="button-new-blog-post"
                 disabled={blogForm?.isNew === true}
               >
@@ -549,6 +549,16 @@ export default function DeveloperDashboardPage() {
                           data-testid="input-blog-image-alt"
                         />
                         <p className="text-xs text-muted-foreground mt-1">Describes the image for screen readers and SEO.</p>
+                      </div>
+                      <div>
+                        <Label className="mb-1.5 block text-sm font-medium">Image Source / Credit (optional)</Label>
+                        <Input
+                          value={blogForm.imageSource ?? ""}
+                          onChange={e => setBlogForm(p => ({ ...p!, imageSource: e.target.value }))}
+                          placeholder="Photo by John Smith via Unsplash"
+                          data-testid="input-blog-image-source"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Displayed as a caption beneath the image.</p>
                       </div>
                     </div>
                     <div>

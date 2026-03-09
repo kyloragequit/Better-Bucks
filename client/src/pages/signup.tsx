@@ -230,10 +230,7 @@ export default function SignupPage() {
                 <CardContent className="space-y-3 text-center">
                   <div>
                     {isEnterprise ? (
-                      <div className="space-y-0.5">
-                        <div className="text-sm text-muted-foreground line-through">${tier.originalPrice}/mo</div>
-                        <span className="text-2xl font-bold text-primary">Contact Us</span>
-                      </div>
+                      <span className="text-2xl font-bold text-primary">Contact Us</span>
                     ) : (
                       <div className="space-y-0.5">
                         <div className="text-sm text-muted-foreground line-through">${tier.originalPrice}/mo</div>
@@ -298,7 +295,7 @@ export default function SignupPage() {
         <div className="text-center py-8">
           <div className="inline-block rounded-xl bg-gradient-to-r from-[#4E9F3D] to-[#3a7a2e] px-10 py-5 shadow-lg">
             <p className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide" data-testid="text-free-trial-banner">
-              First 50 Companies get permanent Founder Pricing!
+              First 50 Companies Get Permanent Founder Pricing!
             </p>
             <p className="text-white/90 text-sm mt-1">60-Day free trial · Cancel anytime · No commitments</p>
           </div>

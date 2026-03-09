@@ -2803,6 +2803,7 @@ export async function registerRoutes(
         content: z.string().min(1),
         imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")),
         imageAlt: z.string().max(300).optional().nullable(),
+        imageSource: z.string().max(500).optional().nullable(),
         authorName: z.string().min(1).max(100),
         authorPhotoUrl: z.string().url().or(z.literal("")).optional(),
         sources: z.string().optional(),
@@ -2811,6 +2812,7 @@ export async function registerRoutes(
       const post = await storage.createBlogPost({
         ...data,
         imageAlt: data.imageAlt ?? null,
+        imageSource: data.imageSource ?? null,
         authorPhotoUrl: data.authorPhotoUrl || null,
         sources: data.sources ?? null,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : new Date(),
@@ -2835,6 +2837,7 @@ export async function registerRoutes(
         content: z.string().min(1).optional(),
         imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")).optional(),
         imageAlt: z.string().max(300).nullable().optional(),
+        imageSource: z.string().max(500).nullable().optional(),
         authorName: z.string().min(1).max(100).optional(),
         authorPhotoUrl: z.string().url().or(z.literal("")).nullable().optional(),
         sources: z.string().nullable().optional(),

@@ -21,20 +21,22 @@ const tiers = [
   {
     id: "small" as const,
     name: "Small Site",
-    price: 49.99,
+    price: 24.99,
+    originalPrice: 49.99,
     maxEmployees: 25,
     description: "Up to 25 employees",
-    perEmployee: "~$2.00",
+    perEmployee: "~$1.00",
     icon: Users,
     features: ["60-day free pilot program", "Up to 25 active logins", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"],
   },
   {
     id: "mid" as const,
     name: "Mid-Size Site",
-    price: 99.99,
+    price: 49.99,
+    originalPrice: 99.99,
     maxEmployees: 75,
     description: "26–75 employees",
-    perEmployee: "~$1.33",
+    perEmployee: "~$0.67",
     icon: Building2,
     popular: true,
     features: ["60-day free pilot program", "Up to 75 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
@@ -42,17 +44,19 @@ const tiers = [
   {
     id: "large" as const,
     name: "Large Site",
-    price: 149.99,
+    price: 74.99,
+    originalPrice: 149.99,
     maxEmployees: 150,
     description: "76–150 employees",
-    perEmployee: "~$1.00",
+    perEmployee: "~$0.50",
     icon: Zap,
     features: ["60-day free pilot program", "Up to 150 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
   },
   {
     id: "enterprise" as const,
     name: "Enterprise Site",
-    price: 299.99,
+    price: 149.99,
+    originalPrice: 299.99,
     maxEmployees: -1,
     description: "150+ employees",
     perEmployee: "More dedicated support",
@@ -226,12 +230,18 @@ export default function SignupPage() {
                 <CardContent className="space-y-3 text-center">
                   <div>
                     {isEnterprise ? (
-                      <span className="text-2xl font-bold text-primary">Contact Us</span>
+                      <div className="space-y-0.5">
+                        <div className="text-sm text-muted-foreground line-through">${tier.originalPrice}/mo</div>
+                        <span className="text-2xl font-bold text-primary">Contact Us</span>
+                      </div>
                     ) : (
-                      <>
-                        <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
-                        <span className="text-sm text-muted-foreground">/mo</span>
-                      </>
+                      <div className="space-y-0.5">
+                        <div className="text-sm text-muted-foreground line-through">${tier.originalPrice}/mo</div>
+                        <div>
+                          <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
+                          <span className="text-sm text-muted-foreground">/mo</span>
+                        </div>
+                      </div>
                     )}
                   </div>
                   <div className="inline-block rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1" data-testid={`badge-trial-${tier.id}`}>
@@ -288,9 +298,9 @@ export default function SignupPage() {
         <div className="text-center py-8">
           <div className="inline-block rounded-xl bg-gradient-to-r from-[#4E9F3D] to-[#3a7a2e] px-10 py-5 shadow-lg">
             <p className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide" data-testid="text-free-trial-banner">
-              Free 60 Day Trial + Founder Pricing!
+              First 50 Companies get permanent Founder Pricing!
             </p>
-            <p className="text-white/90 text-sm mt-1">Cancel anytime, no commitments</p>
+            <p className="text-white/90 text-sm mt-1">60-Day free trial · Cancel anytime · No commitments</p>
           </div>
         </div>
 

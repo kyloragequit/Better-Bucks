@@ -1327,10 +1327,10 @@ export async function registerRoutes(
 
   // Tier pricing configuration
   const tierConfig = {
-    small: { price: 4999, maxEmployees: 25, name: "Small Site" },
-    mid: { price: 9999, maxEmployees: 75, name: "Mid-Size Site" },
-    large: { price: 14999, maxEmployees: 150, name: "Large Site" },
-    enterprise: { price: 29999, maxEmployees: -1, name: "Enterprise Site" },
+    small: { price: 2499, maxEmployees: 25, name: "Small Site" },
+    mid: { price: 4999, maxEmployees: 75, name: "Mid-Size Site" },
+    large: { price: 7499, maxEmployees: 150, name: "Large Site" },
+    enterprise: { price: 14999, maxEmployees: -1, name: "Enterprise Site" },
   } as const;
 
   // Organization signup - create checkout session
@@ -1354,6 +1354,21 @@ export async function registerRoutes(
         tier,
         maxEmployees: config.maxEmployees,
       });
+
+      // Alert when the 45th company signs up (5 slots left for founder pricing)
+      const allOrgs = await storage.getAllOrganizations();
+      if (allOrgs.length === 45) {
+        sendEmail({
+          to: ADMIN_NOTIFY_EMAIL,
+          subject: "🚨 Better Bucks: 45 Companies Signed Up – 5 Founder Spots Left!",
+          html: `<p>Hi Miles,</p>
+<p>The <strong>45th company</strong> just signed up for Better Bucks — only <strong>5 founder pricing spots remain</strong>.</p>
+<p><strong>Company:</strong> ${organizationName}<br/><strong>Tier:</strong> ${config.name}<br/><strong>Org Code:</strong> ${orgCode}</p>
+<p>Consider promoting the scarcity to drive conversions.</p>
+<p>— Better Bucks System</p>`,
+          text: `45 companies have signed up. Only 5 founder pricing spots remain. Latest signup: ${organizationName} (${config.name}, code: ${orgCode}).`,
+        }).catch(err => console.error("[Email] Failed to send 45-org alert:", err));
+      }
 
       if (promoCode && promoCode.toUpperCase() === "GOKU11") {
         await storage.updateOrganizationStripe(org.id, "promo_GOKU11", "promo_GOKU11");

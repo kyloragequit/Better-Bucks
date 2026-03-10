@@ -255,7 +255,7 @@ export default function HowItWorksPage() {
               >
                 {SCROLLING_WORDS[wordIdx]}
               </span>
-              , and motivate their teams.
+              .
             </p>
             <div className="mt-8 h-1.5 w-24 rounded-full" style={{ background: BUCKS_COLOR }} />
           </div>

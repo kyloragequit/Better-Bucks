@@ -660,7 +660,7 @@ export default function HowItWorksPage() {
                     style={{ background: BUCKS_COLOR, color: "#fff" }}
                     data-testid="button-cta-signup"
                   >
-                    Get Started Today
+                    Build a Better Workplace Today
                     <ArrowRight className="h-5 w-5" />
                   </button>
                   <p className="text-white/40 text-xs -mt-1">View our plans — no credit card required.</p>

@@ -57,6 +57,58 @@ export default function EmployeeDashboard() {
         </button>
       </div>
 
+      {/* Active Goals */}
+      {goals.filter(g => g.status === "active").length > 0 && (
+        <Card className="shadow-md border-border/60 mb-8" data-testid="section-goals">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" /> Team Goals
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {goals.filter(g => g.status === "active").map(goal => {
+              const isTime = goal.type === "time";
+              const isQty = goal.type === "quantity";
+              const elapsed = differenceInDays(new Date(), new Date(goal.startDate));
+              const progress = isQty && goal.targetQuantity
+                ? Math.min(100, Math.round((goal.currentQuantity / goal.targetQuantity) * 100))
+                : isTime && goal.targetDays
+                ? Math.min(100, Math.round((elapsed / goal.targetDays) * 100))
+                : 0;
+              const remaining = isTime && goal.targetDays ? goal.targetDays - elapsed : null;
+              return (
+                <div key={goal.id} data-testid={`goal-item-${goal.id}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2 font-medium text-sm">
+                      {isTime ? <Timer className="h-4 w-4 text-primary shrink-0" /> : <Hash className="h-4 w-4 text-primary shrink-0" />}
+                      <span>{goal.title}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Coins className="h-3 w-3" />
+                      <span>{goal.bucksReward} bcks</span>
+                    </div>
+                  </div>
+                  <Progress value={progress} className="h-2 mb-1.5" data-testid={`goal-progress-${goal.id}`} />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {isQty && goal.targetQuantity && (
+                      <span>{goal.currentQuantity.toLocaleString()} / {goal.targetQuantity.toLocaleString()}</span>
+                    )}
+                    {isTime && goal.targetDays && (
+                      <span>{elapsed} of {goal.targetDays} days</span>
+                    )}
+                    <span>
+                      {isTime && remaining !== null && remaining > 0
+                        ? `${remaining} days remaining`
+                        : `${progress}%`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Balance Card - Main Focus */}
         <Card className="md:col-span-2 shadow-lg border-primary/20 bg-gradient-to-br from-primary/10 via-white to-white overflow-hidden relative">
@@ -149,58 +201,6 @@ export default function EmployeeDashboard() {
             <div className="mt-3 text-right">
               <Link href="/store" className="text-xs text-primary underline">Go to Store</Link>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Active Goals */}
-      {goals.filter(g => g.status === "active").length > 0 && (
-        <Card className="shadow-md border-border/60 mb-8" data-testid="section-goals">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" /> Team Goals
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {goals.filter(g => g.status === "active").map(goal => {
-              const isTime = goal.type === "time";
-              const isQty = goal.type === "quantity";
-              const elapsed = differenceInDays(new Date(), new Date(goal.startDate));
-              const progress = isQty && goal.targetQuantity
-                ? Math.min(100, Math.round((goal.currentQuantity / goal.targetQuantity) * 100))
-                : isTime && goal.targetDays
-                ? Math.min(100, Math.round((elapsed / goal.targetDays) * 100))
-                : 0;
-              const remaining = isTime && goal.targetDays ? goal.targetDays - elapsed : null;
-              return (
-                <div key={goal.id} data-testid={`goal-item-${goal.id}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2 font-medium text-sm">
-                      {isTime ? <Timer className="h-4 w-4 text-primary shrink-0" /> : <Hash className="h-4 w-4 text-primary shrink-0" />}
-                      <span>{goal.title}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Coins className="h-3 w-3" />
-                      <span>{goal.bucksReward} bcks</span>
-                    </div>
-                  </div>
-                  <Progress value={progress} className="h-2 mb-1.5" data-testid={`goal-progress-${goal.id}`} />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    {isQty && goal.targetQuantity && (
-                      <span>{goal.currentQuantity.toLocaleString()} / {goal.targetQuantity.toLocaleString()}</span>
-                    )}
-                    {isTime && goal.targetDays && (
-                      <span>{elapsed} of {goal.targetDays} days</span>
-                    )}
-                    <span>
-                      {isTime && remaining !== null && remaining > 0
-                        ? `${remaining} days remaining`
-                        : `${progress}%`}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
           </CardContent>
         </Card>
       )}

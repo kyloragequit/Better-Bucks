@@ -216,7 +216,7 @@ export default function HowItWorksPage() {
           >
             <AppLogo size="lg" />
             <h1 className="mt-10 text-white font-display font-bold leading-tight" style={{ fontSize: "clamp(1.75rem, 4vw, 3rem)" }} data-testid="text-parallax-question">
-              Reward great employees instantly — without the hassle.
+              Build a Better Workplace — the easy way.
             </h1>
             <p className="mt-4 text-white/50 text-sm tracking-widest uppercase">Scroll to find out</p>
           </div>

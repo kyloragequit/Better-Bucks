@@ -2872,10 +2872,10 @@ export async function registerRoutes(
     res.json(allGoals.filter(g => g.status === "active" || g.status === "pending_distribution" || g.status === "completed" || g.status === "failed"));
   }));
 
-  // GET /api/admin/goals — all goals (prime_admin only)
+  // GET /api/admin/goals — all goals (admin + prime_admin)
   app.get("/api/admin/goals", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(400).send("No organization");
     const allGoals = await storage.getGoalsByOrganization(user.organizationId);
     res.json(allGoals);

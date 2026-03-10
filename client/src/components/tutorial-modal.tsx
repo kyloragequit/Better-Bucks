@@ -7,7 +7,7 @@ import {
   Wallet, ShoppingBag, ShoppingCart, LayoutDashboard, Users, Zap,
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
-  ArrowRight, Heart, ExternalLink,
+  ArrowRight, Heart, ExternalLink, Target, Timer, Hash,
 } from "lucide-react";
 
 const NAVY = "#162A4A";
@@ -469,6 +469,48 @@ function buildSlides(role: string, name: string): Slide[] {
       ),
     },
     {
+      id: "goals",
+      title: "Team Goals",
+      subtitle: "Set targets that motivate the whole team — hit them and everyone earns Bucks.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><Target className="h-4 w-4" /> Goals</span>
+            </div>
+            <div className="p-3 bg-gray-50 space-y-3">
+              {[
+                { icon: Hash, label: "Units Shipped This Month", type: "Quantity", current: 74, target: 100, reward: 250 },
+                { icon: Timer, label: "Days Without an Incident", type: "Time", current: 18, target: 30, reward: 500 },
+              ].map(({ icon: Icon, label, type, current, target, reward }) => (
+                <div key={label} className="rounded-lg border bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: NAVY }}>
+                      <Icon className="h-3.5 w-3.5" style={{ color: GREEN }} />
+                      {label}
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${GREEN}18`, color: GREEN }}>{reward} bcks</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full" style={{ width: `${Math.round((current / target) * 100)}%`, background: GREEN }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>{current} / {target} {type === "Quantity" ? "units" : "days"}</span>
+                    <span>{Math.round((current / target) * 100)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            {role === "prime_admin"
+              ? "Create goals in the Goals tab. When a goal is met, distribute Bucks to every employee in one click."
+              : "Add progress to quantity goals using the Goals tab. The Organization Owner controls goal creation."}
+          </p>
+        </div>
+      ),
+    },
+    {
       id: "done",
       title: "You're Ready to Lead! 🏆",
       subtitle: "Your team is counting on you. Here's a quick recap:",
@@ -483,6 +525,7 @@ function buildSlides(role: string, name: string): Slide[] {
               { icon: Users, text: "Employees — Add, manage & award your team" },
               { icon: ShoppingCart, text: "Orders — Review and fulfill requests" },
               { icon: Zap, text: "Instant Transaction — Quick Bucks awards" },
+              { icon: Target, text: "Goals — Add progress to quantity goals" },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-2.5 text-left">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>
@@ -587,6 +630,7 @@ function buildSlides(role: string, name: string): Slide[] {
                 { icon: Users, text: "Employees — Add, manage & award your team" },
                 { icon: ShoppingCart, text: "Orders — Approve and fulfill requests" },
                 { icon: Zap, text: "Instant Transaction — Quick awards" },
+                { icon: Target, text: "Goals — Create goals & distribute Bucks" },
                 { icon: ShoppingBag, text: "Store — Curate what employees can redeem" },
                 { icon: Settings, text: "Settings — Org config, billing & labels" },
               ].map(({ icon: Icon, text }) => (

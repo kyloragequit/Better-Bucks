@@ -57,6 +57,7 @@ const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", 
 
 export default function AdminGoalsPage() {
   const { data: user } = useUser();
+  const isPrimeAdmin = user?.role === "prime_admin";
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -134,19 +135,21 @@ export default function AdminGoalsPage() {
   const completedGoals = goals.filter(g => g.status === "completed");
   const failedGoals = goals.filter(g => g.status === "failed");
 
-  if (user?.role !== "prime_admin") {
-    return <AdminLayout><div className="p-8 text-muted-foreground">Access restricted to Prime Admins.</div></AdminLayout>;
-  }
-
   return (
     <AdminLayout>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" /> Goals</h1>
-            <p className="text-muted-foreground text-sm mt-1">Create and manage team goals that appear on every employee's dashboard.</p>
+            <p className="text-muted-foreground text-sm mt-1">
+              {isPrimeAdmin
+                ? "Create and manage team goals that appear on every employee's dashboard."
+                : "Track team goals and add progress to quantity-based goals."}
+            </p>
           </div>
-          <Button onClick={openCreate} data-testid="button-create-goal"><Plus className="mr-2 h-4 w-4" />New Goal</Button>
+          {isPrimeAdmin && (
+            <Button onClick={openCreate} data-testid="button-create-goal"><Plus className="mr-2 h-4 w-4" />New Goal</Button>
+          )}
         </div>
 
         {isLoading && <Loader />}
@@ -155,22 +158,26 @@ export default function AdminGoalsPage() {
         {pendingGoals.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-green-700 flex items-center gap-2"><Trophy className="h-5 w-5" />Goal Met — Distribute Bucks</h2>
-            {pendingGoals.map(g => <GoalCard key={g.id} goal={g} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+            {pendingGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
           </div>
         )}
 
         {/* Active */}
         <div className="space-y-3">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="h-5 w-5 text-primary" />Active Goals</h2>
-          {activeGoals.length === 0 && <p className="text-muted-foreground text-sm">No active goals. Create one above.</p>}
-          {activeGoals.map(g => <GoalCard key={g.id} goal={g} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+          {activeGoals.length === 0 && (
+            <p className="text-muted-foreground text-sm">
+              {isPrimeAdmin ? "No active goals. Create one above." : "No active goals have been set by the Organization Owner yet."}
+            </p>
+          )}
+          {activeGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
         </div>
 
         {/* Completed */}
         {completedGoals.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-muted-foreground flex items-center gap-2"><CheckCircle className="h-5 w-5" />Completed</h2>
-            {completedGoals.map(g => <GoalCard key={g.id} goal={g} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+            {completedGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
           </div>
         )}
 
@@ -178,7 +185,7 @@ export default function AdminGoalsPage() {
         {failedGoals.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-destructive flex items-center gap-2"><XCircle className="h-5 w-5" />Failed</h2>
-            {failedGoals.map(g => <GoalCard key={g.id} goal={g} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+            {failedGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
           </div>
         )}
       </div>
@@ -282,6 +289,7 @@ export default function AdminGoalsPage() {
 
 interface GoalCardProps {
   goal: Goal;
+  isPrimeAdmin: boolean;
   onEdit: (g: Goal) => void;
   onDelete: (id: number) => void;
   onIncrement: (id: number) => void;
@@ -291,7 +299,7 @@ interface GoalCardProps {
   distributing: boolean;
 }
 
-function GoalCard({ goal, onEdit, onDelete, onIncrement, onFail, onComplete, onDistribute, distributing }: GoalCardProps) {
+function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, onComplete, onDistribute, distributing }: GoalCardProps) {
   const progress = goalProgress(goal);
   const isActive = goal.status === "active";
   const isPending = goal.status === "pending_distribution";
@@ -308,13 +316,13 @@ function GoalCard({ goal, onEdit, onDelete, onIncrement, onFail, onComplete, onD
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <StatusBadge status={goal.status} />
-            {isActive && (
+            {isPrimeAdmin && isActive && (
               <>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(goal)} data-testid={`button-edit-goal-${goal.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
                 <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(goal.id)} data-testid={`button-delete-goal-${goal.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
               </>
             )}
-            {!isActive && (
+            {isPrimeAdmin && !isActive && (
               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(goal.id)} data-testid={`button-delete-goal-${goal.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
             )}
           </div>
@@ -353,7 +361,7 @@ function GoalCard({ goal, onEdit, onDelete, onIncrement, onFail, onComplete, onD
               <ChevronUp className="mr-1.5 h-3.5 w-3.5" />Add Progress
             </Button>
           )}
-          {isActive && goal.type === "time" && (
+          {isPrimeAdmin && isActive && goal.type === "time" && (
             <>
               <Button size="sm" variant="outline" className="text-green-700 border-green-300 hover:bg-green-50" onClick={() => onComplete(goal.id)} data-testid={`button-complete-goal-${goal.id}`}>
                 <CheckCircle className="mr-1.5 h-3.5 w-3.5" />Mark Goal Met
@@ -363,7 +371,7 @@ function GoalCard({ goal, onEdit, onDelete, onIncrement, onFail, onComplete, onD
               </Button>
             </>
           )}
-          {(isPending || (isCompleted && !goal.bucksDistributedAt)) && (
+          {isPrimeAdmin && (isPending || (isCompleted && !goal.bucksDistributedAt)) && (
             <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" disabled={distributing} onClick={() => onDistribute(goal.id)} data-testid={`button-distribute-${goal.id}`}>
               <Coins className="mr-1.5 h-3.5 w-3.5" />{distributing ? "Distributing..." : `Distribute ${goal.bucksReward} bcks to All Employees`}
             </Button>

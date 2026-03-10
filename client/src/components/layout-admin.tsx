@@ -96,10 +96,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/employees", label: "Employees", icon: Users },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
     { href: "/admin/instant-transaction", label: "Instant Transaction", shortLabel: "Quick TX", icon: Zap, testId: "link-instant-transaction" },
+    { href: "/admin/goals", label: "Goals", icon: Target },
     ...(user?.role === "prime_admin" ? [
       { href: "/admin/pending", label: "Pending Approvals", icon: ClipboardCheck },
       { href: "/admin/store", label: "Store", icon: ShoppingBag },
-      { href: "/admin/goals", label: "Goals", icon: Target },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ] : []),
   ];

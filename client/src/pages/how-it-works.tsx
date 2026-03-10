@@ -653,25 +653,25 @@ export default function HowItWorksPage() {
                 <p className="text-white/60 text-lg max-w-xl">
                   Launch a rewards program your employees will actually love — in minutes, not months.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 mt-2 w-full max-w-md">
+                <div className="flex flex-col items-center gap-4 mt-2 w-full max-w-md">
                   <button
                     onClick={() => setLocation("/signup")}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base transition-all duration-200 hover:opacity-90 active:scale-95"
-                    style={{ background: BUCKS_COLOR }}
+                    className="w-full flex items-center justify-center gap-3 py-5 px-8 rounded-xl font-black text-lg transition-all duration-200 hover:opacity-90 active:scale-95"
+                    style={{ background: BUCKS_COLOR, color: "#fff" }}
                     data-testid="button-cta-signup"
                   >
-                    Get Started Free
-                    <ArrowRight className="h-4 w-4" />
+                    Get Started Today
+                    <ArrowRight className="h-5 w-5" />
                   </button>
+                  <p className="text-white/40 text-xs -mt-1">View our plans — no credit card required.</p>
                   <button
                     onClick={() => setDemoOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95"
+                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95"
                     data-testid="button-cta-demo"
                   >
                     Request a Demo
                   </button>
                 </div>
-                <p className="text-white/30 text-xs mt-2">No credit card required to get started.</p>
               </div>
             ) : (
               <div className="w-full max-w-lg mx-auto rounded-2xl overflow-hidden shadow-2xl" style={{ background: "white" }}>

@@ -1,7 +1,7 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost } from "@shared/schema";
-import { eq, desc, and, ne, ilike, or, gte, lte } from "drizzle-orm";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification } from "@shared/schema";
+import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -94,6 +94,19 @@ export interface IStorage {
   createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
   updateBlogPost(id: number, data: Partial<InsertBlogPost>): Promise<BlogPost>;
   deleteBlogPost(id: number): Promise<void>;
+
+  createGoal(goal: InsertGoal): Promise<Goal>;
+  getGoal(id: number): Promise<Goal | undefined>;
+  getGoalsByOrganization(organizationId: number): Promise<Goal[]>;
+  updateGoal(id: number, data: Partial<InsertGoal>): Promise<Goal>;
+  deleteGoal(id: number): Promise<void>;
+  incrementGoalQuantity(id: number, amount: number): Promise<Goal>;
+  failGoal(id: number): Promise<Goal>;
+  completeGoal(id: number): Promise<Goal>;
+  distributeGoalBucks(goalId: number, organizationId: number, performedBy: number): Promise<Goal>;
+  createGoalNotificationsForOrg(goalId: number, organizationId: number, type: "failed" | "distributed"): Promise<void>;
+  getUnseenGoalNotifications(userId: number): Promise<(GoalNotification & { goal: Goal })[]>;
+  markGoalNotificationsSeen(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -640,6 +653,104 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBlogPost(id: number): Promise<void> {
     await db.delete(blogPosts).where(eq(blogPosts.id, id));
+  }
+
+  async createGoal(goal: InsertGoal): Promise<Goal> {
+    const [created] = await db.insert(goals).values(goal).returning();
+    return created;
+  }
+
+  async getGoal(id: number): Promise<Goal | undefined> {
+    const [goal] = await db.select().from(goals).where(eq(goals.id, id));
+    return goal;
+  }
+
+  async getGoalsByOrganization(organizationId: number): Promise<Goal[]> {
+    return db.select().from(goals).where(eq(goals.organizationId, organizationId)).orderBy(desc(goals.createdAt));
+  }
+
+  async updateGoal(id: number, data: Partial<InsertGoal>): Promise<Goal> {
+    const [updated] = await db.update(goals).set(data).where(eq(goals.id, id)).returning();
+    if (!updated) throw new Error("Goal not found");
+    return updated;
+  }
+
+  async deleteGoal(id: number): Promise<void> {
+    await db.delete(goalNotifications).where(eq(goalNotifications.goalId, id));
+    await db.delete(goals).where(eq(goals.id, id));
+  }
+
+  async incrementGoalQuantity(id: number, amount: number): Promise<Goal> {
+    const goal = await this.getGoal(id);
+    if (!goal) throw new Error("Goal not found");
+    const newQty = goal.currentQuantity + amount;
+    const isComplete = goal.targetQuantity !== null && newQty >= goal.targetQuantity;
+    const [updated] = await db.update(goals).set({
+      currentQuantity: newQty,
+      ...(isComplete ? { status: "pending_distribution", completedAt: new Date() } : {}),
+    }).where(eq(goals.id, id)).returning();
+    return updated;
+  }
+
+  async failGoal(id: number): Promise<Goal> {
+    const [updated] = await db.update(goals).set({
+      status: "failed",
+      failedAt: new Date(),
+    }).where(eq(goals.id, id)).returning();
+    if (!updated) throw new Error("Goal not found");
+    return updated;
+  }
+
+  async completeGoal(id: number): Promise<Goal> {
+    const [updated] = await db.update(goals).set({
+      status: "pending_distribution",
+      completedAt: new Date(),
+    }).where(eq(goals.id, id)).returning();
+    if (!updated) throw new Error("Goal not found");
+    return updated;
+  }
+
+  async distributeGoalBucks(goalId: number, organizationId: number, performedBy: number): Promise<Goal> {
+    const goal = await this.getGoal(goalId);
+    if (!goal) throw new Error("Goal not found");
+    const employees = await db.select().from(users).where(
+      and(eq(users.organizationId, organizationId), eq(users.role, "employee"), eq(users.status, "approved"))
+    );
+    for (const emp of employees) {
+      await db.update(users).set({ balance: emp.balance + goal.bucksReward }).where(eq(users.id, emp.id));
+      await db.insert(transactions).values({
+        userId: emp.id,
+        amount: goal.bucksReward,
+        reason: `Goal achieved: ${goal.title}`,
+        performedBy,
+      });
+    }
+    const [updated] = await db.update(goals).set({
+      status: "completed",
+      bucksDistributedAt: new Date(),
+    }).where(eq(goals.id, goalId)).returning();
+    return updated;
+  }
+
+  async createGoalNotificationsForOrg(goalId: number, organizationId: number, type: "failed" | "distributed"): Promise<void> {
+    const orgUsers = await db.select().from(users).where(eq(users.organizationId, organizationId));
+    if (orgUsers.length === 0) return;
+    await db.insert(goalNotifications).values(
+      orgUsers.map(u => ({ goalId, organizationId, userId: u.id, type }))
+    );
+  }
+
+  async getUnseenGoalNotifications(userId: number): Promise<(GoalNotification & { goal: Goal })[]> {
+    const rows = await db.select().from(goalNotifications)
+      .innerJoin(goals, eq(goalNotifications.goalId, goals.id))
+      .where(and(eq(goalNotifications.userId, userId), isNull(goalNotifications.seenAt)))
+      .orderBy(desc(goalNotifications.createdAt));
+    return rows.map(r => ({ ...r.goal_notifications, goal: r.goals }));
+  }
+
+  async markGoalNotificationsSeen(userId: number): Promise<void> {
+    await db.update(goalNotifications).set({ seenAt: new Date() })
+      .where(and(eq(goalNotifications.userId, userId), isNull(goalNotifications.seenAt)));
   }
 }
 

@@ -35,6 +35,8 @@ Preferred communication style: Simple, everyday language.
     - `store_items`: Items available for purchase in the employee store.
     - `wishlists`: Employee wishlists for store items.
     - `blogPosts`: Public blog articles with HTML content, author info, and sources.
+    - `goals`: Team goals set by prime admins (time-based or quantity-based) with Bucks rewards.
+    - `goalNotifications`: Per-user notifications for goal outcomes (distributed/failed), shown as a login modal.
 - **File Uploads**: Multer-based to local storage.
 - **Migrations**: Drizzle-kit.
 
@@ -45,6 +47,7 @@ Preferred communication style: Simple, everyday language.
 - **Feature Flags**: Prime admins can enable/disable the employee store and manual order requests.
 
 ### Key Features
+- **Goals System**: Prime admins create time-based ("days without an incident") or quantity-based goals with a Bucks reward. Progress bars appear on every employee dashboard. When complete, prime admins distribute Bucks to all approved employees. Employees see a login notification modal when a goal is met (after distribution) or failed.
 - **Employee Store**: Admins curate items for employees to purchase with Bucks. Includes an employee wishlist system.
 - **Order System**: Employees can submit orders from external URLs with photo proof; admins approve/reject.
 - **Organization & Subscription**: Tiered Stripe subscriptions, organization code generation, prime admin setup, and subscription management (upgrade/downgrade, cancellation).

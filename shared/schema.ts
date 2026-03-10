@@ -201,6 +201,35 @@ export const blogPosts = pgTable("blog_posts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const goals = pgTable("goals", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  title: text("title").notNull(),
+  type: text("type", { enum: ["time", "quantity"] }).notNull(),
+  status: text("status", { enum: ["active", "completed", "failed", "pending_distribution"] }).default("active").notNull(),
+  bucksReward: integer("bucks_reward").notNull(),
+  targetQuantity: integer("target_quantity"),
+  currentQuantity: integer("current_quantity").default(0).notNull(),
+  targetDays: integer("target_days"),
+  startDate: timestamp("start_date").defaultNow().notNull(),
+  endDate: timestamp("end_date"),
+  failedAt: timestamp("failed_at"),
+  completedAt: timestamp("completed_at"),
+  bucksDistributedAt: timestamp("bucks_distributed_at"),
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const goalNotifications = pgTable("goal_notifications", {
+  id: serial("id").primaryKey(),
+  goalId: integer("goal_id").notNull(),
+  organizationId: integer("organization_id").notNull(),
+  userId: integer("user_id").notNull(),
+  type: text("type", { enum: ["failed", "distributed"] }).notNull(),
+  seenAt: timestamp("seen_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertWishlistSchema = createInsertSchema(wishlists).omit({ id: true, createdAt: true });
 export const insertStoreItemSchema = createInsertSchema(storeItems).omit({ id: true, createdAt: true });
 export const insertInfoRequestSchema = createInsertSchema(infoRequests).omit({ id: true, createdAt: true });
@@ -237,3 +266,9 @@ export type Wishlist = typeof wishlists.$inferSelect;
 export type InsertWishlist = z.infer<typeof insertWishlistSchema>;
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+
+export const insertGoalSchema = createInsertSchema(goals).omit({ id: true, createdAt: true, currentQuantity: true, failedAt: true, completedAt: true, bucksDistributedAt: true });
+export const insertGoalNotificationSchema = createInsertSchema(goalNotifications).omit({ id: true, createdAt: true, seenAt: true });
+export type Goal = typeof goals.$inferSelect;
+export type InsertGoal = z.infer<typeof insertGoalSchema>;
+export type GoalNotification = typeof goalNotifications.$inferSelect;

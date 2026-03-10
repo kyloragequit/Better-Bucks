@@ -1,7 +1,7 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Switch, Route, Redirect } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "./lib/queryClient";
+import { QueryClientProvider, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useUser } from "@/hooks/use-auth";
@@ -10,6 +10,10 @@ import { initGA } from "@/lib/analytics";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { TutorialModal } from "@/components/tutorial-modal";
 import { TermsAgreementModal } from "@/components/terms-agreement-modal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Trophy, XCircle, Coins } from "lucide-react";
+import type { GoalNotification } from "@shared/schema";
 
 const LandingPage = lazy(() => import("@/pages/landing"));
 const SignupPage = lazy(() => import("@/pages/signup"));
@@ -28,6 +32,7 @@ const AdminPendingPage = lazy(() => import("@/pages/admin-pending"));
 const AdminSettingsPage = lazy(() => import("@/pages/admin-settings"));
 const AdminAccountSettingsPage = lazy(() => import("@/pages/admin-account-settings"));
 const AdminStorePage = lazy(() => import("@/pages/admin-store"));
+const AdminGoalsPage = lazy(() => import("@/pages/admin-goals"));
 const PendingVerification = lazy(() => import("@/pages/pending-verification"));
 const ChangePasswordPage = lazy(() => import("@/pages/change-password"));
 const VerifyEmailPage = lazy(() => import("@/pages/verify-email"));
@@ -43,6 +48,81 @@ const TermsPage = lazy(() => import("@/pages/terms"));
 const BlogPage = lazy(() => import("@/pages/blog"));
 const BlogPostPage = lazy(() => import("@/pages/blog-post"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+
+function GoalNotificationModal() {
+  const { data: user } = useUser();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(false);
+
+  const { data: notifications = [] } = useQuery<GoalNotification[]>({
+    queryKey: ["/api/goals/notifications"],
+    enabled: !!user && (user.role === "employee" || user.role === "admin" || user.role === "prime_admin"),
+    gcTime: 0,
+  });
+
+  useEffect(() => {
+    if (!shown && notifications.length > 0) {
+      setOpen(true);
+      setShown(true);
+    }
+  }, [notifications, shown]);
+
+  const seenMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/goals/notifications/seen", {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/goals/notifications"] });
+    },
+  });
+
+  function handleDismiss() {
+    seenMutation.mutate();
+    setOpen(false);
+  }
+
+  const distributed = notifications.filter(n => n.type === "distributed");
+  const failed = notifications.filter(n => n.type === "failed");
+
+  if (!open || notifications.length === 0) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleDismiss(); }}>
+      <DialogContent className="max-w-md" data-testid="goal-notification-modal">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {failed.length > 0 && distributed.length === 0
+              ? <><XCircle className="h-5 w-5 text-destructive" /> Goal Update</>
+              : <><Trophy className="h-5 w-5 text-yellow-500" /> Goal Update</>
+            }
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          {distributed.map((n) => (
+            <div key={n.id} className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-3" data-testid={`notification-distributed-${n.goalId}`}>
+              <Coins className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-green-800">Goal achieved — Bucks awarded!</p>
+                <p className="text-xs text-green-700 mt-0.5">Your team met a goal and your Bucks have been added to your balance.</p>
+              </div>
+            </div>
+          ))}
+          {failed.map((n) => (
+            <div key={n.id} className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3" data-testid={`notification-failed-${n.goalId}`}>
+              <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">A goal was not met</p>
+                <p className="text-xs text-red-700 mt-0.5">Your team did not reach a goal in time. Keep it up — new goals may be on the way!</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button onClick={handleDismiss} data-testid="button-dismiss-goal-notifications">Got it</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function ProtectedRoute({ 
   component: Component, 
@@ -147,6 +227,9 @@ function Router() {
         <Route path="/admin/store">
           <ProtectedRoute component={AdminStorePage} adminOnly />
         </Route>
+        <Route path="/admin/goals">
+          <ProtectedRoute component={AdminGoalsPage} adminOnly />
+        </Route>
         <Route path="/admin/settings">
           <ProtectedRoute component={AdminSettingsPage} adminOnly />
         </Route>
@@ -190,6 +273,7 @@ function App() {
         <Router />
         <TutorialModal />
         <TermsAgreementModal />
+        <GoalNotificationModal />
       </TooltipProvider>
     </QueryClientProvider>
   );

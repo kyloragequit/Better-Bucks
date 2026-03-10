@@ -2862,6 +2862,155 @@ export async function registerRoutes(
     res.sendStatus(200);
   });
 
+  // ─── Goals ────────────────────────────────────────────────────────────────
+
+  // GET /api/goals — active + pending_distribution goals visible to all org members
+  app.get("/api/goals", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || !user.organizationId) return res.status(401).send("Unauthorized");
+    const allGoals = await storage.getGoalsByOrganization(user.organizationId);
+    res.json(allGoals.filter(g => g.status === "active" || g.status === "pending_distribution" || g.status === "completed" || g.status === "failed"));
+  }));
+
+  // GET /api/admin/goals — all goals (prime_admin only)
+  app.get("/api/admin/goals", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).send("No organization");
+    const allGoals = await storage.getGoalsByOrganization(user.organizationId);
+    res.json(allGoals);
+  }));
+
+  // POST /api/admin/goals — create goal (prime_admin)
+  app.post("/api/admin/goals", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).send("No organization");
+    const { title, type, bucksReward, targetQuantity, targetDays, endDate } = req.body;
+    if (!title || !type || !bucksReward) return res.status(400).json({ message: "title, type, and bucksReward are required" });
+    if (type === "quantity" && !targetQuantity) return res.status(400).json({ message: "targetQuantity is required for quantity goals" });
+    if (type === "time" && !targetDays) return res.status(400).json({ message: "targetDays is required for time goals" });
+    const goal = await storage.createGoal({
+      organizationId: user.organizationId,
+      title,
+      type,
+      status: "active",
+      bucksReward: parseInt(bucksReward),
+      targetQuantity: targetQuantity ? parseInt(targetQuantity) : null,
+      targetDays: targetDays ? parseInt(targetDays) : null,
+      startDate: new Date(),
+      endDate: endDate ? new Date(endDate) : null,
+      createdBy: user.id,
+    });
+    res.status(201).json(goal);
+  }));
+
+  // PATCH /api/admin/goals/:id — edit goal (prime_admin)
+  app.patch("/api/admin/goals/:id", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    const goalId = parseInt(req.params.id);
+    const goal = await storage.getGoal(goalId);
+    if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
+    const { title, bucksReward, targetQuantity, targetDays, endDate } = req.body;
+    const updated = await storage.updateGoal(goalId, {
+      ...(title !== undefined ? { title } : {}),
+      ...(bucksReward !== undefined ? { bucksReward: parseInt(bucksReward) } : {}),
+      ...(targetQuantity !== undefined ? { targetQuantity: parseInt(targetQuantity) } : {}),
+      ...(targetDays !== undefined ? { targetDays: parseInt(targetDays) } : {}),
+      ...(endDate !== undefined ? { endDate: endDate ? new Date(endDate) : null } : {}),
+    });
+    res.json(updated);
+  }));
+
+  // DELETE /api/admin/goals/:id — delete goal (prime_admin)
+  app.delete("/api/admin/goals/:id", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    const goalId = parseInt(req.params.id);
+    const goal = await storage.getGoal(goalId);
+    if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
+    await storage.deleteGoal(goalId);
+    res.sendStatus(200);
+  }));
+
+  // POST /api/admin/goals/:id/increment — add quantity progress (admin + prime_admin)
+  app.post("/api/admin/goals/:id/increment", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(403).send("Forbidden");
+    const goalId = parseInt(req.params.id);
+    const goal = await storage.getGoal(goalId);
+    if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
+    if (goal.type !== "quantity") return res.status(400).json({ message: "Only quantity goals can be incremented" });
+    if (goal.status !== "active") return res.status(400).json({ message: "Goal is not active" });
+    const amount = parseInt(req.body.amount) || 1;
+    const updated = await storage.incrementGoalQuantity(goalId, amount);
+    if (updated.status === "pending_distribution" && user.organizationId) {
+      await storage.createGoalNotificationsForOrg(goalId, user.organizationId, "distributed");
+    }
+    res.json(updated);
+  }));
+
+  // POST /api/admin/goals/:id/fail — stop timer / fail a time goal (prime_admin)
+  app.post("/api/admin/goals/:id/fail", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    const goalId = parseInt(req.params.id);
+    const goal = await storage.getGoal(goalId);
+    if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
+    if (goal.status !== "active") return res.status(400).json({ message: "Goal is not active" });
+    const updated = await storage.failGoal(goalId);
+    if (user.organizationId) {
+      await storage.createGoalNotificationsForOrg(goalId, user.organizationId, "failed");
+    }
+    res.json(updated);
+  }));
+
+  // POST /api/admin/goals/:id/complete — manually complete a time goal (prime_admin)
+  app.post("/api/admin/goals/:id/complete", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    const goalId = parseInt(req.params.id);
+    const goal = await storage.getGoal(goalId);
+    if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
+    if (goal.status !== "active") return res.status(400).json({ message: "Goal is not active" });
+    const updated = await storage.completeGoal(goalId);
+    res.json(updated);
+  }));
+
+  // POST /api/admin/goals/:id/distribute — distribute bucks to all employees (prime_admin)
+  app.post("/api/admin/goals/:id/distribute", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).send("No organization");
+    const goalId = parseInt(req.params.id);
+    const goal = await storage.getGoal(goalId);
+    if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
+    if (goal.status !== "pending_distribution" && goal.status !== "completed") return res.status(400).json({ message: "Goal bucks not ready to distribute" });
+    if (goal.bucksDistributedAt) return res.status(400).json({ message: "Bucks already distributed" });
+    const updated = await storage.distributeGoalBucks(goalId, user.organizationId, user.id);
+    await storage.createGoalNotificationsForOrg(goalId, user.organizationId, "distributed");
+    res.json(updated);
+  }));
+
+  // GET /api/goals/notifications — unseen notifications for current user
+  app.get("/api/goals/notifications", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const notifications = await storage.getUnseenGoalNotifications(user.id);
+    res.json(notifications);
+  }));
+
+  // POST /api/goals/notifications/seen — mark all notifications seen
+  app.post("/api/goals/notifications/seen", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    await storage.markGoalNotificationsSeen(user.id);
+    res.sendStatus(200);
+  }));
+
+  // ─── End Goals ────────────────────────────────────────────────────────────
+
   // Ensure PRIME1 organization exists (free membership)
   let prime1Org = await storage.getOrganizationByCode("PRIME1");
   if (!prime1Org) {

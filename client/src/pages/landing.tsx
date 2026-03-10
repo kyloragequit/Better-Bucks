@@ -14,7 +14,7 @@ import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 
 const DEFAULTS: Record<string, string> = {
-  hero_headline: "Reward What's Important",
+  hero_headline: "Build a Better Workplace — the easy way.",
   hero_subheadline: `A "Bucks"-based incentive system that helps businesses recognize employees instantly, automate rewards, and drive measurable results — without extra admin work.`,
   benefit1_title: "Simple Rewards, Zero Hassle",
   benefit1_subtitle: "Streamline how you recognize employees.",

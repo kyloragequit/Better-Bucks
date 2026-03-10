@@ -15,22 +15,38 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/ui/loader";
 import { Plus, Target, Timer, Hash, Trophy, XCircle, Coins, Pencil, Trash2, ChevronUp, CheckCircle } from "lucide-react";
 import type { Goal } from "@shared/schema";
-import { differenceInDays, formatDistanceToNow } from "date-fns";
+import { differenceInDays, differenceInMinutes, formatDistanceToNow } from "date-fns";
+
+function goalTotalMinutes(goal: Goal): number {
+  if (goal.durationUnit === "hours_minutes") {
+    return (goal.targetHours ?? 0) * 60 + (goal.targetMinutes ?? 0);
+  }
+  return (goal.targetDays ?? 0) * 24 * 60;
+}
+
+function elapsedMinutes(goal: Goal): number {
+  const end = goal.failedAt || goal.completedAt || goal.bucksDistributedAt || new Date();
+  return differenceInMinutes(new Date(end), new Date(goal.startDate));
+}
+
+function formatMins(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
 
 function goalProgress(goal: Goal): number {
   if (goal.type === "quantity" && goal.targetQuantity) {
     return Math.min(100, Math.round((goal.currentQuantity / goal.targetQuantity) * 100));
   }
-  if (goal.type === "time" && goal.targetDays) {
-    const elapsed = differenceInDays(new Date(), new Date(goal.startDate));
-    return Math.min(100, Math.round((elapsed / goal.targetDays) * 100));
+  if (goal.type === "time") {
+    const total = goalTotalMinutes(goal);
+    if (total === 0) return 0;
+    return Math.min(100, Math.round((elapsedMinutes(goal) / total) * 100));
   }
   return 0;
-}
-
-function daysElapsed(goal: Goal): number {
-  const end = goal.failedAt || goal.completedAt || goal.bucksDistributedAt || new Date();
-  return differenceInDays(new Date(end), new Date(goal.startDate));
 }
 
 function StatusBadge({ status }: { status: Goal["status"] }) {
@@ -50,10 +66,13 @@ type GoalFormData = {
   bucksReward: string;
   targetQuantity: string;
   targetDays: string;
+  durationUnit: "days" | "hours_minutes";
+  targetHours: string;
+  targetMinutes: string;
   endDate: string;
 };
 
-const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", targetQuantity: "", targetDays: "", endDate: "" };
+const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", targetQuantity: "", targetDays: "", durationUnit: "days", targetHours: "", targetMinutes: "", endDate: "" };
 
 export default function AdminGoalsPage() {
   const { data: user } = useUser();
@@ -126,6 +145,9 @@ export default function AdminGoalsPage() {
       bucksReward: String(g.bucksReward),
       targetQuantity: g.targetQuantity ? String(g.targetQuantity) : "",
       targetDays: g.targetDays ? String(g.targetDays) : "",
+      durationUnit: (g.durationUnit ?? "days") as "days" | "hours_minutes",
+      targetHours: g.targetHours ? String(g.targetHours) : "",
+      targetMinutes: g.targetMinutes ? String(g.targetMinutes) : "",
       endDate: g.endDate ? new Date(g.endDate).toISOString().split("T")[0] : "",
     });
   }
@@ -207,7 +229,7 @@ export default function AdminGoalsPage() {
                 <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as "time" | "quantity" }))} >
                   <SelectTrigger data-testid="select-goal-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="time"><span className="flex items-center gap-2"><Timer className="h-4 w-4" />Time — days without an incident</span></SelectItem>
+                    <SelectItem value="time"><span className="flex items-center gap-2"><Timer className="h-4 w-4" />Time — timer-based goal</span></SelectItem>
                     <SelectItem value="quantity"><span className="flex items-center gap-2"><Hash className="h-4 w-4" />Quantity — reach a target count</span></SelectItem>
                   </SelectContent>
                 </Select>
@@ -224,9 +246,40 @@ export default function AdminGoalsPage() {
               </div>
             )}
             {form.type === "time" && (
-              <div className="space-y-1.5">
-                <Label>Target Days</Label>
-                <Input type="number" min="1" placeholder="e.g. 30" value={form.targetDays} onChange={e => setForm(f => ({ ...f, targetDays: e.target.value }))} data-testid="input-goal-target-days" />
+              <div className="space-y-2">
+                <Label>Duration</Label>
+                <div className="flex rounded-md border overflow-hidden">
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 text-sm font-medium transition-colors ${form.durationUnit === "days" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                    onClick={() => setForm(f => ({ ...f, durationUnit: "days" }))}
+                    data-testid="button-unit-days"
+                  >
+                    Days
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 text-sm font-medium transition-colors ${form.durationUnit === "hours_minutes" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                    onClick={() => setForm(f => ({ ...f, durationUnit: "hours_minutes" }))}
+                    data-testid="button-unit-hours"
+                  >
+                    Hours &amp; Minutes
+                  </button>
+                </div>
+                {form.durationUnit === "days" ? (
+                  <Input type="number" min="1" placeholder="e.g. 30" value={form.targetDays} onChange={e => setForm(f => ({ ...f, targetDays: e.target.value }))} data-testid="input-goal-target-days" />
+                ) : (
+                  <div className="flex gap-2">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Hours</Label>
+                      <Input type="number" min="0" placeholder="0" value={form.targetHours} onChange={e => setForm(f => ({ ...f, targetHours: e.target.value }))} data-testid="input-goal-target-hours" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Minutes</Label>
+                      <Input type="number" min="0" max="59" placeholder="0" value={form.targetMinutes} onChange={e => setForm(f => ({ ...f, targetMinutes: e.target.value }))} data-testid="input-goal-target-minutes" />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <div className="space-y-1.5">
@@ -338,10 +391,14 @@ function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, o
               <Progress value={progress} className="h-2" data-testid={`progress-goal-${goal.id}`} />
             </>
           )}
-          {goal.type === "time" && goal.targetDays && (
+          {goal.type === "time" && goalTotalMinutes(goal) > 0 && (
             <>
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{daysElapsed(goal)} / {goal.targetDays} days {isFailed ? "(stopped)" : ""}</span>
+                {goal.durationUnit === "hours_minutes" ? (
+                  <span>{formatMins(elapsedMinutes(goal))} / {formatMins(goalTotalMinutes(goal))} {isFailed ? "(stopped)" : ""}</span>
+                ) : (
+                  <span>{differenceInDays(new Date(goal.failedAt || goal.completedAt || goal.bucksDistributedAt || new Date()), new Date(goal.startDate))} / {goal.targetDays} days {isFailed ? "(stopped)" : ""}</span>
+                )}
                 <span>{progress}%</span>
               </div>
               <Progress value={isFailed ? progress : Math.min(100, progress)} className="h-2" data-testid={`progress-goal-${goal.id}`} />

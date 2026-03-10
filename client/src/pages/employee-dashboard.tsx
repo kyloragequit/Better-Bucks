@@ -15,7 +15,7 @@ import type { StoreItem, Wishlist, Goal } from "@shared/schema";
 import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
 import { QRCodeSVG } from "qrcode.react";
-import { differenceInDays, format, formatDistanceToNow } from "date-fns";
+import { differenceInDays, differenceInMinutes, format, formatDistanceToNow } from "date-fns";
 import { useTutorial } from "@/hooks/use-tutorial";
 
 export default function EmployeeDashboard() {
@@ -69,13 +69,20 @@ export default function EmployeeDashboard() {
             {goals.filter(g => g.status === "active").map(goal => {
               const isTime = goal.type === "time";
               const isQty = goal.type === "quantity";
-              const elapsed = differenceInDays(new Date(), new Date(goal.startDate));
+              const isHrMin = goal.durationUnit === "hours_minutes";
+              const totalMins = isHrMin
+                ? (goal.targetHours ?? 0) * 60 + (goal.targetMinutes ?? 0)
+                : (goal.targetDays ?? 0) * 24 * 60;
+              const elapsedMins = differenceInMinutes(new Date(), new Date(goal.startDate));
+              const elapsedDays = differenceInDays(new Date(), new Date(goal.startDate));
+              const formatMins = (m: number) => { const h = Math.floor(m / 60); const min = m % 60; if (h === 0) return `${min}m`; if (min === 0) return `${h}h`; return `${h}h ${min}m`; };
               const progress = isQty && goal.targetQuantity
                 ? Math.min(100, Math.round((goal.currentQuantity / goal.targetQuantity) * 100))
-                : isTime && goal.targetDays
-                ? Math.min(100, Math.round((elapsed / goal.targetDays) * 100))
+                : isTime && totalMins > 0
+                ? Math.min(100, Math.round((elapsedMins / totalMins) * 100))
                 : 0;
-              const remaining = isTime && goal.targetDays ? goal.targetDays - elapsed : null;
+              const remainingDays = !isHrMin && isTime && goal.targetDays ? goal.targetDays - elapsedDays : null;
+              const remainingMins = isHrMin && isTime && totalMins > 0 ? totalMins - elapsedMins : null;
               return (
                 <div key={goal.id} data-testid={`goal-item-${goal.id}`}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -93,12 +100,17 @@ export default function EmployeeDashboard() {
                     {isQty && goal.targetQuantity && (
                       <span>{goal.currentQuantity.toLocaleString()} / {goal.targetQuantity.toLocaleString()}</span>
                     )}
-                    {isTime && goal.targetDays && (
-                      <span>{elapsed} of {goal.targetDays} days</span>
+                    {isTime && !isHrMin && goal.targetDays && (
+                      <span>{elapsedDays} of {goal.targetDays} days</span>
+                    )}
+                    {isTime && isHrMin && totalMins > 0 && (
+                      <span>{formatMins(elapsedMins)} of {formatMins(totalMins)}</span>
                     )}
                     <span>
-                      {isTime && remaining !== null && remaining > 0
-                        ? `${remaining} days remaining`
+                      {isTime && remainingDays !== null && remainingDays > 0
+                        ? `${remainingDays} days remaining`
+                        : isTime && remainingMins !== null && remainingMins > 0
+                        ? `${formatMins(remainingMins)} remaining`
                         : `${progress}%`}
                     </span>
                   </div>

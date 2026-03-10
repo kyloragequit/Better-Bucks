@@ -66,6 +66,12 @@ if (process.env.NODE_ENV === "production") {
     }
     next();
   });
+
+  // Tell browsers to upgrade any remaining http:// sub-resource requests to https://
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Content-Security-Policy", "upgrade-insecure-requests");
+    next();
+  });
 }
 
 // Stripe webhook must be before express.json() so it gets the raw buffer

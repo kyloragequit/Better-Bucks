@@ -53,7 +53,20 @@ declare module "http" {
 app.use(helmet({
   contentSecurityPolicy: false, // CSP managed separately; disabling avoids breaking Vite HMR in dev
   crossOriginEmbedderPolicy: false,
+  hsts: process.env.NODE_ENV === "production"
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
 }));
+
+// Redirect HTTP → HTTPS in production (Replit sets X-Forwarded-Proto)
+if (process.env.NODE_ENV === "production") {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.headers["x-forwarded-proto"] === "http") {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
 
 // Stripe webhook must be before express.json() so it gets the raw buffer
 app.post(

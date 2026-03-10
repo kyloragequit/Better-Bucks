@@ -69,6 +69,27 @@ export default function HowItWorksPage() {
   const [orderMode, setOrderMode] = useState(false);
   const [orderStep, setOrderStep] = useState(0);
 
+  const SCROLLING_WORDS = [
+    "Attendance", "Safety", "Productivity", "Performance", "Teamwork",
+    "Punctuality", "Efficiency", "Quality", "Innovation", "Initiative",
+    "Leadership", "Reliability", "Engagement", "Collaboration", "Accountability",
+    "Improvement", "Compliance", "Sales", "Retention", "Training",
+    "Certification", "Mentorship", "Communication", "Consistency", "Customer Service",
+  ];
+  const [wordIdx, setWordIdx] = useState(0);
+  const [wordVisible, setWordVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setWordVisible(false);
+      setTimeout(() => {
+        setWordIdx(i => (i + 1) % SCROLLING_WORDS.length);
+        setWordVisible(true);
+      }, 320);
+    }, 1800);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleSelect = (i: number) => {
     setSelectedProduct(i);
     setOrderStep(0);
@@ -195,7 +216,7 @@ export default function HowItWorksPage() {
           >
             <AppLogo size="lg" />
             <h1 className="mt-10 text-white font-display font-bold leading-tight" style={{ fontSize: "clamp(1.75rem, 4vw, 3rem)" }} data-testid="text-parallax-question">
-              Have you ever felt like you don't know what will make your employees happy?
+              Reward great employees instantly — without the hassle.
             </h1>
             <p className="mt-4 text-white/50 text-sm tracking-widest uppercase">Scroll to find out</p>
           </div>
@@ -214,11 +235,27 @@ export default function HowItWorksPage() {
             className="flex flex-col items-center text-center px-6 max-w-2xl"
             style={{ opacity: s2.inView ? 1 : 0, transform: s2.inView ? "scale(1)" : "scale(0.92)", transition: "opacity 0.8s ease, transform 0.8s ease" }}
           >
-            <h2 className="font-display font-black leading-none tracking-tight" style={{ fontSize: "clamp(4rem, 12vw, 9rem)", color: NAVY }} data-testid="text-parallax-answer">
-              Now you can.
+            <h2 className="font-display font-black leading-tight tracking-tight" style={{ fontSize: "clamp(2.5rem, 8vw, 6rem)", color: NAVY }} data-testid="text-parallax-answer">
+              Reward what's important.
             </h2>
-            <p className="mt-6 text-lg text-gray-500 max-w-md">
-              Better Bucks gives employees the power to choose what matters to them — redeemable from a curated store you control.
+            <p className="mt-6 text-xl text-gray-600 max-w-lg leading-relaxed">
+              A simple platform that helps managers recognize performance, encourage{" "}
+              <span
+                style={{
+                  display: "inline-block",
+                  color: BUCKS_COLOR,
+                  fontWeight: 700,
+                  transition: "opacity 0.32s ease, transform 0.32s ease",
+                  opacity: wordVisible ? 1 : 0,
+                  transform: wordVisible ? "translateY(0)" : "translateY(-6px)",
+                  minWidth: "11ch",
+                  textAlign: "left",
+                }}
+                data-testid="text-scrolling-word"
+              >
+                {SCROLLING_WORDS[wordIdx]}
+              </span>
+              , and motivate their teams.
             </p>
             <div className="mt-8 h-1.5 w-24 rounded-full" style={{ background: BUCKS_COLOR }} />
           </div>

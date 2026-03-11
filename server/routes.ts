@@ -2886,10 +2886,12 @@ export async function registerRoutes(
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(400).send("No organization");
-    const { title, type, bucksReward, targetQuantity, targetDays, endDate } = req.body;
+    const { title, type, bucksReward, targetQuantity, targetDays, durationUnit, targetHours, targetMinutes, endDate } = req.body;
     if (!title || !type || !bucksReward) return res.status(400).json({ message: "title, type, and bucksReward are required" });
     if (type === "quantity" && !targetQuantity) return res.status(400).json({ message: "targetQuantity is required for quantity goals" });
-    if (type === "time" && !targetDays) return res.status(400).json({ message: "targetDays is required for time goals" });
+    const unit = durationUnit || "days";
+    if (type === "time" && unit === "days" && !targetDays) return res.status(400).json({ message: "targetDays is required for day-based time goals" });
+    if (type === "time" && unit === "hours_minutes" && !targetHours && !targetMinutes) return res.status(400).json({ message: "targetHours or targetMinutes is required for hour/minute-based time goals" });
     const goal = await storage.createGoal({
       organizationId: user.organizationId,
       title,
@@ -2897,7 +2899,10 @@ export async function registerRoutes(
       status: "active",
       bucksReward: parseInt(bucksReward),
       targetQuantity: targetQuantity ? parseInt(targetQuantity) : null,
-      targetDays: targetDays ? parseInt(targetDays) : null,
+      durationUnit: unit,
+      targetDays: unit === "days" && targetDays ? parseInt(targetDays) : null,
+      targetHours: unit === "hours_minutes" && targetHours ? parseInt(targetHours) : null,
+      targetMinutes: unit === "hours_minutes" && targetMinutes ? parseInt(targetMinutes) : null,
       startDate: new Date(),
       endDate: endDate ? new Date(endDate) : null,
       createdBy: user.id,
@@ -2912,12 +2917,16 @@ export async function registerRoutes(
     const goalId = parseInt(req.params.id);
     const goal = await storage.getGoal(goalId);
     if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
-    const { title, bucksReward, targetQuantity, targetDays, endDate } = req.body;
+    const { title, bucksReward, targetQuantity, targetDays, durationUnit, targetHours, targetMinutes, endDate } = req.body;
+    const unit = durationUnit as string | undefined;
     const updated = await storage.updateGoal(goalId, {
       ...(title !== undefined ? { title } : {}),
       ...(bucksReward !== undefined ? { bucksReward: parseInt(bucksReward) } : {}),
       ...(targetQuantity !== undefined ? { targetQuantity: parseInt(targetQuantity) } : {}),
-      ...(targetDays !== undefined ? { targetDays: parseInt(targetDays) } : {}),
+      ...(unit !== undefined ? { durationUnit: unit } : {}),
+      ...(unit === "days" ? { targetDays: targetDays ? parseInt(targetDays) : null, targetHours: null, targetMinutes: null } : {}),
+      ...(unit === "hours_minutes" ? { targetHours: targetHours ? parseInt(targetHours) : null, targetMinutes: targetMinutes ? parseInt(targetMinutes) : null, targetDays: null } : {}),
+      ...(unit === undefined && targetDays !== undefined ? { targetDays: parseInt(targetDays) } : {}),
       ...(endDate !== undefined ? { endDate: endDate ? new Date(endDate) : null } : {}),
     });
     res.json(updated);

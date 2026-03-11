@@ -1333,6 +1333,13 @@ export async function registerRoutes(
     enterprise: { price: 14999, maxEmployees: -1, name: "Enterprise Site" },
   } as const;
 
+  const founderPriceIds: Record<string, string | undefined> = {
+    small: process.env.STRIPE_PRICE_SMALL,
+    mid: process.env.STRIPE_PRICE_MID,
+    large: process.env.STRIPE_PRICE_LARGE,
+    enterprise: process.env.STRIPE_PRICE_ENTERPRISE,
+  };
+
   // Organization signup - create checkout session
   const signupSchema = z.object({
     organizationName: z.string().min(2, "Organization name is required"),
@@ -1377,6 +1384,11 @@ export async function registerRoutes(
         return res.json({ promoApplied: true, orgCode });
       }
 
+      const founderPriceId = founderPriceIds[tier];
+      if (!founderPriceId) {
+        return res.status(500).json({ message: "Payment configuration missing for selected tier" });
+      }
+
       await ensureStripeReady();
       const stripe = await getStripeClient();
 
@@ -1385,21 +1397,11 @@ export async function registerRoutes(
         metadata: { organizationId: String(org.id), organizationName, tier },
       });
 
-      const price = await stripe.prices.create({
-        unit_amount: config.price,
-        currency: "usd",
-        recurring: { interval: "month" },
-        product_data: {
-          name: `Better Bucks - ${config.name}`,
-          metadata: { tier },
-        },
-      });
-
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const session = await stripe.checkout.sessions.create({
         customer: customer.id,
         payment_method_types: ['card'],
-        line_items: [{ price: price.id, quantity: 1 }],
+        line_items: [{ price: founderPriceId, quantity: 1 }],
         mode: 'subscription',
         subscription_data: { trial_period_days: 60 },
         success_url: `${baseUrl}/signup/success?org_code=${orgCode}`,
@@ -1436,6 +1438,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Organization is already active" });
       }
 
+      const founderPriceId = founderPriceIds[tier];
+      if (!founderPriceId) {
+        return res.status(500).json({ message: "Payment configuration missing for selected tier" });
+      }
+
       await ensureStripeReady();
       const stripe = await getStripeClient();
 
@@ -1449,21 +1456,11 @@ export async function registerRoutes(
         customerId = customer.id;
       }
 
-      const price = await stripe.prices.create({
-        unit_amount: config.price,
-        currency: "usd",
-        recurring: { interval: "month" },
-        product_data: {
-          name: `Better Bucks Reactivation - ${config.name}`,
-          metadata: { tier, type: "reactivation" },
-        },
-      });
-
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
-        line_items: [{ price: price.id, quantity: 1 }],
+        line_items: [{ price: founderPriceId, quantity: 1 }],
         mode: 'subscription',
         success_url: `${baseUrl}/admin/settings?reactivated=true`,
         cancel_url: `${baseUrl}/reactivate?cancelled=true`,
@@ -1850,21 +1847,17 @@ export async function registerRoutes(
       const stripe = await getStripeClient();
 
       if (org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
+        const founderPriceId = founderPriceIds[tier];
+        if (!founderPriceId) {
+          return res.status(500).json({ message: "Payment configuration missing for selected tier" });
+        }
+
         const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
-        const price = await stripe.prices.create({
-          unit_amount: config.price,
-          currency: "usd",
-          recurring: { interval: "month" },
-          product_data: {
-            name: `Better Bucks - ${config.name}`,
-            metadata: { tier },
-          },
-        });
 
         await stripe.subscriptions.update(org.stripeSubscriptionId, {
           items: [{
             id: subscription.items.data[0].id,
-            price: price.id,
+            price: founderPriceId,
           }],
           proration_behavior: 'create_prorations',
         });

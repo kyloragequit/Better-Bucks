@@ -178,12 +178,40 @@ async function getUpload() {
   return _upload;
 }
 
+async function seedBlogPosts() {
+  const existing = await storage.getAllBlogPosts();
+  if (existing.length > 0) return;
+  await storage.createBlogPost({
+    title: "How Much Companies Spend on Employee Motivation and Recognition Programs",
+    slug: "employee-motivation-recognition-program-costs",
+    excerpt: "Companies spend thousands of dollars each year trying to motivate employees through recognition and reward programs. But how much time and money do these programs actually require—and how can businesses manage them more efficiently?",
+    content: `Organizations already spend significant resources trying to motivate employees, with research showing that companies invest roughly $200–$350 per employee each year in recognition programs according to HR Cloud's employee rewards budget research
+. Many organizations also allocate around 1% of total payroll to recognition and incentive initiatives, a benchmark highlighted in studies on workplace recognition and engagement such as Josh Bersin's research on employee recognition
+. At the same time, managing these programs consumes substantial time—HR professionals spend up to 40% of their workweek on administrative tasks related to tracking programs, approvals, and internal processes according to research summarized by Inspirus on the cost of manual recognition management
+. This creates a major inefficiency: companies are already investing large amounts of money in employee motivation while also losing valuable time managing the process manually. Better Bucks solves both problems simultaneously. By centralizing reward tracking, automating recognition workflows, and allowing managers to instantly reward employees for safety, attendance, and exceptional performance, Better Bucks removes hours of administrative work while ensuring recognition is timely and consistent. The result is a system that helps organizations get more value from the money they already spend on motivation while saving managers and HR teams dozens of hours every year.`,
+    imageUrl: "/blog-images/1772722237267-95a8nux3tcp.jpg",
+    authorName: "Better Bucks Team",
+    authorPhotoUrl: null,
+    sources: JSON.stringify([
+      { title: "Guide to Employee Rewards and Recognition Budgets", source: "HR Cloud", url: "https://www.hrcloud.com/blog/guide-to-employee-rewards-and-recognition-budget", topic: "Employee recognition budget benchmarks and spending per employee" },
+      { title: "New Research Unlocks the Secret of Employee Recognition", source: "Forbes (Josh Bersin)", url: "https://www.forbes.com/sites/joshbersin/2012/06/13/new-research-unlocks-the-secret-of-employee-recognition/", topic: "Recognition program spending and its impact on engagement" },
+      { title: "The Cost of Manual Employee Recognition Programs", source: "Inspirus", url: "https://www.inspirus.com/blog/cost-of-manual-employee-recognition/", topic: "Administrative time and inefficiencies in manual recognition systems" }
+    ]),
+    imageAlt: "A stressed HR professional",
+    imageSource: "Photo by Vitaly Gariev on Unsplash",
+    publishedAt: new Date("2026-03-05T14:48:03.432Z"),
+  });
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   // Setup Auth first
   setupAuth(app);
+
+  // Seed default blog posts if none exist (handles fresh production databases)
+  await seedBlogPosts();
 
   // robots.txt
   app.get("/robots.txt", (_req, res) => {

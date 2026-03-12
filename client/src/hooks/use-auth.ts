@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export function useUser() {
   return useQuery({
@@ -126,6 +127,7 @@ export function useRegisterEmployee() {
 export function useLogout() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   return useMutation({
     mutationFn: async () => {
@@ -138,6 +140,7 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
       queryClient.clear(); // Clear all data on logout
+      setLocation("/login");
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",

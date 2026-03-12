@@ -67,6 +67,16 @@ if (process.env.NODE_ENV === "production") {
     next();
   });
 
+  // Redirect www.betterbucks.net → betterbucks.net
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const host = req.headers.host || "";
+    if (host.startsWith("www.")) {
+      const nonWww = host.slice(4);
+      return res.redirect(301, `https://${nonWww}${req.url}`);
+    }
+    next();
+  });
+
   // Tell browsers to upgrade any remaining http:// sub-resource requests to https://
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader("Content-Security-Policy", "upgrade-insecure-requests");

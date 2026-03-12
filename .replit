@@ -52,3 +52,7 @@ STRIPE_PRICE_SMALL = "price_1T9uzIDIJ4pYE7oeCEXTb0PV"
 STRIPE_PRICE_MID = "price_1T9uzJDIJ4pYE7oee8suOmyY"
 STRIPE_PRICE_LARGE = "price_1T9uzJDIJ4pYE7oexxfIxNiD"
 STRIPE_PRICE_ENTERPRISE = "price_1T9uzJDIJ4pYE7oefHG8SIMF"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000

@@ -869,7 +869,7 @@ export async function registerRoutes(
   // Serve blog images publicly (no auth — blog posts are public)
   app.use("/blog-images", (await import("express")).default.static(blogImageDir));
 
-  // Developer: upload a hero image for blog posts
+  // Developer: upload a hero image for blog posts (stored as base64 data URL in DB — no filesystem dependency)
   app.post("/api/developer/blog-image", (req, res, next) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
@@ -877,14 +877,10 @@ export async function registerRoutes(
   }, async (req: any, res: any, next: any) => {
     const multer = (await import("multer")).default;
     const blogImageUpload = multer({
-      storage: multer.diskStorage({
-        destination: (_req: any, _file: any, cb: any) => cb(null, blogImageDir),
-        filename: (_req: any, file: any, cb: any) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`),
-      }),
+      storage: multer.memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req: any, file: any, cb: any) => {
-        const allowed = /jpeg|jpg|png|gif|webp|avif/;
-        if (allowed.test(path.extname(file.originalname).toLowerCase()) && file.mimetype.startsWith("image/")) {
+        if (file.mimetype.startsWith("image/")) {
           cb(null, true);
         } else {
           cb(new Error("Only image files are allowed"));
@@ -894,7 +890,8 @@ export async function registerRoutes(
     blogImageUpload.single("image")(req, res, next);
   }, (req: any, res: any) => {
     if (!req.file) return res.status(400).json({ message: "No image uploaded" });
-    res.json({ url: `/blog-images/${req.file.filename}` });
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    res.json({ url: dataUrl });
   });
 
   // Upload photos
@@ -2794,7 +2791,7 @@ export async function registerRoutes(
         slug: z.string().min(1).max(200),
         excerpt: z.string().min(1).max(500),
         content: z.string().min(1),
-        imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")),
+        imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")).or(z.string().startsWith("data:image/")),
         imageAlt: z.string().max(300).optional().nullable(),
         imageSource: z.string().max(500).optional().nullable(),
         authorName: z.string().min(1).max(100),
@@ -2828,7 +2825,7 @@ export async function registerRoutes(
         slug: z.string().min(1).max(200).optional(),
         excerpt: z.string().min(1).max(500).optional(),
         content: z.string().min(1).optional(),
-        imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")).optional(),
+        imageUrl: z.string().url().or(z.string().startsWith("/blog-images/")).or(z.string().startsWith("data:image/")).optional(),
         imageAlt: z.string().max(300).nullable().optional(),
         imageSource: z.string().max(500).nullable().optional(),
         authorName: z.string().min(1).max(100).optional(),

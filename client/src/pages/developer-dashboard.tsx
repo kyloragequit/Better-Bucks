@@ -532,7 +532,7 @@ export default function DeveloperDashboardPage() {
                             </Button>
                           </label>
                         </div>
-                        {blogForm.imageUrl?.startsWith("/blog-images/") && (
+                        {(blogForm.imageUrl?.startsWith("/blog-images/") || blogForm.imageUrl?.startsWith("data:image/") || blogForm.imageUrl?.startsWith("http")) && (
                           <img
                             src={blogForm.imageUrl}
                             alt="Preview"

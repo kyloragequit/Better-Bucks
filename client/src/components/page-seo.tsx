@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 const SITE_NAME = "Better Bucks";
-const SITE_URL = "https://better-bucks.replit.app";
+const SITE_URL = "https://betterbucks.net";
 const DEFAULT_OG_IMAGE = "/haring-background.png";
 
 interface PageSEOProps {

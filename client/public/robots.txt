@@ -22,4 +22,4 @@ Disallow: /setup
 Disallow: /reactivate
 Disallow: /api
 
-Sitemap: https://better-bucks.replit.app/sitemap.xml
+Sitemap: https://betterbucks.net/sitemap.xml

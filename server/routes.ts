@@ -188,13 +188,13 @@ export async function registerRoutes(
   // robots.txt
   app.get("/robots.txt", (_req, res) => {
     res.type("text/plain").send(
-      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard\nDisallow: /admin\nDisallow: /change-password\nDisallow: /reactivate\n\nSitemap: https://better-bucks.replit.app/sitemap.xml`
+      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard\nDisallow: /admin\nDisallow: /change-password\nDisallow: /reactivate\n\nSitemap: https://betterbucks.net/sitemap.xml`
     );
   });
 
   // sitemap.xml
   app.get("/sitemap.xml", (_req, res) => {
-    const base = "https://better-bucks.replit.app";
+    const base = "https://betterbucks.net";
     const pages = [
       { loc: "/", priority: "1.0", changefreq: "weekly" },
       { loc: "/how-it-works", priority: "0.9", changefreq: "monthly" },

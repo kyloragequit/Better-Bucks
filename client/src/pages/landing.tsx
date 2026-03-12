@@ -77,8 +77,8 @@ export default function LandingPage() {
     {
       "@type": "Organization",
       "name": "Better Bucks",
-      "url": "https://better-bucks.replit.app",
-      "logo": "https://better-bucks.replit.app/favicon.png",
+      "url": "https://betterbucks.net",
+      "logo": "https://betterbucks.net/favicon.png",
       "description": "Better Bucks eliminates manual employee incentive tracking and replaces spreadsheet reward systems with automated, consistent employee recognition. Built for logistics, warehousing, manufacturing, and distribution operations with 50–500 employees.",
       "contactPoint": {
         "@type": "ContactPoint",
@@ -94,9 +94,9 @@ export default function LandingPage() {
       "name": "Better Bucks",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
-      "url": "https://better-bucks.replit.app",
+      "url": "https://betterbucks.net",
       "description": "Better Bucks is employee incentive software and employee recognition platform that eliminates manual reward tracking, replaces spreadsheet reward systems with workplace rewards software, automates incentive tracking, provides employee engagement tools, and serves as a complete performance recognition system for logistics, warehousing, and manufacturing teams.",
-      "screenshot": "https://better-bucks.replit.app/haring-background.png",
+      "screenshot": "https://betterbucks.net/haring-background.png",
       "offers": {
         "@type": "AggregateOffer",
         "priceCurrency": "USD",

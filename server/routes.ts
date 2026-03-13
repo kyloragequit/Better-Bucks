@@ -1371,11 +1371,12 @@ export async function registerRoutes(
     email: z.string().email("Valid email is required"),
     tier: z.enum(["small", "mid", "large", "enterprise"]),
     promoCode: z.string().optional(),
+    referralCode: z.string().optional(),
   });
 
   app.post("/api/organizations/signup", async (req, res) => {
     try {
-      const { organizationName, email, tier, promoCode } = signupSchema.parse(req.body);
+      const { organizationName, email, tier, promoCode, referralCode } = signupSchema.parse(req.body);
       const config = tierConfig[tier];
 
       // Check if Stripe is fully operational (price IDs + connector credentials)
@@ -1400,9 +1401,29 @@ export async function registerRoutes(
           large: "$74.99/mo",
           enterprise: "$149.99/mo",
         };
+
+        // Validate referral code if provided
+        let validatedReferral: { code: string; extraMonths: number } | null = null;
+        if (referralCode && referralCode.trim()) {
+          const refRow = await storage.getReferralCode(referralCode.trim());
+          if (refRow && refRow.active) {
+            validatedReferral = { code: refRow.code, extraMonths: refRow.extraMonths };
+          }
+        }
+
+        const referralRow = validatedReferral
+          ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${validatedReferral!.code} — +${validatedReferral!.extraMonths} free month${validatedReferral!.extraMonths > 1 ? "s" : ""}</td></tr>`
+          : referralCode && referralCode.trim()
+            ? `<tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Referral Code</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb;color:#dc2626">${referralCode.trim()} (invalid)</td></tr>`
+            : "";
+
+        const referralText = validatedReferral
+          ? `\nReferral Code: ${validatedReferral.code} ✅ (+${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""})`
+          : referralCode && referralCode.trim() ? `\nReferral Code: ${referralCode.trim()} (invalid)` : "";
+
         sendEmail({
           to: ADMIN_NOTIFY_EMAIL,
-          subject: `⭐ FOUNDER PRICING REQUEST – ${config.name} – ${organizationName}`,
+          subject: `⭐ FOUNDER PRICING REQUEST – ${config.name} – ${organizationName}${validatedReferral ? " 🎁 Referral" : ""}`,
           html: `<div style="font-family:sans-serif;max-width:520px">
 <div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
   <p style="margin:0;font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:0.7">Better Bucks</p>
@@ -1415,15 +1436,16 @@ export async function registerRoutes(
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Pricing Level</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb"><strong>FOUNDER PRICING – ${config.name}</strong></td></tr>
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Monthly Rate</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${planPrices[tier]} (locked in forever)</td></tr>
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Employee Limit</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees} employees`}</td></tr>
+    ${referralRow}
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Submitted</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</td></tr>
   </table>
   <p style="margin-top:16px;color:#374151">Reach out to them to complete their onboarding and lock in their founder rate.</p>
 </div>
 </div>`,
-          text: `⭐ FOUNDER PRICING REQUEST\n\nCompany: ${organizationName}\nContact Email: ${email}\nPricing Level: FOUNDER PRICING – ${config.name}\nMonthly Rate: ${planPrices[tier]} (locked in forever)\nEmployee Limit: ${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}\nSubmitted: ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT`,
+          text: `⭐ FOUNDER PRICING REQUEST\n\nCompany: ${organizationName}\nContact Email: ${email}\nPricing Level: FOUNDER PRICING – ${config.name}\nMonthly Rate: ${planPrices[tier]} (locked in forever)\nEmployee Limit: ${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}${referralText}\nSubmitted: ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT`,
         }).catch(err => console.error("[Email] Failed to send founder lead notification:", err));
 
-        return res.json({ contactPending: true });
+        return res.json({ contactPending: true, referralValid: !!validatedReferral, referralExtraMonths: validatedReferral?.extraMonths });
       }
 
       const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -2920,6 +2942,50 @@ export async function registerRoutes(
       return res.status(401).send("Unauthorized");
     }
     await storage.deleteBlogPost(parseInt(req.params.id));
+    res.sendStatus(200);
+  });
+
+  // ─── Referral Codes ────────────────────────────────────────────────────────
+
+  app.get("/api/developer/referral-codes", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const codes = await storage.getAllReferralCodes();
+    res.json(codes);
+  });
+
+  app.post("/api/developer/referral-codes", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const schema = z.object({
+      code: z.string().min(2).max(30),
+      description: z.string().optional(),
+      extraMonths: z.number().int().min(1).max(12).default(1),
+      active: z.boolean().default(true),
+    });
+    const data = schema.parse(req.body);
+    const created = await storage.createReferralCode(data);
+    res.json(created);
+  });
+
+  app.patch("/api/developer/referral-codes/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const id = parseInt(req.params.id);
+    const schema = z.object({
+      description: z.string().optional(),
+      extraMonths: z.number().int().min(1).max(12).optional(),
+      active: z.boolean().optional(),
+    });
+    const data = schema.parse(req.body);
+    const updated = await storage.updateReferralCode(id, data);
+    res.json(updated);
+  });
+
+  app.delete("/api/developer/referral-codes/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    await storage.deleteReferralCode(parseInt(req.params.id));
     res.sendStatus(200);
   });
 

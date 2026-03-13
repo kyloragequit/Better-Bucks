@@ -233,6 +233,19 @@ export const goalNotifications = pgTable("goal_notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const referralCodes = pgTable("referral_codes", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  description: text("description"),
+  extraMonths: integer("extra_months").default(1).notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertReferralCodeSchema = createInsertSchema(referralCodes).omit({ id: true, createdAt: true });
+export type ReferralCode = typeof referralCodes.$inferSelect;
+export type InsertReferralCode = z.infer<typeof insertReferralCodeSchema>;
+
 export const insertWishlistSchema = createInsertSchema(wishlists).omit({ id: true, createdAt: true });
 export const insertStoreItemSchema = createInsertSchema(storeItems).omit({ id: true, createdAt: true });
 export const insertInfoRequestSchema = createInsertSchema(infoRequests).omit({ id: true, createdAt: true });

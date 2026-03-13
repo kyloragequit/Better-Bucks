@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -94,6 +94,12 @@ export interface IStorage {
   createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
   updateBlogPost(id: number, data: Partial<InsertBlogPost>): Promise<BlogPost>;
   deleteBlogPost(id: number): Promise<void>;
+
+  getAllReferralCodes(): Promise<ReferralCode[]>;
+  getReferralCode(code: string): Promise<ReferralCode | undefined>;
+  createReferralCode(data: InsertReferralCode): Promise<ReferralCode>;
+  updateReferralCode(id: number, data: Partial<InsertReferralCode>): Promise<ReferralCode>;
+  deleteReferralCode(id: number): Promise<void>;
 
   createGoal(goal: InsertGoal): Promise<Goal>;
   getGoal(id: number): Promise<Goal | undefined>;
@@ -653,6 +659,30 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBlogPost(id: number): Promise<void> {
     await db.delete(blogPosts).where(eq(blogPosts.id, id));
+  }
+
+  async getAllReferralCodes(): Promise<ReferralCode[]> {
+    return db.select().from(referralCodes).orderBy(desc(referralCodes.createdAt));
+  }
+
+  async getReferralCode(code: string): Promise<ReferralCode | undefined> {
+    const [row] = await db.select().from(referralCodes).where(eq(referralCodes.code, code.toUpperCase()));
+    return row;
+  }
+
+  async createReferralCode(data: InsertReferralCode): Promise<ReferralCode> {
+    const [created] = await db.insert(referralCodes).values({ ...data, code: data.code.toUpperCase() }).returning();
+    return created;
+  }
+
+  async updateReferralCode(id: number, data: Partial<InsertReferralCode>): Promise<ReferralCode> {
+    const [updated] = await db.update(referralCodes).set(data).where(eq(referralCodes.id, id)).returning();
+    if (!updated) throw new Error("Referral code not found");
+    return updated;
+  }
+
+  async deleteReferralCode(id: number): Promise<void> {
+    await db.delete(referralCodes).where(eq(referralCodes.id, id));
   }
 
   async createGoal(goal: InsertGoal): Promise<Goal> {

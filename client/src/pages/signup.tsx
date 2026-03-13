@@ -72,6 +72,9 @@ export default function SignupPage() {
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [referralValid, setReferralValid] = useState<boolean | null>(null);
+  const [referralExtraMonths, setReferralExtraMonths] = useState(1);
   const [contactPending, setContactPending] = useState(false);
 
   const [rfiName, setRfiName] = useState("");
@@ -124,12 +127,17 @@ export default function SignupPage() {
         email,
         tier: selectedTier,
         promoCode: promoCode || undefined,
+        referralCode: referralCode.trim() || undefined,
       });
       return await res.json();
     },
-    onSuccess: (data: { url?: string; promoApplied?: boolean; orgCode?: string; contactPending?: boolean }) => {
+    onSuccess: (data: { url?: string; promoApplied?: boolean; orgCode?: string; contactPending?: boolean; referralValid?: boolean; referralExtraMonths?: number }) => {
       if (data.contactPending) {
         setContactPending(true);
+        if (data.referralValid) {
+          setReferralValid(true);
+          setReferralExtraMonths(data.referralExtraMonths ?? 1);
+        }
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else if (data.promoApplied && data.orgCode) {
         setLocation(`/signup/success?org_code=${data.orgCode}`);
@@ -193,6 +201,12 @@ export default function SignupPage() {
                 <span className="text-white/60">Contact Email</span>
                 <span className="text-white font-medium">{email}</span>
               </div>
+              {referralValid && (
+                <div className="flex justify-between text-sm pt-1 border-t border-white/20">
+                  <span className="text-green-300 font-medium">🎁 Referral Bonus</span>
+                  <span className="text-green-300 font-semibold">+{referralExtraMonths} free month{referralExtraMonths > 1 ? "s" : ""} applied!</span>
+                </div>
+              )}
             </div>
             <Button
               variant="ghost"
@@ -392,6 +406,21 @@ export default function SignupPage() {
                     onChange={(e) => setPromoCode(e.target.value)}
                     data-testid="input-promo-code"
                   />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="referral-code">Referral Code (optional)</Label>
+                    <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full border border-green-200">+1 month free</span>
+                  </div>
+                  <Input
+                    id="referral-code"
+                    placeholder="Enter referral code"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    data-testid="input-referral-code"
+                    className="uppercase placeholder:normal-case"
+                  />
+                  <p className="text-xs text-muted-foreground">Have a referral code? Enter it for an additional month free!</p>
                 </div>
                 <Button
                   type="submit"

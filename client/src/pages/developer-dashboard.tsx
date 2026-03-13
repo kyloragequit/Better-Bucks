@@ -13,9 +13,9 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2 } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import type { Organization, BlogPost } from "@shared/schema";
+import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
 
 const CMS_FIELDS: { key: string; label: string; multiline?: boolean }[] = [
   { key: "hero_headline", label: "Hero Headline" },
@@ -90,8 +90,9 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
+  const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
 
   async function handleBlogImageUpload(file: File) {
@@ -280,6 +281,44 @@ export default function DeveloperDashboardPage() {
     },
   });
 
+  const { data: referralCodes, isLoading: referralLoading } = useQuery<ReferralCode[]>({
+    queryKey: ["/api/developer/referral-codes"],
+    enabled: activeTab === "referrals",
+  });
+
+  const createRefCodeMutation = useMutation({
+    mutationFn: async (data: { code: string; description: string; extraMonths: number }) => {
+      const res = await apiRequest("POST", "/api/developer/referral-codes", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/referral-codes"] });
+      setRefCodeForm(null);
+      toast({ title: "Created", description: "Referral code created." });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const toggleRefCodeMutation = useMutation({
+    mutationFn: async ({ id, active }: { id: number; active: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/developer/referral-codes/${id}`, { active });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/developer/referral-codes"] }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteRefCodeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/developer/referral-codes/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/referral-codes"] });
+      toast({ title: "Deleted", description: "Referral code deleted." });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await fetch("/api/logout", { method: "POST", credentials: "include" });
@@ -365,7 +404,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -395,6 +434,15 @@ export default function DeveloperDashboardPage() {
             >
               <BookOpen className="mr-1.5 h-4 w-4" />
               Blog
+            </Button>
+            <Button
+              variant={activeTab === "referrals" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("referrals"); setBlogForm(null); }}
+              data-testid="button-tab-referrals"
+            >
+              <Tag className="mr-1.5 h-4 w-4" />
+              Referral Codes
             </Button>
           </div>
         </div>
@@ -670,6 +718,143 @@ export default function DeveloperDashboardPage() {
                             >
                               <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                               Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        ) : activeTab === "referrals" ? (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tag className="h-5 w-5" />
+                    Referral Codes
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Codes entered on the signup page give customers extra free months. They are included in the lead notification email.
+                  </CardDescription>
+                </div>
+                {!refCodeForm && (
+                  <Button size="sm" onClick={() => setRefCodeForm({ code: "", description: "", extraMonths: 1 })} data-testid="button-new-referral-code">
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    New Code
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {refCodeForm && (
+                <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                  <h3 className="font-semibold text-sm">Create New Referral Code</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="rc-code">Code</Label>
+                      <Input
+                        id="rc-code"
+                        placeholder="e.g. PARTNER2025"
+                        value={refCodeForm.code}
+                        onChange={(e) => setRefCodeForm(p => ({ ...p!, code: e.target.value.toUpperCase() }))}
+                        className="uppercase"
+                        data-testid="input-referral-code-value"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="rc-desc">Description (optional)</Label>
+                      <Input
+                        id="rc-desc"
+                        placeholder="e.g. Partner referral"
+                        value={refCodeForm.description}
+                        onChange={(e) => setRefCodeForm(p => ({ ...p!, description: e.target.value }))}
+                        data-testid="input-referral-code-description"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="rc-months">Extra Free Months</Label>
+                      <Input
+                        id="rc-months"
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={refCodeForm.extraMonths}
+                        onChange={(e) => setRefCodeForm(p => ({ ...p!, extraMonths: parseInt(e.target.value) || 1 }))}
+                        data-testid="input-referral-code-months"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={!refCodeForm.code.trim() || createRefCodeMutation.isPending}
+                      onClick={() => createRefCodeMutation.mutate(refCodeForm)}
+                      data-testid="button-save-referral-code"
+                    >
+                      <Save className="mr-1.5 h-4 w-4" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setRefCodeForm(null)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+
+              {referralLoading ? (
+                <div className="flex justify-center py-8"><Loader /></div>
+              ) : !referralCodes || referralCodes.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Tag className="mx-auto h-10 w-10 mb-3 opacity-30" />
+                  <p>No referral codes yet. Create one to get started.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Extra Months</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {referralCodes.map((rc) => (
+                      <TableRow key={rc.id} data-testid={`row-referral-code-${rc.id}`}>
+                        <TableCell className="font-mono font-semibold text-sm">{rc.code}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{rc.description || "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">+{rc.extraMonths} month{rc.extraMonths > 1 ? "s" : ""}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={rc.active ? "default" : "secondary"} className={rc.active ? "bg-green-100 text-green-800 border-green-200" : ""}>
+                            {rc.active ? "Active" : "Disabled"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{new Date(rc.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={rc.active ? "Disable" : "Enable"}
+                              onClick={() => toggleRefCodeMutation.mutate({ id: rc.id, active: !rc.active })}
+                              data-testid={`button-toggle-referral-${rc.id}`}
+                            >
+                              {rc.active ? <ToggleRight className="h-4 w-4 text-green-600" /> : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Delete"
+                              onClick={() => { if (confirm(`Delete referral code "${rc.code}"?`)) deleteRefCodeMutation.mutate(rc.id); }}
+                              data-testid={`button-delete-referral-${rc.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         </TableCell>

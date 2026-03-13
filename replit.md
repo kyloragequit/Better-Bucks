@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
     - `blogPosts`: Public blog articles with HTML content, author info, and sources.
     - `goals`: Team goals set by prime admins (time-based or quantity-based) with Bucks rewards.
     - `goalNotifications`: Per-user notifications for goal outcomes (distributed/failed), shown as a login modal.
+    - `referralCodes`: Developer-managed codes used on signup to grant extra free months; included in lead notification emails.
 - **File Uploads**: Multer-based to local storage.
 - **Migrations**: Drizzle-kit.
 
@@ -75,6 +76,19 @@ Preferred communication style: Simple, everyday language.
 - Developer-only CRUD: `POST/PATCH/DELETE /api/developer/blog/:id`
 - Frontend: `/blog` (post grid with square image cards), `/blog/:slug` (full post with prose styling + sources)
 - Blog link in landing page header; Blog tab in developer dashboard with inline create/edit form
+
+### Referral Codes System
+- `referral_codes` table: id, code (uppercase, unique), description, extra_months (default 1), active, created_at
+- Managed exclusively in the developer dashboard under the "Referral Codes" tab (no redeployment needed)
+- Developer-only API: `GET/POST /api/developer/referral-codes`, `PATCH/DELETE /api/developer/referral-codes/:id`
+- Signup page has a "Referral Code (optional)" field with "+1 month free" badge and promotional hint text
+- On signup submission: code is validated against DB; if valid and active, the lead notification email to miles.chase@betterbucks.net includes a highlighted green referral row
+- Response includes `referralValid: true` and `referralExtraMonths` so the confirmation screen shows "+N free months applied!"
+
+### Stripe-less Signup Flow
+- When Stripe connector is not configured (production), signup sends a lead notification email to miles.chase@betterbucks.net and returns `{ contactPending: true }`
+- Email includes company, contact email, plan tier (labeled "FOUNDER PRICING"), monthly rate, employee limit, referral code info (if any), and submission timestamp
+- GOKU11 promo code bypasses Stripe entirely and creates/activates an org immediately
 
 ## External Dependencies
 

@@ -15,7 +15,7 @@ import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, CreditCard, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
+import { ArrowLeft, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
 
 const tiers = [
   {
@@ -233,7 +233,7 @@ export default function SignupPage() {
 
         {cancelled && (
           <div className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
-            Payment was cancelled. You can try again below.
+            Your request was not completed. You can try again below.
           </div>
         )}
 
@@ -348,11 +348,14 @@ export default function SignupPage() {
         {selectedTier && (
           <Card className="shadow-2xl shadow-black/10 border-muted bg-white/80 backdrop-blur-sm max-w-lg mx-auto">
             <CardHeader className="text-center pb-3">
+              <div className="inline-block rounded-full bg-primary/10 text-primary text-xs font-bold px-3 py-1 mb-2 tracking-wide uppercase">
+                ⭐ Founder Pricing
+              </div>
               <CardTitle className="text-lg">
-                Complete Your Signup
+                Claim Your Spot
               </CardTitle>
               <CardDescription>
-                {selectedTierData?.name} - ${selectedTierData?.price}/month
+                {selectedTierData?.name} — locked in at ${selectedTierData?.price}/month
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -369,11 +372,11 @@ export default function SignupPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="org-email">Billing Email</Label>
+                  <Label htmlFor="org-email">Work Email</Label>
                   <Input
                     id="org-email"
                     type="email"
-                    placeholder="billing@acme.com"
+                    placeholder="you@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -399,17 +402,17 @@ export default function SignupPage() {
                   {isPending ? (
                     <>
                       <SpinningLogo className="mr-2 h-4 w-4" />
-                      Setting up...
+                      Submitting...
                     </>
                   ) : (
                     <>
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Subscribe - ${selectedTierData?.price}/month
+                      <Shield className="mr-2 h-4 w-4" />
+                      Claim Founder Pricing
                     </>
                   )}
                 </Button>
                 <p className="text-center text-xs text-muted-foreground" data-testid="text-cancellation-policy">
-                  Cancel anytime with no added charges
+                  60-day free pilot · Cancel anytime · No commitments
                 </p>
               </form>
             </CardContent>

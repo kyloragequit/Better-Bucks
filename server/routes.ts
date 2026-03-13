@@ -1402,19 +1402,25 @@ export async function registerRoutes(
         };
         sendEmail({
           to: ADMIN_NOTIFY_EMAIL,
-          subject: `🎉 New Founder Plan Interest – ${organizationName}`,
-          html: `<p>Hi Miles,</p>
-<p>Someone just requested a founder pricing plan on Better Bucks. Here are their details:</p>
-<table style="border-collapse:collapse;width:100%;max-width:480px">
-  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Company</td><td style="padding:6px 10px">${organizationName}</td></tr>
-  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Email</td><td style="padding:6px 10px"><a href="mailto:${email}">${email}</a></td></tr>
-  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Plan</td><td style="padding:6px 10px">${config.name} – ${planPrices[tier]}</td></tr>
-  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Employees</td><td style="padding:6px 10px">${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}</td></tr>
-  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Submitted</td><td style="padding:6px 10px">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</td></tr>
-</table>
-<p style="margin-top:16px">Reach out to them directly to complete their onboarding.</p>
-<p>— Better Bucks System</p>`,
-          text: `New founder plan interest:\nCompany: ${organizationName}\nEmail: ${email}\nPlan: ${config.name} (${planPrices[tier]})\nSubmitted: ${new Date().toLocaleString()}`,
+          subject: `⭐ FOUNDER PRICING REQUEST – ${config.name} – ${organizationName}`,
+          html: `<div style="font-family:sans-serif;max-width:520px">
+<div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
+  <p style="margin:0;font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:0.7">Better Bucks</p>
+  <h2 style="margin:4px 0 0;font-size:20px">⭐ New Founder Pricing Request</h2>
+</div>
+<div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+  <table style="border-collapse:collapse;width:100%">
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb;width:38%">Company</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${organizationName}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Contact Email</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb"><a href="mailto:${email}" style="color:#162A4A">${email}</a></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Pricing Level</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb"><strong>FOUNDER PRICING – ${config.name}</strong></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Monthly Rate</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${planPrices[tier]} (locked in forever)</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Employee Limit</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees} employees`}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Submitted</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</td></tr>
+  </table>
+  <p style="margin-top:16px;color:#374151">Reach out to them to complete their onboarding and lock in their founder rate.</p>
+</div>
+</div>`,
+          text: `⭐ FOUNDER PRICING REQUEST\n\nCompany: ${organizationName}\nContact Email: ${email}\nPricing Level: FOUNDER PRICING – ${config.name}\nMonthly Rate: ${planPrices[tier]} (locked in forever)\nEmployee Limit: ${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}\nSubmitted: ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT`,
         }).catch(err => console.error("[Email] Failed to send founder lead notification:", err));
 
         return res.json({ contactPending: true });

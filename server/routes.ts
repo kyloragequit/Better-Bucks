@@ -1378,6 +1378,48 @@ export async function registerRoutes(
       const { organizationName, email, tier, promoCode } = signupSchema.parse(req.body);
       const config = tierConfig[tier];
 
+      // Check if Stripe is fully operational (price IDs + connector credentials)
+      const founderPriceId = founderPriceIds[tier];
+      const isPromoSignup = !!(promoCode && promoCode.toUpperCase() === "GOKU11");
+      let stripeReady = false;
+      if (founderPriceId && !isPromoSignup) {
+        try {
+          await ensureStripeReady();
+          await getStripeClient();
+          stripeReady = true;
+        } catch {
+          stripeReady = false;
+        }
+      }
+
+      // If Stripe is not yet configured, send a lead notification email and respond gracefully
+      if (!isPromoSignup && !stripeReady) {
+        const planPrices: Record<string, string> = {
+          small: "$24.99/mo",
+          mid: "$49.99/mo",
+          large: "$74.99/mo",
+          enterprise: "$149.99/mo",
+        };
+        sendEmail({
+          to: ADMIN_NOTIFY_EMAIL,
+          subject: `🎉 New Founder Plan Interest – ${organizationName}`,
+          html: `<p>Hi Miles,</p>
+<p>Someone just requested a founder pricing plan on Better Bucks. Here are their details:</p>
+<table style="border-collapse:collapse;width:100%;max-width:480px">
+  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Company</td><td style="padding:6px 10px">${organizationName}</td></tr>
+  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Email</td><td style="padding:6px 10px"><a href="mailto:${email}">${email}</a></td></tr>
+  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Plan</td><td style="padding:6px 10px">${config.name} – ${planPrices[tier]}</td></tr>
+  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Employees</td><td style="padding:6px 10px">${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}</td></tr>
+  <tr><td style="padding:6px 10px;font-weight:bold;background:#f3f4f6">Submitted</td><td style="padding:6px 10px">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</td></tr>
+</table>
+<p style="margin-top:16px">Reach out to them directly to complete their onboarding.</p>
+<p>— Better Bucks System</p>`,
+          text: `New founder plan interest:\nCompany: ${organizationName}\nEmail: ${email}\nPlan: ${config.name} (${planPrices[tier]})\nSubmitted: ${new Date().toLocaleString()}`,
+        }).catch(err => console.error("[Email] Failed to send founder lead notification:", err));
+
+        return res.json({ contactPending: true });
+      }
+
       const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
 
       const org = await storage.createOrganization({
@@ -1407,11 +1449,6 @@ export async function registerRoutes(
         await storage.updateOrganizationStatus(org.id, "active");
 
         return res.json({ promoApplied: true, orgCode });
-      }
-
-      const founderPriceId = founderPriceIds[tier];
-      if (!founderPriceId) {
-        return res.status(500).json({ message: "Payment configuration missing for selected tier" });
       }
 
       await ensureStripeReady();

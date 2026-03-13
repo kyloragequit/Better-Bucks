@@ -72,6 +72,7 @@ export default function SignupPage() {
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [contactPending, setContactPending] = useState(false);
 
   const [rfiName, setRfiName] = useState("");
   const [rfiEmail, setRfiEmail] = useState("");
@@ -126,8 +127,11 @@ export default function SignupPage() {
       });
       return await res.json();
     },
-    onSuccess: (data: { url?: string; promoApplied?: boolean; orgCode?: string }) => {
-      if (data.promoApplied && data.orgCode) {
+    onSuccess: (data: { url?: string; promoApplied?: boolean; orgCode?: string; contactPending?: boolean }) => {
+      if (data.contactPending) {
+        setContactPending(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (data.promoApplied && data.orgCode) {
         setLocation(`/signup/success?org_code=${data.orgCode}`);
       } else if (data.url) {
         window.location.href = data.url;
@@ -164,7 +168,46 @@ export default function SignupPage() {
 
       <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 70% 30%, #4E9F3D15 0%, transparent 60%)" }} />
 
-      <div className="flex-1 flex items-center justify-center p-4">
+      {contactPending && (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="relative z-10 w-full max-w-lg text-center space-y-6">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-400/20 border-2 border-green-400/40">
+              <Mail className="h-10 w-10 text-green-300" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-3">We Got Your Request!</h1>
+              <p className="text-white/80 text-lg leading-relaxed">
+                Thanks for your interest in Better Bucks. We received your plan selection and will reach out to <span className="font-semibold text-white">{email}</span> shortly to get you set up.
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/10 border border-white/20 p-5 text-left space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Company</span>
+                <span className="text-white font-medium">{orgName}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Plan</span>
+                <span className="text-white font-medium">{tiers.find(t => t.id === selectedTier)?.name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Contact Email</span>
+                <span className="text-white font-medium">{email}</span>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              className="text-white/70 hover:text-white hover:bg-white/10"
+              onClick={() => setLocation("/")}
+              data-testid="button-back-home"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!contactPending && <div className="flex-1 flex items-center justify-center p-4">
       <div className="relative z-10 w-full max-w-5xl space-y-6">
         <Button
           variant="ghost"
@@ -477,7 +520,7 @@ export default function SignupPage() {
         </div>
         )}
       </div>
-      </div>
+      </div>}
       <SiteFooter dark />
       <InstagramFloat />
     </div>

@@ -221,23 +221,37 @@ export async function registerRoutes(
   });
 
   // sitemap.xml
-  app.get("/sitemap.xml", (_req, res) => {
+  app.get("/sitemap.xml", async (_req, res) => {
     const base = "https://betterbucks.net";
-    const pages = [
-      { loc: "/", priority: "1.0", changefreq: "weekly" },
-      { loc: "/how-it-works", priority: "0.9", changefreq: "monthly" },
-      { loc: "/about", priority: "0.7", changefreq: "monthly" },
-      { loc: "/signup", priority: "0.8", changefreq: "monthly" },
+    const today = new Date().toISOString().split("T")[0];
+    const staticPages = [
+      { loc: "/", priority: "1.0", changefreq: "weekly", lastmod: today },
+      { loc: "/how-it-works", priority: "0.9", changefreq: "monthly", lastmod: today },
+      { loc: "/signup", priority: "0.8", changefreq: "monthly", lastmod: today },
+      { loc: "/about", priority: "0.7", changefreq: "monthly", lastmod: today },
+      { loc: "/blog", priority: "0.8", changefreq: "weekly", lastmod: today },
+      { loc: "/login", priority: "0.4", changefreq: "yearly", lastmod: today },
     ];
-    const urls = pages
-      .map(
-        (p) =>
-          `  <url>\n    <loc>${base}${p.loc}</loc>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`
-      )
+
+    let blogUrls = "";
+    try {
+      const posts = await storage.getAllBlogPosts();
+      blogUrls = posts
+        .map((p) => {
+          const lm = p.publishedAt ? new Date(p.publishedAt).toISOString().split("T")[0] : today;
+          return `  <url>\n    <loc>${base}/blog/${p.slug}</loc>\n    <lastmod>${lm}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>`;
+        })
+        .join("\n");
+    } catch { /* ignore */ }
+
+    const staticUrls = staticPages
+      .map((p) => `  <url>\n    <loc>${base}${p.loc}</loc>\n    <lastmod>${p.lastmod}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`)
       .join("\n");
+
+    const combined = [staticUrls, blogUrls].filter(Boolean).join("\n");
     res
       .type("application/xml")
-      .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`);
+      .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${combined}\n</urlset>`);
   });
 
   // Users

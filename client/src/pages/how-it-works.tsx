@@ -27,6 +27,7 @@ import {
   BadgeCheck,
   ExternalLink,
   BookOpen,
+  Play,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -124,6 +125,20 @@ export default function HowItWorksPage() {
   const [demoForm, setDemoForm] = useState({ name: "", email: "", phone: "", needs: "" });
   const [demoSubmitting, setDemoSubmitting] = useState(false);
   const [demoSent, setDemoSent] = useState(false);
+  const [publicDemoLoading, setPublicDemoLoading] = useState(false);
+
+  const startPublicDemo = async () => {
+    setPublicDemoLoading(true);
+    try {
+      const res = await fetch("/api/demo/public-login", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to start demo");
+      setLocation("/admin/dashboard");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setPublicDemoLoading(false);
+    }
+  };
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,7 +233,27 @@ export default function HowItWorksPage() {
             <h1 className="mt-10 text-white font-display font-bold leading-tight" style={{ fontSize: "clamp(1.75rem, 4vw, 3rem)" }} data-testid="text-parallax-question">
               Build a Better Workplace — the easy way.
             </h1>
-            <p className="mt-4 text-white/50 text-sm tracking-widest uppercase">Scroll to find out</p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
+              <button
+                onClick={startPublicDemo}
+                disabled={publicDemoLoading}
+                className="flex items-center gap-2 py-3 px-7 rounded-xl font-bold text-white text-base border-2 border-white/40 transition-all duration-200 hover:border-white/80 hover:bg-white/10 active:scale-95 disabled:opacity-60"
+                data-testid="button-hero-self-guided-demo"
+              >
+                <Play className="h-4 w-4" />
+                {publicDemoLoading ? "Loading..." : "Try our self guided demo"}
+              </button>
+              <button
+                onClick={() => setLocation("/signup")}
+                className="flex items-center gap-2 py-3 px-7 rounded-xl font-bold text-base transition-all duration-200 hover:opacity-90 active:scale-95"
+                style={{ background: BUCKS_COLOR, color: "#fff" }}
+                data-testid="button-hero-signup"
+              >
+                Sign Up
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-6 text-white/40 text-xs tracking-widest uppercase">Scroll to explore</p>
           </div>
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/40">
             <ChevronDown className="h-6 w-6 animate-bounce" />
@@ -665,11 +700,20 @@ export default function HowItWorksPage() {
                   </button>
                   <p className="text-white/40 text-xs -mt-1">View our plans — no credit card required.</p>
                   <button
+                    onClick={startPublicDemo}
+                    disabled={publicDemoLoading}
+                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95 disabled:opacity-60"
+                    data-testid="button-try-self-guided-demo"
+                  >
+                    <Play className="h-4 w-4" />
+                    {publicDemoLoading ? "Loading..." : "Try our self guided demo"}
+                  </button>
+                  <button
                     onClick={() => setDemoOpen(true)}
-                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-white/60 text-sm transition-all duration-200 hover:text-white/90 active:scale-95"
                     data-testid="button-cta-demo"
                   >
-                    Request a Demo
+                    Request a personalized demo
                   </button>
                 </div>
               </div>

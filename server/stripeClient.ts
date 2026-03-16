@@ -1,9 +1,15 @@
 import Stripe from 'stripe';
-import { StripeSync } from 'stripe-replit-sync';
 
-let connectionSettings: any;
+async function getCredentials(): Promise<{ publishableKey: string; secretKey: string }> {
+  // Prefer directly-configured env vars (supports live mode)
+  if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY) {
+    return {
+      secretKey: process.env.STRIPE_SECRET_KEY,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    };
+  }
 
-async function getCredentials() {
+  // Fall back to Replit connector (sandbox only)
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? 'repl ' + process.env.REPL_IDENTITY
@@ -11,8 +17,8 @@ async function getCredentials() {
       ? 'depl ' + process.env.WEB_REPL_RENEWAL
       : null;
 
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  if (!hostname || !xReplitToken) {
+    throw new Error('No Stripe credentials configured. Set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY.');
   }
 
   const connectorName = 'stripe';
@@ -27,14 +33,14 @@ async function getCredentials() {
   const response = await fetch(url.toString(), {
     headers: {
       'Accept': 'application/json',
-      'X_REPLIT_TOKEN': xReplitToken
+      'X_REPLIT_TOKEN': xReplitToken,
     }
   });
 
   const data = await response.json();
-  connectionSettings = data.items?.[0];
+  const connectionSettings = data.items?.[0];
 
-  if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
+  if (!connectionSettings?.settings?.publishable || !connectionSettings?.settings?.secret) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }
 
@@ -64,6 +70,7 @@ let stripeSync: any = null;
 export async function getStripeSync() {
   if (!stripeSync) {
     const secretKey = await getStripeSecretKey();
+    const { StripeSync } = await import('stripe-replit-sync');
     stripeSync = new StripeSync({
       poolConfig: {
         connectionString: process.env.DATABASE_URL!,

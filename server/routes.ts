@@ -1366,18 +1366,11 @@ export async function registerRoutes(
 
   // Tier pricing configuration
   const tierConfig = {
-    small: { price: 2499, maxEmployees: 25, name: "Small Site" },
-    mid: { price: 4999, maxEmployees: 75, name: "Mid-Size Site" },
-    large: { price: 7499, maxEmployees: 150, name: "Large Site" },
-    enterprise: { price: 14999, maxEmployees: -1, name: "Enterprise Site" },
+    small:      { price: 2499,  maxEmployees: 25,  name: "Small Site",      description: "Up to 25 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
+    mid:        { price: 4999,  maxEmployees: 75,  name: "Mid-Size Site",   description: "26–75 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    large:      { price: 7499,  maxEmployees: 150, name: "Large Site",      description: "76–150 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    enterprise: { price: 14999, maxEmployees: -1,  name: "Enterprise Site", description: "150+ employees — includes 60-day free pilot, unlimited logins, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
   } as const;
-
-  const founderPriceIds: Record<string, string | undefined> = {
-    small: process.env.STRIPE_PRICE_SMALL,
-    mid: process.env.STRIPE_PRICE_MID,
-    large: process.env.STRIPE_PRICE_LARGE,
-    enterprise: process.env.STRIPE_PRICE_ENTERPRISE,
-  };
 
   // Organization signup - create checkout session
   const signupSchema = z.object({
@@ -1388,16 +1381,72 @@ export async function registerRoutes(
     referralCode: z.string().optional(),
   });
 
+  // Shared helper: build and send a signup notification email to the admin
+  async function sendSignupNotificationEmail({
+    organizationName, email, tier, config, orgCode, referralCode, mode,
+  }: {
+    organizationName: string; email: string; tier: string;
+    config: { name: string; maxEmployees: number };
+    orgCode: string; referralCode?: string; mode: "stripe" | "contactPending" | "promo";
+  }) {
+    const planPrices: Record<string, string> = {
+      small: "$24.99/mo", mid: "$49.99/mo", large: "$74.99/mo", enterprise: "$149.99/mo",
+    };
+
+    let validatedReferral: { code: string; extraMonths: number } | null = null;
+    if (referralCode && referralCode.trim()) {
+      const refRow = await storage.getReferralCode(referralCode.trim());
+      if (refRow && refRow.active) validatedReferral = { code: refRow.code, extraMonths: refRow.extraMonths };
+    }
+
+    const modeLabel = mode === "stripe" ? "💳 NEW STRIPE SUBSCRIPTION" : mode === "promo" ? "🎟️ PROMO CODE SIGNUP (GOKU11)" : "⭐ FOUNDER PRICING REQUEST";
+    const referralRow = validatedReferral
+      ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${validatedReferral.code} — +${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""}</td></tr>`
+      : referralCode && referralCode.trim()
+        ? `<tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Referral Code</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb;color:#dc2626">${referralCode.trim()} (invalid)</td></tr>`
+        : "";
+    const referralText = validatedReferral
+      ? `\nReferral Code: ${validatedReferral.code} ✅ (+${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""})`
+      : referralCode?.trim() ? `\nReferral Code: ${referralCode.trim()} (invalid)` : "";
+
+    sendEmail({
+      to: ADMIN_NOTIFY_EMAIL,
+      subject: `${modeLabel} – ${config.name} – ${organizationName}${validatedReferral ? " 🎁" : ""}`,
+      html: `<div style="font-family:sans-serif;max-width:520px">
+<div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
+  <p style="margin:0;font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:0.7">Better Bucks</p>
+  <h2 style="margin:4px 0 0;font-size:20px">${modeLabel}</h2>
+</div>
+<div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+  <table style="border-collapse:collapse;width:100%">
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb;width:38%">Company</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${organizationName}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Contact Email</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb"><a href="mailto:${email}" style="color:#162A4A">${email}</a></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Plan</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb"><strong>${config.name}</strong></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Monthly Rate</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${planPrices[tier]}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Employee Limit</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees} employees`}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Org Code</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-family:monospace;font-weight:700">${orgCode}</td></tr>
+    ${referralRow}
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Submitted</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</td></tr>
+  </table>
+  ${mode === "stripe" ? '<p style="margin-top:16px;color:#374151">Customer has been sent to the Stripe payment page to complete their subscription setup.</p>' : mode === "contactPending" ? '<p style="margin-top:16px;color:#374151">Reach out to them to complete their onboarding and lock in their rate.</p>' : '<p style="margin-top:16px;color:#374151">Promo code applied — account activated immediately.</p>'}
+</div>
+</div>`,
+      text: `${modeLabel}\n\nCompany: ${organizationName}\nContact Email: ${email}\nPlan: ${config.name}\nMonthly Rate: ${planPrices[tier]}\nEmployee Limit: ${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}\nOrg Code: ${orgCode}${referralText}\nSubmitted: ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT`,
+    }).catch(err => console.error("[Email] Failed to send signup notification:", err));
+
+    return validatedReferral;
+  }
+
   app.post("/api/organizations/signup", async (req, res) => {
     try {
       const { organizationName, email, tier, promoCode, referralCode } = signupSchema.parse(req.body);
       const config = tierConfig[tier];
 
-      // Check if Stripe is fully operational (price IDs + connector credentials)
-      const founderPriceId = founderPriceIds[tier];
       const isPromoSignup = !!(promoCode && promoCode.toUpperCase() === "GOKU11");
+
+      // Check if Stripe is ready (live keys take priority via stripeClient.ts)
       let stripeReady = false;
-      if (founderPriceId && !isPromoSignup) {
+      if (!isPromoSignup) {
         try {
           await ensureStripeReady();
           await getStripeClient();
@@ -1407,33 +1456,26 @@ export async function registerRoutes(
         }
       }
 
-      // If Stripe is not yet configured, send a lead notification email and respond gracefully
+      // If Stripe is not configured, send a lead notification and respond gracefully
       if (!isPromoSignup && !stripeReady) {
-        const planPrices: Record<string, string> = {
-          small: "$24.99/mo",
-          mid: "$49.99/mo",
-          large: "$74.99/mo",
-          enterprise: "$149.99/mo",
-        };
+        const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
 
-        // Validate referral code if provided
+        // Validate referral code and send the notification email
         let validatedReferral: { code: string; extraMonths: number } | null = null;
         if (referralCode && referralCode.trim()) {
           const refRow = await storage.getReferralCode(referralCode.trim());
-          if (refRow && refRow.active) {
-            validatedReferral = { code: refRow.code, extraMonths: refRow.extraMonths };
-          }
+          if (refRow && refRow.active) validatedReferral = { code: refRow.code, extraMonths: refRow.extraMonths };
         }
 
         const referralRow = validatedReferral
-          ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${validatedReferral!.code} — +${validatedReferral!.extraMonths} free month${validatedReferral!.extraMonths > 1 ? "s" : ""}</td></tr>`
+          ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${validatedReferral.code} — +${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""}</td></tr>`
           : referralCode && referralCode.trim()
             ? `<tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Referral Code</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb;color:#dc2626">${referralCode.trim()} (invalid)</td></tr>`
             : "";
-
         const referralText = validatedReferral
           ? `\nReferral Code: ${validatedReferral.code} ✅ (+${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""})`
-          : referralCode && referralCode.trim() ? `\nReferral Code: ${referralCode.trim()} (invalid)` : "";
+          : referralCode?.trim() ? `\nReferral Code: ${referralCode.trim()} (invalid)` : "";
+        const planPrices: Record<string, string> = { small: "$24.99/mo", mid: "$49.99/mo", large: "$74.99/mo", enterprise: "$149.99/mo" };
 
         sendEmail({
           to: ADMIN_NOTIFY_EMAIL,
@@ -1486,34 +1528,68 @@ export async function registerRoutes(
         }).catch(err => console.error("[Email] Failed to send 45-org alert:", err));
       }
 
-      if (promoCode && promoCode.toUpperCase() === "GOKU11") {
+      if (isPromoSignup) {
         await storage.updateOrganizationStripe(org.id, "promo_GOKU11", "promo_GOKU11");
         await storage.updateOrganizationStatus(org.id, "active");
-
+        sendSignupNotificationEmail({ organizationName, email, tier, config, orgCode, referralCode, mode: "promo" });
         return res.json({ promoApplied: true, orgCode });
       }
 
-      await ensureStripeReady();
       const stripe = await getStripeClient();
 
       const customer = await stripe.customers.create({
         email,
+        name: organizationName,
         metadata: { organizationId: String(org.id), organizationName, tier },
       });
 
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const baseUrl = process.env.REPLIT_DEPLOYMENT === '1'
+        ? "https://betterbucks.net"
+        : `${req.protocol}://${req.get('host')}`;
+
+      // Build trial period: add referral bonus months if valid
+      let validatedReferral: { code: string; extraMonths: number } | null = null;
+      if (referralCode && referralCode.trim()) {
+        const refRow = await storage.getReferralCode(referralCode.trim());
+        if (refRow && refRow.active) validatedReferral = { code: refRow.code, extraMonths: refRow.extraMonths };
+      }
+      const trialDays = 60 + (validatedReferral ? validatedReferral.extraMonths * 30 : 0);
+
       const session = await stripe.checkout.sessions.create({
         customer: customer.id,
         payment_method_types: ['card'],
-        line_items: [{ price: founderPriceId, quantity: 1 }],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `Better Bucks – ${config.name}`,
+              description: config.description,
+              metadata: { tier },
+            },
+            unit_amount: config.price,
+            recurring: { interval: 'month' },
+          },
+          quantity: 1,
+        }],
         mode: 'subscription',
-        subscription_data: { trial_period_days: 60 },
+        subscription_data: {
+          trial_period_days: trialDays,
+          trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+          metadata: { organizationId: String(org.id), tier, orgCode },
+        },
+        payment_method_collection: 'if_required',
         success_url: `${baseUrl}/signup/success?org_code=${orgCode}`,
         cancel_url: `${baseUrl}/signup?cancelled=true`,
-        metadata: { organizationId: String(org.id), tier },
+        metadata: { organizationId: String(org.id), tier, orgCode },
+        customer_email: undefined, // already set via customer object
+        allow_promotion_codes: false,
+        billing_address_collection: 'required',
       });
 
       await storage.updateOrganizationStripe(org.id, customer.id, "pending_checkout");
+
+      // Send admin notification email
+      sendSignupNotificationEmail({ organizationName, email, tier, config, orgCode, referralCode: validatedReferral?.code, mode: "stripe" });
 
       res.json({ url: session.url, orgCode });
     } catch (error) {
@@ -1542,11 +1618,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Organization is already active" });
       }
 
-      const founderPriceId = founderPriceIds[tier];
-      if (!founderPriceId) {
-        return res.status(500).json({ message: "Payment configuration missing for selected tier" });
-      }
-
       await ensureStripeReady();
       const stripe = await getStripeClient();
 
@@ -1555,17 +1626,34 @@ export async function registerRoutes(
       if (needsNewCustomer) {
         const customer = await stripe.customers.create({
           email: user.email || undefined,
+          name: org.name,
           metadata: { organizationId: String(org.id), organizationName: org.name, tier },
         });
         customerId = customer.id;
       }
 
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const baseUrl = process.env.REPLIT_DEPLOYMENT === '1'
+        ? "https://betterbucks.net"
+        : `${req.protocol}://${req.get('host')}`;
+
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
-        line_items: [{ price: founderPriceId, quantity: 1 }],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `Better Bucks – ${config.name}`,
+              description: config.description,
+              metadata: { tier },
+            },
+            unit_amount: config.price,
+            recurring: { interval: 'month' },
+          },
+          quantity: 1,
+        }],
         mode: 'subscription',
+        billing_address_collection: 'required',
         success_url: `${baseUrl}/admin/settings?reactivated=true`,
         cancel_url: `${baseUrl}/reactivate?cancelled=true`,
         metadata: { organizationId: String(org.id), tier, type: "reactivation" },
@@ -1951,17 +2039,23 @@ export async function registerRoutes(
       const stripe = await getStripeClient();
 
       if (org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
-        const founderPriceId = founderPriceIds[tier];
-        if (!founderPriceId) {
-          return res.status(500).json({ message: "Payment configuration missing for selected tier" });
-        }
+        // Create an inline price for this tier change (no pre-configured price IDs needed)
+        const newPrice = await stripe.prices.create({
+          currency: 'usd',
+          product_data: {
+            name: `Better Bucks – ${config.name}`,
+            metadata: { tier },
+          },
+          unit_amount: config.price,
+          recurring: { interval: 'month' },
+        });
 
         const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
 
         await stripe.subscriptions.update(org.stripeSubscriptionId, {
           items: [{
             id: subscription.items.data[0].id,
-            price: founderPriceId,
+            price: newPrice.id,
           }],
           proration_behavior: 'create_prorations',
         });

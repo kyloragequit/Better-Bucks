@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb, BookOpen } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb, BookOpen, Play } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 
@@ -49,6 +49,7 @@ export default function LandingPage() {
   const [contactPhone, setContactPhone] = useState("");
   const [contactNeeds, setContactNeeds] = useState("");
   const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +71,19 @@ export default function LandingPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setContactSubmitting(false);
+    }
+  };
+
+  const startPublicDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const res = await fetch("/api/demo/public-login", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to start demo");
+      setLocation("/admin/dashboard");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setDemoLoading(false);
     }
   };
 
@@ -331,6 +345,21 @@ export default function LandingPage() {
               Sign Up for Your Organization
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+            <Button
+              size="lg"
+              variant="ghost"
+              className="text-base px-8 text-primary hover:bg-primary/10"
+              onClick={startPublicDemo}
+              disabled={demoLoading}
+              data-testid="button-try-demo"
+            >
+              {demoLoading ? (
+                <SpinningLogo className="mr-2 h-5 w-5" />
+              ) : (
+                <Play className="mr-2 h-5 w-5" />
+              )}
+              {demoLoading ? "Loading..." : "Try our self guided demo"}
+            </Button>
           </div>
         </div>
       </section>
@@ -444,6 +473,28 @@ export default function LandingPage() {
             <p className="text-gray-600 max-w-lg mx-auto">
               {c("cta_subtext")}
             </p>
+          </div>
+          <div className="flex justify-center mb-6">
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-white transition-all px-8"
+              onClick={startPublicDemo}
+              disabled={demoLoading}
+              data-testid="button-cta-try-demo"
+            >
+              {demoLoading ? (
+                <SpinningLogo className="mr-2 h-5 w-5" />
+              ) : (
+                <Play className="mr-2 h-5 w-5" />
+              )}
+              {demoLoading ? "Loading..." : "Try our self guided demo"}
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 border-t border-gray-200" />
+            <span className="text-sm text-gray-400">or request a personalized demo</span>
+            <div className="flex-1 border-t border-gray-200" />
           </div>
           <form onSubmit={handleContactSubmit} className="bg-white rounded-lg border shadow-sm p-6 sm:p-8 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

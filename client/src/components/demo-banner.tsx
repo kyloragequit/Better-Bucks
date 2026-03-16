@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LogOut, Eye } from "lucide-react";
+import { Eye, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 type DemoUser = { id: number; fullName: string; username: string; role: string };
 type DemoStatus = {
   inDemo: boolean;
+  isPublicDemo: boolean;
   originalUserId: number | null;
   originalUser?: { id: number; fullName: string; role: string };
   currentUserId?: number;
@@ -23,6 +25,7 @@ function roleLabel(role: string) {
 export function DemoBanner() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: demo } = useQuery<DemoStatus>({
     queryKey: ["/api/demo/status"],
@@ -64,7 +67,11 @@ export function DemoBanner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/demo/status"] });
-      window.location.href = "/admin/dashboard";
+      if (demo?.isPublicDemo) {
+        window.location.href = "/";
+      } else {
+        window.location.href = "/admin/dashboard";
+      }
     },
     onError: (e: Error) => {
       toast({ title: "Exit failed", description: e.message, variant: "destructive" });
@@ -91,7 +98,7 @@ export function DemoBanner() {
       data-testid="div-demo-banner"
     >
       <Eye className="h-4 w-4 text-white shrink-0" />
-      <span className="text-white font-medium whitespace-nowrap">Demo Mode</span>
+      <span className="text-white font-medium whitespace-nowrap">Full Service View Mode</span>
       <span className="text-white/80 whitespace-nowrap hidden sm:inline">— viewing as:</span>
 
       <Select
@@ -108,7 +115,7 @@ export function DemoBanner() {
         <SelectContent>
           {admins.length > 0 && (
             <SelectGroup>
-              <SelectLabel className="text-xs text-muted-foreground">Admins</SelectLabel>
+              <SelectLabel className="text-xs text-muted-foreground">Managers</SelectLabel>
               {admins.map(u => (
                 <SelectItem key={u.id} value={String(u.id)} data-testid={`option-demo-user-${u.id}`}>
                   {u.fullName}
@@ -119,7 +126,7 @@ export function DemoBanner() {
           )}
           {employees.length > 0 && (
             <SelectGroup>
-              <SelectLabel className="text-xs text-muted-foreground">Employees</SelectLabel>
+              <SelectLabel className="text-xs text-muted-foreground">Team Members</SelectLabel>
               {employees.map(u => (
                 <SelectItem key={u.id} value={String(u.id)} data-testid={`option-demo-user-${u.id}`}>
                   {u.fullName}
@@ -138,8 +145,12 @@ export function DemoBanner() {
         disabled={exitMutation.isPending || switchMutation.isPending}
         data-testid="button-demo-exit"
       >
-        <LogOut className="mr-1 h-3 w-3" />
-        {exitMutation.isPending ? "Exiting…" : "Exit Demo"}
+        <Home className="mr-1 h-3 w-3" />
+        {exitMutation.isPending
+          ? "Leaving…"
+          : demo.isPublicDemo
+          ? "Back to Home"
+          : "Exit Full Service View"}
       </Button>
     </div>
   );

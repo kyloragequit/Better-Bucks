@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -65,11 +65,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: devStatus } = useQuery<{ impersonating: boolean }>({
     queryKey: ["/api/developer/status"],
   });
-  const { data: demoStatus } = useQuery<{ inDemo: boolean }>({
+  const { data: demoStatus } = useQuery<{ inDemo: boolean; isPublicDemo: boolean }>({
     queryKey: ["/api/demo/status"],
   });
   const isImpersonating = devStatus?.impersonating === true;
   const isInDemo = demoStatus?.inDemo === true;
+  const isPublicDemo = demoStatus?.isPublicDemo === true;
 
   const startDemoMutation = useMutation({
     mutationFn: async () => {
@@ -82,7 +83,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/demo/status"] });
-      toast({ title: "Demo Mode active", description: "Use the green bar to switch accounts." });
+      toast({ title: "Full Service View Mode active", description: "Use the green bar to switch accounts." });
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -195,18 +196,24 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       <Eye className="h-5 w-5" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Start Demo Mode</TooltipContent>
+                  <TooltipContent side="bottom">Full Service View Mode</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
-                    <LogOut className="h-5 w-5" />
-                  </Button>
+                  {isPublicDemo ? (
+                    <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => setLocation("/")} data-testid="button-home">
+                      <Home className="h-5 w-5" />
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
+                      <LogOut className="h-5 w-5" />
+                    </Button>
+                  )}
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Log Out</TooltipContent>
+                <TooltipContent side="bottom">{isPublicDemo ? "Back to Home" : "Log Out"}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -265,14 +272,25 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       </a>
                     )}
                     <div className="border-t my-1" />
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => { logout(); setMobileMenuOpen(false); }}
-                      data-testid="mobile-button-logout"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Log Out
-                    </button>
+                    {isPublicDemo ? (
+                      <button
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}
+                        data-testid="mobile-button-home"
+                      >
+                        <Home className="h-4 w-4" />
+                        Back to Home
+                      </button>
+                    ) : (
+                      <button
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => { logout(); setMobileMenuOpen(false); }}
+                        data-testid="mobile-button-logout"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Log Out
+                      </button>
+                    )}
                   </div>
                 </>
               )}

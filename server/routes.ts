@@ -2496,16 +2496,40 @@ export async function registerRoutes(
     });
   });
 
-  // ==================== DEMO MODE ROUTES ====================
+  // ==================== FULL SERVICE VIEW MODE ROUTES ====================
+
+  // Public demo auto-login — no auth required
+  app.post("/api/demo/public-login", async (req, res) => {
+    try {
+      const demoOrg = await storage.getOrganizationByCode("VIEWDEMO");
+      if (!demoOrg) return res.status(404).json({ message: "Demo not available" });
+      const orgUsers = await storage.getUsersByOrganization(demoOrg.id);
+      const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
+      if (!primeAdmin) return res.status(500).json({ message: "Demo not configured" });
+      req.login(primeAdmin, (err) => {
+        if (err) return res.status(500).json({ message: "Login failed" });
+        (req.session as any).demoOriginalUserId = primeAdmin.id;
+        (req.session as any).isPublicDemo = true;
+        req.session.save((saveErr) => {
+          if (saveErr) return res.status(500).json({ message: "Session save failed" });
+          res.json({ success: true, role: primeAdmin.role });
+        });
+      });
+    } catch (e) {
+      console.error("Public demo login error:", e);
+      res.status(500).json({ message: "Demo login failed" });
+    }
+  });
 
   app.get("/api/demo/status", async (req, res) => {
     const demoOriginalUserId = (req.session as any).demoOriginalUserId as number | undefined;
+    const isPublicDemo = (req.session as any).isPublicDemo === true;
     if (!demoOriginalUserId || !req.isAuthenticated()) {
-      return res.json({ inDemo: false, originalUserId: null, users: [] });
+      return res.json({ inDemo: false, originalUserId: null, users: [], isPublicDemo: false });
     }
     const currentUser = req.user as User;
     const originalUser = await storage.getUser(demoOriginalUserId);
-    if (!originalUser) return res.json({ inDemo: false, originalUserId: null, users: [] });
+    if (!originalUser) return res.json({ inDemo: false, originalUserId: null, users: [], isPublicDemo: false });
 
     const orgUsers = await storage.getUsersByOrganization(originalUser.organizationId!);
     const users = orgUsers
@@ -2514,6 +2538,7 @@ export async function registerRoutes(
 
     res.json({
       inDemo: true,
+      isPublicDemo,
       originalUserId: demoOriginalUserId,
       originalUser: { id: originalUser.id, fullName: originalUser.fullName, role: originalUser.role },
       currentUserId: currentUser.id,
@@ -2527,7 +2552,7 @@ export async function registerRoutes(
       return res.status(401).send("Unauthorized");
     }
     if ((req.session as any).demoOriginalUserId) {
-      return res.status(400).json({ message: "Already in demo mode" });
+      return res.status(400).json({ message: "Already in Full Service View Mode" });
     }
     const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
     const switchable = orgUsers
@@ -3204,10 +3229,28 @@ export async function registerRoutes(
 
   // ─── Goals ────────────────────────────────────────────────────────────────
 
+  // Helper: reset expired time-based goals for demo orgs so they never finish
+  async function resetDemoGoalsIfNeeded(organizationId: number) {
+    const org = await storage.getOrganization(organizationId);
+    if (!org?.isDemo) return;
+    const goals = await storage.getGoalsByOrganization(organizationId);
+    for (const goal of goals) {
+      if (goal.type !== "time" || goal.status !== "active") continue;
+      const durationMs = ((goal.targetHours ?? 0) * 60 + (goal.targetMinutes ?? 0)) * 60 * 1000
+        + (goal.targetDays ?? 0) * 24 * 60 * 60 * 1000;
+      if (durationMs <= 0) continue;
+      const expiresAt = new Date(goal.startDate).getTime() + durationMs;
+      if (Date.now() >= expiresAt) {
+        await storage.updateGoal(goal.id, { startDate: new Date() });
+      }
+    }
+  }
+
   // GET /api/goals — active + pending_distribution goals visible to all org members
   app.get("/api/goals", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || !user.organizationId) return res.status(401).send("Unauthorized");
+    await resetDemoGoalsIfNeeded(user.organizationId);
     const allGoals = await storage.getGoalsByOrganization(user.organizationId);
     res.json(allGoals.filter(g => g.status === "active" || g.status === "pending_distribution" || g.status === "completed" || g.status === "failed"));
   }));
@@ -3217,6 +3260,7 @@ export async function registerRoutes(
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(400).send("No organization");
+    await resetDemoGoalsIfNeeded(user.organizationId);
     const allGoals = await storage.getGoalsByOrganization(user.organizationId);
     res.json(allGoals);
   }));

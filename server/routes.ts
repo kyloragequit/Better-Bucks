@@ -1555,6 +1555,12 @@ export async function registerRoutes(
       }
       const trialDays = 60 + (validatedReferral ? validatedReferral.extraMonths * 30 : 0);
 
+      const trialMonths = Math.round(trialDays / 30);
+      const trialLabel = trialMonths === 1 ? "1 month" : `${trialMonths} months`;
+      const referralNote = validatedReferral
+        ? ` Your referral code (${validatedReferral.code}) added +${validatedReferral.extraMonths} extra free month${validatedReferral.extraMonths > 1 ? "s" : ""}.`
+        : "";
+
       const session = await stripe.checkout.sessions.create({
         customer: customer.id,
         payment_method_types: ['card'],
@@ -1576,12 +1582,17 @@ export async function registerRoutes(
           trial_period_days: trialDays,
           trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
           metadata: { organizationId: String(org.id), tier, orgCode },
+          description: `Better Bucks ${config.name} — ${trialLabel} free trial, then $${(config.price / 100).toFixed(2)}/month.${referralNote}`,
         },
-        payment_method_collection: 'if_required',
+        payment_method_collection: 'always',
+        custom_text: {
+          submit: {
+            message: `Your card won't be charged until after your ${trialLabel} free trial ends.${referralNote}`,
+          },
+        },
         success_url: `${baseUrl}/signup/success?org_code=${orgCode}`,
         cancel_url: `${baseUrl}/signup?cancelled=true`,
         metadata: { organizationId: String(org.id), tier, orgCode },
-        customer_email: undefined, // already set via customer object
         allow_promotion_codes: false,
         billing_address_collection: 'required',
       });

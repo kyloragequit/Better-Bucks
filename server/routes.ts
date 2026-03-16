@@ -1861,6 +1861,85 @@ export async function registerRoutes(
     res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled });
   });
 
+  // Budget settings - get
+  app.get("/api/org/budget-settings", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const org = await storage.getOrganization(user.organizationId);
+    res.json({ bucksPerDollar: org?.bucksPerDollar ?? 100, monthlyBudgetBucks: org?.monthlyBudgetBucks ?? 0 });
+  });
+
+  // Budget settings - update (prime_admin only)
+  app.patch("/api/org/budget-settings", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { bucksPerDollar, monthlyBudgetBucks } = z.object({
+      bucksPerDollar: z.number().int().min(1),
+      monthlyBudgetBucks: z.number().int().min(0),
+    }).parse(req.body);
+    const updated = await storage.updateOrganizationBudgetSettings(user.organizationId, bucksPerDollar, monthlyBudgetBucks);
+    res.json({ bucksPerDollar: updated.bucksPerDollar, monthlyBudgetBucks: updated.monthlyBudgetBucks });
+  });
+
+  // Allocate monthly budget bucks to selected admins (prime_admin only)
+  app.post("/api/org/allocate-budget", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { adminIds, bucksEach } = z.object({
+      adminIds: z.array(z.number().int()).min(1),
+      bucksEach: z.number().int().min(1),
+    }).parse(req.body);
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const validAdminIds = orgUsers.filter(u => (u.role === "admin") && adminIds.includes(u.id)).map(u => u.id);
+    if (validAdminIds.length === 0) return res.status(400).json({ message: "No valid admin IDs" });
+    for (const adminId of validAdminIds) {
+      await storage.updateUserBalance(adminId, bucksEach);
+      await storage.createTransaction({ userId: adminId, amount: bucksEach, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
+    }
+    res.json({ allocated: validAdminIds.length, bucksEach, total: validAdminIds.length * bucksEach });
+  });
+
+  // Leaderboard stats - admins by bucks given, or employees by balance/spent
+  app.get("/api/stats/leaderboard", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const mode = (req.query.mode as string) || "admins"; // "admins" | "employees"
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const admins = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
+    const employees = orgUsers.filter(u => u.role === "employee");
+    if (mode === "admins") {
+      if (admins.length === 0) return res.json([]);
+      const employeeIds = employees.map(u => u.id);
+      if (employeeIds.length === 0) return res.json(admins.map(a => ({ id: a.id, name: a.fullName, bucks: 0 })));
+      const rows = await db.select({
+        performedBy: transactions.performedBy,
+        total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+      }).from(transactions)
+        .where(and(inArray(transactions.userId, employeeIds), gt(transactions.amount, 0), inArray(transactions.performedBy, admins.map(a => a.id))))
+        .groupBy(transactions.performedBy);
+      const byAdmin: Record<number, number> = {};
+      for (const r of rows) if (r.performedBy) byAdmin[r.performedBy] = Number(r.total);
+      return res.json(admins.map(a => ({ id: a.id, name: a.fullName, bucks: byAdmin[a.id] ?? 0 })).sort((a, b) => b.bucks - a.bucks));
+    } else {
+      // employees mode - balance and spent
+      if (employees.length === 0) return res.json([]);
+      const employeeIds = employees.map(u => u.id);
+      const spentRows = await db.select({
+        userId: transactions.userId,
+        total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`,
+      }).from(transactions)
+        .where(and(inArray(transactions.userId, employeeIds), lt(transactions.amount, 0)))
+        .groupBy(transactions.userId);
+      const byEmployee: Record<number, number> = {};
+      for (const r of spentRows) byEmployee[r.userId] = Number(r.total);
+      return res.json(employees.map(e => ({ id: e.id, name: e.fullName, balance: e.balance, spent: byEmployee[e.id] ?? 0 })).sort((a, b) => b.balance - a.balance));
+    }
+  });
+
   // Get store URL for the current user's organization
   app.get("/api/organizations/store-url", async (req, res) => {
     const user = req.user as User | undefined;

@@ -73,6 +73,7 @@ export interface IStorage {
   setPageContent(entries: Record<string, string>): Promise<void>;
 
   updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean): Promise<Organization>;
+  updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number): Promise<Organization>;
 
   createStoreItem(item: InsertStoreItem): Promise<StoreItem>;
   getStoreItemsByOrganization(organizationId: number): Promise<StoreItem[]>;
@@ -573,6 +574,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ storeEnabled, manualOrdersEnabled }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ bucksPerDollar, monthlyBudgetBucks }).where(eq(organizations.id, id)).returning();
     return updated;
   }
 

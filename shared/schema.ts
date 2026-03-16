@@ -18,6 +18,8 @@ export const organizations = pgTable("organizations", {
   employeeRoleLabel: text("employee_role_label").default("Employee").notNull(),
   storeEnabled: boolean("store_enabled").default(true).notNull(),
   manualOrdersEnabled: boolean("manual_orders_enabled").default(true).notNull(),
+  bucksPerDollar: integer("bucks_per_dollar").default(100).notNull(),
+  monthlyBudgetBucks: integer("monthly_budget_bucks").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -1,68 +1,260 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen, Users, Settings, Wallet, BadgeDollarSign, Award } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useUser } from "@/hooks/use-auth";
 import { useTutorial } from "@/hooks/use-tutorial";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Department } from "@shared/schema";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Cell,
 } from "recharts";
 
 type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedDollars: string; totalDollars: string };
-type TimeSeriesPoint = { label: string; value: number };
 
-function StatLineChart({ data, color, yLabel }: { data: TimeSeriesPoint[]; color: string; yLabel?: string }) {
-  const hasData = data.some(d => d.value > 0);
+type AdminLeaderboardEntry = { id: number; name: string; bucks: number };
+type EmployeeEntry = { id: number; name: string; balance: number; spent: number };
+type BudgetSettings = { bucksPerDollar: number; monthlyBudgetBucks: number };
+
+const SHORT_NAME_MAX = 14;
+function shortName(name: string) {
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return name.length > SHORT_NAME_MAX ? name.substring(0, SHORT_NAME_MAX) + "…" : name;
+  return parts[0] + " " + parts[parts.length - 1][0] + ".";
+}
+
+const ADMIN_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ef4444", "#f97316", "#ec4899", "#6366f1", "#14b8a6"];
+const EMP_COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#06b6d4", "#ef4444", "#f97316", "#ec4899", "#6366f1", "#14b8a6"];
+
+function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDollars }: {
+  data: { name: string; value: number }[];
+  valueKey: string;
+  color: string;
+  unit: string;
+  bucksPerDollar: number;
+  showDollars: boolean;
+}) {
+  const display = data.map(d => ({
+    ...d,
+    display: showDollars ? +(d.value / bucksPerDollar).toFixed(2) : d.value,
+  }));
+  const hasData = display.some(d => d.display > 0);
   return (
-    <div className="mt-4 h-40 w-full">
+    <div className="h-72 w-full mt-2">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <BarChart data={display} margin={{ top: 8, right: 16, left: 0, bottom: 32 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="name"
             tick={{ fontSize: 11, fill: "#6b7280" }}
             tickLine={false}
             axisLine={false}
-            interval={data.length > 14 ? Math.floor(data.length / 7) : 0}
+            interval={0}
+            angle={-30}
+            textAnchor="end"
+            height={48}
           />
           <YAxis
             tick={{ fontSize: 11, fill: "#6b7280" }}
             tickLine={false}
             axisLine={false}
-            width={36}
-            label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "#9ca3af" } : undefined}
-            allowDecimals={false}
+            width={52}
+            tickFormatter={v => showDollars ? `$${v}` : v.toLocaleString()}
+            allowDecimals={showDollars}
           />
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
-            formatter={(value: number) => [value.toLocaleString(), yLabel || "Value"]}
+            formatter={(value: number) => [
+              showDollars ? `$${value.toFixed(2)}` : `${value.toLocaleString()} ${unit}`,
+              showDollars ? "Dollar Value" : unit,
+            ]}
           />
           {hasData ? (
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={color}
-              strokeWidth={2}
-              dot={{ r: 3, fill: color, strokeWidth: 0 }}
-              activeDot={{ r: 5 }}
-            />
+            <Bar dataKey="display" radius={[4, 4, 0, 0]}>
+              {display.map((_, i) => (
+                <Cell key={i} fill={ADMIN_COLORS[i % ADMIN_COLORS.length]} />
+              ))}
+            </Bar>
           ) : (
-            <Line type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+            <Bar dataKey="display" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
           )}
-        </LineChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, admins, onSaved }: {
+  bucksPerDollar: number;
+  monthlyBudgetBucks: number;
+  admins: { id: number; fullName: string; role: string }[];
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [bpd, setBpd] = useState(String(bucksPerDollar));
+  const [budget, setBudget] = useState(String(monthlyBudgetBucks));
+  const [selectedAdmins, setSelectedAdmins] = useState<number[]>([]);
+  const [bucksEach, setBucksEach] = useState("");
+
+  const regularAdmins = admins.filter(a => a.role === "admin");
+
+  const { mutate: saveSettings, isPending: savingSettings } = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/org/budget-settings", {
+      bucksPerDollar: Math.max(1, parseInt(bpd) || 100),
+      monthlyBudgetBucks: Math.max(0, parseInt(budget) || 0),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org/budget-settings"] });
+      onSaved();
+      toast({ title: "Settings saved" });
+    },
+    onError: (e: Error) => toast({ title: "Failed to save", description: e.message, variant: "destructive" }),
+  });
+
+  const { mutate: allocate, isPending: allocating } = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/org/allocate-budget", {
+      adminIds: selectedAdmins,
+      bucksEach: Math.max(1, parseInt(bucksEach) || 0),
+    }),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/stats/leaderboard"] });
+      toast({ title: "Budget allocated!", description: `${data.total.toLocaleString()} bucks sent to ${data.allocated} admin${data.allocated !== 1 ? "s" : ""}.` });
+      setSelectedAdmins([]);
+      setBucksEach("");
+    },
+    onError: (e: Error) => toast({ title: "Allocation failed", description: e.message, variant: "destructive" }),
+  });
+
+  const budgetDollars = monthlyBudgetBucks > 0 ? (monthlyBudgetBucks / (parseInt(bpd) || 100)).toFixed(2) : null;
+
+  return (
+    <Card className="border shadow-sm border-blue-200 mb-8">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+            <Wallet className="h-4 w-4" />
+          </div>
+          Monthly Incentive Budget
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Budget display */}
+        {monthlyBudgetBucks > 0 && (
+          <div className="flex flex-wrap gap-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="flex items-center gap-3">
+              <Award className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Monthly Budget</p>
+                <p className="text-2xl font-bold text-blue-700">{monthlyBudgetBucks.toLocaleString()} <span className="text-sm font-medium">bucks</span></p>
+              </div>
+            </div>
+            {budgetDollars && (
+              <div className="flex items-center gap-3">
+                <BadgeDollarSign className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">Dollar Equivalent</p>
+                  <p className="text-2xl font-bold text-green-700">${budgetDollars}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Settings */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="bucks-per-dollar" className="text-sm">Bucks per $1 (conversion rate)</Label>
+            <Input
+              id="bucks-per-dollar"
+              type="number"
+              min="1"
+              value={bpd}
+              onChange={e => setBpd(e.target.value)}
+              placeholder="100"
+              data-testid="input-bucks-per-dollar"
+            />
+            <p className="text-xs text-muted-foreground">e.g. 100 means 100 bucks = $1</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="monthly-budget" className="text-sm">Monthly budget (bucks)</Label>
+            <Input
+              id="monthly-budget"
+              type="number"
+              min="0"
+              value={budget}
+              onChange={e => setBudget(e.target.value)}
+              placeholder="10000"
+              data-testid="input-monthly-budget"
+            />
+            {parseInt(budget) > 0 && parseInt(bpd) > 0 && (
+              <p className="text-xs text-muted-foreground">≈ ${(parseInt(budget) / parseInt(bpd)).toFixed(2)} / month</p>
+            )}
+          </div>
+        </div>
+        <Button size="sm" onClick={() => saveSettings()} disabled={savingSettings} data-testid="button-save-budget-settings">
+          {savingSettings ? "Saving…" : "Save Settings"}
+        </Button>
+
+        {/* Allocation */}
+        {regularAdmins.length > 0 && (
+          <div className="pt-3 border-t space-y-3">
+            <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4" /> Allocate Bucks to Administrators</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {regularAdmins.map(a => (
+                <label key={a.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-colors" data-testid={`checkbox-admin-${a.id}`}>
+                  <Checkbox
+                    checked={selectedAdmins.includes(a.id)}
+                    onCheckedChange={checked => setSelectedAdmins(prev => checked ? [...prev, a.id] : prev.filter(id => id !== a.id))}
+                  />
+                  <span className="text-sm">{a.fullName}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="bucks-each" className="text-sm">Bucks to give each</Label>
+                <Input
+                  id="bucks-each"
+                  type="number"
+                  min="1"
+                  value={bucksEach}
+                  onChange={e => setBucksEach(e.target.value)}
+                  placeholder="500"
+                  className="w-36"
+                  data-testid="input-bucks-each"
+                />
+              </div>
+              <Button
+                onClick={() => allocate()}
+                disabled={allocating || selectedAdmins.length === 0 || !bucksEach || parseInt(bucksEach) < 1}
+                data-testid="button-allocate-budget"
+                size="sm"
+              >
+                {allocating ? "Allocating…" : `Allocate to ${selectedAdmins.length} Admin${selectedAdmins.length !== 1 ? "s" : ""}`}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -72,8 +264,14 @@ export default function AdminDashboardPage() {
   const [creditPeriod, setCreditPeriod] = useState<"week" | "month" | "year">("week");
   const [debitPeriod, setDebitPeriod] = useState<"week" | "month" | "year">("week");
   const [orderPeriod, setOrderPeriod] = useState<"week" | "month" | "year">("week");
+  const [leaderboardMode, setLeaderboardMode] = useState<"admins" | "employees">("admins");
+  const [empMetric, setEmpMetric] = useState<"balance" | "spent">("balance");
+  const [showDollars, setShowDollars] = useState(false);
   const { data: currentUser } = useUser();
   const { restartTutorial } = useTutorial();
+  const queryClient = useQueryClient();
+
+  const isPrime = currentUser?.role === "prime_admin";
 
   const buildStatsUrl = (base: string, extra?: Record<string, string>) => {
     const params = new URLSearchParams();
@@ -110,28 +308,15 @@ export default function AdminDashboardPage() {
     },
   });
 
-  const { data: creditSeries } = useQuery<TimeSeriesPoint[]>({
-    queryKey: ["/api/stats/timeseries", { type: "credited", period: creditPeriod, adminId: selectedAdminId, departmentId: selectedDeptId }],
-    queryFn: async () => {
-      const res = await fetch(buildStatsUrl("/api/stats/timeseries", { type: "credited", period: creditPeriod }), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
+  const { data: budgetSettings, refetch: refetchBudget } = useQuery<BudgetSettings>({
+    queryKey: ["/api/org/budget-settings"],
+    enabled: isPrime,
   });
 
-  const { data: debitSeries } = useQuery<TimeSeriesPoint[]>({
-    queryKey: ["/api/stats/timeseries", { type: "debited", period: debitPeriod, adminId: selectedAdminId, departmentId: selectedDeptId }],
+  const { data: leaderboard, isLoading: leaderboardLoading } = useQuery<AdminLeaderboardEntry[] | EmployeeEntry[]>({
+    queryKey: ["/api/stats/leaderboard", leaderboardMode],
     queryFn: async () => {
-      const res = await fetch(buildStatsUrl("/api/stats/timeseries", { type: "debited", period: debitPeriod }), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-  });
-
-  const { data: orderSeries } = useQuery<TimeSeriesPoint[]>({
-    queryKey: ["/api/stats/timeseries", { type: "orders", period: orderPeriod, departmentId: selectedDeptId }],
-    queryFn: async () => {
-      const res = await fetch(buildStatsUrl("/api/stats/timeseries", { type: "orders", period: orderPeriod }), { credentials: "include" });
+      const res = await fetch(`/api/stats/leaderboard?mode=${leaderboardMode}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -139,12 +324,22 @@ export default function AdminDashboardPage() {
 
   const currentOrderStats = orderStats?.[orderPeriod];
   const periodLabel = orderPeriod === "week" ? "This Week" : orderPeriod === "month" ? "This Month" : "This Year";
-
   const creditTotal = creditPeriod === "week" ? pointsStats?.week : creditPeriod === "month" ? pointsStats?.month : pointsStats?.year;
   const debitTotal = debitPeriod === "week" ? pointsStats?.weekDebited : debitPeriod === "month" ? pointsStats?.monthDebited : pointsStats?.yearDebited;
+  const periodTabLabel = (p: "week" | "month" | "year") => p === "week" ? "This Week" : p === "month" ? "This Month" : "This Year";
 
-  const periodTabLabel = (p: "week" | "month" | "year") =>
-    p === "week" ? "This Week" : p === "month" ? "This Month" : "This Year";
+  const bpd = budgetSettings?.bucksPerDollar ?? 100;
+
+  // Build bar chart data
+  const adminBarData: { name: string; value: number }[] = leaderboardMode === "admins" && leaderboard
+    ? (leaderboard as AdminLeaderboardEntry[]).map(a => ({ name: shortName(a.name), value: a.bucks }))
+    : [];
+  const empBarData: { name: string; value: number }[] = leaderboardMode === "employees" && leaderboard
+    ? (leaderboard as EmployeeEntry[]).map(e => ({
+        name: shortName(e.name),
+        value: empMetric === "balance" ? e.balance : e.spent,
+      }))
+    : [];
 
   return (
     <AdminLayout>
@@ -195,113 +390,149 @@ export default function AdminDashboardPage() {
         <Loader />
       ) : (
         <>
-          {/* Bucks Credited */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-            <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" /> Bucks Credited
-            </h2>
-            <Tabs value={creditPeriod} onValueChange={(v) => setCreditPeriod(v as "week" | "month" | "year")}>
-              <TabsList>
-                <TabsTrigger value="week" data-testid="tab-credit-week">
-                  <Calendar className="h-4 w-4 mr-1.5" /> Week
-                </TabsTrigger>
-                <TabsTrigger value="month" data-testid="tab-credit-month">
-                  <CalendarDays className="h-4 w-4 mr-1.5" /> Month
-                </TabsTrigger>
-                <TabsTrigger value="year" data-testid="tab-credit-year">
-                  <CalendarRange className="h-4 w-4 mr-1.5" /> Year
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <Card className="border shadow-sm border-green-200 mb-8">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600">
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground font-normal">{periodTabLabel(creditPeriod)}</p>
-                    <p className="text-3xl font-bold text-green-700" data-testid="text-points-credit">
-                      {(creditTotal ?? 0).toLocaleString()} <span className="text-base font-medium text-green-600">bucks</span>
-                    </p>
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StatLineChart
-                data={creditSeries ?? []}
-                color="#16a34a"
-                yLabel="Bucks"
-              />
-            </CardContent>
-          </Card>
+          {/* Budget panel - prime admin only */}
+          {isPrime && budgetSettings && (
+            <BudgetPanel
+              bucksPerDollar={budgetSettings.bucksPerDollar}
+              monthlyBudgetBucks={budgetSettings.monthlyBudgetBucks}
+              admins={admins ?? []}
+              onSaved={() => refetchBudget()}
+            />
+          )}
 
-          {/* Bucks Debited */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-            <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-red-600" /> Bucks Debited
-            </h2>
-            <Tabs value={debitPeriod} onValueChange={(v) => setDebitPeriod(v as "week" | "month" | "year")}>
-              <TabsList>
-                <TabsTrigger value="week" data-testid="tab-debit-week">
-                  <Calendar className="h-4 w-4 mr-1.5" /> Week
-                </TabsTrigger>
-                <TabsTrigger value="month" data-testid="tab-debit-month">
-                  <CalendarDays className="h-4 w-4 mr-1.5" /> Month
-                </TabsTrigger>
-                <TabsTrigger value="year" data-testid="tab-debit-year">
-                  <CalendarRange className="h-4 w-4 mr-1.5" /> Year
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <Card className="border shadow-sm border-red-200 mb-8">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600">
-                    <TrendingDown className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground font-normal">{periodTabLabel(debitPeriod)}</p>
-                    <p className="text-3xl font-bold text-red-700" data-testid="text-points-debit">
-                      {(debitTotal ?? 0).toLocaleString()} <span className="text-base font-medium text-red-600">bucks</span>
-                    </p>
-                  </div>
+          {/* Bucks Credited / Debited summary stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+            {/* Bucks Credited */}
+            <Card className="border shadow-sm border-green-200">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-600">
+                      <TrendingUp className="h-4 w-4" />
+                    </div>
+                    Bucks Credited
+                  </CardTitle>
+                  <Tabs value={creditPeriod} onValueChange={(v) => setCreditPeriod(v as "week" | "month" | "year")}>
+                    <TabsList className="h-8">
+                      <TabsTrigger value="week" className="text-xs px-2 py-1" data-testid="tab-credit-week"><Calendar className="h-3 w-3 mr-1" />Week</TabsTrigger>
+                      <TabsTrigger value="month" className="text-xs px-2 py-1" data-testid="tab-credit-month"><CalendarDays className="h-3 w-3 mr-1" />Month</TabsTrigger>
+                      <TabsTrigger value="year" className="text-xs px-2 py-1" data-testid="tab-credit-year"><CalendarRange className="h-3 w-3 mr-1" />Year</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StatLineChart
-                data={debitSeries ?? []}
-                color="#dc2626"
-                yLabel="Bucks"
-              />
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-green-700 mt-1" data-testid="text-points-credit">
+                  {(creditTotal ?? 0).toLocaleString()} <span className="text-base font-medium text-green-600">bucks</span>
+                </p>
+                {bpd > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">≈ ${((creditTotal ?? 0) / bpd).toFixed(2)}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">{periodTabLabel(creditPeriod)}</p>
+              </CardContent>
+            </Card>
+
+            {/* Bucks Debited */}
+            <Card className="border shadow-sm border-red-200">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                      <TrendingDown className="h-4 w-4" />
+                    </div>
+                    Bucks Spent
+                  </CardTitle>
+                  <Tabs value={debitPeriod} onValueChange={(v) => setDebitPeriod(v as "week" | "month" | "year")}>
+                    <TabsList className="h-8">
+                      <TabsTrigger value="week" className="text-xs px-2 py-1" data-testid="tab-debit-week"><Calendar className="h-3 w-3 mr-1" />Week</TabsTrigger>
+                      <TabsTrigger value="month" className="text-xs px-2 py-1" data-testid="tab-debit-month"><CalendarDays className="h-3 w-3 mr-1" />Month</TabsTrigger>
+                      <TabsTrigger value="year" className="text-xs px-2 py-1" data-testid="tab-debit-year"><CalendarRange className="h-3 w-3 mr-1" />Year</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-red-700 mt-1" data-testid="text-points-debit">
+                  {(debitTotal ?? 0).toLocaleString()} <span className="text-base font-medium text-red-600">bucks</span>
+                </p>
+                {bpd > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">≈ ${((debitTotal ?? 0) / bpd).toFixed(2)}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">{periodTabLabel(debitPeriod)}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Leaderboard bar chart */}
+          <div className="mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary" />
+                {leaderboardMode === "admins" ? "Bucks Given by Administrator" : "Employee Bucks"}
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                {leaderboardMode === "employees" && (
+                  <>
+                    <Tabs value={empMetric} onValueChange={v => setEmpMetric(v as "balance" | "spent")}>
+                      <TabsList className="h-8">
+                        <TabsTrigger value="balance" className="text-xs px-3" data-testid="tab-emp-balance">Balance</TabsTrigger>
+                        <TabsTrigger value="spent" className="text-xs px-3" data-testid="tab-emp-spent">Spent</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <Tabs value={showDollars ? "dollars" : "bucks"} onValueChange={v => setShowDollars(v === "dollars")}>
+                      <TabsList className="h-8">
+                        <TabsTrigger value="bucks" className="text-xs px-3" data-testid="tab-unit-bucks">Bucks</TabsTrigger>
+                        <TabsTrigger value="dollars" className="text-xs px-3" data-testid="tab-unit-dollars">Dollars</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </>
+                )}
+                <Tabs value={leaderboardMode} onValueChange={v => { setLeaderboardMode(v as "admins" | "employees"); setShowDollars(false); }}>
+                  <TabsList className="h-8">
+                    <TabsTrigger value="admins" className="text-xs px-3" data-testid="tab-leaderboard-admins">
+                      <Settings className="h-3 w-3 mr-1" /> Admins
+                    </TabsTrigger>
+                    <TabsTrigger value="employees" className="text-xs px-3" data-testid="tab-leaderboard-employees">
+                      <Users className="h-3 w-3 mr-1" /> Employees
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
+
+            <Card className="border shadow-sm">
+              <CardContent className="pt-4 pb-2">
+                {leaderboardLoading ? (
+                  <div className="h-72 flex items-center justify-center"><Loader /></div>
+                ) : (
+                  <LeaderboardBar
+                    data={leaderboardMode === "admins" ? adminBarData : empBarData}
+                    valueKey="value"
+                    color={leaderboardMode === "admins" ? "#3b82f6" : "#10b981"}
+                    unit="bucks"
+                    bucksPerDollar={bpd}
+                    showDollars={leaderboardMode === "employees" && showDollars}
+                  />
+                )}
+                {!leaderboardLoading && (leaderboardMode === "admins" ? adminBarData : empBarData).every(d => d.value === 0) && (
+                  <p className="text-center text-sm text-muted-foreground mt-2 pb-4">No data yet for this view.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Order Tracking */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 mt-8">
             <h2 className="text-xl font-display font-bold text-foreground">Order Tracking</h2>
             <Tabs value={orderPeriod} onValueChange={(v) => setOrderPeriod(v as "week" | "month" | "year")}>
               <TabsList>
-                <TabsTrigger value="week" data-testid="tab-orders-week">
-                  <Calendar className="h-4 w-4 mr-1.5" /> Week
-                </TabsTrigger>
-                <TabsTrigger value="month" data-testid="tab-orders-month">
-                  <CalendarDays className="h-4 w-4 mr-1.5" /> Month
-                </TabsTrigger>
-                <TabsTrigger value="year" data-testid="tab-orders-year">
-                  <CalendarRange className="h-4 w-4 mr-1.5" /> Year
-                </TabsTrigger>
+                <TabsTrigger value="week" data-testid="tab-orders-week"><Calendar className="h-4 w-4 mr-1.5" /> Week</TabsTrigger>
+                <TabsTrigger value="month" data-testid="tab-orders-month"><CalendarDays className="h-4 w-4 mr-1.5" /> Month</TabsTrigger>
+                <TabsTrigger value="year" data-testid="tab-orders-year"><CalendarRange className="h-4 w-4 mr-1.5" /> Year</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="border shadow-sm">
               <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 flex-shrink-0">
@@ -347,21 +578,6 @@ export default function AdminDashboardPage() {
               </CardContent>
             </Card>
           </div>
-
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Orders Per Day — {periodLabel}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StatLineChart
-                data={orderSeries ?? []}
-                color="#6366f1"
-                yLabel="Orders"
-              />
-            </CardContent>
-          </Card>
         </>
       )}
     </AdminLayout>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useTutorial } from "@/hooks/use-tutorial";
@@ -311,8 +311,8 @@ export function FullTutorialOverlay() {
   const locating = useRef(false);
 
   const role = user?.role ?? "employee";
-  const steps = getSteps(role);
-  const step = steps[stepIndex];
+  const steps = useMemo(() => getSteps(role), [role]);
+  const step = steps[stepIndex] ?? steps[0];
 
   const findElement = useCallback(() => {
     if (!step.selector) { setRect(null); return; }

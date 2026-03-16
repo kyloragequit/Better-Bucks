@@ -9,6 +9,7 @@ import { FullPageLoader } from "@/components/ui/loader";
 import { initGA } from "@/lib/analytics";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { TutorialModal } from "@/components/tutorial-modal";
+import { FullTutorialOverlay } from "@/components/full-tutorial";
 import { TermsAgreementModal } from "@/components/terms-agreement-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -272,6 +273,7 @@ function App() {
         <Toaster />
         <Router />
         <TutorialModal />
+        <FullTutorialOverlay />
         <TermsAgreementModal />
         <GoalNotificationModal />
       </TooltipProvider>

@@ -1928,12 +1928,13 @@ export async function registerRoutes(
       // employees mode - balance and spent
       if (employees.length === 0) return res.json([]);
       const employeeIds = employees.map(u => u.id);
+      // Only count bucks as "spent" for completed/fulfilled orders
       const spentRows = await db.select({
-        userId: transactions.userId,
-        total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`,
-      }).from(transactions)
-        .where(and(inArray(transactions.userId, employeeIds), lt(transactions.amount, 0)))
-        .groupBy(transactions.userId);
+        userId: orders.userId,
+        total: sql<number>`COALESCE(SUM(${orders.pointsCost}), 0)`,
+      }).from(orders)
+        .where(and(inArray(orders.userId, employeeIds), eq(orders.status, "completed")))
+        .groupBy(orders.userId);
       const byEmployee: Record<number, number> = {};
       for (const r of spentRows) byEmployee[r.userId] = Number(r.total);
       return res.json(employees.map(e => ({ id: e.id, name: e.fullName, balance: e.balance, spent: byEmployee[e.id] ?? 0 })).sort((a, b) => b.balance - a.balance));

@@ -655,7 +655,7 @@ const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/adm
 
 export function TutorialModal() {
   const { data: user } = useUser();
-  const { shouldShow, completeTutorial, skipTutorial } = useTutorial();
+  const { showChoice, shouldShow, chooseTutorial, completeTutorial, skipTutorial } = useTutorial();
   const [location, setLocation] = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [shopDone, setShopDone] = useState(false);
@@ -663,7 +663,75 @@ export function TutorialModal() {
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
 
-  if (!shouldShow || !user || !isOnAppPage || user.role === "developer") return null;
+  if ((!showChoice && !shouldShow) || !user || !isOnAppPage || user.role === "developer") return null;
+
+  // Show tutorial type choice screen
+  if (showChoice) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(22,42,74,0.85)", backdropFilter: "blur(4px)" }}>
+        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b" style={{ background: NAVY }}>
+            <div className="flex items-center gap-2">
+              <AppLogo size="sm" />
+              <span className="text-white font-bold text-sm">Welcome to Better Bucks!</span>
+            </div>
+            <button
+              onClick={() => skipTutorial()}
+              className="text-white/50 hover:text-white transition-colors"
+              data-testid="button-tutorial-choice-skip"
+              title="Skip for now"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="px-7 py-8 text-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: `${GREEN}15` }}>
+              <Star className="h-7 w-7" style={{ color: GREEN }} />
+            </div>
+            <h2 className="text-xl font-black font-display mb-2" style={{ color: NAVY }}>
+              Ready to get started?
+            </h2>
+            <p className="text-sm text-gray-500 mb-8">
+              Choose how you'd like to learn about Better Bucks. You can always replay the tour from your settings.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 text-left">
+              <button
+                onClick={() => chooseTutorial("quick")}
+                data-testid="button-choose-quick-tour"
+                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-primary/30 bg-gray-50 hover:bg-primary/5 transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${NAVY}10` }}>
+                  <Zap className="h-5 w-5" style={{ color: NAVY }} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: NAVY }}>Quick Tour</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">A short slide-based overview of the key features. Takes about 2 minutes.</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-primary ml-auto mt-3 transition-colors shrink-0" />
+              </button>
+
+              <button
+                onClick={() => chooseTutorial("full")}
+                data-testid="button-choose-full-tour"
+                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-green-300 bg-gray-50 hover:bg-green-50 transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${GREEN}15` }}>
+                  <Target className="h-5 w-5" style={{ color: GREEN }} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: GREEN }}>Full Walkthrough</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">A guided page-by-page tour with spotlight highlights. Shows you exactly where everything lives. Takes about 5 minutes.</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-green-500 ml-auto mt-3 transition-colors shrink-0" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const slides = buildSlides(user.role, user.fullName || "there");
   const slide = slides[currentSlide];

@@ -123,7 +123,7 @@ export default function EmployeeDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Balance Card - Main Focus */}
-        <Card className="md:col-span-2 shadow-lg border-primary/20 bg-gradient-to-br from-primary/10 via-white to-white overflow-hidden relative">
+        <Card className="md:col-span-2 shadow-lg border-primary/20 bg-gradient-to-br from-primary/10 via-white to-white overflow-hidden relative" data-testid="card-balance">
           <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-primary font-bold">

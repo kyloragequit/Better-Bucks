@@ -216,6 +216,27 @@ export async function registerRoutes(
   // Setup Auth first
   setupAuth(app);
 
+  // ── Public demo read-only guard ──────────────────────────────────────────
+  // For public demo sessions, block all writes so the shared demo org stays
+  // in its base state. Demo-switching and logout paths are allowed through.
+  // Tutorial endpoints must pass through so the overlay only appears once per session,
+  // not repeatedly. The demo login resets tutorialCompleted=false so it fires fresh
+  // for each new visitor.
+  const DEMO_WRITE_ALLOWLIST = ["/api/demo/", "/api/logout", "/api/users/complete-tutorial", "/api/users/reset-tutorial"];
+  app.use((req, _res, next) => {
+    const isPublicDemo = (req.session as any)?.isPublicDemo === true;
+    if (
+      isPublicDemo &&
+      ["POST", "PATCH", "PUT", "DELETE"].includes(req.method) &&
+      !DEMO_WRITE_ALLOWLIST.some((p) => req.path.startsWith(p))
+    ) {
+      // Return a generic success so the UI doesn't error, but nothing is saved
+      _res.status(200).json({ ok: true });
+      return;
+    }
+    next();
+  });
+
   // Seed default blog posts if none exist (handles fresh production databases)
   await seedBlogPosts();
 
@@ -2506,13 +2527,15 @@ export async function registerRoutes(
       const orgUsers = await storage.getUsersByOrganization(demoOrg.id);
       const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
       if (!primeAdmin) return res.status(500).json({ message: "Demo not configured" });
+      // Reset tutorial for the prime admin so the full tutorial fires on every visit
+      await db.update(users).set({ tutorialCompleted: false }).where(eq(users.id, primeAdmin.id));
       req.login(primeAdmin, (err) => {
         if (err) return res.status(500).json({ message: "Login failed" });
         (req.session as any).demoOriginalUserId = primeAdmin.id;
         (req.session as any).isPublicDemo = true;
         req.session.save((saveErr) => {
           if (saveErr) return res.status(500).json({ message: "Session save failed" });
-          res.json({ success: true, role: primeAdmin.role });
+          res.json({ success: true, role: primeAdmin.role, userId: primeAdmin.id });
         });
       });
     } catch (e) {

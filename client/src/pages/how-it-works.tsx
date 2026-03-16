@@ -133,6 +133,11 @@ export default function HowItWorksPage() {
       const res = await fetch("/api/demo/public-login", { method: "POST", credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to start demo");
+      // Pre-select the full interactive tutorial so it fires automatically
+      if (data.userId) {
+        localStorage.removeItem(`bb_tutorial_type_${data.userId}`);
+        localStorage.setItem(`bb_tutorial_type_${data.userId}`, "full");
+      }
       setLocation("/admin/dashboard");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });

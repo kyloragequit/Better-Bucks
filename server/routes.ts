@@ -1739,7 +1739,8 @@ export async function registerRoutes(
 
       await storage.updateOrganizationStoreUrl(org.id, storeUrl);
 
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const isPromoOrg = org.stripeSubscriptionId === "promo_GOKU11";
+      const verificationCode = isPromoOrg ? null : Math.floor(100000 + Math.random() * 900000).toString();
 
       const user = await storage.createUser({
         username,
@@ -1748,13 +1749,16 @@ export async function registerRoutes(
         email: hasEmail ? email : null,
         phone: hasPhone ? phone : null,
         emailVerificationCode: verificationCode,
+        emailVerified: isPromoOrg,
         role: "prime_admin",
         barcode: username,
         status: "approved",
         organizationId: org.id,
       });
 
-      await sendVerificationCode(hasEmail ? email : null, hasPhone ? phone : null, verificationCode, fullName);
+      if (!isPromoOrg) {
+        await sendVerificationCode(hasEmail ? email : null, hasPhone ? phone : null, verificationCode!, fullName);
+      }
       notifyAdmin(ADMIN_NOTIFY_EMAIL, "New Prime Admin Account Created", {
         "Name": fullName,
         "Username": username,

@@ -80,11 +80,19 @@ export default function SetupPrimePage() {
     },
     onSuccess: (user: any) => {
       queryClient.setQueryData(["/api/user"], user);
-      toast({
-        title: "Account Created!",
-        description: `Welcome, ${user.fullName}! Please verify your email.`,
-      });
-      setLocation("/verify-email");
+      if (user.emailVerified) {
+        toast({
+          title: "Account Created!",
+          description: `Welcome, ${user.fullName}! Your account is ready.`,
+        });
+        setLocation("/admin/dashboard");
+      } else {
+        toast({
+          title: "Account Created!",
+          description: `Welcome, ${user.fullName}! Please verify your email.`,
+        });
+        setLocation("/verify-email");
+      }
     },
     onError: (error: Error) => {
       toast({

@@ -1377,8 +1377,7 @@ export async function registerRoutes(
     organizationName: z.string().min(2, "Organization name is required"),
     email: z.string().email("Valid email is required"),
     tier: z.enum(["small", "mid", "large", "enterprise"]),
-    promoCode: z.string().optional(),
-    referralCode: z.string().optional(),
+    referralCode: z.string().optional(), // handles both referral codes (DB) and promo codes (GOKU11)
   });
 
   // Shared helper: build and send a signup notification email to the admin
@@ -1439,10 +1438,10 @@ export async function registerRoutes(
 
   app.post("/api/organizations/signup", async (req, res) => {
     try {
-      const { organizationName, email, tier, promoCode, referralCode } = signupSchema.parse(req.body);
+      const { organizationName, email, tier, referralCode } = signupSchema.parse(req.body);
       const config = tierConfig[tier];
 
-      const isPromoSignup = !!(promoCode && promoCode.toUpperCase() === "GOKU11");
+      const isPromoSignup = !!(referralCode && referralCode.trim().toUpperCase() === "GOKU11");
 
       // Check if Stripe is ready (live keys take priority via stripeClient.ts)
       let stripeReady = false;
@@ -1547,11 +1546,16 @@ export async function registerRoutes(
         ? "https://betterbucks.net"
         : `${req.protocol}://${req.get('host')}`;
 
-      // Build trial period: add referral bonus months if valid
+      // Build trial period: validate referral code and add bonus months
       let validatedReferral: { code: string; extraMonths: number } | null = null;
       if (referralCode && referralCode.trim()) {
         const refRow = await storage.getReferralCode(referralCode.trim());
-        if (refRow && refRow.active) validatedReferral = { code: refRow.code, extraMonths: refRow.extraMonths };
+        if (refRow && refRow.active) {
+          validatedReferral = { code: refRow.code, extraMonths: refRow.extraMonths };
+        } else {
+          // Code was provided but is not valid — block the signup
+          return res.status(400).json({ message: "That referral code isn't valid. Double-check it and try again, or leave the field blank to continue without one." });
+        }
       }
       const trialDays = 60 + (validatedReferral ? validatedReferral.extraMonths * 30 : 0);
 
@@ -1590,7 +1594,7 @@ export async function registerRoutes(
             message: `Your card won't be charged until after your ${trialLabel} free trial ends.${referralNote}`,
           },
         },
-        success_url: `${baseUrl}/signup/success?org_code=${orgCode}`,
+        success_url: `${baseUrl}/login`,
         cancel_url: `${baseUrl}/signup?cancelled=true`,
         metadata: { organizationId: String(org.id), tier, orgCode },
         allow_promotion_codes: false,

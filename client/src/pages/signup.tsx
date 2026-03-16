@@ -71,8 +71,8 @@ export default function SignupPage() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
-  const [promoCode, setPromoCode] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const [referralCodeError, setReferralCodeError] = useState<string | null>(null);
   const [referralValid, setReferralValid] = useState<boolean | null>(null);
   const [referralExtraMonths, setReferralExtraMonths] = useState(1);
   const [contactPending, setContactPending] = useState(false);
@@ -126,7 +126,6 @@ export default function SignupPage() {
         organizationName: orgName,
         email,
         tier: selectedTier,
-        promoCode: promoCode || undefined,
         referralCode: referralCode.trim() || undefined,
       });
       return await res.json();
@@ -146,11 +145,15 @@ export default function SignupPage() {
       }
     },
     onError: (error: Error) => {
-      toast({
-        title: "Signup Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error.message.includes("referral code")) {
+        setReferralCodeError(error.message);
+      } else {
+        toast({
+          title: "Signup Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -398,29 +401,26 @@ export default function SignupPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="promo-code">Promo Code (optional)</Label>
-                  <Input
-                    id="promo-code"
-                    placeholder="Enter promo code"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    data-testid="input-promo-code"
-                  />
-                </div>
-                <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="referral-code">Referral Code (optional)</Label>
                     <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full border border-green-200">+1 month free</span>
                   </div>
                   <Input
                     id="referral-code"
-                    placeholder="Enter referral code"
+                    placeholder="Enter referral or promo code"
                     value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      setReferralCode(e.target.value.toUpperCase());
+                      setReferralCodeError(null);
+                    }}
                     data-testid="input-referral-code"
-                    className="uppercase placeholder:normal-case"
+                    className={`uppercase placeholder:normal-case ${referralCodeError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                   />
-                  <p className="text-xs text-muted-foreground">Have a referral code? Enter it for an additional month free!</p>
+                  {referralCodeError ? (
+                    <p className="text-xs text-red-600 font-medium">{referralCodeError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Have a referral or promo code? Enter it here — referral codes add an extra month free!</p>
+                  )}
                 </div>
                 <Button
                   type="submit"

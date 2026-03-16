@@ -166,9 +166,34 @@ export default function HowItWorksPage() {
       <PageSEO
         title="How It Works – Stop Manual Incentive Tracking for Shift-Based Teams | Better Bucks"
         description="Replace your spreadsheet reward system in minutes. Managers get full performance visibility — hourly employees earn Bucks for safety compliance, attendance, and KPIs, solving employee engagement issues and reducing time-consuming admin tasks."
-        canonicalPath="/how-it-works"
+        canonicalPath="/"
         keywords="how employee incentive software works, replace spreadsheet reward system, employee engagement solution, safety compliance rewards, performance visibility tool, reward program management demo, frontline worker incentives, automated incentive tracking"
         jsonLd={[
+          {
+            "@type": "Organization",
+            "@id": "https://betterbucks.net/#organization",
+            "name": "Better Bucks",
+            "url": "https://betterbucks.net",
+            "logo": {
+              "@type": "ImageObject",
+              "@id": "https://betterbucks.net/#logo",
+              "url": "https://betterbucks.net/favicon.png",
+              "width": 512,
+              "height": 512,
+              "caption": "Better Bucks"
+            },
+            "image": { "@id": "https://betterbucks.net/#logo" },
+            "description": "Better Bucks is employee incentive software for logistics, warehousing, and manufacturing. Replace spreadsheets with a Bucks-based reward platform.",
+            "email": "miles.chase@betterbucks.net",
+            "sameAs": ["https://www.instagram.com/better_bucks"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://betterbucks.net/#website",
+            "url": "https://betterbucks.net",
+            "name": "Better Bucks",
+            "publisher": { "@id": "https://betterbucks.net/#organization" }
+          },
           {
             "@type": "FAQPage",
             "mainEntity": [

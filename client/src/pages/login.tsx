@@ -9,12 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff, ShieldCheck, RefreshCw } from "lucide-react";
+import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff, ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { startAuthentication } from "@simplewebauthn/browser";
+import { PasskeySetupPrompt } from "@/components/passkey-manager";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -256,6 +258,45 @@ function useLoginFlow() {
   return { submitLogin, isPending, captchaChallenge, setCaptchaChallenge };
 }
 
+function usePasskeySignIn() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isPending, setIsPending] = useState(false);
+
+  async function signInWithPasskey(): Promise<boolean> {
+    setIsPending(true);
+    try {
+      const startRes = await fetch("/api/passkeys/authenticate/start", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
+      if (!startRes.ok) throw new Error("Could not start passkey authentication");
+      const options = await startRes.json();
+      const credential = await startAuthentication({ optionsJSON: options });
+      const finishRes = await fetch("/api/passkeys/authenticate/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credential),
+        credentials: "include",
+      });
+      if (!finishRes.ok) {
+        const err = await finishRes.json();
+        throw new Error(err.message || "Passkey authentication failed");
+      }
+      const user = await finishRes.json();
+      queryClient.setQueryData(["/api/user"], user);
+      toast({ title: "Signed in!", description: `Welcome back, ${user.fullName}` });
+      return true;
+    } catch (err: any) {
+      if (err?.name !== "NotAllowedError") {
+        toast({ title: "Passkey sign-in failed", description: err.message || "Try signing in with your password instead.", variant: "destructive" });
+      }
+      return false;
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return { signInWithPasskey, isPending };
+}
+
 function EmployeeTabs({ defaultMode = "login", defaultOrgCode = "" }: { defaultMode?: "login" | "register"; defaultOrgCode?: string }) {
   const [tab, setTab] = useState<"login" | "register">(defaultMode);
 
@@ -274,6 +315,33 @@ function EmployeeTabs({ defaultMode = "login", defaultOrgCode = "" }: { defaultM
         <EmployeeRegisterForm defaultOrgCode={defaultOrgCode} />
       </TabsContent>
     </Tabs>
+  );
+}
+
+function PasskeySignInButton() {
+  const { signInWithPasskey, isPending } = usePasskeySignIn();
+  return (
+    <>
+      <div className="relative py-2">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-white/80 px-2 text-muted-foreground">or</span>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full gap-2"
+        onClick={signInWithPasskey}
+        disabled={isPending}
+        data-testid="button-passkey-signin"
+      >
+        {isPending ? <SpinningLogo className="h-4 w-4" /> : <KeyRound className="h-4 w-4" />}
+        Sign in with Passkey
+      </Button>
+    </>
   );
 }
 
@@ -387,6 +455,7 @@ function EmployeeLoginForm() {
           </>
         )}
       </Button>
+      <PasskeySignInButton />
     </form>
   );
 }
@@ -733,6 +802,7 @@ function AdminLoginForm() {
           </>
         )}
       </Button>
+      <PasskeySignInButton />
     </form>
   );
 }

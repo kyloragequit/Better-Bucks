@@ -9,8 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
-import { Lock, Mail, Trash2 } from "lucide-react";
+import { Lock, Mail, Trash2, KeyRound } from "lucide-react";
 import { useLocation } from "wouter";
+import { PasskeyManager } from "@/components/passkey-manager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -186,6 +187,19 @@ export default function AdminAccountSettingsPage() {
                 {user?.email ? "Update Email" : "Add Email"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <KeyRound className="h-5 w-5" />
+              Passkeys
+            </CardTitle>
+            <CardDescription>Sign in faster using biometrics or your device PIN — no password required</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PasskeyManager />
           </CardContent>
         </Card>
 

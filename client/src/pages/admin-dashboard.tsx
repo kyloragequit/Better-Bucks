@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen, Users, Settings, Wallet, BadgeDollarSign, Award } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useUser } from "@/hooks/use-auth";
+import { PasskeyFirstTimePrompt } from "@/components/passkey-manager";
 import { useTutorial } from "@/hooks/use-tutorial";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -343,6 +344,8 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout>
+      {currentUser && <div className="mb-4"><PasskeyFirstTimePrompt userId={currentUser.id} /></div>}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div className="flex items-start gap-4">
           <div>

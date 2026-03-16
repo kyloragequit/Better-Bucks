@@ -42,10 +42,11 @@ Preferred communication style: Simple, everyday language.
 - **Migrations**: Drizzle-kit.
 
 ### Authentication & Authorization
-- Session-based with 7-day cookie expiry.
+- Session-based, expires on browser close (no maxAge).
 - **Roles**: `employee`, `admin`, `prime_admin`. Admin accounts require prime admin approval.
 - **Verification**: Email or Phone verification (Twilio SMS) for new users, with uniqueness enforced per organization.
 - **Feature Flags**: Prime admins can enable/disable the employee store and manual order requests.
+- **Passkeys (WebAuthn)**: Users can register passkeys (Windows Hello, Face ID, etc.) via `@simplewebauthn/server` + `@simplewebauthn/browser`. Passkeys stored in `passkeys` table. Login page has "Sign in with Passkey" button on both employee and admin forms. Settings pages expose `PasskeyManager` for add/rename/delete. `PasskeyFirstTimePrompt` shown on dashboards when user has no passkeys registered (dismissed via sessionStorage).
 
 ### Key Features
 - **Goals System**: Prime admins create time-based ("days without an incident") or quantity-based goals with a Bucks reward. Progress bars appear on every employee dashboard. When complete, prime admins distribute Bucks to all approved employees. Employees see a login notification modal when a goal is met (after distribution) or failed.

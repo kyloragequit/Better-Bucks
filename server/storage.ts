@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -114,6 +114,13 @@ export interface IStorage {
   createGoalNotificationsForOrg(goalId: number, organizationId: number, type: "failed" | "distributed"): Promise<void>;
   getUnseenGoalNotifications(userId: number): Promise<(GoalNotification & { goal: Goal })[]>;
   markGoalNotificationsSeen(userId: number): Promise<void>;
+
+  getPasskeysByUser(userId: number): Promise<Passkey[]>;
+  getPasskeyByCredentialId(credentialId: string): Promise<Passkey | undefined>;
+  createPasskey(data: InsertPasskey): Promise<Passkey>;
+  updatePasskeyCounter(id: number, counter: number): Promise<void>;
+  renamePasskey(id: number, name: string): Promise<void>;
+  deletePasskey(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -787,6 +794,32 @@ export class DatabaseStorage implements IStorage {
   async markGoalNotificationsSeen(userId: number): Promise<void> {
     await db.update(goalNotifications).set({ seenAt: new Date() })
       .where(and(eq(goalNotifications.userId, userId), isNull(goalNotifications.seenAt)));
+  }
+
+  async getPasskeysByUser(userId: number): Promise<Passkey[]> {
+    return db.select().from(passkeys).where(eq(passkeys.userId, userId)).orderBy(desc(passkeys.createdAt));
+  }
+
+  async getPasskeyByCredentialId(credentialId: string): Promise<Passkey | undefined> {
+    const [row] = await db.select().from(passkeys).where(eq(passkeys.credentialId, credentialId));
+    return row;
+  }
+
+  async createPasskey(data: InsertPasskey): Promise<Passkey> {
+    const [row] = await db.insert(passkeys).values(data).returning();
+    return row;
+  }
+
+  async updatePasskeyCounter(id: number, counter: number): Promise<void> {
+    await db.update(passkeys).set({ counter }).where(eq(passkeys.id, id));
+  }
+
+  async renamePasskey(id: number, name: string): Promise<void> {
+    await db.update(passkeys).set({ name }).where(eq(passkeys.id, id));
+  }
+
+  async deletePasskey(id: number): Promise<void> {
+    await db.delete(passkeys).where(eq(passkeys.id, id));
   }
 }
 

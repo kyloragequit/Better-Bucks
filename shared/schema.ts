@@ -248,6 +248,22 @@ export const insertReferralCodeSchema = createInsertSchema(referralCodes).omit({
 export type ReferralCode = typeof referralCodes.$inferSelect;
 export type InsertReferralCode = z.infer<typeof insertReferralCodeSchema>;
 
+export const passkeys = pgTable("passkeys", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  credentialId: text("credential_id").unique().notNull(),
+  publicKey: text("public_key").notNull(),
+  counter: integer("counter").notNull().default(0),
+  deviceType: text("device_type"),
+  backedUp: boolean("backed_up").default(false),
+  transports: text("transports").array(),
+  name: text("name").default("Passkey").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Passkey = typeof passkeys.$inferSelect;
+export type InsertPasskey = typeof passkeys.$inferInsert;
+
 export const insertWishlistSchema = createInsertSchema(wishlists).omit({ id: true, createdAt: true });
 export const insertStoreItemSchema = createInsertSchema(storeItems).omit({ id: true, createdAt: true });
 export const insertInfoRequestSchema = createInsertSchema(infoRequests).omit({ id: true, createdAt: true });

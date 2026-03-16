@@ -2,6 +2,12 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { setupAuth, hashPassword, verifyPassword, generateCaptchaChallenge, verifyCaptchaToken, isCaptchaRequired } from "./auth";
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from "@simplewebauthn/server";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -3351,6 +3357,164 @@ export async function registerRoutes(
     await storage.markGoalNotificationsSeen(user.id);
     res.sendStatus(200);
   }));
+
+  // ─── Passkeys ─────────────────────────────────────────────────────────────
+
+  function getWebAuthnConfig(req: Request) {
+    const isProduction = process.env.REPLIT_DEPLOYMENT === "1";
+    const rpID = isProduction ? "betterbucks.net" : req.hostname;
+    const origin = isProduction ? "https://betterbucks.net" : `${req.protocol}://${req.get("host")}`;
+    return { rpID, origin, rpName: "Better Bucks" };
+  }
+
+  // Start passkey registration (authenticated)
+  app.post("/api/passkeys/register/start", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const { rpID, rpName } = getWebAuthnConfig(req);
+    const existingPasskeys = await storage.getPasskeysByUser(user.id);
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID,
+      userID: new TextEncoder().encode(String(user.id)),
+      userName: user.username,
+      userDisplayName: user.fullName,
+      attestationType: "none",
+      excludeCredentials: existingPasskeys.map(pk => ({
+        id: pk.credentialId,
+        transports: (pk.transports ?? []) as any,
+      })),
+      authenticatorSelection: {
+        residentKey: "preferred",
+        userVerification: "preferred",
+      },
+    });
+    (req.session as any).passkeyChallenge = options.challenge;
+    res.json(options);
+  });
+
+  // Finish passkey registration (authenticated)
+  app.post("/api/passkeys/register/finish", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const expectedChallenge = (req.session as any).passkeyChallenge;
+    if (!expectedChallenge) return res.status(400).json({ message: "No registration challenge found. Please try again." });
+    const { rpID, origin } = getWebAuthnConfig(req);
+    const { name: passkeyName, ...response } = req.body;
+    try {
+      const { verified, registrationInfo } = await verifyRegistrationResponse({
+        response,
+        expectedChallenge,
+        expectedOrigin: origin,
+        expectedRPID: rpID,
+      });
+      if (!verified || !registrationInfo) return res.status(400).json({ message: "Passkey verification failed." });
+      const { credential, credentialDeviceType, credentialBackedUp } = registrationInfo;
+      await storage.createPasskey({
+        userId: user.id,
+        credentialId: credential.id,
+        publicKey: Buffer.from(credential.publicKey).toString("base64"),
+        counter: credential.counter,
+        deviceType: credentialDeviceType,
+        backedUp: credentialBackedUp,
+        transports: (credential.transports ?? []) as string[],
+        name: passkeyName || "Passkey",
+      });
+      delete (req.session as any).passkeyChallenge;
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("Passkey registration error:", err);
+      res.status(400).json({ message: err.message || "Registration failed." });
+    }
+  });
+
+  // Start passkey authentication (unauthenticated)
+  app.post("/api/passkeys/authenticate/start", async (req, res) => {
+    const { rpID } = getWebAuthnConfig(req);
+    const options = await generateAuthenticationOptions({
+      rpID,
+      userVerification: "preferred",
+      allowCredentials: [],
+    });
+    (req.session as any).passkeyChallenge = options.challenge;
+    res.json(options);
+  });
+
+  // Finish passkey authentication (unauthenticated)
+  app.post("/api/passkeys/authenticate/finish", async (req, res, next) => {
+    const expectedChallenge = (req.session as any).passkeyChallenge;
+    if (!expectedChallenge) return res.status(400).json({ message: "No authentication challenge found. Please try again." });
+    const { rpID, origin } = getWebAuthnConfig(req);
+    try {
+      const passkey = await storage.getPasskeyByCredentialId(req.body.id);
+      if (!passkey) return res.status(400).json({ message: "Passkey not recognized." });
+      const { verified, authenticationInfo } = await verifyAuthenticationResponse({
+        response: req.body,
+        expectedChallenge,
+        expectedOrigin: origin,
+        expectedRPID: rpID,
+        credential: {
+          id: passkey.credentialId,
+          publicKey: new Uint8Array(Buffer.from(passkey.publicKey, "base64")),
+          counter: passkey.counter,
+          transports: (passkey.transports ?? []) as any,
+        },
+      });
+      if (!verified) return res.status(401).json({ message: "Passkey authentication failed." });
+      await storage.updatePasskeyCounter(passkey.id, authenticationInfo.newCounter);
+      delete (req.session as any).passkeyChallenge;
+      const user = await storage.getUser(passkey.userId);
+      if (!user) return res.status(404).json({ message: "User not found." });
+      if (user.status !== "approved") return res.status(403).json({ message: "Account not approved." });
+      req.login(user, async (err) => {
+        if (err) return next(err);
+        const updated = await storage.incrementSuccessfulLoginCount(user.id);
+        res.json(updated);
+      });
+    } catch (err: any) {
+      console.error("Passkey authentication error:", err);
+      res.status(400).json({ message: err.message || "Authentication failed." });
+    }
+  });
+
+  // List passkeys (authenticated)
+  app.get("/api/passkeys", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const userPasskeys = await storage.getPasskeysByUser(user.id);
+    res.json(userPasskeys.map(pk => ({
+      id: pk.id,
+      name: pk.name,
+      deviceType: pk.deviceType,
+      backedUp: pk.backedUp,
+      createdAt: pk.createdAt,
+    })));
+  });
+
+  // Rename a passkey (authenticated)
+  app.patch("/api/passkeys/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const id = parseInt(req.params.id);
+    const { name } = z.object({ name: z.string().min(1).max(64) }).parse(req.body);
+    const userPasskeys = await storage.getPasskeysByUser(user.id);
+    const pk = userPasskeys.find(p => p.id === id);
+    if (!pk) return res.status(404).json({ message: "Passkey not found." });
+    await storage.renamePasskey(id, name);
+    res.json({ success: true });
+  });
+
+  // Delete a passkey (authenticated)
+  app.delete("/api/passkeys/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const id = parseInt(req.params.id);
+    const userPasskeys = await storage.getPasskeysByUser(user.id);
+    const pk = userPasskeys.find(p => p.id === id);
+    if (!pk) return res.status(404).json({ message: "Passkey not found." });
+    await storage.deletePasskey(id);
+    res.json({ success: true });
+  });
 
   // ─── End Goals ────────────────────────────────────────────────────────────
 

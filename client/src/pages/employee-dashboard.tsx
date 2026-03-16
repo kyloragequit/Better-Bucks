@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useUser } from "@/hooks/use-auth";
+import { PasskeyFirstTimePrompt } from "@/components/passkey-manager";
 import { useUserDetails, useUpdateProfile } from "@/hooks/use-users";
 import { useQuery } from "@tanstack/react-query";
 import { EmployeeLayout } from "@/components/layout-employee";
@@ -56,6 +57,8 @@ export default function EmployeeDashboard() {
           Take the tour again
         </button>
       </div>
+
+      {authUser && <PasskeyFirstTimePrompt userId={authUser.id} />}
 
       {/* Active Goals */}
       {goals.filter(g => g.status === "active").length > 0 && (

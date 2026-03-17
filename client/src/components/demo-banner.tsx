@@ -68,6 +68,7 @@ export function DemoBanner() {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/demo/status"] });
       if (demo?.isPublicDemo) {
+        try { sessionStorage.removeItem("bb_demo_visitor"); } catch {}
         window.location.href = "/";
       } else {
         window.location.href = "/admin/dashboard";

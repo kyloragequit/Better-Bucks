@@ -125,25 +125,7 @@ export default function HowItWorksPage() {
   const [demoForm, setDemoForm] = useState({ name: "", email: "", phone: "", needs: "" });
   const [demoSubmitting, setDemoSubmitting] = useState(false);
   const [demoSent, setDemoSent] = useState(false);
-  const [publicDemoLoading, setPublicDemoLoading] = useState(false);
-
-  const startPublicDemo = async () => {
-    setPublicDemoLoading(true);
-    try {
-      const res = await fetch("/api/demo/public-login", { method: "POST", credentials: "include" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to start demo");
-      // Pre-select the full interactive tutorial so it fires automatically
-      if (data.userId) {
-        localStorage.removeItem(`bb_tutorial_type_${data.userId}`);
-        localStorage.setItem(`bb_tutorial_type_${data.userId}`, "full");
-      }
-      setLocation("/admin/dashboard");
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-      setPublicDemoLoading(false);
-    }
-  };
+  const startPublicDemo = () => setLocation("/demo");
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,12 +248,11 @@ export default function HowItWorksPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
               <button
                 onClick={startPublicDemo}
-                disabled={publicDemoLoading}
-                className="flex items-center gap-2 py-3 px-7 rounded-xl font-bold text-white text-base border-2 border-white/40 transition-all duration-200 hover:border-white/80 hover:bg-white/10 active:scale-95 disabled:opacity-60"
+                className="flex items-center gap-2 py-3 px-7 rounded-xl font-bold text-white text-base border-2 border-white/40 transition-all duration-200 hover:border-white/80 hover:bg-white/10 active:scale-95"
                 data-testid="button-hero-self-guided-demo"
               >
                 <Play className="h-4 w-4" />
-                {publicDemoLoading ? "Loading..." : "Try our self guided demo"}
+                Try our self guided demo
               </button>
               <button
                 onClick={() => setLocation("/signup")}
@@ -731,12 +712,11 @@ export default function HowItWorksPage() {
                   <p className="text-white/40 text-xs -mt-1">View our plans — no credit card required.</p>
                   <button
                     onClick={startPublicDemo}
-                    disabled={publicDemoLoading}
-                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95 disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95"
                     data-testid="button-try-self-guided-demo"
                   >
                     <Play className="h-4 w-4" />
-                    {publicDemoLoading ? "Loading..." : "Try our self guided demo"}
+                    Try our self guided demo
                   </button>
                   <button
                     onClick={() => setDemoOpen(true)}

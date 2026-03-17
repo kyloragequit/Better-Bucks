@@ -75,7 +75,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
               {user?.fullName}
             </span>
             {isPublicDemo ? (
-              <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => setLocation("/")} data-testid="button-home">
+              <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
                 <Home className="h-5 w-5" />
               </Button>
             ) : (
@@ -129,7 +129,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
                     {isPublicDemo ? (
                       <button
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}
+                        onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); setMobileMenuOpen(false); }}
                         data-testid="mobile-button-home"
                       >
                         <Home className="h-4 w-4" />

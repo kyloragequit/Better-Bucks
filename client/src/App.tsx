@@ -138,9 +138,12 @@ function ProtectedRoute({
   if (isLoading) return <FullPageLoader />;
 
   if (!user) {
-    // If a demo visitor's session expired, send them back to /demo to restart
+    // Demo visitors always go home — never to the login screen
     try {
-      if (sessionStorage.getItem("bb_demo_visitor") === "1") return <Redirect to="/demo" />;
+      if (sessionStorage.getItem("bb_demo_visitor") === "1") {
+        sessionStorage.removeItem("bb_demo_visitor");
+        return <Redirect to="/" />;
+      }
     } catch {}
     return <Redirect to="/login" />;
   }
@@ -172,6 +175,16 @@ function ProtectedRoute({
   return <Component />;
 }
 
+function LoginRoute() {
+  try {
+    if (sessionStorage.getItem("bb_demo_visitor") === "1") {
+      sessionStorage.removeItem("bb_demo_visitor");
+      return <Redirect to="/" />;
+    }
+  } catch {}
+  return <LoginPage />;
+}
+
 function VerifyEmailRoute() {
   const { data: user, isLoading } = useUser();
   if (isLoading) return <FullPageLoader />;
@@ -198,7 +211,7 @@ function Router() {
         <Route path="/signup/success" component={SignupSuccessPage} />
         <Route path="/reactivate" component={ReactivatePage} />
         <Route path="/setup" component={SetupPrimePage} />
-        <Route path="/login" component={LoginPage} />
+        <Route path="/login" component={LoginRoute} />
         
         <Route path="/dashboard">
           <ProtectedRoute component={EmployeeDashboard} />

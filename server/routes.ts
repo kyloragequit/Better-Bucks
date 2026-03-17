@@ -241,8 +241,8 @@ export async function registerRoutes(
   // Seed default blog posts if none exist (handles fresh production databases)
   await seedBlogPosts();
 
-  // Seed demo org if it doesn't exist (handles fresh production databases)
-  await seedDemoOrg();
+  // Seed demo org after startup so health checks are never blocked
+  setTimeout(() => seedDemoOrg(), 5000);
 
   // robots.txt
   app.get("/robots.txt", (_req, res) => {

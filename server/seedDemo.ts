@@ -23,6 +23,14 @@ const OPS_NAMES = [
 ];
 
 export async function seedDemoOrg() {
+  try {
+    await _seedDemoOrg();
+  } catch (err) {
+    console.error("[seedDemo] Failed to seed demo org (non-fatal):", err);
+  }
+}
+
+async function _seedDemoOrg() {
   // Check if already seeded
   const existing = await db
     .select()
@@ -155,6 +163,7 @@ export async function seedDemoOrg() {
       targetMinutes: 0,
       startDate: now,
       endDate: twoHoursLater,
+      createdBy: primeAdmin.id,
     },
     {
       organizationId: org.id,
@@ -165,6 +174,7 @@ export async function seedDemoOrg() {
       targetQuantity: 100,
       currentQuantity: 42,
       startDate: now,
+      createdBy: primeAdmin.id,
     },
   ]);
 

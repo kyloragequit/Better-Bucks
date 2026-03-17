@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { useLocation } from "wouter";
 import { PageSEO } from "@/components/page-seo";
@@ -39,6 +39,7 @@ const DEFAULTS: Record<string, string> = {
 export default function LandingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const contactRef = useRef<HTMLDivElement>(null);
   const { data: rawContent } = useQuery<Record<string, string>>({ queryKey: ["/api/page-content"] });
   const c = (key: string) => rawContent?.[key] ?? DEFAULTS[key] ?? "";
@@ -85,6 +86,8 @@ export default function LandingPage() {
         localStorage.removeItem(`bb_tutorial_type_${data.userId}`);
         localStorage.setItem(`bb_tutorial_type_${data.userId}`, "full");
       }
+      // Flush stale unauthenticated cache so ProtectedRoute sees the new session
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       setLocation("/admin/dashboard");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppLogo } from "@/components/app-logo";
 
 const DEMO_VISITOR_KEY = "bb_demo_visitor";
@@ -18,6 +19,7 @@ export default function DemoEntryPage() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (started.current) return;
@@ -36,6 +38,9 @@ export default function DemoEntryPage() {
           localStorage.setItem(`bb_tutorial_type_${data.userId}`, "full");
         }
         markDemoVisitor();
+        // Invalidate the user cache so ProtectedRoute re-fetches the now-authenticated user
+        // instead of reading the stale unauthenticated cache (which would cause a redirect loop)
+        await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
         setLocation("/admin/dashboard");
       } catch (err: any) {
         setError(err.message || "Something went wrong. Please try again.");
@@ -43,7 +48,7 @@ export default function DemoEntryPage() {
     }
 
     startDemo();
-  }, [setLocation]);
+  }, [setLocation, queryClient]);
 
   if (error) {
     return (

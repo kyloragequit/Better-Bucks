@@ -49,6 +49,8 @@ export default function BlogPostPage() {
           description={post.excerpt}
           canonicalPath={`/blog/${post.slug}`}
           ogImage={post.imageUrl}
+          ogType="article"
+          twitterCard="summary_large_image"
         />
       )}
 

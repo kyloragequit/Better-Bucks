@@ -2,13 +2,15 @@ import { useEffect } from "react";
 
 const SITE_NAME = "Better Bucks";
 const SITE_URL = "https://betterbucks.net";
-const DEFAULT_OG_IMAGE = "/haring-background.png";
+const DEFAULT_OG_IMAGE = "/favicon.png";
 
 interface PageSEOProps {
   title: string;
   description: string;
   canonicalPath?: string;
   ogImage?: string;
+  ogType?: "website" | "article";
+  twitterCard?: "summary" | "summary_large_image";
   keywords?: string;
   noindex?: boolean;
   jsonLd?: object | object[];
@@ -63,6 +65,8 @@ export function PageSEO({
   description,
   canonicalPath = "/",
   ogImage = DEFAULT_OG_IMAGE,
+  ogType = "website",
+  twitterCard = "summary",
   keywords,
   noindex = false,
   jsonLd,
@@ -87,15 +91,17 @@ export function PageSEO({
 
     setMeta("property", "og:title", fullTitle);
     setMeta("property", "og:description", description);
-    setMeta("property", "og:type", "website");
+    setMeta("property", "og:type", ogType);
     setMeta("property", "og:url", canonicalUrl);
     setMeta("property", "og:image", absoluteOgImage);
+    setMeta("property", "og:image:alt", ogType === "article" ? title : "Better Bucks logo");
     setMeta("property", "og:site_name", SITE_NAME);
 
-    setMeta("name", "twitter:card", "summary_large_image");
+    setMeta("name", "twitter:card", twitterCard);
     setMeta("name", "twitter:title", fullTitle);
     setMeta("name", "twitter:description", description);
     setMeta("name", "twitter:image", absoluteOgImage);
+    setMeta("name", "twitter:image:alt", ogType === "article" ? title : "Better Bucks logo");
 
     if (jsonLd) {
       setJsonLd(jsonLd);
@@ -106,7 +112,7 @@ export function PageSEO({
     return () => {
       removeJsonLd();
     };
-  }, [title, description, canonicalPath, ogImage, keywords, noindex, jsonLd]);
+  }, [title, description, canonicalPath, ogImage, ogType, twitterCard, keywords, noindex, jsonLd]);
 
   return null;
 }

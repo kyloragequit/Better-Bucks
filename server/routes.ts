@@ -2560,6 +2560,8 @@ export async function registerRoutes(
       const orgUsers = await storage.getUsersByOrganization(demoOrg.id);
       const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
       if (!primeAdmin) return res.status(500).json({ message: "Demo not configured" });
+      // Pre-accept terms for all demo org users so the Terms modal never blocks them
+      await db.update(users).set({ termsAcceptedAt: new Date() }).where(eq(users.organizationId, demoOrg.id));
       // Reset tutorial so the full interactive tour fires on every new visit
       await db.update(users).set({ tutorialCompleted: false }).where(eq(users.id, primeAdmin.id));
       req.login(primeAdmin, (err) => {

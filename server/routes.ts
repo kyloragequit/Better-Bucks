@@ -1,5 +1,6 @@
 
 import type { Express, Request, Response, NextFunction } from "express";
+import { seedDemoOrg } from "./seedDemo";
 import type { Server } from "http";
 import { setupAuth, hashPassword, verifyPassword, generateCaptchaChallenge, verifyCaptchaToken, isCaptchaRequired } from "./auth";
 import {
@@ -239,6 +240,9 @@ export async function registerRoutes(
 
   // Seed default blog posts if none exist (handles fresh production databases)
   await seedBlogPosts();
+
+  // Seed demo org if it doesn't exist (handles fresh production databases)
+  await seedDemoOrg();
 
   // robots.txt
   app.get("/robots.txt", (_req, res) => {

@@ -1141,70 +1141,27 @@ export async function registerRoutes(
     const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
     const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-    const [weekCredit] = await db.select({
-      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
+    // Single query replacing 6 — conditional aggregation with CASE WHEN
+    const [row] = await db.select({
+      week:         sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${weekAgo}  AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
+      month:        sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${monthAgo} AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
+      year:         sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${yearAgo}  AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
+      weekDebited:  sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${weekAgo}  THEN ABS(${transactions.amount}) END), 0)`,
+      monthDebited: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${monthAgo} THEN ABS(${transactions.amount}) END), 0)`,
+      yearDebited:  sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${yearAgo}  THEN ABS(${transactions.amount}) END), 0)`,
     }).from(transactions)
       .where(and(
         inArray(transactions.userId, employeeIds),
-        gt(transactions.amount, 0),
-        performedByFilter,
-        gte(transactions.createdAt, weekAgo)
-      ));
-
-    const [monthCredit] = await db.select({
-      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
-    }).from(transactions)
-      .where(and(
-        inArray(transactions.userId, employeeIds),
-        gt(transactions.amount, 0),
-        performedByFilter,
-        gte(transactions.createdAt, monthAgo)
-      ));
-
-    const [yearCredit] = await db.select({
-      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`
-    }).from(transactions)
-      .where(and(
-        inArray(transactions.userId, employeeIds),
-        gt(transactions.amount, 0),
-        performedByFilter,
-        gte(transactions.createdAt, yearAgo)
-      ));
-
-    const [weekDebit] = await db.select({
-      total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`
-    }).from(transactions)
-      .where(and(
-        inArray(transactions.userId, employeeIds),
-        lt(transactions.amount, 0),
-        gte(transactions.createdAt, weekAgo)
-      ));
-
-    const [monthDebit] = await db.select({
-      total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`
-    }).from(transactions)
-      .where(and(
-        inArray(transactions.userId, employeeIds),
-        lt(transactions.amount, 0),
-        gte(transactions.createdAt, monthAgo)
-      ));
-
-    const [yearDebit] = await db.select({
-      total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)`
-    }).from(transactions)
-      .where(and(
-        inArray(transactions.userId, employeeIds),
-        lt(transactions.amount, 0),
-        gte(transactions.createdAt, yearAgo)
+        gte(transactions.createdAt, yearAgo),
       ));
 
     res.json({
-      week: Number(weekCredit.total),
-      month: Number(monthCredit.total),
-      year: Number(yearCredit.total),
-      weekDebited: Number(weekDebit.total),
-      monthDebited: Number(monthDebit.total),
-      yearDebited: Number(yearDebit.total),
+      week: Number(row.week),
+      month: Number(row.month),
+      year: Number(row.year),
+      weekDebited: Number(row.weekDebited),
+      monthDebited: Number(row.monthDebited),
+      yearDebited: Number(row.yearDebited),
     });
   });
 
@@ -1399,10 +1356,13 @@ export async function registerRoutes(
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
 
-    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
-    const admins = orgUsers
-      .filter(u => u.role === "admin" || u.role === "prime_admin")
-      .map(u => ({ id: u.id, fullName: u.fullName, role: u.role }));
+    const admins = await db.select({ id: users.id, fullName: users.fullName, role: users.role })
+      .from(users)
+      .where(and(
+        eq(users.organizationId, user.organizationId),
+        inArray(users.role, ["admin", "prime_admin"]),
+      ))
+      .orderBy(users.fullName);
 
     res.json(admins);
   });
@@ -2560,8 +2520,10 @@ export async function registerRoutes(
       const orgUsers = await storage.getUsersByOrganization(demoOrg.id);
       const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
       if (!primeAdmin) return res.status(500).json({ message: "Demo not configured" });
-      // Pre-accept terms for all demo org users so the Terms modal never blocks them
-      await db.update(users).set({ termsAcceptedAt: new Date() }).where(eq(users.organizationId, demoOrg.id));
+      // Pre-accept terms only if not already set (avoids unnecessary write on repeat logins)
+      if (!primeAdmin.termsAcceptedAt) {
+        await db.update(users).set({ termsAcceptedAt: new Date() }).where(eq(users.organizationId, demoOrg.id));
+      }
       // Reset tutorial so the full interactive tour fires on every new visit
       await db.update(users).set({ tutorialCompleted: false }).where(eq(users.id, primeAdmin.id));
       req.login(primeAdmin, (err) => {

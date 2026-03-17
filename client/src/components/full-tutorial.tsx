@@ -295,10 +295,12 @@ function TooltipCard({
   );
 }
 
+const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/admin/"];
+
 export function FullTutorialOverlay() {
   const { data: user } = useUser();
   const { showFullTutorial, completeTutorial, skipTutorial } = useTutorial();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const locating = useRef(false);
@@ -359,7 +361,9 @@ export function FullTutorialOverlay() {
     await skipTutorial();
   };
 
-  if (!showFullTutorial || !user) return null;
+  const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
+
+  if (!showFullTutorial || !user || !isOnAppPage) return null;
 
   return createPortal(
     <>

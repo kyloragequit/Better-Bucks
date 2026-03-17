@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,7 +8,10 @@ import { AppLogo } from "@/components/app-logo";
 import { useUser } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 
+const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/admin/"];
+
 export function TermsAgreementModal() {
+  const [location] = useLocation();
   const { data: user } = useUser();
   const queryClient = useQueryClient();
   const [termsAgreed, setTermsAgreed] = useState(false);
@@ -21,7 +25,9 @@ export function TermsAgreementModal() {
     },
   });
 
-  if (!user || user.termsAcceptedAt) return null;
+  const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
+
+  if (!user || user.termsAcceptedAt || !isOnAppPage) return null;
 
   return (
     /* z-[10000] puts this above the tutorial modal at z-[9999] */

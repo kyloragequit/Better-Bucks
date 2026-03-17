@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePublicDemo } from "@/hooks/use-demo";
 import { Link, useLocation } from "wouter";
 import { useUsers, useCreateUser } from "@/hooks/use-users";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import { AppLogo } from "@/components/app-logo";
 import type { InsertUser, Department, User, Organization } from "@shared/schema";
 
 export default function AdminEmployeesPage() {
+  const isPublicDemo = usePublicDemo();
   const { data: users, isLoading } = useUsers();
   const { data: currentUser } = useUser();
   const { toast } = useToast();
@@ -67,10 +69,12 @@ export default function AdminEmployeesPage() {
           <h1 className="text-3xl font-display font-bold text-foreground">{isPrimeAdmin ? "Team Members" : "Employees"}</h1>
           <p className="text-muted-foreground mt-1">{isPrimeAdmin ? "Manage all team member accounts and balances" : "Manage employee accounts and balances"}</p>
         </div>
-        <div className="flex gap-2">
-          <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
-          <CreateEmployeeDialog />
-        </div>
+        {!isPublicDemo && (
+          <div className="flex gap-2">
+            <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
+            <CreateEmployeeDialog />
+          </div>
+        )}
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">

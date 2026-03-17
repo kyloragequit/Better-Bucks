@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout-admin";
+import { usePublicDemo } from "@/hooks/use-demo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +116,7 @@ function NeedHelpPanel({ onClose }: { onClose: () => void }) {
 type WishlistEntry = Wishlist & { storeItem: StoreItem; user: User };
 
 export default function AdminStorePage() {
+  const isPublicDemo = usePublicDemo();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useQuery<StoreItem[]>({ queryKey: ["/api/store-items"] });
@@ -232,7 +234,7 @@ export default function AdminStorePage() {
               <HelpCircle className="h-4 w-4" />
               Need help?
             </Button>
-            {!showAddForm && !editingItem && (
+            {!isPublicDemo && !showAddForm && !editingItem && (
               <Button onClick={() => setShowAddForm(true)} data-testid="button-add-store-item">
                 <Plus className="h-4 w-4 mr-2" /> Add Item
               </Button>
@@ -334,41 +336,43 @@ export default function AdminStorePage() {
                       >
                         <ExternalLink className="h-3 w-3" /> View item
                       </a>
-                      <div className="flex gap-1 mt-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => openEdit(item)}
-                          data-testid={`button-edit-store-item-${item.id}`}
-                        >
-                          <Pencil className="h-3 w-3 mr-1" /> Edit
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive border-destructive/30" data-testid={`button-delete-store-item-${item.id}`}>
-                              <Trash2 className="h-3 w-3 mr-1" /> Remove
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Remove Store Item</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Remove "{item.name}" from the store? Employees will no longer be able to purchase it.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteMutation.mutate(item.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Remove
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                      {!isPublicDemo && (
+                        <div className="flex gap-1 mt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => openEdit(item)}
+                            data-testid={`button-edit-store-item-${item.id}`}
+                          >
+                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive border-destructive/30" data-testid={`button-delete-store-item-${item.id}`}>
+                                <Trash2 className="h-3 w-3 mr-1" /> Remove
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove Store Item</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Remove "{item.name}" from the store? Employees will no longer be able to purchase it.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(item.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Remove
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

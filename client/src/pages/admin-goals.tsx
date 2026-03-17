@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePublicDemo } from "@/hooks/use-demo";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { useUser } from "@/hooks/use-auth";
@@ -75,6 +76,7 @@ type GoalFormData = {
 const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", targetQuantity: "", targetDays: "", durationUnit: "days", targetHours: "", targetMinutes: "", endDate: "" };
 
 export default function AdminGoalsPage() {
+  const isPublicDemo = usePublicDemo();
   const { data: user } = useUser();
   const isPrimeAdmin = user?.role === "prime_admin";
   const { toast } = useToast();
@@ -169,7 +171,7 @@ export default function AdminGoalsPage() {
                 : "Track team goals and add progress to quantity-based goals."}
             </p>
           </div>
-          {isPrimeAdmin && (
+          {isPrimeAdmin && !isPublicDemo && (
             <Button onClick={openCreate} data-testid="button-create-goal"><Plus className="mr-2 h-4 w-4" />New Goal</Button>
           )}
         </div>
@@ -353,6 +355,7 @@ interface GoalCardProps {
 }
 
 function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, onComplete, onDistribute, distributing }: GoalCardProps) {
+  const isPublicDemo = usePublicDemo();
   const progress = goalProgress(goal);
   const isActive = goal.status === "active";
   const isPending = goal.status === "pending_distribution";
@@ -369,13 +372,13 @@ function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, o
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <StatusBadge status={goal.status} />
-            {isPrimeAdmin && isActive && (
+            {isPrimeAdmin && isActive && !isPublicDemo && (
               <>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(goal)} data-testid={`button-edit-goal-${goal.id}`}><Pencil className="h-3.5 w-3.5" /></Button>
                 <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(goal.id)} data-testid={`button-delete-goal-${goal.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
               </>
             )}
-            {isPrimeAdmin && !isActive && (
+            {isPrimeAdmin && !isActive && !isPublicDemo && (
               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(goal.id)} data-testid={`button-delete-goal-${goal.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
             )}
           </div>
@@ -413,12 +416,12 @@ function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, o
 
         {/* Action Buttons */}
         <div className="mt-4 flex flex-wrap gap-2">
-          {isActive && goal.type === "quantity" && (
+          {!isPublicDemo && isActive && goal.type === "quantity" && (
             <Button size="sm" variant="outline" onClick={() => onIncrement(goal.id)} data-testid={`button-add-progress-${goal.id}`}>
               <ChevronUp className="mr-1.5 h-3.5 w-3.5" />Add Progress
             </Button>
           )}
-          {isPrimeAdmin && isActive && goal.type === "time" && (
+          {!isPublicDemo && isPrimeAdmin && isActive && goal.type === "time" && (
             <>
               <Button size="sm" variant="outline" className="text-green-700 border-green-300 hover:bg-green-50" onClick={() => onComplete(goal.id)} data-testid={`button-complete-goal-${goal.id}`}>
                 <CheckCircle className="mr-1.5 h-3.5 w-3.5" />Mark Goal Met
@@ -428,7 +431,7 @@ function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, o
               </Button>
             </>
           )}
-          {isPrimeAdmin && (isPending || (isCompleted && !goal.bucksDistributedAt)) && (
+          {!isPublicDemo && isPrimeAdmin && (isPending || (isCompleted && !goal.bucksDistributedAt)) && (
             <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" disabled={distributing} onClick={() => onDistribute(goal.id)} data-testid={`button-distribute-${goal.id}`}>
               <Coins className="mr-1.5 h-3.5 w-3.5" />{distributing ? "Distributing..." : `Distribute ${goal.bucksReward} bcks to All Employees`}
             </Button>

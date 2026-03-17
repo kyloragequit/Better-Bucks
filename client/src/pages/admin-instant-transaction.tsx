@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { usePublicDemo } from "@/hooks/use-demo";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,6 +24,7 @@ type ScannedUser = {
 };
 
 export default function AdminInstantTransactionPage() {
+  const isPublicDemo = usePublicDemo();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<"scan" | "manual" | "transaction">("scan");
@@ -268,13 +270,13 @@ export default function AdminInstantTransactionPage() {
                 <Button
                   className="w-full"
                   onClick={handleSubmitTransaction}
-                  disabled={transactionMutation.isPending || !amount || parseInt(amount) <= 0}
+                  disabled={isPublicDemo || transactionMutation.isPending || !amount || parseInt(amount) <= 0}
                   data-testid="button-submit-tx"
                 >
                   {transactionMutation.isPending ? (
                     <SpinningLogo className="mr-2 h-4 w-4" />
                   ) : null}
-                  {txType === "credit" ? "Credit" : "Debit"} {amount ? `${parseInt(amount).toLocaleString()} Bucks` : "Bucks"}
+                  {isPublicDemo ? "View Only – Demo Mode" : `${txType === "credit" ? "Credit" : "Debit"} ${amount ? `${parseInt(amount).toLocaleString()} Bucks` : "Bucks"}`}
                 </Button>
               </CardContent>
             </Card>

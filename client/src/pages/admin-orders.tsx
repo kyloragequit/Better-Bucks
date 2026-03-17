@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePublicDemo } from "@/hooks/use-demo";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ function statusVariant(status: string) {
 }
 
 export default function AdminOrdersPage() {
+  const isPublicDemo = usePublicDemo();
   const { data: orders, isLoading } = useQuery<OrderWithUser[]>({
     queryKey: ["/api/orders"],
   });
@@ -97,10 +99,12 @@ export default function AdminOrdersPage() {
                       </Button>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                        <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                      </div>
+                      {!isPublicDemo && (
+                        <div className="flex justify-end gap-2">
+                          <OrderActionButton orderId={order.id} action="approved" label="Approve" />
+                          <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -164,13 +168,13 @@ export default function AdminOrdersPage() {
                     </Button>
                   </TableCell>
                   <TableCell className="text-right">
-                    {order.status === "pending" && (
+                    {!isPublicDemo && order.status === "pending" && (
                       <div className="flex justify-end gap-2">
                         <OrderActionButton orderId={order.id} action="approved" label="Approve" />
                         <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
                       </div>
                     )}
-                    {order.status === "approved" && (
+                    {!isPublicDemo && order.status === "approved" && (
                       <OrderActionButton orderId={order.id} action="completed" label="Complete" />
                     )}
                   </TableCell>

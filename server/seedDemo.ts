@@ -7,19 +7,11 @@ const DEMO_CODE = "VIEWDEMO";
 const DEMO_PASSWORD = "Demo2024!";
 
 const INV_NAMES = [
-  "Jordan Brooks", "Casey Nguyen", "Riley Torres", "Quinn Park",
-  "Avery Williams", "Blake Johnson", "Cameron Davis", "Dakota Martinez",
-  "Emery Anderson", "Finley Thompson", "Harper Wilson", "Indigo Garcia",
-  "Jamie Lee", "Kennedy Hall", "Logan Evans", "Morgan Scott",
-  "Noel Green", "Oakley Adams", "Parker Baker", "Quinn Hughes",
+  "Jordan Brooks", "Casey Nguyen", "Riley Torres", "Quinn Park", "Avery Williams",
 ];
 
 const OPS_NAMES = [
-  "Alex Rivera", "Bailey Cooper", "Charlie Reed", "Drew Price",
-  "Elliot Ward", "Frankie Powell", "Gray Long", "Harper Ross",
-  "Ivory Bell", "Jules Watson", "Kieran Cole", "Lane Bennett",
-  "Marlowe Cox", "Nash Bryant", "Ocean Fisher", "Piper Sullivan",
-  "Quincy Murphy", "Reeve Barnes", "Sloane Henderson", "Tatum Simmons",
+  "Alex Rivera", "Bailey Cooper", "Charlie Reed", "Drew Price", "Elliot Ward",
 ];
 
 export async function seedDemoOrg() {
@@ -31,7 +23,6 @@ export async function seedDemoOrg() {
 }
 
 async function _seedDemoOrg() {
-  // Check if already seeded
   const existing = await db
     .select()
     .from(organizations)
@@ -118,7 +109,7 @@ async function _seedDemoOrg() {
     },
   ]);
 
-  // 5. Employees — 20 Inventory, 20 Operations
+  // 5. Employees — 5 Inventory, 5 Operations
   const empValues = [
     ...INV_NAMES.map((fullName, i) => ({
       username: `demo_inv_${String(i + 1).padStart(2, "0")}`,
@@ -130,8 +121,7 @@ async function _seedDemoOrg() {
       departmentId: invDept.id,
       emailVerified: true,
       status: "approved" as const,
-      balance: [450, 150, 600, 350, 750, 450, 750, 450, 300, 550,
-                200, 400, 650, 100, 500, 350, 800, 250, 425, 575][i],
+      balance: [450, 150, 600, 350, 750][i],
     })),
     ...OPS_NAMES.map((fullName, i) => ({
       username: `demo_ops_${String(i + 1).padStart(2, "0")}`,
@@ -143,8 +133,7 @@ async function _seedDemoOrg() {
       departmentId: opsDept.id,
       emailVerified: true,
       status: "approved" as const,
-      balance: [300, 500, 200, 650, 425, 775, 125, 350, 600, 275,
-                450, 325, 575, 100, 700, 250, 425, 550, 375, 625][i],
+      balance: [300, 500, 200, 650, 425][i],
     })),
   ];
   const createdEmps = await db.insert(users).values(empValues).returning();
@@ -203,7 +192,7 @@ async function _seedDemoOrg() {
     },
   ]);
 
-  // 8. Orders + transactions using the first several employees
+  // 8. Orders + transactions (using the 10 employees)
   const emp = createdEmps;
   type OrderStatus = "pending" | "approved" | "completed";
   const orderData: Array<{
@@ -211,7 +200,7 @@ async function _seedDemoOrg() {
     status: OrderStatus; convertedValue: string; adminNotes: string | null;
     daysAgo: number;
   }> = [
-    { userId: emp[0].id, pointsCost: 150, description: "Wireless Bluetooth Headphones – Sony WH-1000XM5", status: "pending", convertedValue: "$75.00 on Amazon", adminNotes: null, daysAgo: 2 },
+    { userId: emp[0].id, pointsCost: 150, description: "Wireless Bluetooth Headphones", status: "pending", convertedValue: "$75.00 on Amazon", adminNotes: null, daysAgo: 2 },
     { userId: emp[2].id, pointsCost: 100, description: "Amazon Gift Card $50", status: "pending", convertedValue: "$50.00 on Amazon", adminNotes: null, daysAgo: 1 },
     { userId: emp[4].id, pointsCost: 200, description: "Nike Running Shoes – Size 10", status: "pending", convertedValue: "$100.00 on Amazon", adminNotes: null, daysAgo: 0 },
     { userId: emp[6].id, pointsCost: 100, description: "Starbucks Gift Card $50", status: "pending", convertedValue: "$50.00 in store", adminNotes: null, daysAgo: 0 },
@@ -219,8 +208,8 @@ async function _seedDemoOrg() {
     { userId: emp[7].id, pointsCost: 250, description: "Yeti Rambler 30 oz Tumbler", status: "approved", convertedValue: "$125.00 on Amazon", adminNotes: "In cart – will ship by Friday", daysAgo: 4 },
     { userId: emp[3].id, pointsCost: 200, description: "Amazon Gift Card $100", status: "completed", convertedValue: "$100.00 on Amazon", adminNotes: "Sent via email", daysAgo: 14 },
     { userId: emp[9].id, pointsCost: 150, description: "Lululemon Gift Card", status: "completed", convertedValue: "$75.00 in store", adminNotes: "Delivered in person", daysAgo: 10 },
-    { userId: emp[20].id, pointsCost: 350, description: "iPad Mini – 64GB", status: "completed", convertedValue: "$175.00 on Amazon", adminNotes: "Shipped via UPS", daysAgo: 20 },
-    { userId: emp[21].id, pointsCost: 100, description: "Movie Night Bundle – Popcorn + Streaming Gift Card", status: "completed", convertedValue: "$50.00 on Amazon", adminNotes: "Handed off by shift manager", daysAgo: 8 },
+    { userId: emp[5].id, pointsCost: 350, description: "iPad Mini – 64GB", status: "completed", convertedValue: "$175.00 on Amazon", adminNotes: "Shipped via UPS", daysAgo: 20 },
+    { userId: emp[8].id, pointsCost: 100, description: "Movie Night Bundle – Streaming Gift Card", status: "completed", convertedValue: "$50.00 on Amazon", adminNotes: "Handed off by shift manager", daysAgo: 8 },
   ];
 
   for (const o of orderData) {
@@ -236,7 +225,6 @@ async function _seedDemoOrg() {
       createdAt: ts,
       updatedAt: ts,
     });
-    // Debit transaction for the employee
     await db.insert(transactions).values({
       userId: o.userId,
       amount: -o.pointsCost,
@@ -246,13 +234,12 @@ async function _seedDemoOrg() {
     });
   }
 
-  // 9. A few credit transactions so employees have history
+  // 9. Credit transactions so employees have history
   const creditRecords = [
     { idx: 0, amount: 500, reason: "Perfect attendance – March" },
-    { idx: 1, amount: 300, reason: "Safety compliance bonus" },
-    { idx: 2, amount: 750, reason: "Top performer – Q1" },
-    { idx: 20, amount: 500, reason: "Process improvement award" },
-    { idx: 21, amount: 350, reason: "On-time delivery streak" },
+    { idx: 1, amount: 350, reason: "Safety compliance bonus" },
+    { idx: 5, amount: 500, reason: "Process improvement award" },
+    { idx: 6, amount: 350, reason: "On-time delivery streak" },
   ];
   for (const c of creditRecords) {
     await db.insert(transactions).values({

@@ -2548,17 +2548,24 @@ export async function registerRoutes(
   // Public demo auto-login — no auth required
   app.post("/api/demo/public-login", async (req, res) => {
     try {
-      const demoOrg = await storage.getOrganizationByCode("VIEWDEMO");
-      if (!demoOrg) return res.status(404).json({ message: "Demo not available" });
+      // Self-heal: if the 5s startup delay hasn't passed, seed on demand
+      let demoOrg = await storage.getOrganizationByCode("VIEWDEMO");
+      if (!demoOrg) {
+        await seedDemoOrg();
+        demoOrg = await storage.getOrganizationByCode("VIEWDEMO");
+      }
+      if (!demoOrg) return res.status(503).json({ message: "Demo is starting up, please try again in a moment." });
       const orgUsers = await storage.getUsersByOrganization(demoOrg.id);
       const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
       if (!primeAdmin) return res.status(500).json({ message: "Demo not configured" });
-      // Reset tutorial for the prime admin so the full tutorial fires on every visit
+      // Reset tutorial so the full interactive tour fires on every new visit
       await db.update(users).set({ tutorialCompleted: false }).where(eq(users.id, primeAdmin.id));
       req.login(primeAdmin, (err) => {
         if (err) return res.status(500).json({ message: "Login failed" });
         (req.session as any).demoOriginalUserId = primeAdmin.id;
         (req.session as any).isPublicDemo = true;
+        // Expire demo sessions after 2 hours so they don't accumulate in the DB
+        req.session.cookie.maxAge = 2 * 60 * 60 * 1000;
         req.session.save((saveErr) => {
           if (saveErr) return res.status(500).json({ message: "Session save failed" });
           res.json({ success: true, role: primeAdmin.role, userId: primeAdmin.id });
@@ -2991,6 +2998,11 @@ export async function registerRoutes(
   app.post("/api/users/complete-tutorial", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    // In public demo mode, track completion in the session only — no DB write
+    if ((req.session as any)?.isPublicDemo) {
+      (req.session as any).demoTutorialCompleted = true;
+      return res.json({ ...user, tutorialCompleted: true });
+    }
     const updated = await storage.setTutorialCompleted(user.id, true);
     res.json(updated);
   });
@@ -2998,6 +3010,11 @@ export async function registerRoutes(
   app.post("/api/users/reset-tutorial", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    // In public demo mode, track in session only — no DB write
+    if ((req.session as any)?.isPublicDemo) {
+      (req.session as any).demoTutorialCompleted = false;
+      return res.json({ ...user, tutorialCompleted: false });
+    }
     const updated = await storage.setTutorialCompleted(user.id, false);
     res.json(updated);
   });

@@ -377,7 +377,8 @@ export function FullTutorialOverlay() {
         <X className="h-3 w-3" /> Exit Tour
       </button>
 
-      {/* Spotlight only when we have a real element to highlight */}
+      {/* Full dark overlay when no specific element is highlighted; spotlight when one is */}
+      {!rect && <div className="fixed inset-0 bg-black/65 pointer-events-none" style={{ zIndex: 9997 }} />}
       {rect && <SpotlightOverlay rect={rect} />}
 
       {/* Tooltip / step card */}

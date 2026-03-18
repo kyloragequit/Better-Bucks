@@ -119,12 +119,34 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Extend the current session cookie to 30 days (remember me)
+  app.post("/api/auth/remember", (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+    req.session.save((err) => {
+      if (err) return res.status(500).json({ message: "Failed to extend session" });
+      res.json({ ok: true });
+    });
+  });
+
   app.post("/api/login", (req, res, next) => {
     const { captchaToken, captchaAnswer } = req.body;
 
     passport.authenticate("local", async (err: any, user: User, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json(info);
+
+      // Block demo org users from logging in via the standard login form
+      try {
+        const demoOrg = await storage.getOrganizationByCode("VIEWDEMO");
+        if (demoOrg && user.organizationId === demoOrg.id) {
+          return res.status(401).json({
+            message: "This is a demo account — use the 'Try our self-guided demo' button on the home page instead.",
+          });
+        }
+      } catch {
+        // Non-fatal: if org lookup fails, allow login to proceed
+      }
 
       const count = user.successfulLoginCount ?? 0;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { useUser, useRegisterAdmin, useRegisterEmployee } from "@/hooks/use-auth";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff, ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
@@ -27,12 +28,39 @@ export default function LoginPage() {
   const urlTab = params.get("tab") || "employee";
   const urlMode = params.get("mode") || "";
 
+  const prevUser = useRef<typeof user>(null);
+  const [rememberMeUser, setRememberMeUser] = useState<typeof user>(null);
+
+  function doRedirect(u: NonNullable<typeof user>) {
+    if (u.role === 'admin' || u.role === 'prime_admin') setLocation('/admin/dashboard');
+    else setLocation('/dashboard');
+  }
+
   useEffect(() => {
-    if (user) {
-      if (user.role === 'admin' || user.role === 'prime_admin') setLocation('/admin/dashboard');
-      else setLocation('/dashboard');
+    if (user && !prevUser.current) {
+      const optedIn = localStorage.getItem("bb_remember_opted_in") === "1";
+      if (optedIn) {
+        fetch("/api/auth/remember", { method: "POST", credentials: "include" }).catch(() => {});
+        doRedirect(user);
+      } else {
+        setRememberMeUser(user);
+      }
     }
-  }, [user, setLocation]);
+    if (user && prevUser.current) {
+      doRedirect(user);
+    }
+    prevUser.current = user ?? null;
+  }, [user]);
+
+  function handleRemember(remember: boolean) {
+    if (remember) {
+      localStorage.setItem("bb_remember_opted_in", "1");
+      fetch("/api/auth/remember", { method: "POST", credentials: "include" }).catch(() => {});
+    }
+    const u = rememberMeUser;
+    setRememberMeUser(null);
+    if (u) doRedirect(u);
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
@@ -112,6 +140,34 @@ export default function LoginPage() {
       </div>
       <SiteFooter dark absolute />
       <InstagramFloat />
+
+      <Dialog open={!!rememberMeUser} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm" data-testid="dialog-remember-me">
+          <DialogHeader>
+            <DialogTitle>Remember this device?</DialogTitle>
+            <DialogDescription>
+              Stay signed in on this device so you don't have to log in every time. Only do this on a device you trust.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            <Button
+              className="w-full"
+              onClick={() => handleRemember(true)}
+              data-testid="button-remember-yes"
+            >
+              Remember me
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground"
+              onClick={() => handleRemember(false)}
+              data-testid="button-remember-skip"
+            >
+              Not on this device
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

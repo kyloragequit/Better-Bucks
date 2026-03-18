@@ -177,6 +177,13 @@ function ProtectedRoute({
 }
 
 function LoginRoute() {
+  const { data: user, isLoading } = useUser();
+  if (isLoading) return <FullPageLoader />;
+  if (user) {
+    if (user.role === 'developer') return <Redirect to="/developer/dashboard" />;
+    if (user.role === 'admin' || user.role === 'prime_admin') return <Redirect to="/admin/dashboard" />;
+    return <Redirect to="/dashboard" />;
+  }
   return <LoginPage />;
 }
 

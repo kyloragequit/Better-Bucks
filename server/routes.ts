@@ -269,8 +269,6 @@ export async function registerRoutes(
         "Disallow: /developer",
         // /how-it-works is canonical at / — block the duplicate
         "Disallow: /how-it-works",
-        // /demo is a transient redirect entry page — not indexable
-        "Disallow: /demo",
         "",
         "Sitemap: https://betterbucks.net/sitemap.xml",
       ].join("\n")

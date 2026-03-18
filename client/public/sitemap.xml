@@ -31,13 +31,6 @@
     <priority>0.8</priority>
   </url>
 
-  <url>
-    <loc>https://betterbucks.net/demo</loc>
-    <lastmod>2026-03-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
   <!-- Blog -->
   <url>
     <loc>https://betterbucks.net/blog</loc>

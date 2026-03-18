@@ -86,6 +86,8 @@ export default function LandingPage() {
         localStorage.removeItem(`bb_tutorial_type_${data.userId}`);
         localStorage.setItem(`bb_tutorial_type_${data.userId}`, "full");
       }
+      // Mark as demo visitor so an expired session redirects home rather than to login
+      try { sessionStorage.setItem("bb_demo_visitor", "1"); } catch {}
       // Flush stale unauthenticated cache so ProtectedRoute sees the new session
       await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       setLocation("/admin/dashboard");

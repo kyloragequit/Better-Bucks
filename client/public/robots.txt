@@ -5,7 +5,6 @@ Allow: /$
 Allow: /about
 Allow: /how-it-works
 Allow: /signup
-Allow: /demo
 Allow: /blog
 Allow: /blog/
 Allow: /terms

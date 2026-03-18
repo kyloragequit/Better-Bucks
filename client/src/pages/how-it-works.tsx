@@ -125,7 +125,7 @@ export default function HowItWorksPage() {
   const [demoForm, setDemoForm] = useState({ name: "", email: "", phone: "", needs: "" });
   const [demoSubmitting, setDemoSubmitting] = useState(false);
   const [demoSent, setDemoSent] = useState(false);
-  const startPublicDemo = () => setLocation("/demo");
+  const startPublicDemo = () => setLocation("/");
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

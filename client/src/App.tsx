@@ -177,12 +177,6 @@ function ProtectedRoute({
 }
 
 function LoginRoute() {
-  try {
-    if (sessionStorage.getItem("bb_demo_visitor") === "1") {
-      sessionStorage.removeItem("bb_demo_visitor");
-      return <Redirect to="/" />;
-    }
-  } catch {}
   return <LoginPage />;
 }
 

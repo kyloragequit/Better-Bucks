@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppLogo } from "@/components/app-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { PageSEO } from "@/components/page-seo";
@@ -60,6 +61,7 @@ const products = [
 export default function HowItWorksPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const s1 = useInView(0.2);
   const s2 = useInView(0.2);
@@ -125,7 +127,26 @@ export default function HowItWorksPage() {
   const [demoForm, setDemoForm] = useState({ name: "", email: "", phone: "", needs: "" });
   const [demoSubmitting, setDemoSubmitting] = useState(false);
   const [demoSent, setDemoSent] = useState(false);
-  const startPublicDemo = () => setLocation("/");
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  const startPublicDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const res = await fetch("/api/demo/public-login", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to start demo");
+      if (data.userId) {
+        localStorage.removeItem(`bb_tutorial_type_${data.userId}`);
+        localStorage.setItem(`bb_tutorial_type_${data.userId}`, "full");
+      }
+      try { sessionStorage.setItem("bb_demo_visitor", "1"); } catch {}
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      setLocation("/admin/dashboard");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setDemoLoading(false);
+    }
+  };
 
   const handleDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,11 +269,12 @@ export default function HowItWorksPage() {
             <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
               <button
                 onClick={startPublicDemo}
-                className="flex items-center gap-2 py-3 px-7 rounded-xl font-bold text-white text-base border-2 border-white/40 transition-all duration-200 hover:border-white/80 hover:bg-white/10 active:scale-95"
+                disabled={demoLoading}
+                className="flex items-center gap-2 py-3 px-7 rounded-xl font-bold text-white text-base border-2 border-white/40 transition-all duration-200 hover:border-white/80 hover:bg-white/10 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                 data-testid="button-hero-self-guided-demo"
               >
                 <Play className="h-4 w-4" />
-                Try our self guided demo
+                {demoLoading ? "Loading…" : "Try our self guided demo"}
               </button>
               <button
                 onClick={() => setLocation("/signup")}
@@ -712,11 +734,12 @@ export default function HowItWorksPage() {
                   <p className="text-white/40 text-xs -mt-1">View our plans — no credit card required.</p>
                   <button
                     onClick={startPublicDemo}
-                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95"
+                    disabled={demoLoading}
+                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-bold text-white text-base border-2 border-white/30 transition-all duration-200 hover:border-white/60 hover:bg-white/10 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                     data-testid="button-try-self-guided-demo"
                   >
                     <Play className="h-4 w-4" />
-                    Try our self guided demo
+                    {demoLoading ? "Loading…" : "Try our self guided demo"}
                   </button>
                   <button
                     onClick={() => setDemoOpen(true)}

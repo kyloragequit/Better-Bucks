@@ -1,12 +1,17 @@
 User-agent: *
 
-# Allow public marketing pages
+# Allow public marketing and conversion pages
 Allow: /$
 Allow: /about
 Allow: /how-it-works
-Allow: /login
 Allow: /signup
-Allow: /signup/success
+Allow: /demo
+Allow: /blog
+Allow: /blog/
+Allow: /terms
+
+# Disallow login — no SEO value
+Disallow: /login
 
 # Disallow authenticated and private routes
 Disallow: /admin
@@ -20,6 +25,9 @@ Disallow: /pending-verification
 Disallow: /change-password
 Disallow: /setup
 Disallow: /reactivate
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /signup/success
 Disallow: /api
 
 Sitemap: https://betterbucks.net/sitemap.xml

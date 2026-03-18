@@ -29,6 +29,8 @@ import {
   ExternalLink,
   BookOpen,
   Play,
+  BarChart2,
+  Users,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -66,11 +68,41 @@ export default function HowItWorksPage() {
   const s1 = useInView(0.2);
   const s2 = useInView(0.2);
   const s3 = useInView(0.15);
+  const sSurvey = useInView(0.15);
   const s4 = useInView(0.15);
 
   const [selectedProduct, setSelectedProduct] = useState(0);
   const [orderMode, setOrderMode] = useState(false);
   const [orderStep, setOrderStep] = useState(0);
+
+  const [surveyQ1, setSurveyQ1] = useState<number | null>(null);
+  const [surveyQ2, setSurveyQ2] = useState<number | null>(null);
+  const [surveyStep, setSurveyStep] = useState(0);
+
+  const surveyQ1Options = [
+    "Recognition from my manager",
+    "Earning Bucks rewards",
+    "Clear goals and targets",
+    "Team camaraderie",
+  ];
+  const surveyQ2Options = [
+    "Very satisfied",
+    "Satisfied",
+    "Neutral",
+    "Not satisfied",
+  ];
+  const surveyResults1 = [42, 33, 17, 8];
+  const surveyResults2 = [41, 33, 17, 9];
+
+  const handleSurveySubmit = () => {
+    setSurveyStep(1);
+    setTimeout(() => setSurveyStep(2), 1100);
+  };
+  const handleSurveyReset = () => {
+    setSurveyQ1(null);
+    setSurveyQ2(null);
+    setSurveyStep(0);
+  };
 
   const SCROLLING_WORDS = [
     "Attendance", "Safety", "Productivity", "Performance", "Teamwork",
@@ -692,6 +724,275 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-gray-400">
+            <ChevronDown className="h-6 w-6 animate-bounce" />
+          </div>
+        </section>
+      </div>
+
+      {/* ─── SECTION 3B: Survey Tutorial ──────────────────────────── */}
+      <div className="relative sm:h-[140vh]">
+        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-8 sm:py-10" style={{ background: "#fff", zIndex: 35 }}>
+          <div
+            ref={sSurvey.ref}
+            className="w-full max-w-4xl mx-auto px-4"
+            style={{ opacity: sSurvey.inView ? 1 : 0, transform: sSurvey.inView ? "translateY(0)" : "translateY(40px)", transition: "opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s" }}
+          >
+            {/* Headline */}
+            <div className="text-center mb-6">
+              <h2
+                className="font-display font-black leading-tight"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2.4rem)", color: NAVY }}
+                data-testid="text-survey-headline"
+              >
+                Built-in employee surveys reveal what drives performance, engagement, and retention—
+                <span style={{ color: BUCKS_COLOR }}> so you can reward what actually works.</span>
+              </h2>
+              <p className="mt-2 text-gray-500 text-sm max-w-lg mx-auto">
+                Create surveys in seconds, collect anonymous responses, and see results the moment they come in.
+              </p>
+            </div>
+
+            {/* Sliding panel container */}
+            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-gray-100" style={{ background: "#fff", height: 520 }}>
+
+              {/* ── Employee form view ───────────────────────────────── */}
+              <div
+                className="absolute inset-0 w-full overflow-y-auto"
+                style={{
+                  opacity: surveyStep >= 2 ? 0 : 1,
+                  transform: surveyStep >= 2 ? "translateX(-48px)" : "translateX(0)",
+                  transition: "opacity 0.4s ease, transform 0.4s ease",
+                  pointerEvents: surveyStep >= 2 ? "none" : "auto",
+                  zIndex: surveyStep < 2 ? 2 : 1,
+                }}
+              >
+                {/* Mock app header */}
+                <div className="flex items-center justify-between px-4 py-2.5 shrink-0" style={{ background: NAVY }}>
+                  <div className="flex items-center gap-2">
+                    <AppLogo size="sm" />
+                    <div>
+                      <p className="text-white font-bold text-xs leading-tight">Better Bucks Surveys</p>
+                      <p className="text-white/50 text-xs">Acme Corp</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: `${BUCKS_COLOR}30`, color: "white" }}>
+                    <ClipboardList className="h-3 w-3" />
+                    <span>1 active</span>
+                  </div>
+                </div>
+
+                {surveyStep === 0 && (
+                  <div className="p-4 flex flex-col gap-4">
+                    {/* Survey card */}
+                    <div className="rounded-xl border border-gray-100 overflow-hidden" style={{ background: "#F8FAFC" }}>
+                      <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}18`, color: BUCKS_COLOR }}>Active · 2 min</span>
+                        </div>
+                        <p className="font-black text-base" style={{ color: NAVY }}>Q3 Team Pulse Check</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Anonymous · Closes in 5 days</p>
+                      </div>
+
+                      <div className="p-4 flex flex-col gap-5">
+                        {/* Question 1 */}
+                        <div>
+                          <p className="text-xs font-bold mb-2.5" style={{ color: NAVY }}>
+                            1. What motivates you most at work?
+                          </p>
+                          <div className="flex flex-col gap-1.5">
+                            {surveyQ1Options.map((opt, i) => (
+                              <button
+                                key={opt}
+                                onClick={() => setSurveyQ1(i)}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left text-xs transition-all duration-150"
+                                style={{
+                                  borderColor: surveyQ1 === i ? BUCKS_COLOR : "#e5e7eb",
+                                  background: surveyQ1 === i ? `${BUCKS_COLOR}0F` : "#fff",
+                                  color: NAVY,
+                                  fontWeight: surveyQ1 === i ? 600 : 400,
+                                }}
+                                data-testid={`button-survey-q1-${i}`}
+                              >
+                                <div
+                                  className="w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center"
+                                  style={{ borderColor: surveyQ1 === i ? BUCKS_COLOR : "#d1d5db" }}
+                                >
+                                  {surveyQ1 === i && <div className="w-1.5 h-1.5 rounded-full" style={{ background: BUCKS_COLOR }} />}
+                                </div>
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Question 2 */}
+                        <div>
+                          <p className="text-xs font-bold mb-2.5" style={{ color: NAVY }}>
+                            2. How satisfied are you with how your performance is recognized?
+                          </p>
+                          <div className="flex flex-col gap-1.5">
+                            {surveyQ2Options.map((opt, i) => (
+                              <button
+                                key={opt}
+                                onClick={() => setSurveyQ2(i)}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left text-xs transition-all duration-150"
+                                style={{
+                                  borderColor: surveyQ2 === i ? BUCKS_COLOR : "#e5e7eb",
+                                  background: surveyQ2 === i ? `${BUCKS_COLOR}0F` : "#fff",
+                                  color: NAVY,
+                                  fontWeight: surveyQ2 === i ? 600 : 400,
+                                }}
+                                data-testid={`button-survey-q2-${i}`}
+                              >
+                                <div
+                                  className="w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center"
+                                  style={{ borderColor: surveyQ2 === i ? BUCKS_COLOR : "#d1d5db" }}
+                                >
+                                  {surveyQ2 === i && <div className="w-1.5 h-1.5 rounded-full" style={{ background: BUCKS_COLOR }} />}
+                                </div>
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleSurveySubmit}
+                          disabled={surveyQ1 === null || surveyQ2 === null}
+                          className="w-full py-2.5 rounded-xl font-bold text-white text-sm transition-all"
+                          style={{ background: (surveyQ1 !== null && surveyQ2 !== null) ? BUCKS_COLOR : "#d1d5db" }}
+                          data-testid="button-survey-submit"
+                        >
+                          Submit Responses
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submitting state */}
+                {surveyStep === 1 && (
+                  <div className="flex flex-col items-center justify-center gap-3 py-16">
+                    <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: `${BUCKS_COLOR}33`, borderTopColor: BUCKS_COLOR }} />
+                    <p className="font-semibold text-sm" style={{ color: NAVY }}>Submitting your responses…</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Admin results view ───────────────────────────────── */}
+              <div
+                className="absolute inset-0 w-full overflow-y-auto"
+                style={{
+                  opacity: surveyStep === 2 ? 1 : 0,
+                  transform: surveyStep === 2 ? "translateX(0)" : "translateX(48px)",
+                  transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
+                  pointerEvents: surveyStep === 2 ? "auto" : "none",
+                  zIndex: surveyStep === 2 ? 2 : 1,
+                }}
+              >
+                {/* Admin header */}
+                <div className="flex items-center justify-between px-4 py-2.5" style={{ background: NAVY }}>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleSurveyReset}
+                      className="text-white/60 hover:text-white transition-colors flex items-center gap-1 text-xs font-semibold"
+                      data-testid="button-survey-back"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Back
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <AppLogo size="sm" />
+                      <div>
+                        <p className="text-white font-bold text-xs leading-tight">Survey Results</p>
+                        <p className="text-white/50 text-xs">Admin View · Acme Corp</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: `${BUCKS_COLOR}30`, color: "white" }}>
+                    <Users className="h-3 w-3" />
+                    <span>12 responses</span>
+                  </div>
+                </div>
+
+                <div className="p-4 flex flex-col gap-4" style={{ animation: "fadeUp 0.5s ease forwards" }}>
+                  {/* Thank-you banner */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl border" style={{ background: `${BUCKS_COLOR}0D`, borderColor: `${BUCKS_COLOR}40` }}>
+                    <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: BUCKS_COLOR }} />
+                    <p className="text-xs font-semibold" style={{ color: NAVY }}>Your response was submitted — here's how the team responded:</p>
+                  </div>
+
+                  {/* Q1 results */}
+                  <div className="rounded-xl border border-gray-100 p-4" style={{ background: "#F8FAFC" }}>
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <BarChart2 className="h-3.5 w-3.5 shrink-0" style={{ color: NAVY }} />
+                      <p className="text-xs font-bold" style={{ color: NAVY }}>What motivates you most at work?</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {surveyQ1Options.map((opt, i) => (
+                        <div key={opt} className="flex flex-col gap-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs" style={{ color: NAVY, fontWeight: i === 0 ? 700 : 400 }}>{opt}</span>
+                            <span className="text-xs font-bold" style={{ color: BUCKS_COLOR }}>{surveyResults1[i]}%</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "#e5e7eb" }}>
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${surveyResults1[i]}%`,
+                                background: i === 0 ? BUCKS_COLOR : `${BUCKS_COLOR}60`,
+                                transition: "width 1s ease 0.3s",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Q2 results */}
+                  <div className="rounded-xl border border-gray-100 p-4" style={{ background: "#F8FAFC" }}>
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <BarChart2 className="h-3.5 w-3.5 shrink-0" style={{ color: NAVY }} />
+                      <p className="text-xs font-bold" style={{ color: NAVY }}>How satisfied are you with how your performance is recognized?</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {surveyQ2Options.map((opt, i) => (
+                        <div key={opt} className="flex flex-col gap-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs" style={{ color: NAVY, fontWeight: i === 0 ? 700 : 400 }}>{opt}</span>
+                            <span className="text-xs font-bold" style={{ color: BUCKS_COLOR }}>{surveyResults2[i]}%</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "#e5e7eb" }}>
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${surveyResults2[i]}%`,
+                                background: i === 0 ? BUCKS_COLOR : `${BUCKS_COLOR}60`,
+                                transition: "width 1s ease 0.3s",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSurveyReset}
+                    className="w-full py-2 rounded-xl font-semibold text-sm border-2 transition-all hover:opacity-80"
+                    style={{ borderColor: `${NAVY}30`, color: NAVY, background: "transparent" }}
+                    data-testid="button-survey-reset"
+                  >
+                    ← Try the survey demo again
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-gray-300">
             <ChevronDown className="h-6 w-6 animate-bounce" />
           </div>
         </section>

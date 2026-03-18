@@ -307,3 +307,50 @@ export const insertGoalNotificationSchema = createInsertSchema(goalNotifications
 export type Goal = typeof goals.$inferSelect;
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type GoalNotification = typeof goalNotifications.$inferSelect;
+
+// ── Surveys ──────────────────────────────────────────────────────────────────
+export const surveys = pgTable("surveys", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  createdBy: integer("created_by").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status", { enum: ["draft", "active", "closed"] }).default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const surveyQuestions = pgTable("survey_questions", {
+  id: serial("id").primaryKey(),
+  surveyId: integer("survey_id").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  questionType: text("question_type", { enum: ["multiple_choice", "written"] }).notNull(),
+  questionText: text("question_text").notNull(),
+  options: text("options").array(),
+});
+
+export const surveyResponses = pgTable("survey_responses", {
+  id: serial("id").primaryKey(),
+  surveyId: integer("survey_id").notNull(),
+  userId: integer("user_id").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+});
+
+export const surveyAnswers = pgTable("survey_answers", {
+  id: serial("id").primaryKey(),
+  responseId: integer("response_id").notNull(),
+  questionId: integer("question_id").notNull(),
+  answerText: text("answer_text"),
+  selectedOption: integer("selected_option"),
+});
+
+export const insertSurveySchema = createInsertSchema(surveys).omit({ id: true, createdAt: true });
+export const insertSurveyQuestionSchema = createInsertSchema(surveyQuestions).omit({ id: true });
+export const insertSurveyResponseSchema = createInsertSchema(surveyResponses).omit({ id: true, submittedAt: true });
+export const insertSurveyAnswerSchema = createInsertSchema(surveyAnswers).omit({ id: true });
+
+export type Survey = typeof surveys.$inferSelect;
+export type InsertSurvey = z.infer<typeof insertSurveySchema>;
+export type SurveyQuestion = typeof surveyQuestions.$inferSelect;
+export type InsertSurveyQuestion = z.infer<typeof insertSurveyQuestionSchema>;
+export type SurveyResponse = typeof surveyResponses.$inferSelect;
+export type SurveyAnswer = typeof surveyAnswers.$inferSelect;

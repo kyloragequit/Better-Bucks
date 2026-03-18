@@ -34,6 +34,8 @@ const AdminSettingsPage = lazy(() => import("@/pages/admin-settings"));
 const AdminAccountSettingsPage = lazy(() => import("@/pages/admin-account-settings"));
 const AdminStorePage = lazy(() => import("@/pages/admin-store"));
 const AdminGoalsPage = lazy(() => import("@/pages/admin-goals"));
+const AdminSurveysPage = lazy(() => import("@/pages/admin-surveys"));
+const EmployeeSurveysPage = lazy(() => import("@/pages/employee-surveys"));
 const PendingVerification = lazy(() => import("@/pages/pending-verification"));
 const ChangePasswordPage = lazy(() => import("@/pages/change-password"));
 const VerifyEmailPage = lazy(() => import("@/pages/verify-email"));
@@ -249,6 +251,12 @@ function Router() {
         </Route>
         <Route path="/admin/goals">
           <ProtectedRoute component={AdminGoalsPage} adminOnly />
+        </Route>
+        <Route path="/admin/surveys">
+          <ProtectedRoute component={AdminSurveysPage} adminOnly />
+        </Route>
+        <Route path="/surveys">
+          <ProtectedRoute component={EmployeeSurveysPage} />
         </Route>
         <Route path="/admin/settings">
           <ProtectedRoute component={AdminSettingsPage} adminOnly />

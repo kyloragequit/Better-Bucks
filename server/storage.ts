@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -121,6 +121,16 @@ export interface IStorage {
   updatePasskeyCounter(id: number, counter: number): Promise<void>;
   renamePasskey(id: number, name: string): Promise<void>;
   deletePasskey(id: number): Promise<void>;
+
+  createSurvey(data: InsertSurvey, questions: Omit<InsertSurveyQuestion, "surveyId">[]): Promise<Survey & { questions: SurveyQuestion[] }>;
+  getSurveysByOrganization(organizationId: number): Promise<(Survey & { questions: SurveyQuestion[]; responseCount: number })[]>;
+  getSurvey(id: number): Promise<(Survey & { questions: SurveyQuestion[] }) | undefined>;
+  updateSurveyStatus(id: number, status: "draft" | "active" | "closed"): Promise<Survey>;
+  deleteSurvey(id: number): Promise<void>;
+  hasUserRespondedToSurvey(surveyId: number, userId: number): Promise<boolean>;
+  submitSurveyResponse(surveyId: number, userId: number, answers: { questionId: number; answerText?: string; selectedOption?: number }[]): Promise<void>;
+  getSurveyResults(surveyId: number): Promise<{ question: SurveyQuestion; answers: SurveyAnswer[]; respondents: number }[]>;
+  getSurveyRespondents(surveyId: number): Promise<{ user: Pick<User, "id" | "fullName">; submittedAt: Date }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -820,6 +830,77 @@ export class DatabaseStorage implements IStorage {
 
   async deletePasskey(id: number): Promise<void> {
     await db.delete(passkeys).where(eq(passkeys.id, id));
+  }
+
+  async createSurvey(data: InsertSurvey, questions: Omit<InsertSurveyQuestion, "surveyId">[]): Promise<Survey & { questions: SurveyQuestion[] }> {
+    const [survey] = await db.insert(surveys).values(data).returning();
+    const qs = questions.length > 0
+      ? await db.insert(surveyQuestions).values(questions.map((q, i) => ({ ...q, surveyId: survey.id, orderIndex: i }))).returning()
+      : [];
+    return { ...survey, questions: qs };
+  }
+
+  async getSurveysByOrganization(organizationId: number): Promise<(Survey & { questions: SurveyQuestion[]; responseCount: number })[]> {
+    const rows = await db.select().from(surveys).where(eq(surveys.organizationId, organizationId)).orderBy(desc(surveys.createdAt));
+    if (rows.length === 0) return [];
+    const ids = rows.map(s => s.id);
+    const qs = await db.select().from(surveyQuestions).where(sql`${surveyQuestions.surveyId} = ANY(${ids})`).orderBy(surveyQuestions.orderIndex);
+    const counts = await db.select({ surveyId: surveyResponses.surveyId, count: sql<number>`COUNT(*)` }).from(surveyResponses).where(sql`${surveyResponses.surveyId} = ANY(${ids})`).groupBy(surveyResponses.surveyId);
+    const qMap: Record<number, SurveyQuestion[]> = {};
+    for (const q of qs) { (qMap[q.surveyId] = qMap[q.surveyId] || []).push(q); }
+    const cMap: Record<number, number> = {};
+    for (const c of counts) cMap[c.surveyId] = Number(c.count);
+    return rows.map(s => ({ ...s, questions: qMap[s.id] || [], responseCount: cMap[s.id] || 0 }));
+  }
+
+  async getSurvey(id: number): Promise<(Survey & { questions: SurveyQuestion[] }) | undefined> {
+    const [survey] = await db.select().from(surveys).where(eq(surveys.id, id));
+    if (!survey) return undefined;
+    const qs = await db.select().from(surveyQuestions).where(eq(surveyQuestions.surveyId, id)).orderBy(surveyQuestions.orderIndex);
+    return { ...survey, questions: qs };
+  }
+
+  async updateSurveyStatus(id: number, status: "draft" | "active" | "closed"): Promise<Survey> {
+    const [row] = await db.update(surveys).set({ status }).where(eq(surveys.id, id)).returning();
+    return row;
+  }
+
+  async deleteSurvey(id: number): Promise<void> {
+    await db.delete(surveys).where(eq(surveys.id, id));
+  }
+
+  async hasUserRespondedToSurvey(surveyId: number, userId: number): Promise<boolean> {
+    const [row] = await db.select({ id: surveyResponses.id }).from(surveyResponses).where(and(eq(surveyResponses.surveyId, surveyId), eq(surveyResponses.userId, userId)));
+    return !!row;
+  }
+
+  async submitSurveyResponse(surveyId: number, userId: number, answers: { questionId: number; answerText?: string; selectedOption?: number }[]): Promise<void> {
+    const [response] = await db.insert(surveyResponses).values({ surveyId, userId }).returning();
+    if (answers.length > 0) {
+      await db.insert(surveyAnswers).values(answers.map(a => ({ responseId: response.id, questionId: a.questionId, answerText: a.answerText ?? null, selectedOption: a.selectedOption ?? null })));
+    }
+  }
+
+  async getSurveyResults(surveyId: number): Promise<{ question: SurveyQuestion; answers: SurveyAnswer[]; respondents: number }[]> {
+    const qs = await db.select().from(surveyQuestions).where(eq(surveyQuestions.surveyId, surveyId)).orderBy(surveyQuestions.orderIndex);
+    const [{ count }] = await db.select({ count: sql<number>`COUNT(*)` }).from(surveyResponses).where(eq(surveyResponses.surveyId, surveyId));
+    const responseIds = (await db.select({ id: surveyResponses.id }).from(surveyResponses).where(eq(surveyResponses.surveyId, surveyId))).map(r => r.id);
+    const answers = responseIds.length > 0
+      ? await db.select().from(surveyAnswers).where(sql`${surveyAnswers.responseId} = ANY(${responseIds})`)
+      : [];
+    const aByQ: Record<number, SurveyAnswer[]> = {};
+    for (const a of answers) { (aByQ[a.questionId] = aByQ[a.questionId] || []).push(a); }
+    return qs.map(q => ({ question: q, answers: aByQ[q.id] || [], respondents: Number(count) }));
+  }
+
+  async getSurveyRespondents(surveyId: number): Promise<{ user: Pick<User, "id" | "fullName">; submittedAt: Date }[]> {
+    const rows = await db.select({ userId: surveyResponses.userId, submittedAt: surveyResponses.submittedAt }).from(surveyResponses).where(eq(surveyResponses.surveyId, surveyId)).orderBy(desc(surveyResponses.submittedAt));
+    const userIds = rows.map(r => r.userId);
+    if (userIds.length === 0) return [];
+    const us = await db.select({ id: users.id, fullName: users.fullName }).from(users).where(sql`${users.id} = ANY(${userIds})`);
+    const uMap: Record<number, string> = {};
+    for (const u of us) uMap[u.id] = u.fullName;
+    return rows.map(r => ({ user: { id: r.userId, fullName: uMap[r.userId] ?? "Unknown" }, submittedAt: r.submittedAt }));
   }
 }
 

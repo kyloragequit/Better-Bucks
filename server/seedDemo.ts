@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { organizations, departments, users, goals, storeItems, orders, transactions } from "@shared/schema";
+import { organizations, departments, users, goals, storeItems, orders, transactions, surveys, surveyQuestions } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "./auth";
 
@@ -316,5 +316,21 @@ async function _seedDemoOrg() {
     });
   }
 
-  console.log(`[seedDemo] Done — seeded VIEWDEMO org (id=${org.id}) with ${empValues.length} employees, 2 goals, 3 store items, 10 orders.`);
+  // 10. Demo survey
+  const [demoSurvey] = await db.insert(surveys).values({
+    organizationId: org.id,
+    createdBy: primeAdmin.id,
+    title: "Team Feedback – Q1 2026",
+    description: "Help us improve our workplace! Your responses are anonymous.",
+    status: "active",
+  }).returning();
+  await db.insert(surveyQuestions).values([
+    { surveyId: demoSurvey.id, orderIndex: 0, questionType: "multiple_choice", questionText: "How would you rate your overall job satisfaction?", options: ["Very Satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very Dissatisfied"] },
+    { surveyId: demoSurvey.id, orderIndex: 1, questionType: "multiple_choice", questionText: "How often do you feel recognized for your hard work?", options: ["Always", "Usually", "Sometimes", "Rarely", "Never"] },
+    { surveyId: demoSurvey.id, orderIndex: 2, questionType: "written", questionText: "What is one thing we could do to improve your work environment?", options: null },
+    { surveyId: demoSurvey.id, orderIndex: 3, questionType: "multiple_choice", questionText: "How well does your team communicate and collaborate?", options: ["Excellent", "Good", "Fair", "Poor"] },
+    { surveyId: demoSurvey.id, orderIndex: 4, questionType: "written", questionText: "Any other feedback or suggestions for leadership?", options: null },
+  ]);
+
+  console.log(`[seedDemo] Done — seeded VIEWDEMO org (id=${org.id}) with ${empValues.length} employees, 2 goals, 3 store items, 10 orders, 1 survey.`);
 }

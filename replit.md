@@ -50,6 +50,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Key Features
 - **Goals System**: Prime admins create time-based ("days without an incident") or quantity-based goals with a Bucks reward. Progress bars appear on every employee dashboard. When complete, prime admins distribute Bucks to all approved employees. Employees see a login notification modal when a goal is met (after distribution) or failed.
+- **Surveys System**: Admins create multi-question surveys (multiple choice + written answer). Active surveys appear in the employee "Surveys" tab. Admins view results/analytics per question with option-level response counts. Tables: `surveys`, `survey_questions`, `survey_responses`, `survey_answers`. Routes: `GET/POST /api/surveys`, `GET /api/surveys/:id/respond`, `POST /api/admin/surveys`, `PATCH /api/admin/surveys/:id/status`, `DELETE /api/admin/surveys/:id`, `GET /api/admin/surveys/:id/results`. Demo org has a pre-seeded active survey. Landing page features surveys in the feature strip.
 - **Employee Store**: Admins curate items for employees to purchase with Bucks. Includes an employee wishlist system.
 - **Order System**: Employees can submit orders from external URLs with photo proof; admins approve/reject.
 - **Organization & Subscription**: Tiered Stripe subscriptions, organization code generation, prime admin setup, and subscription management (upgrade/downgrade, cancellation).

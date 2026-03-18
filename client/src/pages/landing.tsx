@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb, BookOpen, Play } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb, BookOpen, Play, ClipboardList, Target, Zap, ShoppingBag } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 
@@ -439,6 +439,42 @@ export default function LandingPage() {
                   {c("benefit3_bullet3")}
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-12 bg-white border-t" data-testid="section-features">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <h2 className="text-center text-lg font-semibold text-gray-500 uppercase tracking-wide mb-8">Everything your team needs in one place</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div className="text-center" data-testid="feature-bucks">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <p className="font-semibold text-gray-800 text-sm">Instant Bucks</p>
+              <p className="text-xs text-gray-500 mt-1">Award points in seconds with a reason</p>
+            </div>
+            <div className="text-center" data-testid="feature-goals">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
+                <Target className="h-5 w-5 text-primary" />
+              </div>
+              <p className="font-semibold text-gray-800 text-sm">Team Goals</p>
+              <p className="text-xs text-gray-500 mt-1">Set milestones and distribute Bucks to the whole team</p>
+            </div>
+            <div className="text-center" data-testid="feature-surveys">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
+                <ClipboardList className="h-5 w-5 text-primary" />
+              </div>
+              <p className="font-semibold text-gray-800 text-sm">Surveys</p>
+              <p className="text-xs text-gray-500 mt-1">Collect anonymous team feedback with built-in analytics</p>
+            </div>
+            <div className="text-center" data-testid="feature-store">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+              </div>
+              <p className="font-semibold text-gray-800 text-sm">Rewards Store</p>
+              <p className="text-xs text-gray-500 mt-1">Employees spend Bucks on real items they actually want</p>
             </div>
           </div>
         </div>

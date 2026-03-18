@@ -3594,6 +3594,102 @@ export async function registerRoutes(
 
   // ─── End Goals ────────────────────────────────────────────────────────────
 
+  // ─── Surveys ──────────────────────────────────────────────────────────────
+
+  // List surveys (admin: all; employee: active only, with responded flag)
+  app.get("/api/surveys", asyncHandler(async (req, res) => {
+    const user = req.user as any;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    const all = await storage.getSurveysByOrganization(user.organizationId);
+    if (user.role === "employee") {
+      const active = all.filter(s => s.status === "active");
+      const respondedFlags = await Promise.all(active.map(s => storage.hasUserRespondedToSurvey(s.id, user.id)));
+      return res.json(active.map((s, i) => ({ ...s, responded: respondedFlags[i] })));
+    }
+    res.json(all);
+  }));
+
+  // Get one survey with questions
+  app.get("/api/surveys/:id", asyncHandler(async (req, res) => {
+    const user = req.user as any;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    const survey = await storage.getSurvey(Number(req.params.id));
+    if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
+    if (user.role === "employee" && survey.status !== "active") return res.status(403).json({ message: "Survey not active" });
+    const responded = await storage.hasUserRespondedToSurvey(survey.id, user.id);
+    res.json({ ...survey, responded });
+  }));
+
+  // Create survey (admin only)
+  app.post("/api/admin/surveys", asyncHandler(async (req, res) => {
+    const user = req.user as any;
+    if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
+    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: surveys are read-only." });
+    const { title, description, status, questions } = req.body;
+    if (!title) return res.status(400).json({ message: "Title is required" });
+    const survey = await storage.createSurvey(
+      { organizationId: user.organizationId, createdBy: user.id, title, description: description ?? null, status: status ?? "draft" },
+      (questions || []).map((q: any, i: number) => ({
+        questionType: q.questionType,
+        questionText: q.questionText,
+        options: q.options ?? null,
+        orderIndex: i,
+      }))
+    );
+    res.json(survey);
+  }));
+
+  // Update survey status (admin only)
+  app.patch("/api/admin/surveys/:id/status", asyncHandler(async (req, res) => {
+    const user = req.user as any;
+    if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
+    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: surveys are read-only." });
+    const survey = await storage.getSurvey(Number(req.params.id));
+    if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
+    const updated = await storage.updateSurveyStatus(survey.id, req.body.status);
+    res.json(updated);
+  }));
+
+  // Delete survey (admin only)
+  app.delete("/api/admin/surveys/:id", asyncHandler(async (req, res) => {
+    const user = req.user as any;
+    if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
+    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: surveys are read-only." });
+    const survey = await storage.getSurvey(Number(req.params.id));
+    if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
+    await storage.deleteSurvey(survey.id);
+    res.json({ success: true });
+  }));
+
+  // Get survey results (admin only)
+  app.get("/api/admin/surveys/:id/results", asyncHandler(async (req, res) => {
+    const user = req.user as any;
+    if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
+    const survey = await storage.getSurvey(Number(req.params.id));
+    if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
+    const [results, respondents] = await Promise.all([
+      storage.getSurveyResults(survey.id),
+      storage.getSurveyRespondents(survey.id),
+    ]);
+    res.json({ survey, results, respondents });
+  }));
+
+  // Submit survey response (employee)
+  app.post("/api/surveys/:id/respond", asyncHandler(async (req, res) => {
+    const user = req.user as any;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: survey submissions are disabled." });
+    const survey = await storage.getSurvey(Number(req.params.id));
+    if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
+    if (survey.status !== "active") return res.status(400).json({ message: "Survey is not active" });
+    const already = await storage.hasUserRespondedToSurvey(survey.id, user.id);
+    if (already) return res.status(400).json({ message: "Already responded" });
+    await storage.submitSurveyResponse(survey.id, user.id, req.body.answers || []);
+    res.json({ success: true });
+  }));
+
+  // ─── End Surveys ──────────────────────────────────────────────────────────
+
   // Ensure PRIME1 organization exists (free membership)
   let prime1Org = await storage.getOrganizationByCode("PRIME1");
   if (!prime1Org) {

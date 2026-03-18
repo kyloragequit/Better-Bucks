@@ -2626,6 +2626,21 @@ export async function registerRoutes(
   });
 
   app.post("/api/demo/exit", async (req, res) => {
+    const isPublicDemo = (req.session as any)?.isPublicDemo === true;
+
+    // Public demo visitors have no "real" account to return to — just log out completely
+    if (isPublicDemo) {
+      req.logout((err) => {
+        if (err) return res.status(500).json({ message: "Failed to exit demo" });
+        req.session.destroy((destroyErr) => {
+          if (destroyErr) console.error("Demo session destroy error:", destroyErr);
+          res.json({ success: true });
+        });
+      });
+      return;
+    }
+
+    // Regular demo (an admin viewing their own org): restore the original logged-in user
     const demoOriginalUserId = (req.session as any).demoOriginalUserId as number | undefined;
     if (!demoOriginalUserId) {
       return res.status(400).json({ message: "Not in demo mode" });

@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import logoImg from "@assets/Final_Logo_1773850720439.png";
+import logoImg from "@assets/logo-optimized.png";
 
 export function AppLogo({ size = "md", linkTo }: { size?: "xs" | "sm" | "md" | "lg"; linkTo?: string }) {
   const [, navigate] = useLocation();

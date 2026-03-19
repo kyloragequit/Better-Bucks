@@ -1,4 +1,4 @@
-import logoImg from "@assets/Final_Logo_1773850720439.png";
+import logoImg from "@assets/logo-optimized.png";
 
 export function LogoBackground() {
   const logos = [

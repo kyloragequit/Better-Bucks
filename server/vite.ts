@@ -56,8 +56,10 @@ export async function setupVite(server: Server, app: Express) {
       const page = await vite.transformIndexHtml(req.originalUrl, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
-      next(e);
+      // If DB is temporarily unavailable or meta injection fails, serve the generic
+      // index.html (200) rather than propagating a 500 that would block indexing.
+      console.error("Blog meta injection error (falling back to generic HTML):", e);
+      next();
     }
   });
 

@@ -33,12 +33,18 @@ export function serveStatic(app: Express) {
       res.setHeader("Cache-Control", "public, max-age=600, stale-while-revalidate=3600");
       res.send(html);
     } catch (e) {
-      next(e);
+      // If DB is temporarily unavailable or meta injection fails, serve the generic
+      // index.html (200) rather than propagating a 500 that would block indexing.
+      console.error("Blog meta injection error (falling back to generic HTML):", e);
+      next();
     }
   });
 
-  app.use("*", (_req, res) => {
+  const indexPath = path.resolve(distPath, "index.html");
+  app.use("*", (_req, res, next) => {
     res.setHeader("Cache-Control", "no-cache");
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res.sendFile(indexPath, (err) => {
+      if (err) next(err);
+    });
   });
 }

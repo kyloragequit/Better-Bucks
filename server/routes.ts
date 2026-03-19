@@ -3129,6 +3129,7 @@ export async function registerRoutes(
 
   // Page content (public read, developer write)
   app.get("/api/page-content", async (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     const content = await storage.getPageContent();
     res.json(content);
   });
@@ -3146,11 +3147,13 @@ export async function registerRoutes(
   // ==================== BLOG ROUTES ====================
 
   app.get("/api/blog", async (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     const posts = await storage.getAllBlogPosts();
     res.json(posts);
   });
 
   app.get("/api/blog/:slug", async (req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     const post = await storage.getBlogPostBySlug(req.params.slug);
     if (!post) return res.status(404).json({ message: "Post not found" });
     res.json(post);

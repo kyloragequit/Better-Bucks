@@ -63,14 +63,21 @@ export function setupAuth(app: Express) {
 
   app.use(
     session({
-      store: new PgSession({ pool, createTableIfMissing: true }),
+      store: new PgSession({
+        pool,
+        createTableIfMissing: true,
+        pruneSessionInterval: 60 * 60,   // prune expired sessions every hour
+        errorLog: (err) => console.error("Session store error:", err),
+      }),
       secret: process.env.SESSION_SECRET || "super secret session key",
       resave: false,
       saveUninitialized: false,
+      rolling: false,
       cookie: {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000,   // 24h default; remember-me extends to 30d
       },
     })
   );

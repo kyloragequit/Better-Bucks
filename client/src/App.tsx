@@ -11,6 +11,7 @@ import { useAnalytics } from "@/hooks/use-analytics";
 import { TutorialModal } from "@/components/tutorial-modal";
 import { FullTutorialOverlay } from "@/components/full-tutorial";
 import { TermsAgreementModal } from "@/components/terms-agreement-modal";
+import { TwoFaPrompt } from "@/components/two-fa-prompt";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Trophy, XCircle, Coins } from "lucide-react";
@@ -304,6 +305,7 @@ function App() {
         <TutorialModal />
         <FullTutorialOverlay />
         <TermsAgreementModal />
+        <TwoFaPrompt />
         <GoalNotificationModal />
       </TooltipProvider>
     </QueryClientProvider>

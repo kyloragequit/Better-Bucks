@@ -3164,6 +3164,61 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // ========== 2FA / Contact Info Prompt ==========
+  app.post("/api/users/dismiss-2fa-prompt", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if ((req.session as any)?.isPublicDemo) {
+      return res.json({ ...user, twoFaPromptDismissed: true });
+    }
+    try {
+      const updated = await storage.dismissTwoFaPrompt(user.id);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to dismiss prompt" });
+    }
+  });
+
+  app.patch("/api/users/contact-info", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if ((req.session as any)?.isPublicDemo) {
+      return res.json({ ...user, twoFaPromptDismissed: true });
+    }
+    try {
+      const { email, phone } = req.body;
+      const hasEmail = email && z.string().email().safeParse(email).success;
+      const hasPhone = phone && String(phone).replace(/\D/g, "").length >= 10;
+      if (!hasEmail && !hasPhone) {
+        return res.status(400).json({ message: "Please provide a valid email address or phone number" });
+      }
+      // Check uniqueness
+      if (hasEmail) {
+        const existing = await storage.getUserByEmailGlobal(email);
+        if (existing && existing.id !== user.id) {
+          return res.status(409).json({ message: "This email is already associated with another account" });
+        }
+      }
+      if (hasPhone) {
+        const existing = await storage.getUserByPhoneGlobal(phone);
+        if (existing && existing.id !== user.id) {
+          return res.status(409).json({ message: "This phone number is already associated with another account" });
+        }
+      }
+      const updated = await storage.updateUserContactInfo(
+        user.id,
+        hasEmail ? email : null,
+        hasPhone ? phone : null,
+      );
+      req.login(updated, (err) => {
+        if (err) return res.status(500).json({ message: "Session update failed" });
+        res.json(updated);
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update contact info" });
+    }
+  });
+
   // ========== Role Labels ==========
   app.get("/api/organizations/role-labels", async (req, res) => {
     const user = req.user as User | undefined;

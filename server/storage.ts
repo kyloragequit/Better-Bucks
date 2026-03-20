@@ -90,6 +90,8 @@ export interface IStorage {
 
   acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
   incrementSuccessfulLoginCount(userId: number): Promise<User>;
+  dismissTwoFaPrompt(userId: number): Promise<User>;
+  updateUserContactInfo(userId: number, email: string | null, phone: string | null): Promise<User>;
 
   getAllBlogPosts(): Promise<BlogPost[]>;
   getBlogPostBySlug(slug: string): Promise<BlogPost | undefined>;
@@ -662,6 +664,29 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(users)
       .set({ successfulLoginCount: (user.successfulLoginCount ?? 0) + 1 })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  async dismissTwoFaPrompt(userId: number): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ twoFaPromptDismissed: true })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  async updateUserContactInfo(userId: number, email: string | null, phone: string | null): Promise<User> {
+    const setFields: Partial<{ email: string | null; phone: string | null; twoFaPromptDismissed: boolean }> = {
+      twoFaPromptDismissed: true,
+    };
+    if (email !== undefined) setFields.email = email;
+    if (phone !== undefined) setFields.phone = phone;
+    const [updated] = await db
+      .update(users)
+      .set(setFields)
       .where(eq(users.id, userId))
       .returning();
     return updated;

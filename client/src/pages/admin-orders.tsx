@@ -9,12 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Package, Check, X, Eye, ExternalLink, Lock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Package, Check, X, Eye, ExternalLink, Lock, Pencil } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useUser } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
 import type { Order, User } from "@shared/schema";
 
 type OrderWithUser = Order & { user: User };
@@ -198,7 +200,7 @@ export default function AdminOrdersPage() {
       </Card>
 
       {selectedOrder && (
-        <OrderPhotoDialog order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        <OrderPhotoDialog order={selectedOrder} onClose={() => setSelectedOrder(null)} isPrime={isPrime} />
       )}
     </AdminLayout>
   );
@@ -249,7 +251,44 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
   );
 }
 
-function OrderPhotoDialog({ order, onClose }: { order: OrderWithUser; onClose: () => void }) {
+function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; onClose: () => void; isPrime: boolean }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingBucks, setEditingBucks] = useState(false);
+  const [newBucks, setNewBucks] = useState(order.pointsCost.toString());
+
+  const adjustBucksMutation = useMutation({
+    mutationFn: async (newCost: number) => {
+      const res = await apiRequest("PATCH", `/api/orders/${order.id}/bucks`, { newCost });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to adjust Bucks");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({ title: "Bucks Adjusted", description: `Order #${order.id} Bucks updated.` });
+      setEditingBucks(false);
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const handleSaveBucks = () => {
+    const parsed = parseInt(newBucks);
+    if (isNaN(parsed) || parsed < 1) {
+      toast({ title: "Invalid amount", description: "Bucks must be at least 1.", variant: "destructive" });
+      return;
+    }
+    if (parsed === order.pointsCost) { setEditingBucks(false); return; }
+    adjustBucksMutation.mutate(parsed);
+  };
+
+  const canAdjustBucks = isPrime && order.status !== "rejected";
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -263,9 +302,47 @@ function OrderPhotoDialog({ order, onClose }: { order: OrderWithUser; onClose: (
           <div className="text-sm">
             <span className="font-medium">Description:</span> {order.description}
           </div>
-          <div className="text-sm">
-            <span className="font-medium">Bucks:</span> {order.pointsCost.toLocaleString()}
+          <div className="text-sm flex items-center gap-2">
+            <span className="font-medium">Bucks:</span>
+            {editingBucks ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  value={newBucks}
+                  onChange={(e) => setNewBucks(e.target.value)}
+                  className="h-7 w-28 text-sm"
+                  autoFocus
+                  data-testid="input-adjust-bucks"
+                />
+                <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveBucks} disabled={adjustBucksMutation.isPending} data-testid="button-save-bucks">
+                  {adjustBucksMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setEditingBucks(false); setNewBucks(order.pointsCost.toString()); }}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                {order.pointsCost.toLocaleString()}
+                {canAdjustBucks && (
+                  <button
+                    onClick={() => setEditingBucks(true)}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    title="Adjust Bucks"
+                    data-testid="button-edit-bucks"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
+              </span>
+            )}
           </div>
+          {canAdjustBucks && !editingBucks && (
+            <p className="text-xs text-muted-foreground -mt-1">
+              Adjusting Bucks will refund or charge the difference to the employee's balance.
+            </p>
+          )}
           {order.convertedValue && (
             <div className="text-sm">
               <span className="font-medium">USD Value:</span> {order.convertedValue}

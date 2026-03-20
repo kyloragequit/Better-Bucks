@@ -243,6 +243,9 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
 
   const parsedAmount = parseInt(amount) || 0;
   const totalCost = parsedAmount * selectedIds.size;
+  const isPrime = currentUser?.role === "prime_admin";
+  const adminBalance = currentUser?.balance ?? 0;
+  const wouldOverspend = !isPrime && totalCost > adminBalance;
 
   const handleSubmit = () => {
     if (selectedIds.size === 0) {
@@ -255,6 +258,10 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
     }
     if (!reason.trim()) {
       toast({ title: "Reason required", description: "Please enter a reason for the credit.", variant: "destructive" });
+      return;
+    }
+    if (wouldOverspend) {
+      toast({ title: "Insufficient balance", description: `You only have ${adminBalance.toLocaleString()} bcks. This credit would cost ${totalCost.toLocaleString()} bcks.`, variant: "destructive" });
       return;
     }
     bulkCreditMutation.mutate({ userIds: Array.from(selectedIds), amount: parsedAmount, reason: reason.trim() });
@@ -358,13 +365,25 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
             </ScrollArea>
           </div>
 
+          {!isPrime && (
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Your Bucks balance</span>
+              <span className="font-bold text-primary tabular-nums">{adminBalance.toLocaleString()} bcks</span>
+            </div>
+          )}
+
           {selectedIds.size > 0 && parsedAmount > 0 && (
-            <div className="rounded-lg bg-muted/50 border px-4 py-3 flex items-center justify-between text-sm">
+            <div className={`rounded-lg border px-4 py-3 flex items-center justify-between text-sm ${wouldOverspend ? "border-destructive/40 bg-destructive/5" : "bg-muted/50"}`}>
               <span className="text-muted-foreground">
                 <span className="font-semibold text-foreground">{selectedIds.size}</span> employee{selectedIds.size !== 1 ? "s" : ""} × <span className="font-semibold text-foreground">{parsedAmount.toLocaleString()} bcks</span>
               </span>
-              <span className="font-bold text-primary">{totalCost.toLocaleString()} bcks total</span>
+              <span className={`font-bold tabular-nums ${wouldOverspend ? "text-destructive" : "text-primary"}`}>{totalCost.toLocaleString()} bcks total</span>
             </div>
+          )}
+          {wouldOverspend && (
+            <p className="text-xs text-destructive -mt-2">
+              Insufficient balance — you need {totalCost.toLocaleString()} bcks but only have {adminBalance.toLocaleString()} bcks.
+            </p>
           )}
         </div>
 
@@ -372,7 +391,7 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button
             onClick={handleSubmit}
-            disabled={bulkCreditMutation.isPending || selectedIds.size === 0 || parsedAmount <= 0 || !reason.trim()}
+            disabled={bulkCreditMutation.isPending || selectedIds.size === 0 || parsedAmount <= 0 || !reason.trim() || wouldOverspend}
             data-testid="button-bulk-submit"
           >
             {bulkCreditMutation.isPending ? "Crediting..." : `Credit ${selectedIds.size > 0 ? selectedIds.size : ""} Employee${selectedIds.size !== 1 ? "s" : ""}`}

@@ -1440,6 +1440,45 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Adjust Bucks amount on an order (prime_admin only)
+  app.patch("/api/orders/:id/bucks", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Only the Organization Owner can adjust order Bucks." });
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
+    const parsed = z.object({ newCost: z.number().int().min(1, "Bucks must be at least 1") }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const order = await storage.getOrder(id);
+    if (!order) return res.status(404).send("Order not found");
+    if (order.status === "rejected") {
+      return res.status(400).json({ message: "Cannot adjust Bucks on a rejected order." });
+    }
+
+    const { newCost } = parsed.data;
+    const diff = newCost - order.pointsCost;
+
+    if (diff !== 0) {
+      // Adjust employee balance: negative diff = refund, positive diff = extra charge
+      await storage.updateUserBalance(order.userId, -diff);
+      await storage.createTransaction({
+        userId: order.userId,
+        amount: -diff,
+        reason: diff > 0
+          ? `Order #${order.id} Bucks adjusted (+${diff} charged)`
+          : `Order #${order.id} Bucks adjusted (${diff} refunded)`,
+        performedBy: user.id,
+      });
+    }
+
+    const updated = await storage.updateOrderPointsCost(id, newCost);
+    res.json(updated);
+  });
+
   // Points distribution stats (admin only) - counts bucks given from admins to employees
   app.get("/api/stats/points", async (req, res) => {
     const user = req.user as User | undefined;

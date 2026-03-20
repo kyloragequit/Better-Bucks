@@ -145,14 +145,20 @@ export default function AdminEmployeeDetailPage() {
 function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; currentBalance: number }) {
   const [open, setOpen] = useState(false);
   const { mutate: updateBalance, isPending } = useUpdateBalance();
+  const { data: adminUser } = useUser();
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [type, setType] = useState<"credit" | "debit">("credit");
 
+  const numAmount = parseInt(amount) || 0;
+  const isPrime = adminUser?.role === "prime_admin";
+  const adminBalance = adminUser?.balance ?? 0;
+  const wouldOverspend = type === "credit" && !isPrime && numAmount > adminBalance;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const numAmount = parseInt(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
+    if (wouldOverspend) return;
     
     const finalAmount = type === "credit" ? numAmount : -numAmount;
 
@@ -179,6 +185,13 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {!isPrime && (
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Your Bucks balance</span>
+              <span className="font-bold text-primary tabular-nums">{adminBalance.toLocaleString()} bcks</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <Button 
               type="button" 
@@ -208,6 +221,11 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
               value={amount}
               onChange={(e) => setAmount(e.target.value)} 
             />
+            {wouldOverspend && (
+              <p className="text-xs text-destructive">
+                Insufficient balance — you only have {adminBalance.toLocaleString()} bcks available.
+              </p>
+            )}
           </div>
           
           <div className="grid gap-2">
@@ -222,7 +240,7 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
           </div>
 
           <DialogFooter className="mt-4">
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || wouldOverspend}>
               {isPending ? "Updating..." : "Confirm Adjustment"}
             </Button>
           </DialogFooter>

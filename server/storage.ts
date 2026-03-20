@@ -33,6 +33,7 @@ export interface IStorage {
   getAllOrders(): Promise<(Order & { user: User })[]>;
   getOrdersByOrganization(organizationId: number): Promise<(Order & { user: User })[]>;
   updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
+  updateOrderPointsCost(id: number, pointsCost: number): Promise<Order>;
 
   getAllOrganizations(): Promise<Organization[]>;
   getAllOrganizationsIncludingDeleted(): Promise<Organization[]>;
@@ -340,6 +341,11 @@ export class DatabaseStorage implements IStorage {
     const updateData: any = { status, updatedAt: new Date() };
     if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
     const [updated] = await db.update(orders).set(updateData).where(eq(orders.id, id)).returning();
+    return updated;
+  }
+
+  async updateOrderPointsCost(id: number, pointsCost: number): Promise<Order> {
+    const [updated] = await db.update(orders).set({ pointsCost, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
     return updated;
   }
 

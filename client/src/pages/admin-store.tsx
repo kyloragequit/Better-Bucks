@@ -5,10 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2 } from "lucide-react";
+import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2, Ruler, Palette } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +47,18 @@ const HELP_TIPS = [
     field: "Preview Image",
     color: "#f59e0b",
     tip: "Upload a photo or paste an image URL. A clear product photo dramatically increases employee engagement — items with images get selected 3× more often. Use the retailer's product image URL if you don't have one handy.",
+  },
+  {
+    icon: Ruler,
+    field: "Require Size",
+    color: "#8b5cf6",
+    tip: "Enable this for items like apparel or shoes where employees need to specify a size (S, M, L, XL, etc.). When enabled, employees must enter their size before submitting an order.",
+  },
+  {
+    icon: Palette,
+    field: "Require Color",
+    color: "#ec4899",
+    tip: "Enable this for items available in multiple colors. When enabled, employees must specify their preferred color before submitting an order, so you know exactly what to order.",
   },
   {
     icon: CheckCircle2,
@@ -129,10 +142,13 @@ export default function AdminStorePage() {
   const [price, setPrice] = useState("");
   const [url, setUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [requiresSize, setRequiresSize] = useState(false);
+  const [requiresColor, setRequiresColor] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const resetForm = () => {
     setName(""); setPrice(""); setUrl(""); setImageUrl("");
+    setRequiresSize(false); setRequiresColor(false);
     setShowAddForm(false); setEditingItem(null);
   };
 
@@ -142,6 +158,8 @@ export default function AdminStorePage() {
     setPrice(String(item.price));
     setUrl(item.url);
     setImageUrl(item.imageUrl);
+    setRequiresSize(item.requiresSize);
+    setRequiresColor(item.requiresColor);
     setShowAddForm(false);
   };
 
@@ -165,7 +183,7 @@ export default function AdminStorePage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/store-items", { name, price, url, imageUrl });
+      const res = await apiRequest("POST", "/api/store-items", { name, price, url, imageUrl, requiresSize, requiresColor });
       return res.json();
     },
     onSuccess: () => {
@@ -178,7 +196,7 @@ export default function AdminStorePage() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("PATCH", `/api/store-items/${editingItem!.id}`, { name, price, url, imageUrl });
+      const res = await apiRequest("PATCH", `/api/store-items/${editingItem!.id}`, { name, price, url, imageUrl, requiresSize, requiresColor });
       return res.json();
     },
     onSuccess: () => {
@@ -288,6 +306,40 @@ export default function AdminStorePage() {
                     </div>
                   </div>
                 </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium text-foreground">Order Options</p>
+                  <p className="text-xs text-muted-foreground">Enable these if employees need to specify size or color when ordering.</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Ruler className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Require Size</p>
+                        <p className="text-xs text-muted-foreground">Employees must enter a size (e.g. S, M, L, XL)</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={requiresSize}
+                      onCheckedChange={setRequiresSize}
+                      data-testid="switch-requires-size"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Palette className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Require Color</p>
+                        <p className="text-xs text-muted-foreground">Employees must specify a color preference</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={requiresColor}
+                      onCheckedChange={setRequiresColor}
+                      data-testid="switch-requires-color"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex gap-2 pt-2">
                   <Button type="submit" disabled={isSubmitting} data-testid="button-save-store-item">
                     {isSubmitting ? "Saving..." : editingItem ? "Save Changes" : "Add to Store"}
@@ -328,6 +380,18 @@ export default function AdminStorePage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate" data-testid={`text-store-item-name-${item.id}`}>{item.name}</p>
                       <p className="text-primary text-sm font-bold mt-0.5" data-testid={`text-store-item-price-${item.id}`}>{item.price.toLocaleString()} Bucks</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {item.requiresSize && (
+                          <span className="inline-flex items-center gap-1 text-xs bg-violet-50 text-violet-700 rounded-full px-2 py-0.5 border border-violet-200">
+                            <Ruler className="h-2.5 w-2.5" /> Size req.
+                          </span>
+                        )}
+                        {item.requiresColor && (
+                          <span className="inline-flex items-center gap-1 text-xs bg-pink-50 text-pink-700 rounded-full px-2 py-0.5 border border-pink-200">
+                            <Palette className="h-2.5 w-2.5" /> Color req.
+                          </span>
+                        )}
+                      </div>
                       <a
                         href={item.url}
                         target="_blank"

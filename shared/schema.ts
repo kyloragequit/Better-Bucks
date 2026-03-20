@@ -119,6 +119,8 @@ export const orders = pgTable("orders", {
   itemUrl: text("item_url"),
   status: text("status", { enum: ["pending", "approved", "rejected", "completed"] }).default("pending").notNull(),
   adminNotes: text("admin_notes"),
+  selectedSize: text("selected_size"),
+  selectedColor: text("selected_color"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -172,6 +174,8 @@ export const storeItems = pgTable("store_items", {
   price: integer("price").notNull(),
   url: text("url").notNull(),
   imageUrl: text("image_url").notNull(),
+  requiresSize: boolean("requires_size").default(false).notNull(),
+  requiresColor: boolean("requires_color").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

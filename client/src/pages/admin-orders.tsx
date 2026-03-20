@@ -259,6 +259,16 @@ function OrderPhotoDialog({ order, onClose }: { order: OrderWithUser; onClose: (
               <span className="font-medium">USD Value:</span> {order.convertedValue}
             </div>
           )}
+          {order.selectedSize && (
+            <div className="text-sm">
+              <span className="font-medium">Size:</span> {order.selectedSize}
+            </div>
+          )}
+          {order.selectedColor && (
+            <div className="text-sm">
+              <span className="font-medium">Color:</span> {order.selectedColor}
+            </div>
+          )}
           {order.itemUrl && (
             <div className="text-sm">
               <span className="font-medium">Item Link:</span>{" "}

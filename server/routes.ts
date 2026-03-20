@@ -2924,6 +2924,8 @@ export async function registerRoutes(
     price: z.coerce.number().int().positive(),
     url: z.string().url(),
     imageUrl: z.string().url(),
+    requiresSize: z.boolean().optional().default(false),
+    requiresColor: z.boolean().optional().default(false),
   });
 
   app.post("/api/store-items", async (req, res) => {
@@ -2935,13 +2937,15 @@ export async function registerRoutes(
     if (!parsed.success) {
       return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
     }
-    const { name, price, url, imageUrl } = parsed.data;
+    const { name, price, url, imageUrl, requiresSize, requiresColor } = parsed.data;
     const item = await storage.createStoreItem({
       organizationId: user.organizationId!,
       name,
       price,
       url,
       imageUrl,
+      requiresSize: requiresSize ?? false,
+      requiresColor: requiresColor ?? false,
     });
     res.json(item);
   });
@@ -3020,6 +3024,21 @@ export async function registerRoutes(
       }
     }
 
+    const purchaseOptionsSchema = z.object({
+      selectedSize: z.string().optional(),
+      selectedColor: z.string().optional(),
+    });
+    const purchaseOptions = purchaseOptionsSchema.safeParse(req.body);
+    const selectedSize = purchaseOptions.success ? purchaseOptions.data.selectedSize || null : null;
+    const selectedColor = purchaseOptions.success ? purchaseOptions.data.selectedColor || null : null;
+
+    if (item.requiresSize && !selectedSize) {
+      return res.status(400).json({ message: "Size selection is required for this item." });
+    }
+    if (item.requiresColor && !selectedColor) {
+      return res.status(400).json({ message: "Color selection is required for this item." });
+    }
+
     const order = await storage.createOrder({
       userId: user.id,
       pointsCost: item.price,
@@ -3028,6 +3047,8 @@ export async function registerRoutes(
       itemUrl: item.url,
       shopWebsiteId: null,
       convertedValue: storeConvertedValue,
+      selectedSize,
+      selectedColor,
     });
 
     res.json(order);

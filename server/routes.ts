@@ -28,6 +28,7 @@ async function getStripePubKey() {
 import { sql, eq, and, gte, lte, gt, lt, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { organizations, users, infoRequests, transactions, orders } from "@shared/schema";
+import cron from "node-cron";
 import type { User } from "@shared/schema";
 
 function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
@@ -208,6 +209,170 @@ async function seedBlogPosts() {
     imageSource: "Photo by Vitaly Gariev on Unsplash",
     publishedAt: new Date("2026-03-05T14:48:03.432Z"),
   });
+}
+
+// ── Weekly Report ─────────────────────────────────────────────────────────────
+async function sendWeeklyReportForOrg(orgId: number, orgName: string, primeEmail: string): Promise<void> {
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 7);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(now);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const weekLabel = `${fmt(weekStart)} – ${fmt(now)}`;
+
+  const orgUsers = await storage.getUsersByOrganization(orgId);
+  const userIds = orgUsers.map(u => u.id);
+  if (userIds.length === 0) return;
+
+  const allTxRows = await db
+    .select({ t: transactions, u: users })
+    .from(transactions)
+    .leftJoin(users, eq(transactions.userId, users.id))
+    .where(and(inArray(transactions.userId, userIds), gte(transactions.createdAt, weekStart), lte(transactions.createdAt, weekEnd)));
+
+  const weekTx = allTxRows;
+  const weekOrders = await db
+    .select({ o: orders, u: users })
+    .from(orders)
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(and(inArray(orders.userId, userIds), gte(orders.createdAt, weekStart)));
+
+  const employeeIds = new Set(orgUsers.filter(u => u.role === "employee").map(u => u.id));
+  const adminIds = new Set(orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id));
+
+  let totalBucksAwarded = 0;
+  let totalBucksSpent = 0;
+  let adminGiven = 0;
+  let employeeSpent = 0;
+
+  for (const { t } of weekTx) {
+    if (t.amount > 0 && t.performedBy && adminIds.has(t.performedBy)) adminGiven += t.amount;
+    if (t.amount < 0 && employeeIds.has(t.userId)) employeeSpent += Math.abs(t.amount);
+    if (t.amount > 0) totalBucksAwarded += t.amount;
+    if (t.amount < 0) totalBucksSpent += Math.abs(t.amount);
+  }
+
+  const totalOrders = weekOrders.length;
+  const pendingOrders = weekOrders.filter(r => r.o.status === "pending").length;
+  const approvedOrders = weekOrders.filter(r => r.o.status === "approved" || r.o.status === "completed").length;
+
+  const txRows = weekTx.slice(0, 50).map(({ t, u }) => `
+    <tr style="border-bottom:1px solid #F1F5F9;">
+      <td style="padding:8px 12px;font-size:13px;color:#374151;">${t.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
+      <td style="padding:8px 12px;font-size:13px;color:#374151;">${u?.fullName || "—"}</td>
+      <td style="padding:8px 12px;font-size:13px;color:#6B7280;max-width:260px;">${t.reason}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:600;text-align:right;color:${t.amount >= 0 ? "#4E9F3D" : "#ef4444"};">${t.amount >= 0 ? "+" : ""}${t.amount.toLocaleString()}</td>
+    </tr>`).join("");
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
+<div style="max-width:640px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+  <!-- Header -->
+  <div style="background:#162A4A;padding:28px 32px;">
+    <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Better Bucks</h1>
+    <p style="color:#8BA3C2;margin:6px 0 0;font-size:14px;">Weekly Activity Report · ${weekLabel}</p>
+  </div>
+
+  <!-- Org name -->
+  <div style="padding:20px 32px 0;">
+    <p style="margin:0;font-size:15px;color:#6B7280;">Organization: <strong style="color:#162A4A;">${orgName}</strong></p>
+  </div>
+
+  <!-- Stats grid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:20px 32px;">
+    <div style="background:#F0FDF4;border-radius:8px;padding:16px;text-align:center;">
+      <p style="margin:0;font-size:24px;font-weight:700;color:#4E9F3D;">${totalBucksAwarded.toLocaleString()}</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#6B7280;">Bucks Awarded</p>
+    </div>
+    <div style="background:#FEF2F2;border-radius:8px;padding:16px;text-align:center;">
+      <p style="margin:0;font-size:24px;font-weight:700;color:#ef4444;">${totalBucksSpent.toLocaleString()}</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#6B7280;">Bucks Spent</p>
+    </div>
+    <div style="background:#EFF6FF;border-radius:8px;padding:16px;text-align:center;">
+      <p style="margin:0;font-size:24px;font-weight:700;color:#3B82F6;">${totalOrders}</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#6B7280;">Store Orders</p>
+    </div>
+  </div>
+
+  <!-- Spend breakdown -->
+  <div style="padding:0 32px 20px;">
+    <div style="background:#F8FAFC;border-radius:8px;padding:16px;">
+      <h3 style="margin:0 0 12px;font-size:13px;font-weight:700;color:#162A4A;text-transform:uppercase;letter-spacing:0.5px;">Weekly Spend Breakdown</h3>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:6px 0;font-size:13px;color:#6B7280;">Bucks given by admins</td>
+          <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;color:#4E9F3D;">+${adminGiven.toLocaleString()}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;font-size:13px;color:#6B7280;">Bucks spent by employees (store)</td>
+          <td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;color:#ef4444;">-${employeeSpent.toLocaleString()}</td>
+        </tr>
+        <tr style="border-top:1px solid #E2E8F0;">
+          <td style="padding:8px 0 4px;font-size:13px;font-weight:700;color:#162A4A;">Store Orders</td>
+          <td style="padding:8px 0 4px;font-size:13px;font-weight:600;text-align:right;color:#162A4A;">${pendingOrders} pending · ${approvedOrders} approved</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Transaction list -->
+  ${weekTx.length > 0 ? `
+  <div style="padding:0 32px 24px;">
+    <h3 style="margin:0 0 12px;font-size:13px;font-weight:700;color:#162A4A;text-transform:uppercase;letter-spacing:0.5px;">All Transactions This Week${weekTx.length > 50 ? " (first 50)" : ""}</h3>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:#F8FAFC;">
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Date</th>
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Employee</th>
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Reason</th>
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:right;font-weight:600;">Bucks</th>
+        </tr>
+      </thead>
+      <tbody>${txRows}</tbody>
+    </table>
+  </div>
+  ` : `<div style="padding:0 32px 24px;text-align:center;color:#9CA3AF;font-size:14px;">No transactions this week.</div>`}
+
+  <!-- Footer -->
+  <div style="background:#F8FAFC;padding:16px 32px;border-top:1px solid #E2E8F0;">
+    <p style="margin:0;font-size:12px;color:#9CA3AF;text-align:center;">This report was automatically generated by Better Bucks and sent to the Organization Owner's email. Visit your dashboard at <a href="https://betterbucks.net" style="color:#4E9F3D;">betterbucks.net</a></p>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  await sendEmail({
+    to: primeEmail,
+    subject: `[Better Bucks] Weekly Report: ${orgName} · ${weekLabel}`,
+    html,
+  });
+  console.log(`[WeeklyReport] Sent report to ${primeEmail} for org ${orgName}`);
+}
+
+async function sendAllWeeklyReports(): Promise<void> {
+  const allOrgs = await storage.getAllOrganizations();
+  let sent = 0;
+  let skipped = 0;
+  for (const org of allOrgs) {
+    if (org.status !== "active") { skipped++; continue; }
+    const primeEmail = await getOrgPrimeAdminEmail(org.id);
+    if (!primeEmail) { skipped++; continue; }
+    try {
+      await sendWeeklyReportForOrg(org.id, org.name, primeEmail);
+      sent++;
+    } catch (err) {
+      console.error(`[WeeklyReport] Failed for org ${org.name} (${org.id}):`, err);
+    }
+  }
+  console.log(`[WeeklyReport] Cycle complete: ${sent} sent, ${skipped} skipped.`);
 }
 
 export async function registerRoutes(
@@ -438,8 +603,8 @@ export async function registerRoutes(
       const adminPhone = req.body.phone;
       const hasEmail = adminEmail && z.string().email().safeParse(adminEmail).success;
       const hasPhone = adminPhone && adminPhone.length >= 10;
-      if (!hasEmail && !hasPhone) {
-        return res.status(400).json({ message: "Please provide either a valid email address or phone number" });
+      if (!hasEmail) {
+        return res.status(400).json({ message: "A valid email address is required for administrator accounts." });
       }
       if (hasEmail) {
         const existingEmail = await storage.getUserByEmailGlobal(adminEmail);
@@ -737,9 +902,9 @@ export async function registerRoutes(
       const hasPhone = empPhone && String(empPhone).length >= 10;
       const isEmployee = userData.role === "employee" || !userData.role;
 
-      // Admins and prime_admins must have email or phone; employees can be passwordless
-      if (!isEmployee && !hasEmail && !hasPhone) {
-        return res.status(400).json({ message: "Please provide either a valid email address or phone number for admin accounts" });
+      // Admins and prime_admins must have a valid email; employees can be passwordless
+      if (!isEmployee && !hasEmail) {
+        return res.status(400).json({ message: "A valid email address is required for administrator accounts." });
       }
 
       if (user.organizationId) {
@@ -1248,8 +1413,8 @@ export async function registerRoutes(
 
   app.patch("/api/orders/:id/status", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
-      return res.status(401).send("Unauthorized");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Only the Organization Owner can approve or reject orders." });
     }
 
     const id = parseInt(req.params.id);
@@ -4017,6 +4182,29 @@ export async function registerRoutes(
       console.log(`Assigned ${unscopedUsers.length} existing users to PRIME1 org`);
     }
   }
+
+  // ── Weekly Report Schedule (every Monday at 7:00 AM UTC) ─────────────────
+  cron.schedule("0 7 * * 1", () => {
+    console.log("[WeeklyReport] Cron triggered — sending weekly reports...");
+    sendAllWeeklyReports().catch(err => console.error("[WeeklyReport] Error:", err));
+  });
+
+  // Developer endpoint to manually trigger a weekly report
+  app.post("/api/admin/weekly-report/trigger", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).send("Unauthorized");
+    }
+    const primeEmail = await getOrgPrimeAdminEmail(user.organizationId!);
+    if (!primeEmail) return res.status(400).json({ message: "No prime admin email configured." });
+    try {
+      const org = await storage.getOrganization(user.organizationId!);
+      await sendWeeklyReportForOrg(user.organizationId!, org?.name || "Your Organization", primeEmail);
+      res.json({ message: "Weekly report sent successfully." });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Failed to send report." });
+    }
+  });
 
   return httpServer;
 }

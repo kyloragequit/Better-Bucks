@@ -409,6 +409,15 @@ function CreateEmployeeDialog() {
   });
   const isAtCapacity = !!org && org.maxEmployees > 0 && org.employeeCount >= org.maxEmployees;
 
+  const isAdminRole = formData.role === "admin" || formData.role === "prime_admin";
+
+  const handleRoleChange = (val: "admin" | "employee" | "prime_admin") => {
+    setFormData(prev => ({ ...prev, role: val }));
+    if (val === "admin" || val === "prime_admin") {
+      setContactMethod("email");
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { 
@@ -480,51 +489,59 @@ function CreateEmployeeDialog() {
             />
           </div>
           <div className="grid gap-2">
-            <Label>Notifications (Optional)</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={contactMethod === "none" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setContactMethod("none")}
-                data-testid="button-emp-method-none"
-              >
-                None
-              </Button>
-              <Button
-                type="button"
-                variant={contactMethod === "email" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setContactMethod("email")}
-                data-testid="button-emp-method-email"
-              >
-                <Mail className="mr-1 h-3 w-3" /> Email
-              </Button>
-              <Button
-                type="button"
-                variant={contactMethod === "phone" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setContactMethod("phone")}
-                data-testid="button-emp-method-phone"
-              >
-                <Phone className="mr-1 h-3 w-3" /> Phone
-              </Button>
-            </div>
-            {contactMethod === "email" && (
+            <Label>
+              {isAdminRole ? (
+                <>Email <span className="text-destructive">*</span> <span className="text-xs font-normal text-muted-foreground">(required for admin accounts)</span></>
+              ) : (
+                <>Notifications <span className="text-xs font-normal text-muted-foreground">(optional)</span></>
+              )}
+            </Label>
+            {!isAdminRole && (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={contactMethod === "none" ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setContactMethod("none")}
+                  data-testid="button-emp-method-none"
+                >
+                  None
+                </Button>
+                <Button
+                  type="button"
+                  variant={contactMethod === "email" ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setContactMethod("email")}
+                  data-testid="button-emp-method-email"
+                >
+                  <Mail className="mr-1 h-3 w-3" /> Email
+                </Button>
+                <Button
+                  type="button"
+                  variant={contactMethod === "phone" ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setContactMethod("phone")}
+                  data-testid="button-emp-method-phone"
+                >
+                  <Phone className="mr-1 h-3 w-3" /> Phone
+                </Button>
+              </div>
+            )}
+            {(contactMethod === "email" || isAdminRole) && (
               <Input 
                 id="emp-email" 
                 type="email"
                 required
-                placeholder="employee@example.com"
+                placeholder="admin@company.com"
                 value={formData.email || ""}
                 onChange={(e) => setFormData({...formData, email: e.target.value})} 
                 data-testid="input-employee-email"
               />
             )}
-            {contactMethod === "phone" && (
+            {contactMethod === "phone" && !isAdminRole && (
               <Input 
                 id="emp-phone" 
                 type="tel"
@@ -535,7 +552,7 @@ function CreateEmployeeDialog() {
                 data-testid="input-employee-phone"
               />
             )}
-            {contactMethod === "none" && (
+            {contactMethod === "none" && !isAdminRole && (
               <p className="text-xs text-muted-foreground">Employee will use the Site ID QR code to sign in — no email or phone needed.</p>
             )}
           </div>
@@ -571,7 +588,7 @@ function CreateEmployeeDialog() {
             <Label htmlFor="role">Role</Label>
             <Select 
               value={formData.role} 
-              onValueChange={(val: "admin" | "employee") => setFormData({...formData, role: val})}
+              onValueChange={(val: "admin" | "employee" | "prime_admin") => handleRoleChange(val)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />

@@ -9,11 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Package, Check, X, Eye, ExternalLink } from "lucide-react";
+import { Package, Check, X, Eye, ExternalLink, Lock } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { useUser } from "@/hooks/use-auth";
 import type { Order, User } from "@shared/schema";
 
 type OrderWithUser = Order & { user: User };
@@ -30,6 +31,8 @@ function statusVariant(status: string) {
 
 export default function AdminOrdersPage() {
   const isPublicDemo = usePublicDemo();
+  const { data: currentUser } = useUser();
+  const isPrime = currentUser?.role === "prime_admin";
   const { data: orders, isLoading } = useQuery<OrderWithUser[]>({
     queryKey: ["/api/orders"],
   });
@@ -48,6 +51,15 @@ export default function AdminOrdersPage() {
         </h1>
         <p className="text-muted-foreground mt-1">Review and manage employee orders</p>
       </div>
+
+      {!isPrime && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-6" data-testid="notice-view-only">
+          <Lock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-800">
+            <strong>View only.</strong> Only the Organization Owner can approve, reject, or complete orders. Contact your Organization Owner to action any pending orders.
+          </p>
+        </div>
+      )}
 
       {pendingOrders.length > 0 && (
         <Card className="shadow-md mb-6 border-primary/20">
@@ -99,7 +111,7 @@ export default function AdminOrdersPage() {
                       </Button>
                     </TableCell>
                     <TableCell className="text-right">
-                      {!isPublicDemo && (
+                      {isPrime && !isPublicDemo && (
                         <div className="flex justify-end gap-2">
                           <OrderActionButton orderId={order.id} action="approved" label="Approve" />
                           <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
@@ -168,13 +180,13 @@ export default function AdminOrdersPage() {
                     </Button>
                   </TableCell>
                   <TableCell className="text-right">
-                    {!isPublicDemo && order.status === "pending" && (
+                    {isPrime && !isPublicDemo && order.status === "pending" && (
                       <div className="flex justify-end gap-2">
                         <OrderActionButton orderId={order.id} action="approved" label="Approve" />
                         <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
                       </div>
                     )}
-                    {!isPublicDemo && order.status === "approved" && (
+                    {isPrime && !isPublicDemo && order.status === "approved" && (
                       <OrderActionButton orderId={order.id} action="completed" label="Complete" />
                     )}
                   </TableCell>

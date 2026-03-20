@@ -22,6 +22,7 @@ export const organizations = pgTable("organizations", {
   bucksPerDollar: integer("bucks_per_dollar").default(100).notNull(),
   monthlyBudgetBucks: integer("monthly_budget_bucks").default(0).notNull(),
   isDemo: boolean("is_demo").default(false).notNull(),
+  licenseAcceptedAt: timestamp("license_accepted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

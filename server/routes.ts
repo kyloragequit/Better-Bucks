@@ -1556,7 +1556,8 @@ export async function registerRoutes(
     organizationName: z.string().min(2, "Organization name is required"),
     email: z.string().email("Valid email is required"),
     tier: z.enum(["small", "mid", "large", "enterprise"]),
-    referralCode: z.string().optional(), // handles both referral codes (DB) and promo codes (GOKU11)
+    referralCode: z.string().optional(),
+    licenseAccepted: z.boolean().refine(v => v === true, { message: "You must agree to the Terms of Service and Software License Agreement to proceed." }),
   });
 
   // Shared helper: build and send a signup notification email to the admin
@@ -1689,6 +1690,7 @@ export async function registerRoutes(
         code: orgCode,
         tier,
         maxEmployees: config.maxEmployees,
+        licenseAcceptedAt: new Date(),
       });
 
       // Alert when the 45th company signs up (5 slots left for founder pricing)

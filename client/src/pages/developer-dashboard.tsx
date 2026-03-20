@@ -90,7 +90,7 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
@@ -404,7 +404,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -443,6 +443,15 @@ export default function DeveloperDashboardPage() {
             >
               <Tag className="mr-1.5 h-4 w-4" />
               Referral Codes
+            </Button>
+            <Button
+              variant={activeTab === "agreements" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("agreements"); setBlogForm(null); }}
+              data-testid="button-tab-agreements"
+            >
+              <Shield className="mr-1.5 h-4 w-4" />
+              Agreements
             </Button>
           </div>
         </div>
@@ -1326,6 +1335,91 @@ export default function DeveloperDashboardPage() {
               </CardContent>
             </Card>
           </>
+        )}
+        {activeTab === "agreements" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                License Agreement Records
+              </CardTitle>
+              <CardDescription>
+                Organizations that have accepted the Terms of Service &amp; Software License Agreement at signup. Organizations created before this feature was launched will show no acceptance date.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Organization</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Agreement Accepted</TableHead>
+                      <TableHead>Account Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          <Loader />
+                        </TableCell>
+                      </TableRow>
+                    ) : (organizations ?? []).filter(o => o.status !== "deleted").length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No organizations found.</TableCell>
+                      </TableRow>
+                    ) : (
+                      (organizations ?? [])
+                        .filter(o => o.status !== "deleted" && !o.isDemo)
+                        .sort((a, b) => {
+                          if (a.licenseAcceptedAt && b.licenseAcceptedAt) return new Date(b.licenseAcceptedAt).getTime() - new Date(a.licenseAcceptedAt).getTime();
+                          if (a.licenseAcceptedAt) return -1;
+                          if (b.licenseAcceptedAt) return 1;
+                          return 0;
+                        })
+                        .map(org => (
+                          <TableRow key={org.id} data-testid={`row-agreement-${org.id}`}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{org.name}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{org.code}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{tierLabels[org.tier] ?? org.tier}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={org.status === "active" ? "default" : "secondary"}>{org.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {org.licenseAcceptedAt ? (
+                                <div>
+                                  <p className="text-sm font-medium text-green-700">
+                                    {new Date(org.licenseAcceptedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(org.licenseAcceptedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}
+                                  </p>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">Before feature launch</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm">
+                                {new Date(org.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              </p>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </main>
       <SiteFooter />

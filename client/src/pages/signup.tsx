@@ -15,7 +15,8 @@ import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail } from "lucide-react";
+import { ArrowLeft, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const tiers = [
   {
@@ -76,6 +77,7 @@ export default function SignupPage() {
   const [referralValid, setReferralValid] = useState<boolean | null>(null);
   const [referralExtraMonths, setReferralExtraMonths] = useState(1);
   const [contactPending, setContactPending] = useState(false);
+  const [licenseAccepted, setLicenseAccepted] = useState(false);
 
   const [rfiName, setRfiName] = useState("");
   const [rfiEmail, setRfiEmail] = useState("");
@@ -127,6 +129,7 @@ export default function SignupPage() {
         email,
         tier: selectedTier,
         referralCode: referralCode.trim() || undefined,
+        licenseAccepted: true,
       });
       return await res.json();
     },
@@ -422,10 +425,66 @@ export default function SignupPage() {
                     <p className="text-xs text-muted-foreground">Have a referral or promo code? Enter it here — referral codes add an extra month free!</p>
                   )}
                 </div>
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm font-medium">Terms of Service & Software License Agreement</span>
+                  </div>
+                  <div
+                    className="h-48 overflow-y-auto rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed space-y-2"
+                    data-testid="container-license-text"
+                  >
+                    <p className="font-semibold text-foreground">BETTER BUCKS LLC – TERMS OF SERVICE & SOFTWARE LICENSE AGREEMENT</p>
+                    <p><strong>Effective Date:</strong> {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+                    <p>By creating an account, accessing, or using the Better Bucks platform ("Software"), you ("User" or "Company") agree to be bound by these Terms of Service and Software License Agreement ("Agreement"). If you do not agree, do not use the Software.</p>
+                    <p className="font-semibold text-foreground">1. LICENSE GRANT</p>
+                    <p>Better Bucks LLC ("Company," "we," "us") grants you a limited, non-exclusive, non-transferable, revocable license to access and use the Software for internal business purposes. This is a license—not a sale.</p>
+                    <p className="font-semibold text-foreground">2. OWNERSHIP</p>
+                    <p>All rights, title, and interest in and to the Software—including all intellectual property—are and will remain the exclusive property of Better Bucks LLC. You do not acquire any ownership rights through use of the Software.</p>
+                    <p className="font-semibold text-foreground">3. PERMITTED USE</p>
+                    <p>You agree to use the Software solely for: managing employee incentives, tracking performance, conducting internal surveys, and internal business operations.</p>
+                    <p className="font-semibold text-foreground">4. RESTRICTIONS</p>
+                    <p>You may NOT: copy, reproduce, or distribute the Software; modify, adapt, or create derivative works; reverse engineer or attempt to extract source code; resell, sublicense, or commercially exploit the Software; or allow unauthorized third-party access.</p>
+                    <p className="font-semibold text-foreground">5. ACCOUNT RESPONSIBILITY</p>
+                    <p>You are responsible for maintaining account security, all activity under your account, and ensuring your users comply with this Agreement.</p>
+                    <p className="font-semibold text-foreground">6. HOSTING & ACCESS</p>
+                    <p>The Software is hosted and maintained exclusively by Better Bucks LLC. We reserve the right to modify features, update functionality, and suspend or restrict access if necessary.</p>
+                    <p className="font-semibold text-foreground">7. FEES & BILLING</p>
+                    <p>Subscription fees will be billed on a recurring basis. Pricing is subject to change with notice. Failure to pay may result in suspension or termination.</p>
+                    <p className="font-semibold text-foreground">8. TERMINATION</p>
+                    <p>We may suspend or terminate your access at any time if you violate these terms, payment is not received, or misuse of the platform occurs. Upon termination, your license is revoked immediately and access to the Software will be discontinued.</p>
+                    <p className="font-semibold text-foreground">9. DATA & PRIVACY</p>
+                    <p>You retain ownership of your business data. However, you grant Better Bucks LLC the right to store and process data necessary to provide the service, and use aggregated, anonymized data for platform improvements.</p>
+                    <p className="font-semibold text-foreground">10. DISCLAIMER OF WARRANTIES</p>
+                    <p>The Software is provided "as is" and "as available." We make no guarantees regarding performance, uptime, or results from use.</p>
+                    <p className="font-semibold text-foreground">11. LIMITATION OF LIABILITY</p>
+                    <p>To the fullest extent permitted by law, Better Bucks LLC shall not be liable for indirect, incidental, or consequential damages, or loss of profits, data, or business opportunities.</p>
+                    <p className="font-semibold text-foreground">12. GOVERNING LAW</p>
+                    <p>This Agreement shall be governed by the laws of the State of Texas.</p>
+                    <p className="font-semibold text-foreground">13. CHANGES TO TERMS</p>
+                    <p>We may update these terms at any time. Continued use of the Software constitutes acceptance of any changes.</p>
+                    <p className="font-semibold text-foreground">14. ACCEPTANCE OF TERMS</p>
+                    <p>By checking the box and clicking "Claim Founder Pricing," you acknowledge that you have read, understood, and agree to be bound by this Agreement.</p>
+                  </div>
+                  <div className="flex items-start gap-3 pt-1">
+                    <Checkbox
+                      id="license-accept"
+                      checked={licenseAccepted}
+                      onCheckedChange={(checked) => setLicenseAccepted(checked === true)}
+                      data-testid="checkbox-license-accept"
+                    />
+                    <label
+                      htmlFor="license-accept"
+                      className="text-xs leading-relaxed cursor-pointer text-muted-foreground"
+                    >
+                      I have read and agree to the <strong className="text-foreground">Terms of Service and Software License Agreement</strong>. I understand this is a binding legal agreement between my organization and Better Bucks LLC, effective {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
+                    </label>
+                  </div>
+                </div>
                 <Button
                   type="submit"
                   className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 transition-all duration-300"
-                  disabled={isPending}
+                  disabled={isPending || !licenseAccepted}
                   data-testid="button-subscribe"
                 >
                   {isPending ? (

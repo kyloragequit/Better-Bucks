@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone, RefreshCw } from "lucide-react";
+import { Mail, Phone, RefreshCw, ArrowLeft, LogIn } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface VerifyEmailPageProps {
@@ -44,6 +44,21 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
     },
   });
+
+  const { mutate: logout } = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/logout"),
+    onSuccess: (_data, _vars, _ctx) => {
+      queryClient.clear();
+    },
+  });
+
+  const handleGoHome = () => {
+    logout(undefined, { onSettled: () => setLocation("/") });
+  };
+
+  const handleSwitchAccount = () => {
+    logout(undefined, { onSettled: () => setLocation("/login") });
+  };
 
   const { mutate: resend, isPending: isResending } = useMutation({
     mutationFn: async () => {
@@ -141,6 +156,31 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
                       Resend Code
                     </>
                   )}
+                </Button>
+              </div>
+
+              <div className="border-t pt-4 flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleGoHome}
+                  data-testid="button-verify-back-home"
+                >
+                  <ArrowLeft className="mr-2 h-3.5 w-3.5" />
+                  Back to Home
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={handleSwitchAccount}
+                  data-testid="button-verify-switch-account"
+                >
+                  <LogIn className="mr-2 h-3.5 w-3.5" />
+                  Log in with a different account
                 </Button>
               </div>
             </form>

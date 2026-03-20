@@ -3240,36 +3240,16 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Store item not found" });
     }
 
-    const currentUser = await storage.getUser(user.id);
-    if (!currentUser || currentUser.balance < item.price) {
-      return res.status(400).json({ message: "Insufficient balance" });
-    }
-
-    await storage.updateUserBalance(user.id, -item.price);
-    await storage.createTransaction({
-      userId: user.id,
-      amount: -item.price,
-      reason: `Store purchase: ${item.name}`,
-      performedBy: user.id,
-    });
-
-    let storeConvertedValue: string | null = null;
-    if (user.organizationId) {
-      const shops = await storage.getShopWebsitesByOrganization(user.organizationId);
-      const shop = shops.find(s => s.pointsPerDollar > 0);
-      if (shop) {
-        const dollars = (item.price / shop.pointsPerDollar).toFixed(2);
-        storeConvertedValue = `$${dollars} (${shop.pointsPerDollar} bcks = $1)`;
-      }
-    }
-
     const purchaseOptionsSchema = z.object({
       selectedSize: z.string().optional(),
       selectedColor: z.string().optional(),
+      quantity: z.number().int().min(1).max(99).optional().default(1),
     });
     const purchaseOptions = purchaseOptionsSchema.safeParse(req.body);
     const selectedSize = purchaseOptions.success ? purchaseOptions.data.selectedSize || null : null;
     const selectedColor = purchaseOptions.success ? purchaseOptions.data.selectedColor || null : null;
+    const quantity = purchaseOptions.success ? purchaseOptions.data.quantity : 1;
+    const totalCost = item.price * quantity;
 
     if (item.requiresSize && !selectedSize) {
       return res.status(400).json({ message: "Size selection is required for this item." });
@@ -3278,10 +3258,34 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Color selection is required for this item." });
     }
 
+    const currentUser = await storage.getUser(user.id);
+    if (!currentUser || currentUser.balance < totalCost) {
+      return res.status(400).json({ message: "Insufficient balance" });
+    }
+
+    await storage.updateUserBalance(user.id, -totalCost);
+    await storage.createTransaction({
+      userId: user.id,
+      amount: -totalCost,
+      reason: quantity > 1 ? `Store purchase: ${item.name} (x${quantity})` : `Store purchase: ${item.name}`,
+      performedBy: user.id,
+    });
+
+    let storeConvertedValue: string | null = null;
+    if (user.organizationId) {
+      const shops = await storage.getShopWebsitesByOrganization(user.organizationId);
+      const shop = shops.find(s => s.pointsPerDollar > 0);
+      if (shop) {
+        const dollars = (totalCost / shop.pointsPerDollar).toFixed(2);
+        storeConvertedValue = `$${dollars} (${shop.pointsPerDollar} bcks = $1)`;
+      }
+    }
+
     const order = await storage.createOrder({
       userId: user.id,
-      pointsCost: item.price,
-      description: `Store Purchase: ${item.name}`,
+      pointsCost: totalCost,
+      quantity,
+      description: quantity > 1 ? `Store Purchase: ${item.name} (x${quantity})` : `Store Purchase: ${item.name}`,
       photoUrls: [item.imageUrl],
       itemUrl: item.url,
       shopWebsiteId: null,

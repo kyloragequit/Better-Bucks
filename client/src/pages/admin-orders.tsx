@@ -348,6 +348,11 @@ function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; o
               <span className="font-medium">USD Value:</span> {order.convertedValue}
             </div>
           )}
+          {(order.quantity ?? 1) > 1 && (
+            <div className="text-sm">
+              <span className="font-medium">Quantity:</span> {order.quantity}
+            </div>
+          )}
           {order.selectedSize && (
             <div className="text-sm">
               <span className="font-medium">Size:</span> {order.selectedSize}

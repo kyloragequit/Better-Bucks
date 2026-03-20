@@ -133,6 +133,7 @@ export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   pointsCost: integer("points_cost").notNull(),
+  quantity: integer("quantity").default(1).notNull(),
   convertedValue: text("converted_value"),
   shopWebsiteId: integer("shop_website_id"),
   description: text("description").notNull(),

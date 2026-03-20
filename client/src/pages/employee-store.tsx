@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingBag, ExternalLink, Coins, Heart, X, RefreshCw, Globe, Ruler, Palette } from "lucide-react";
+import { ShoppingBag, ExternalLink, Coins, Heart, X, RefreshCw, Globe, Ruler, Palette, Plus, Minus } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -141,12 +141,13 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const purchaseMutation = useMutation({
     mutationFn: async () => {
-      const body: Record<string, string> = {};
+      const body: Record<string, string | number> = { quantity };
       if (selectedSize) body.selectedSize = selectedSize;
       if (selectedColor) body.selectedColor = selectedColor;
       const res = await apiRequest("POST", `/api/store-items/${item.id}/purchase`, body);
@@ -159,7 +160,8 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
       setConfirmOpen(false);
       setSelectedSize("");
       setSelectedColor("");
-      toast({ title: "Order Submitted!", description: `Your request for ${item.name} has been sent for approval.` });
+      setQuantity(1);
+      toast({ title: "Order Submitted!", description: `Your request for ${quantity > 1 ? `${quantity}x ` : ""}${item.name} has been sent for approval.` });
     },
     onError: async (err: any) => {
       setConfirmOpen(false);
@@ -188,7 +190,8 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
     },
   });
 
-  const canAfford = balance >= item.price;
+  const totalCost = item.price * quantity;
+  const canAfford = balance >= totalCost;
   const canSubmit = (!item.requiresSize || selectedSize.trim()) && (!item.requiresColor || selectedColor.trim());
 
   return (
@@ -251,7 +254,7 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
           <Button
             size="sm"
             className="w-full mt-1"
-            onClick={() => { setSelectedSize(""); setSelectedColor(""); setConfirmOpen(true); }}
+            onClick={() => { setSelectedSize(""); setSelectedColor(""); setQuantity(1); setConfirmOpen(true); }}
             data-testid={`button-purchase-${item.id}`}
           >
             <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
@@ -268,55 +271,85 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
             </DialogTitle>
             <DialogDescription data-testid="text-confirm-description">
               {canAfford
-                ? `Purchase "${item.name}" for ${item.price.toLocaleString()} Bucks? Your request will be sent for admin approval.`
-                : `You do not have enough Bucks for this. You need ${item.price.toLocaleString()} Bucks but only have ${balance.toLocaleString()}.`}
+                ? `Your request will be sent for admin approval.`
+                : `You do not have enough Bucks. You need ${totalCost.toLocaleString()} Bucks but only have ${balance.toLocaleString()}.`}
             </DialogDescription>
           </DialogHeader>
 
-          {canAfford && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
-                <span className="text-sm text-muted-foreground">Cost</span>
-                <span className="font-bold text-primary" data-testid="text-confirm-cost">{item.price.toLocaleString()} Bucks</span>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+              <span className="text-sm font-medium">Quantity</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  data-testid="button-quantity-decrease"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </Button>
+                <span className="w-8 text-center font-semibold tabular-nums" data-testid="text-quantity">{quantity}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setQuantity(q => q + 1)}
+                  data-testid="button-quantity-increase"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
               </div>
-
-              {(item.requiresSize || item.requiresColor) && (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Order Options</p>
-                  {item.requiresSize && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="order-size" className="flex items-center gap-1.5">
-                        <Ruler className="h-3.5 w-3.5 text-violet-600" />
-                        Size <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="order-size"
-                        value={selectedSize}
-                        onChange={e => setSelectedSize(e.target.value)}
-                        placeholder="e.g. Medium, L, XL, 10.5..."
-                        data-testid="input-order-size"
-                      />
-                    </div>
-                  )}
-                  {item.requiresColor && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="order-color" className="flex items-center gap-1.5">
-                        <Palette className="h-3.5 w-3.5 text-pink-600" />
-                        Color <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="order-color"
-                        value={selectedColor}
-                        onChange={e => setSelectedColor(e.target.value)}
-                        placeholder="e.g. Black, Navy Blue, Red..."
-                        data-testid="input-order-color"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-          )}
+
+            <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+              <span className="text-sm text-muted-foreground">
+                {quantity > 1 ? `Total (${quantity} × ${item.price.toLocaleString()})` : "Cost"}
+              </span>
+              <span className={`font-bold ${canAfford ? "text-primary" : "text-destructive"}`} data-testid="text-confirm-cost">
+                {totalCost.toLocaleString()} Bucks
+              </span>
+            </div>
+
+            {canAfford && (item.requiresSize || item.requiresColor) && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Order Options</p>
+                {item.requiresSize && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="order-size" className="flex items-center gap-1.5">
+                      <Ruler className="h-3.5 w-3.5 text-violet-600" />
+                      Size <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="order-size"
+                      value={selectedSize}
+                      onChange={e => setSelectedSize(e.target.value)}
+                      placeholder="e.g. Medium, L, XL, 10.5..."
+                      data-testid="input-order-size"
+                    />
+                  </div>
+                )}
+                {item.requiresColor && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="order-color" className="flex items-center gap-1.5">
+                      <Palette className="h-3.5 w-3.5 text-pink-600" />
+                      Color <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="order-color"
+                      value={selectedColor}
+                      onChange={e => setSelectedColor(e.target.value)}
+                      placeholder="e.g. Black, Navy Blue, Red..."
+                      data-testid="input-order-color"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmOpen(false)} data-testid="button-cancel-purchase">
@@ -328,7 +361,7 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
                 disabled={purchaseMutation.isPending || !canSubmit}
                 data-testid="button-confirm-purchase"
               >
-                {purchaseMutation.isPending ? "Processing..." : `Purchase for ${item.price.toLocaleString()} Bucks`}
+                {purchaseMutation.isPending ? "Processing..." : `Purchase ${quantity > 1 ? `${quantity}x ` : ""}for ${totalCost.toLocaleString()} Bucks`}
               </Button>
             )}
           </DialogFooter>

@@ -1,0 +1,135 @@
+BETTER BUCKS LLC – TERMS OF SERVICE & SOFTWARE LICENSE AGREEMENT
+
+Effective Date: [Insert Date]
+
+By creating an account, accessing, or using the Better Bucks platform (“Software”), you (“User” or “Company”) agree to be bound by these Terms of Service and Software License Agreement (“Agreement”). If you do not agree, do not use the Software.
+
+1. LICENSE GRANT
+
+Better Bucks LLC (“Company,” “we,” “us”) grants you a limited, non-exclusive, non-transferable, revocable license to access and use the Software for internal business purposes.
+
+This is a license—not a sale.
+
+2. OWNERSHIP
+
+All rights, title, and interest in and to the Software—including all intellectual property—are and will remain the exclusive property of Better Bucks LLC.
+
+You do not acquire any ownership rights through use of the Software.
+
+3. PERMITTED USE
+
+You agree to use the Software solely for:
+
+Managing employee incentives
+
+Tracking performance
+
+Conducting internal surveys
+
+Internal business operations
+
+4. RESTRICTIONS
+
+You may NOT:
+
+Copy, reproduce, or distribute the Software
+
+Modify, adapt, or create derivative works
+
+Reverse engineer or attempt to extract source code
+
+Resell, sublicense, or commercially exploit the Software
+
+Allow unauthorized third-party access
+
+5. ACCOUNT RESPONSIBILITY
+
+You are responsible for:
+
+Maintaining account security
+
+All activity under your account
+
+Ensuring your users comply with this Agreement
+
+6. HOSTING & ACCESS
+
+The Software is hosted and maintained exclusively by Better Bucks LLC.
+
+We reserve the right to:
+
+Modify features
+
+Update functionality
+
+Suspend or restrict access if necessary
+
+7. FEES & BILLING
+
+If applicable:
+
+Subscription fees will be billed on a recurring basis
+
+Pricing is subject to change with notice
+
+Failure to pay may result in suspension or termination
+
+8. TERMINATION
+
+We may suspend or terminate your access at any time if:
+
+You violate these terms
+
+Payment is not received
+
+Misuse of the platform occurs
+
+Upon termination:
+
+Your license is revoked immediately
+
+Access to the Software will be discontinued
+
+9. DATA & PRIVACY
+
+You retain ownership of your business data.
+
+However, you grant Better Bucks LLC the right to:
+
+Store and process data necessary to provide the service
+
+Use aggregated, anonymized data for platform improvements
+
+10. DISCLAIMER OF WARRANTIES
+
+The Software is provided “as is” and “as available.”
+
+We make no guarantees regarding:
+
+Performance
+
+Uptime
+
+Results from use
+
+11. LIMITATION OF LIABILITY
+
+To the fullest extent permitted by law:
+
+Better Bucks LLC shall not be liable for:
+
+Indirect, incidental, or consequential damages
+
+Loss of profits, data, or business opportunities
+
+12. GOVERNING LAW
+
+This Agreement shall be governed by the laws of the State of [Your State].
+
+13. CHANGES TO TERMS
+
+We may update these terms at any time. Continued use of the Software constitutes acceptance of any changes.
+
+14. ACCEPTANCE OF TERMS
+
+By checking the box and clicking “Create Account” or “I Agree,” you acknowledge that you have read, understood, and agree to be bound by this Agreement.

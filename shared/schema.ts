@@ -8,6 +8,7 @@ export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
+  siteId: text("site_id").unique(),
   tier: text("tier", { enum: ["small", "mid", "large", "enterprise"] }).default("small").notNull(),
   maxEmployees: integer("max_employees").default(25).notNull(),
   storeUrl: text("store_url").default("https://dscpromostore.com/").notNull(),

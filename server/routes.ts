@@ -573,6 +573,157 @@ export async function registerRoutes(
     }
   });
 
+  // ── Employee QR Join (passwordless) ────────────────────────────────────────
+
+  // Public: look up org info by site ID
+  app.get("/api/join/:siteId", async (req, res) => {
+    try {
+      const { siteId } = req.params;
+      const org = await storage.getOrganizationBySiteId(siteId);
+      if (!org || org.status !== "active") {
+        return res.status(404).json({ message: "Invalid or inactive Site ID" });
+      }
+      res.json({ orgName: org.name, siteId: org.siteId, employeeRoleLabel: org.employeeRoleLabel });
+    } catch (e) {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  // Public: employee login or self-registration via Site ID (no password)
+  app.post("/api/join", async (req, res) => {
+    try {
+      const { siteId, username, fullName } = req.body;
+      if (!siteId || !username) {
+        return res.status(400).json({ message: "Site ID and username are required" });
+      }
+      const trimmedUsername = String(username).trim();
+      const trimmedSiteId = String(siteId).trim().toLowerCase();
+
+      const org = await storage.getOrganizationBySiteId(trimmedSiteId);
+      if (!org || org.status !== "active") {
+        return res.status(404).json({ message: "Invalid or inactive Site ID" });
+      }
+
+      const existingUser = await storage.getUserByUsernameAndOrg(trimmedUsername, org.id);
+      if (existingUser) {
+        if (existingUser.status !== "approved") {
+          return res.status(403).json({ message: "Your account is pending approval. Please contact your administrator." });
+        }
+        req.login(existingUser, async (err) => {
+          if (err) return res.status(500).json({ message: "Login failed" });
+          const updated = await storage.incrementSuccessfulLoginCount(existingUser.id);
+          return res.json(updated);
+        });
+        return;
+      }
+
+      // New employee — need full name to register
+      if (!fullName || !String(fullName).trim()) {
+        return res.status(200).json({ needsRegistration: true });
+      }
+
+      const trimmedFullName = String(fullName).trim();
+
+      // Check employee limit
+      if (org.maxEmployees > 0) {
+        const orgUsers = await storage.getUsersByOrganization(org.id);
+        if (orgUsers.length >= org.maxEmployees) {
+          return res.status(400).json({ message: `This organization has reached its employee limit (${org.maxEmployees}). Please contact your administrator.` });
+        }
+      }
+
+      // Check username uniqueness (global)
+      const globalExisting = await storage.getUserByUsername(trimmedUsername);
+      if (globalExisting) {
+        return res.status(409).json({ message: "This username is already taken. Please choose a different one." });
+      }
+
+      // Create passwordless employee — store a random unhashable placeholder
+      const randomPass = crypto.randomBytes(32).toString("hex");
+      const user = await storage.createUser({
+        username: trimmedUsername,
+        password: await hashPassword(randomPass),
+        fullName: trimmedFullName,
+        email: null,
+        phone: null,
+        emailVerified: true,
+        role: "employee",
+        barcode: trimmedUsername,
+        status: "approved",
+        organizationId: org.id,
+      });
+
+      const orgPrimeEmail = await getOrgPrimeAdminEmail(org.id);
+      if (orgPrimeEmail) {
+        notifyAdmin(orgPrimeEmail, "New Employee Account — QR Registration", {
+          "Name": trimmedFullName,
+          "Username": trimmedUsername,
+          "Organization": org.name,
+          "Method": "QR Code / Site ID",
+          "Status": "Approved",
+        }).catch(() => {});
+      }
+
+      req.login(user, async (err) => {
+        if (err) return res.status(500).json({ message: "Registration failed" });
+        return res.status(201).json(user);
+      });
+    } catch (e) {
+      console.error("Join error:", e);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  // Admin: check if a site ID is available
+  app.get("/api/organizations/site-id/check/:siteId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "developer")) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    try {
+      const { siteId } = req.params;
+      const normalized = siteId.toLowerCase();
+      const existing = await storage.getOrganizationBySiteId(normalized);
+      const available = !existing || existing.id === user.organizationId;
+      res.json({ available });
+    } catch (e) {
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  // Admin: set site ID for organization
+  app.patch("/api/organizations/site-id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "developer")) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    try {
+      const { siteId } = req.body;
+      if (!siteId || typeof siteId !== "string") {
+        return res.status(400).json({ message: "Site ID is required" });
+      }
+      const normalized = siteId.trim().toLowerCase();
+      if (!/^[a-z0-9-]{3,30}$/.test(normalized)) {
+        return res.status(400).json({ message: "Site ID must be 3–30 characters using only lowercase letters, numbers, and hyphens" });
+      }
+      const orgId = user.organizationId;
+      if (!orgId) return res.status(400).json({ message: "No organization found" });
+
+      const existing = await storage.getOrganizationBySiteId(normalized);
+      if (existing && existing.id !== orgId) {
+        return res.status(409).json({ message: "This Site ID is already taken. Please choose a different one." });
+      }
+
+      const updated = await storage.setOrganizationSiteId(orgId, normalized);
+      res.json(updated);
+    } catch (e) {
+      console.error("Set site ID error:", e);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  // ── End Employee QR Join ─────────────────────────────────────────────────
+
   app.post(api.users.create.path, async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
@@ -583,10 +734,14 @@ export async function registerRoutes(
       const empEmail = userData.email;
       const empPhone = (req.body as any).phone;
       const hasEmail = empEmail && z.string().email().safeParse(empEmail).success;
-      const hasPhone = empPhone && empPhone.length >= 10;
-      if (!hasEmail && !hasPhone) {
-        return res.status(400).json({ message: "Please provide either a valid email address or phone number" });
+      const hasPhone = empPhone && String(empPhone).length >= 10;
+      const isEmployee = userData.role === "employee" || !userData.role;
+
+      // Admins and prime_admins must have email or phone; employees can be passwordless
+      if (!isEmployee && !hasEmail && !hasPhone) {
+        return res.status(400).json({ message: "Please provide either a valid email address or phone number for admin accounts" });
       }
+
       if (user.organizationId) {
         const existingUser = await storage.getUserByUsernameAndOrg(userData.username, user.organizationId);
         if (existingUser) {
@@ -614,20 +769,31 @@ export async function registerRoutes(
         }
       }
 
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      // Use provided password or generate a random one for passwordless employees
+      const userPassword = userData.password && userData.password.length >= 6
+        ? await hashPassword(userData.password)
+        : await hashPassword(crypto.randomBytes(32).toString("hex"));
+
+      const verificationCode = (hasEmail || hasPhone)
+        ? Math.floor(100000 + Math.random() * 900000).toString()
+        : null;
 
       const newUser = await storage.createUser({
         ...userData,
+        password: userPassword,
         barcode: userData.barcode || userData.username,
         email: hasEmail ? empEmail : null,
         phone: hasPhone ? empPhone : null,
+        emailVerified: (!hasEmail && !hasPhone) || isEmployee,
         emailVerificationCode: verificationCode,
         status: "approved",
-        mustChangePassword: true,
+        mustChangePassword: !!(userData.password && userData.password.length >= 6),
         organizationId: user.organizationId,
       });
 
-      await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, userData.fullName);
+      if (hasEmail || hasPhone) {
+        await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode!, userData.fullName);
+      }
       if (user.organizationId) {
         const orgPrimeEmail = await getOrgPrimeAdminEmail(user.organizationId);
         if (orgPrimeEmail) {

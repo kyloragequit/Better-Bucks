@@ -387,7 +387,7 @@ function CreateEmployeeDialog() {
   const [open, setOpen] = useState(false);
   const [, navigate] = useLocation();
   const { mutate: createUser, isPending } = useCreateUser();
-  const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
+  const [contactMethod, setContactMethod] = useState<"none" | "email" | "phone">("none");
   const [phone, setPhone] = useState("");
   const [selectedDept, setSelectedDept] = useState<string>("none");
   const [formData, setFormData] = useState<InsertUser>({
@@ -423,7 +423,7 @@ function CreateEmployeeDialog() {
         setOpen(false);
         setFormData({ fullName: "", username: "", password: "", email: "", role: "employee", barcode: "" });
         setPhone("");
-        setContactMethod("email");
+        setContactMethod("none");
         setSelectedDept("none");
       }
     });
@@ -480,8 +480,18 @@ function CreateEmployeeDialog() {
             />
           </div>
           <div className="grid gap-2">
-            <Label>Verification Method</Label>
+            <Label>Notifications (Optional)</Label>
             <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={contactMethod === "none" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setContactMethod("none")}
+                data-testid="button-emp-method-none"
+              >
+                None
+              </Button>
               <Button
                 type="button"
                 variant={contactMethod === "email" ? "default" : "outline"}
@@ -503,7 +513,7 @@ function CreateEmployeeDialog() {
                 <Phone className="mr-1 h-3 w-3" /> Phone
               </Button>
             </div>
-            {contactMethod === "email" ? (
+            {contactMethod === "email" && (
               <Input 
                 id="emp-email" 
                 type="email"
@@ -513,7 +523,8 @@ function CreateEmployeeDialog() {
                 onChange={(e) => setFormData({...formData, email: e.target.value})} 
                 data-testid="input-employee-email"
               />
-            ) : (
+            )}
+            {contactMethod === "phone" && (
               <Input 
                 id="emp-phone" 
                 type="tel"
@@ -523,6 +534,9 @@ function CreateEmployeeDialog() {
                 onChange={(e) => setPhone(e.target.value)} 
                 data-testid="input-employee-phone"
               />
+            )}
+            {contactMethod === "none" && (
+              <p className="text-xs text-muted-foreground">Employee will use the Site ID QR code to sign in — no email or phone needed.</p>
             )}
           </div>
           <div className="grid gap-2">
@@ -544,11 +558,11 @@ function CreateEmployeeDialog() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Password (Optional)</Label>
             <Input 
               id="password" 
               type="password"
-              required
+              placeholder="Leave blank for QR-code-only access"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})} 
             />

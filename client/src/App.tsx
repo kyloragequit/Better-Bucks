@@ -50,6 +50,7 @@ const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const TermsPage = lazy(() => import("@/pages/terms"));
 const BlogPage = lazy(() => import("@/pages/blog"));
 const BlogPostPage = lazy(() => import("@/pages/blog-post"));
+const JoinPage = lazy(() => import("@/pages/join"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function GoalNotificationModal() {
@@ -271,6 +272,8 @@ function Router() {
         
         <Route path="/blog" component={BlogPage} />
         <Route path="/blog/:slug" component={BlogPostPage} />
+
+        <Route path="/join/:siteId" component={JoinPage} />
 
         <Route path="/forgot-password" component={ForgotPasswordPage} />
         <Route path="/reset-password" component={ResetPasswordPage} />

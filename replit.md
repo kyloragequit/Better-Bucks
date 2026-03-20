@@ -47,6 +47,15 @@ Preferred communication style: Simple, everyday language.
 - **Verification**: Email or Phone verification (Twilio SMS) for new users, with uniqueness enforced per organization.
 - **Feature Flags**: Prime admins can enable/disable the employee store and manual order requests.
 - **Passkeys (WebAuthn)**: Users can register passkeys (Windows Hello, Face ID, etc.) via `@simplewebauthn/server` + `@simplewebauthn/browser`. Passkeys stored in `passkeys` table. Login page has "Sign in with Passkey" button on both employee and admin forms. Settings pages expose `PasskeyManager` for add/rename/delete. `PasskeyFirstTimePrompt` shown on dashboards when user has no passkeys registered (dismissed via sessionStorage).
+- **Passwordless Employee Login (Site ID / QR Code)**:
+  - Organizations have an optional `site_id` (lowercase, 3-30 chars, globally unique, stored in `organizations.site_id`).
+  - Admins set their Site ID in Settings → generates a QR code + join link (`/join/:siteId`).
+  - Employees scan QR → enter username → logged in instantly if they exist; prompted for full name on first visit (auto-registers with no email/phone/password).
+  - `POST /api/join` handles both login and registration: `{siteId, username, fullName?}` → returns user or `{needsRegistration: true}`.
+  - `GET /api/join/:siteId` returns `{orgName, siteId, employeeRoleLabel}` for the landing page.
+  - Passwordless employees have `emailVerified: true`, `email: null`, `phone: null`, random hashed password.
+  - Admin employee creation (`POST /api/admin/users`) also supports passwordless: email/phone/password all optional for employee role; random password generated server-side.
+  - Login page employee tab: Site ID + Username fields for QR-code-based access (replaces old email/password form).
 
 ### Key Features
 - **Goals System**: Prime admins create time-based ("days without an incident") or quantity-based goals with a Bucks reward. Progress bars appear on every employee dashboard. When complete, prime admins distribute Bucks to all approved employees. Employees see a login notification modal when a goal is met (after distribution) or failed.

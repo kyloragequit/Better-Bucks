@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -48,6 +48,11 @@ export default function AdminSettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
+  const [siteIdCopied, setSiteIdCopied] = useState(false);
+  const [editingSiteId, setEditingSiteId] = useState(false);
+  const [siteIdValue, setSiteIdValue] = useState("");
+  const [siteIdAvailable, setSiteIdAvailable] = useState<boolean | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
 
   const { data: org, isLoading } = useQuery<OrgWithFree>({
     queryKey: ["/api/organizations/my-org"],
@@ -133,12 +138,52 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const { mutate: setSiteId, isPending: isSettingSiteId } = useMutation({
+    mutationFn: async (siteId: string) => {
+      const res = await apiRequest("PATCH", "/api/organizations/site-id", { siteId });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to set Site ID");
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
+      toast({ title: "Site ID Saved", description: "Employees can now join using this Site ID." });
+      setEditingSiteId(false);
+      setSiteIdAvailable(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Save", description: error.message, variant: "destructive" });
+    },
+  });
+
+  async function checkSiteIdAvailability(value: string) {
+    if (!value || value.length < 3) { setSiteIdAvailable(null); return; }
+    setCheckingAvailability(true);
+    try {
+      const res = await fetch(`/api/organizations/site-id/check/${encodeURIComponent(value.toLowerCase())}`, { credentials: "include" });
+      const data = await res.json();
+      setSiteIdAvailable(data.available ?? false);
+    } catch { setSiteIdAvailable(null); } finally { setCheckingAvailability(false); }
+  }
+
   const handleCopyCode = () => {
     if (org?.code) {
       navigator.clipboard.writeText(org.code);
       setCopied(true);
       toast({ title: "Copied!", description: "Organization code copied to clipboard" });
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleCopySiteIdUrl = () => {
+    if (org?.siteId) {
+      const url = `${window.location.origin}/join/${org.siteId}`;
+      navigator.clipboard.writeText(url);
+      setSiteIdCopied(true);
+      toast({ title: "Copied!", description: "Join link copied to clipboard" });
+      setTimeout(() => setSiteIdCopied(false), 2000);
     }
   };
 
@@ -199,25 +244,124 @@ export default function AdminSettingsPage() {
                   Share this code with team members who need to register for your organization.
                 </div>
 
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <QrCode className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-semibold">Employee Signup QR Code</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="bg-white p-4 rounded-lg border shadow-sm" data-testid="qr-employee-signup">
-                      <QRCodeSVG
-                        value={`${window.location.origin}/login?orgCode=${org.code}&tab=employee&mode=create`}
-                        size={180}
-                        fgColor="#162A4A"
-                        level="M"
-                      />
+              </CardContent>
+            </Card>
+
+            {/* ── Site ID & Employee Access ─────────────────────────────── */}
+            <Card data-testid="card-site-id">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Site ID & Employee Access
+                </CardTitle>
+                <CardDescription>
+                  Set a unique Site ID so employees can join without a password by scanning a QR code. Email and phone are not required.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {org.siteId ? (
+                  <>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-sm text-muted-foreground">Current Site ID</div>
+                        <div className="font-mono text-lg font-bold tracking-wide" data-testid="text-current-site-id">{org.siteId}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{window.location.origin}/join/{org.siteId}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={handleCopySiteIdUrl} data-testid="button-copy-site-id-url">
+                          {siteIdCopied ? <Check className="mr-2 h-3 w-3" /> : <Copy className="mr-2 h-3 w-3" />}
+                          {siteIdCopied ? "Copied" : "Copy link"}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => { setSiteIdValue(org.siteId || ""); setEditingSiteId(true); setSiteIdAvailable(null); }} data-testid="button-edit-site-id">
+                          <Pencil className="mr-2 h-3 w-3" />
+                          Change
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center max-w-xs">
-                      Employees can scan this QR code to go directly to the registration page with your organization code pre-filled.
-                    </p>
+
+                    <div className="flex flex-col items-center gap-3 pt-2">
+                      <div className="bg-white p-4 rounded-xl border shadow-sm" data-testid="qr-site-id">
+                        <QRCodeSVG
+                          value={`${window.location.origin}/join/${org.siteId}`}
+                          size={200}
+                          fgColor="#162A4A"
+                          level="M"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center max-w-xs">
+                        Print this QR code and post it at your worksite. Employees scan it to sign up or sign in — no password or email required.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-4 text-center">
+                    <QrCode className="h-12 w-12 text-muted-foreground/40" />
+                    <div>
+                      <p className="font-medium text-sm">No Site ID set yet</p>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                        Set a Site ID to generate a QR code that employees can scan to create accounts and sign in without passwords.
+                      </p>
+                    </div>
+                    <Button onClick={() => { setSiteIdValue(""); setEditingSiteId(true); setSiteIdAvailable(null); }} data-testid="button-set-site-id">
+                      <QrCode className="mr-2 h-4 w-4" />
+                      Set Site ID
+                    </Button>
                   </div>
-                </div>
+                )}
+
+                {editingSiteId && (
+                  <div className="border-t pt-4 space-y-3">
+                    <Label htmlFor="input-site-id">
+                      {org.siteId ? "Change Site ID" : "Set Site ID"}
+                    </Label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          id="input-site-id"
+                          placeholder="e.g. acme-warehouse or warehouse1"
+                          value={siteIdValue}
+                          onChange={(e) => {
+                            const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                            setSiteIdValue(v);
+                            setSiteIdAvailable(null);
+                          }}
+                          onBlur={() => checkSiteIdAvailability(siteIdValue)}
+                          maxLength={30}
+                          data-testid="input-site-id"
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => checkSiteIdAvailability(siteIdValue)}
+                        disabled={checkingAvailability || siteIdValue.length < 3}
+                        data-testid="button-check-site-id"
+                      >
+                        {checkingAvailability ? <SpinningLogo className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">3–30 characters, lowercase letters, numbers, and hyphens only.</p>
+                    {siteIdAvailable === true && (
+                      <p className="text-xs text-green-600 flex items-center gap-1" data-testid="text-site-id-available"><Check className="h-3 w-3" /> This Site ID is available</p>
+                    )}
+                    {siteIdAvailable === false && (
+                      <p className="text-xs text-destructive" data-testid="text-site-id-taken">This Site ID is already taken</p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1"
+                        onClick={() => setSiteId(siteIdValue)}
+                        disabled={isSettingSiteId || siteIdValue.length < 3 || siteIdAvailable === false}
+                        data-testid="button-save-site-id"
+                      >
+                        {isSettingSiteId ? <><SpinningLogo className="mr-2 h-4 w-4" />Saving...</> : "Save Site ID"}
+                      </Button>
+                      <Button variant="outline" onClick={() => { setEditingSiteId(false); setSiteIdAvailable(null); }} data-testid="button-cancel-site-id">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

@@ -48,6 +48,8 @@ export interface IStorage {
   createOrganization(org: InsertOrganization): Promise<Organization>;
   getOrganization(id: number): Promise<Organization | undefined>;
   getOrganizationByCode(code: string): Promise<Organization | undefined>;
+  getOrganizationBySiteId(siteId: string): Promise<Organization | undefined>;
+  setOrganizationSiteId(id: number, siteId: string | null): Promise<Organization>;
   getOrganizationByStripeCustomerId(customerId: string): Promise<Organization | undefined>;
   updateOrganizationStripe(id: number, stripeCustomerId: string, stripeSubscriptionId: string): Promise<Organization>;
   updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused" | "deleted"): Promise<Organization>;
@@ -352,6 +354,16 @@ export class DatabaseStorage implements IStorage {
   async getOrganizationByCode(code: string): Promise<Organization | undefined> {
     const [org] = await db.select().from(organizations).where(eq(organizations.code, code));
     return org;
+  }
+
+  async getOrganizationBySiteId(siteId: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.siteId, siteId.toLowerCase()));
+    return org;
+  }
+
+  async setOrganizationSiteId(id: number, siteId: string | null): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ siteId: siteId ? siteId.toLowerCase() : null }).where(eq(organizations.id, id)).returning();
+    return updated;
   }
 
   async getOrganizationByStripeCustomerId(customerId: string): Promise<Organization | undefined> {

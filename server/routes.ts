@@ -223,6 +223,9 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, primeEmail
   const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const weekLabel = `${fmt(weekStart)} – ${fmt(now)}`;
 
+  const org = await storage.getOrganization(orgId);
+  const itemName = org?.customItemName || null;
+
   const orgUsers = await storage.getUsersByOrganization(orgId);
   const userIds = orgUsers.map(u => u.id);
   if (userIds.length === 0) return;
@@ -234,6 +237,8 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, primeEmail
     .where(and(inArray(transactions.userId, userIds), gte(transactions.createdAt, weekStart), lte(transactions.createdAt, weekEnd)));
 
   const weekTx = allTxRows;
+
+  const weekItemTx = itemName ? await storage.getCustomItemTransactionsByOrg(orgId, weekStart) : [];
   const weekOrders = await db
     .select({ o: orders, u: users })
     .from(orders)
@@ -339,6 +344,36 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, primeEmail
     </table>
   </div>
   ` : `<div style="padding:0 32px 24px;text-align:center;color:#9CA3AF;font-size:14px;">No transactions this week.</div>`}
+
+  ${itemName && weekItemTx.length > 0 ? `
+  <!-- Custom Item transactions -->
+  <div style="padding:0 32px 24px;">
+    <h3 style="margin:0 0 12px;font-size:13px;font-weight:700;color:#162A4A;text-transform:uppercase;letter-spacing:0.5px;">${itemName} Activity This Week</h3>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:#F8FAFC;">
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Date</th>
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Employee</th>
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Reason</th>
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:right;font-weight:600;">${itemName}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${weekItemTx.slice(0, 50).map(tx => `
+          <tr style="border-bottom:1px solid #F1F5F9;">
+            <td style="padding:8px 12px;font-size:13px;color:#374151;">${tx.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
+            <td style="padding:8px 12px;font-size:13px;color:#374151;">${tx.user.fullName}</td>
+            <td style="padding:8px 12px;font-size:13px;color:#6B7280;">${tx.reason || "—"}</td>
+            <td style="padding:8px 12px;font-size:13px;font-weight:600;text-align:right;color:${tx.amount >= 0 ? "#4E9F3D" : "#ef4444"};">${tx.amount >= 0 ? "+" : ""}${tx.amount}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+    <p style="margin:8px 0 0;font-size:12px;color:#9CA3AF;">
+      Total given: +${weekItemTx.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)} &nbsp;·&nbsp;
+      Total redeemed: ${weekItemTx.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0)}
+    </p>
+  </div>
+  ` : ""}
 
   <!-- Footer -->
   <div style="background:#F8FAFC;padding:16px 32px;border-top:1px solid #E2E8F0;">
@@ -4226,6 +4261,151 @@ export async function registerRoutes(
   cron.schedule("0 7 * * 1", () => {
     console.log("[WeeklyReport] Cron triggered — sending weekly reports...");
     sendAllWeeklyReports().catch(err => console.error("[WeeklyReport] Error:", err));
+  });
+
+  // ── Custom Items ────────────────────────────────────────────────────────────
+
+  // Get custom item config for the org (name + current user's balance)
+  app.get("/api/admin/custom-items/config", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const org = await storage.getOrganization(user.organizationId);
+    res.json({ itemName: org?.customItemName ?? null });
+  });
+
+  // Set/update custom item name (prime_admin only)
+  app.patch("/api/admin/custom-items/config", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Only the Organization Owner can configure custom items." });
+    }
+    const parsed = z.object({ itemName: z.string().min(1).max(64).nullable() }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    const updated = await storage.updateOrgCustomItemName(user.organizationId!, parsed.data.itemName);
+    res.json({ itemName: updated.customItemName });
+  });
+
+  // List all users in org with their custom item balances
+  app.get("/api/admin/custom-items/users", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    let orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    // Regular admins only see their department
+    if (user.role === "admin" && user.departmentId) {
+      orgUsers = orgUsers.filter(u => u.departmentId === user.departmentId || u.id === user.id);
+    }
+    res.json(orgUsers.map(u => ({
+      id: u.id,
+      fullName: u.fullName,
+      username: u.username,
+      role: u.role,
+      departmentId: u.departmentId,
+      customItemBalance: u.customItemBalance,
+    })));
+  });
+
+  // Give custom items to a user
+  app.post("/api/admin/custom-items/give", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const parsed = z.object({
+      userId: z.number().int().positive(),
+      amount: z.number().int().min(1, "Amount must be at least 1"),
+      reason: z.string().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const { userId, amount, reason } = parsed.data;
+
+    const target = await storage.getUser(userId);
+    if (!target || target.organizationId !== user.organizationId) {
+      return res.status(404).send("User not found");
+    }
+    // Admin cannot give to prime_admin or themselves (unless prime_admin)
+    if (user.role === "admin") {
+      if (target.role === "prime_admin") return res.status(403).json({ message: "Cannot give items to the Organization Owner." });
+      if (target.role !== "employee") return res.status(403).json({ message: "Admins can only give items to employees." });
+      // Balance check for non-prime admins
+      if (user.customItemBalance < amount) {
+        return res.status(400).json({ message: `Insufficient item balance. You have ${user.customItemBalance} available.` });
+      }
+      // Deduct from admin
+      await storage.updateUserCustomItemBalance(user.id, -amount);
+    }
+
+    await storage.updateUserCustomItemBalance(userId, amount);
+    await storage.createCustomItemTransaction({
+      orgId: user.organizationId,
+      userId,
+      amount,
+      reason: reason || null,
+      performedBy: user.id,
+    });
+
+    res.json({ success: true });
+  });
+
+  // Redeem (take back) custom items from a user
+  app.post("/api/admin/custom-items/redeem", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const parsed = z.object({
+      userId: z.number().int().positive(),
+      amount: z.number().int().min(1, "Amount must be at least 1"),
+      reason: z.string().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const { userId, amount, reason } = parsed.data;
+
+    const target = await storage.getUser(userId);
+    if (!target || target.organizationId !== user.organizationId) {
+      return res.status(404).send("User not found");
+    }
+    if (target.customItemBalance < amount) {
+      return res.status(400).json({ message: `Employee only has ${target.customItemBalance} items to redeem.` });
+    }
+
+    await storage.updateUserCustomItemBalance(userId, -amount);
+    // If admin is redeeming, return items to admin balance
+    if (user.role === "admin") {
+      await storage.updateUserCustomItemBalance(user.id, amount);
+    }
+
+    await storage.createCustomItemTransaction({
+      orgId: user.organizationId,
+      userId,
+      amount: -amount,
+      reason: reason || null,
+      performedBy: user.id,
+    });
+
+    res.json({ success: true });
+  });
+
+  // Get custom item transactions for the org
+  app.get("/api/admin/custom-items/transactions", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const txs = await storage.getCustomItemTransactionsByOrg(user.organizationId);
+    res.json(txs);
   });
 
   // Developer endpoint to manually trigger a weekly report

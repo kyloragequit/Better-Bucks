@@ -24,6 +24,7 @@ export const organizations = pgTable("organizations", {
   isDemo: boolean("is_demo").default(false).notNull(),
   licenseAcceptedAt: timestamp("license_accepted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  customItemName: text("custom_item_name"),
 });
 
 export const departments = pgTable("departments", {
@@ -57,6 +58,7 @@ export const users = pgTable("users", {
   successfulLoginCount: integer("successful_login_count").default(0).notNull(),
   tutorialCompleted: boolean("tutorial_completed").default(false).notNull(),
   twoFaPromptDismissed: boolean("two_fa_prompt_dismissed").default(false).notNull(),
+  customItemBalance: integer("custom_item_balance").default(0).notNull(),
 });
 
 export const transactions = pgTable("transactions", {
@@ -67,6 +69,25 @@ export const transactions = pgTable("transactions", {
   performedBy: integer("performed_by"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const customItemTransactions = pgTable("custom_item_transactions", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  userId: integer("user_id").notNull(),
+  amount: integer("amount").notNull(),
+  reason: text("reason"),
+  performedBy: integer("performed_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const customItemTransactionsRelations = relations(customItemTransactions, ({ one }) => ({
+  user: one(users, { fields: [customItemTransactions.userId], references: [users.id] }),
+  performer: one(users, { fields: [customItemTransactions.performedBy], references: [users.id] }),
+}));
+
+export const insertCustomItemTransactionSchema = createInsertSchema(customItemTransactions).omit({ id: true, createdAt: true });
+export type CustomItemTransaction = typeof customItemTransactions.$inferSelect;
+export type InsertCustomItemTransaction = z.infer<typeof insertCustomItemTransactionSchema>;
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),

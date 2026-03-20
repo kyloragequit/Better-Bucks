@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -34,6 +34,11 @@ export interface IStorage {
   getOrdersByOrganization(organizationId: number): Promise<(Order & { user: User })[]>;
   updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
   updateOrderPointsCost(id: number, pointsCost: number): Promise<Order>;
+
+  updateOrgCustomItemName(orgId: number, name: string | null): Promise<Organization>;
+  updateUserCustomItemBalance(userId: number, delta: number): Promise<User>;
+  createCustomItemTransaction(tx: InsertCustomItemTransaction): Promise<CustomItemTransaction>;
+  getCustomItemTransactionsByOrg(orgId: number, since?: Date): Promise<(CustomItemTransaction & { user: User })[]>;
 
   getAllOrganizations(): Promise<Organization[]>;
   getAllOrganizationsIncludingDeleted(): Promise<Organization[]>;
@@ -347,6 +352,35 @@ export class DatabaseStorage implements IStorage {
   async updateOrderPointsCost(id: number, pointsCost: number): Promise<Order> {
     const [updated] = await db.update(orders).set({ pointsCost, updatedAt: new Date() }).where(eq(orders.id, id)).returning();
     return updated;
+  }
+
+  async updateOrgCustomItemName(orgId: number, name: string | null): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ customItemName: name }).where(eq(organizations.id, orgId)).returning();
+    return updated;
+  }
+
+  async updateUserCustomItemBalance(userId: number, delta: number): Promise<User> {
+    const [updated] = await db.update(users).set({ customItemBalance: sql`custom_item_balance + ${delta}` }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async createCustomItemTransaction(tx: InsertCustomItemTransaction): Promise<CustomItemTransaction> {
+    const [created] = await db.insert(customItemTransactions).values(tx).returning();
+    return created;
+  }
+
+  async getCustomItemTransactionsByOrg(orgId: number, since?: Date): Promise<(CustomItemTransaction & { user: User })[]> {
+    const rows = await db
+      .select({ tx: customItemTransactions, user: users })
+      .from(customItemTransactions)
+      .innerJoin(users, eq(customItemTransactions.userId, users.id))
+      .where(
+        since
+          ? and(eq(customItemTransactions.orgId, orgId), gte(customItemTransactions.createdAt, since))
+          : eq(customItemTransactions.orgId, orgId)
+      )
+      .orderBy(desc(customItemTransactions.createdAt));
+    return rows.map(r => ({ ...r.tx, user: r.user }));
   }
 
   async createOrganization(org: InsertOrganization): Promise<Organization> {

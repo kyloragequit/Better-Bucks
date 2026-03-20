@@ -1058,9 +1058,13 @@ export async function registerRoutes(
       }
     }
 
+    // Fetch all target users in a single query to avoid N+1
+    const allOrgUsers = await storage.getUsersByOrganization(user.organizationId!);
+    const targetUserMap = new Map(allOrgUsers.map(u => [u.id, u]));
+
     let credited = 0;
     for (const targetId of userIds) {
-      const targetUser = await storage.getUser(targetId);
+      const targetUser = targetUserMap.get(targetId);
       if (!targetUser) continue;
 
       // Cannot credit yourself

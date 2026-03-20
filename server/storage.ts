@@ -1,7 +1,7 @@
 
 import { db } from "./db";
 import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction } from "@shared/schema";
-import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql } from "drizzle-orm";
+import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -604,16 +604,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteOrganization(id: number): Promise<void> {
-    const orgUsers = await this.getUsersByOrganization(id);
+    const orgUsers = await db.select({ id: users.id }).from(users).where(eq(users.organizationId, id));
     const userIds = orgUsers.map(u => u.id);
     if (userIds.length > 0) {
-      await db.delete(transactions).where(
-        eq(transactions.userId, userIds[0])
-      );
-      for (const uid of userIds) {
-        await db.delete(transactions).where(eq(transactions.userId, uid));
-        await db.delete(orders).where(eq(orders.userId, uid));
-      }
+      await db.delete(transactions).where(inArray(transactions.userId, userIds));
+      await db.delete(orders).where(inArray(orders.userId, userIds));
       await db.delete(users).where(eq(users.organizationId, id));
     }
     await db.delete(storeItems).where(eq(storeItems.organizationId, id));
@@ -665,28 +660,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWishlistByUser(userId: number): Promise<(Wishlist & { storeItem: StoreItem })[]> {
-    const rows = await db.select().from(wishlists).where(eq(wishlists.userId, userId)).orderBy(desc(wishlists.createdAt));
-    const result: (Wishlist & { storeItem: StoreItem })[] = [];
-    for (const row of rows) {
-      const [item] = await db.select().from(storeItems).where(eq(storeItems.id, row.storeItemId));
-      if (item) result.push({ ...row, storeItem: item });
-    }
-    return result;
+    const rows = await db
+      .select({ wishlist: wishlists, storeItem: storeItems })
+      .from(wishlists)
+      .innerJoin(storeItems, eq(wishlists.storeItemId, storeItems.id))
+      .where(eq(wishlists.userId, userId))
+      .orderBy(desc(wishlists.createdAt));
+    return rows.map(r => ({ ...r.wishlist, storeItem: r.storeItem }));
   }
 
   async getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]> {
-    const orgUsers = await db.select().from(users).where(eq(users.organizationId, organizationId));
-    const userIds = orgUsers.map(u => u.id);
-    if (userIds.length === 0) return [];
-    const allWishlists = await db.select().from(wishlists).orderBy(desc(wishlists.createdAt));
-    const orgWishlists = allWishlists.filter(w => userIds.includes(w.userId));
-    const result: (Wishlist & { storeItem: StoreItem; user: User })[] = [];
-    for (const row of orgWishlists) {
-      const [item] = await db.select().from(storeItems).where(eq(storeItems.id, row.storeItemId));
-      const user = orgUsers.find(u => u.id === row.userId);
-      if (item && user) result.push({ ...row, storeItem: item, user });
-    }
-    return result;
+    const rows = await db
+      .select({ wishlist: wishlists, storeItem: storeItems, user: users })
+      .from(wishlists)
+      .innerJoin(storeItems, eq(wishlists.storeItemId, storeItems.id))
+      .innerJoin(users, eq(wishlists.userId, users.id))
+      .where(eq(users.organizationId, organizationId))
+      .orderBy(desc(wishlists.createdAt));
+    return rows.map(r => ({ ...r.wishlist, storeItem: r.storeItem, user: r.user }));
   }
 
   async acceptTerms(userId: number, marketingOptIn: boolean): Promise<User> {
@@ -843,17 +834,22 @@ export class DatabaseStorage implements IStorage {
   async distributeGoalBucks(goalId: number, organizationId: number, performedBy: number): Promise<Goal> {
     const goal = await this.getGoal(goalId);
     if (!goal) throw new Error("Goal not found");
-    const employees = await db.select().from(users).where(
+    const employees = await db.select({ id: users.id }).from(users).where(
       and(eq(users.organizationId, organizationId), eq(users.role, "employee"), eq(users.status, "approved"))
     );
-    for (const emp of employees) {
-      await db.update(users).set({ balance: emp.balance + goal.bucksReward }).where(eq(users.id, emp.id));
-      await db.insert(transactions).values({
-        userId: emp.id,
-        amount: goal.bucksReward,
-        reason: `Goal achieved: ${goal.title}`,
-        performedBy,
-      });
+    if (employees.length > 0) {
+      const empIds = employees.map(e => e.id);
+      await db.update(users)
+        .set({ balance: sql`${users.balance} + ${goal.bucksReward}` })
+        .where(inArray(users.id, empIds));
+      await db.insert(transactions).values(
+        empIds.map(uid => ({
+          userId: uid,
+          amount: goal.bucksReward,
+          reason: `Goal achieved: ${goal.title}`,
+          performedBy,
+        }))
+      );
     }
     const [updated] = await db.update(goals).set({
       status: "completed",

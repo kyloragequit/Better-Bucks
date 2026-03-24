@@ -378,7 +378,7 @@ export function FullTutorialOverlay() {
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
 
-  if (!showFullTutorial || !user || !isOnAppPage) return null;
+  if (!showFullTutorial || !user || !isOnAppPage || !user.termsAcceptedAt) return null;
 
   return createPortal(
     <>

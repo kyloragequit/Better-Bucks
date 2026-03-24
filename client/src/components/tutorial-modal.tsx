@@ -702,7 +702,7 @@ export function TutorialModal() {
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
 
-  if ((!showChoice && !shouldShow) || !user || !isOnAppPage || user.role === "developer") return null;
+  if ((!showChoice && !shouldShow) || !user || !isOnAppPage || user.role === "developer" || !user.termsAcceptedAt) return null;
 
   // Show tutorial type choice screen
   if (showChoice) {

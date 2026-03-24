@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, catalogueItems, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type CatalogueItem, type InsertCatalogueItem } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -82,6 +82,13 @@ export interface IStorage {
 
   updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean): Promise<Organization>;
   updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number): Promise<Organization>;
+  setOrganizationDefaultPin(orgId: number, hashedPin: string | null): Promise<Organization>;
+
+  getCatalogueItemsByOrg(orgId: number): Promise<CatalogueItem[]>;
+  getCatalogueItemByCode(orgId: number, code: string): Promise<CatalogueItem | undefined>;
+  createCatalogueItem(item: InsertCatalogueItem): Promise<CatalogueItem>;
+  updateCatalogueItem(id: number, data: Partial<InsertCatalogueItem>): Promise<CatalogueItem>;
+  deleteCatalogueItem(id: number): Promise<void>;
 
   createStoreItem(item: InsertStoreItem): Promise<StoreItem>;
   getStoreItemsByOrganization(organizationId: number): Promise<StoreItem[]>;
@@ -646,6 +653,36 @@ export class DatabaseStorage implements IStorage {
   async updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ bucksPerDollar, monthlyBudgetBucks }).where(eq(organizations.id, id)).returning();
     return updated;
+  }
+
+  async setOrganizationDefaultPin(orgId: number, hashedPin: string | null): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ defaultPin: hashedPin }).where(eq(organizations.id, orgId)).returning();
+    return updated;
+  }
+
+  async getCatalogueItemsByOrg(orgId: number): Promise<CatalogueItem[]> {
+    return db.select().from(catalogueItems).where(eq(catalogueItems.orgId, orgId)).orderBy(catalogueItems.code);
+  }
+
+  async getCatalogueItemByCode(orgId: number, code: string): Promise<CatalogueItem | undefined> {
+    const [item] = await db.select().from(catalogueItems).where(and(eq(catalogueItems.orgId, orgId), eq(catalogueItems.code, code.toUpperCase())));
+    return item;
+  }
+
+  async createCatalogueItem(item: InsertCatalogueItem): Promise<CatalogueItem> {
+    const [created] = await db.insert(catalogueItems).values({ ...item, code: item.code.toUpperCase() }).returning();
+    return created;
+  }
+
+  async updateCatalogueItem(id: number, data: Partial<InsertCatalogueItem>): Promise<CatalogueItem> {
+    const update: any = { ...data };
+    if (update.code) update.code = update.code.toUpperCase();
+    const [updated] = await db.update(catalogueItems).set(update).where(eq(catalogueItems.id, id)).returning();
+    return updated;
+  }
+
+  async deleteCatalogueItem(id: number): Promise<void> {
+    await db.delete(catalogueItems).where(eq(catalogueItems.id, id));
   }
 
   async addToWishlist(userId: number, storeItemId: number): Promise<Wishlist> {

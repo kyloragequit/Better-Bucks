@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -155,6 +155,36 @@ export default function AdminSettingsPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to Save", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const [showPinForm, setShowPinForm] = useState(false);
+  const [pinValue, setPinValue] = useState("");
+  const [confirmPinValue, setConfirmPinValue] = useState("");
+  const [showPin, setShowPin] = useState(false);
+
+  const { data: pinStatus } = useQuery<{ hasUniversalPin: boolean }>({
+    queryKey: ["/api/admin/settings/universal-pin"],
+  });
+
+  const { mutate: setUniversalPin, isPending: isSettingPin } = useMutation({
+    mutationFn: async (pin: string | null) => {
+      const res = await apiRequest("PATCH", "/api/admin/settings/universal-pin", { pin });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to set universal PIN");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings/universal-pin"] });
+      toast({ title: pinValue ? "Universal PIN Set" : "Universal PIN Removed", description: pinValue ? "All employees can now log in using this PIN." : "Universal PIN has been removed." });
+      setShowPinForm(false);
+      setPinValue("");
+      setConfirmPinValue("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -358,6 +388,96 @@ export default function AdminSettingsPage() {
                       </Button>
                       <Button variant="outline" onClick={() => { setEditingSiteId(false); setSiteIdAvailable(null); }} data-testid="button-cancel-site-id">
                         Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ── Universal Passkey ───────────────────────────────────── */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <KeyRound className="h-5 w-5" />
+                  Universal Passkey
+                </CardTitle>
+                <CardDescription>
+                  Set a single PIN that any employee can use to log in — a fallback when they forget their individual PIN.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Status</p>
+                    <p className="text-sm text-muted-foreground" data-testid="text-universal-pin-status">
+                      {pinStatus?.hasUniversalPin ? "Universal PIN is set and active" : "No universal PIN configured"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {pinStatus?.hasUniversalPin && !showPinForm && (
+                      <Button variant="outline" size="sm" onClick={() => setUniversalPin(null)} disabled={isSettingPin} data-testid="button-remove-universal-pin">
+                        Remove PIN
+                      </Button>
+                    )}
+                    <Button variant={showPinForm ? "outline" : "default"} size="sm" onClick={() => { setShowPinForm(f => !f); setPinValue(""); setConfirmPinValue(""); }} data-testid="button-set-universal-pin">
+                      {showPinForm ? "Cancel" : pinStatus?.hasUniversalPin ? "Change PIN" : "Set PIN"}
+                    </Button>
+                  </div>
+                </div>
+
+                {showPinForm && (
+                  <div className="space-y-3 border-t pt-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="pin-value">New Universal PIN</Label>
+                        <div className="relative">
+                          <Input
+                            id="pin-value"
+                            type={showPin ? "text" : "password"}
+                            value={pinValue}
+                            onChange={e => setPinValue(e.target.value)}
+                            placeholder="Min. 4 characters"
+                            data-testid="input-universal-pin"
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setShowPin(p => !p)}
+                          >
+                            {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="pin-confirm">Confirm PIN</Label>
+                        <Input
+                          id="pin-confirm"
+                          type={showPin ? "text" : "password"}
+                          value={confirmPinValue}
+                          onChange={e => setConfirmPinValue(e.target.value)}
+                          placeholder="Re-enter PIN"
+                          data-testid="input-universal-pin-confirm"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      The universal PIN works as a fallback — employees can use either their personal PIN or this one. Keep it secure and share it only with your team.
+                    </p>
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        disabled={isSettingPin || !pinValue || pinValue.length < 4 || pinValue !== confirmPinValue}
+                        onClick={() => {
+                          if (pinValue !== confirmPinValue) {
+                            toast({ title: "PINs don't match", description: "Please make sure both PIN fields match.", variant: "destructive" });
+                            return;
+                          }
+                          setUniversalPin(pinValue);
+                        }}
+                        data-testid="button-save-universal-pin"
+                      >
+                        {isSettingPin ? "Saving..." : "Save Universal PIN"}
                       </Button>
                     </div>
                   </div>

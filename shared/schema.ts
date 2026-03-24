@@ -25,6 +25,7 @@ export const organizations = pgTable("organizations", {
   licenseAcceptedAt: timestamp("license_accepted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   customItemName: text("custom_item_name"),
+  defaultPin: text("default_pin"),
 });
 
 export const departments = pgTable("departments", {
@@ -88,6 +89,18 @@ export const customItemTransactionsRelations = relations(customItemTransactions,
 export const insertCustomItemTransactionSchema = createInsertSchema(customItemTransactions).omit({ id: true, createdAt: true });
 export type CustomItemTransaction = typeof customItemTransactions.$inferSelect;
 export type InsertCustomItemTransaction = z.infer<typeof insertCustomItemTransactionSchema>;
+
+export const catalogueItems = pgTable("catalogue_items", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  code: text("code").notNull(),
+  name: text("name").notNull(),
+  bucksValue: integer("bucks_value").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const insertCatalogueItemSchema = createInsertSchema(catalogueItems).omit({ id: true, createdAt: true });
+export type CatalogueItem = typeof catalogueItems.$inferSelect;
+export type InsertCatalogueItem = z.infer<typeof insertCatalogueItemSchema>;
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),

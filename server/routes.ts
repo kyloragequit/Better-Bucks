@@ -4416,6 +4416,101 @@ export async function registerRoutes(
     res.json(txs);
   });
 
+  // ========== Universal PIN ==========
+  app.patch("/api/admin/settings/universal-pin", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Only the Organization Owner can set the universal PIN." });
+    }
+    const parsed = z.object({
+      pin: z.string().min(4, "PIN must be at least 4 characters").max(32).nullable(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const { pin } = parsed.data;
+    const hashedPin = pin ? await hashPassword(pin) : null;
+    const org = await storage.setOrganizationDefaultPin(user.organizationId!, hashedPin);
+    res.json({ hasUniversalPin: !!org.defaultPin });
+  });
+
+  app.get("/api/admin/settings/universal-pin", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const org = await storage.getOrganization(user.organizationId!);
+    res.json({ hasUniversalPin: !!org?.defaultPin });
+  });
+
+  // ========== Catalogue ==========
+  app.get("/api/admin/catalogue", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const items = await storage.getCatalogueItemsByOrg(user.organizationId!);
+    res.json(items);
+  });
+
+  app.get("/api/admin/catalogue/lookup/:code", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const item = await storage.getCatalogueItemByCode(user.organizationId!, req.params.code);
+    if (!item) return res.status(404).json({ message: "No catalogue item found with that code." });
+    res.json(item);
+  });
+
+  app.post("/api/admin/catalogue", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const parsed = z.object({
+      code: z.string().min(1).max(20).regex(/^[A-Z0-9_-]+$/i, "Code can only contain letters, numbers, hyphens, and underscores"),
+      name: z.string().min(1).max(100),
+      bucksValue: z.number().int().min(1),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const existing = await storage.getCatalogueItemByCode(user.organizationId!, parsed.data.code);
+    if (existing) return res.status(400).json({ message: `Code "${parsed.data.code.toUpperCase()}" already exists.` });
+
+    const item = await storage.createCatalogueItem({ ...parsed.data, orgId: user.organizationId! });
+    res.status(201).json(item);
+  });
+
+  app.patch("/api/admin/catalogue/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+    const parsed = z.object({
+      code: z.string().min(1).max(20).regex(/^[A-Z0-9_-]+$/i).optional(),
+      name: z.string().min(1).max(100).optional(),
+      bucksValue: z.number().int().min(1).optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const item = await storage.updateCatalogueItem(id, parsed.data);
+    res.json(item);
+  });
+
+  app.delete("/api/admin/catalogue/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    await storage.deleteCatalogueItem(id);
+    res.status(204).send();
+  });
+
   // Developer endpoint to manually trigger a weekly report
   app.post("/api/admin/weekly-report/trigger", async (req, res) => {
     const user = req.user as User | undefined;

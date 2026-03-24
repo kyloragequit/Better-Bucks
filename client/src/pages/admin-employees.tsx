@@ -598,7 +598,7 @@ function CreateEmployeeDialog() {
             <Input 
               id="password" 
               type="password"
-              placeholder="Leave blank for QR-code-only access"
+              placeholder="Leave blank to use QR code or universal PIN"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})} 
             />

@@ -93,7 +93,14 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Incorrect username or password" });
         }
 
-        const match = await verifyPassword(password, user.password);
+        let match = await verifyPassword(password, user.password);
+        if (!match && user.organizationId) {
+          // Fallback: try the org's universal PIN
+          const org = await storage.getOrganization(user.organizationId);
+          if (org?.defaultPin) {
+            match = await verifyPassword(password, org.defaultPin);
+          }
+        }
         if (!match) {
           return done(null, false, { message: "Incorrect username or password" });
         }

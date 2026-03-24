@@ -19,6 +19,7 @@ export function TwoFaPrompt() {
 
   const shouldShow =
     !!user &&
+    !!user.termsAcceptedAt &&
     !user.email &&
     !user.phone &&
     !user.twoFaPromptDismissed;

@@ -497,7 +497,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
   return (
     <form onSubmit={handleCredentialsSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="emp-site-id">Site ID</Label>
+        <Label htmlFor="emp-site-id">Site ID / Password</Label>
         <div className="relative">
           <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input

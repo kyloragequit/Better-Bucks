@@ -11,9 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { LogoBackground } from "@/components/logo-background";
-import { Building2, User, UserPlus, LogIn, ArrowLeft, QrCode } from "lucide-react";
+import { Building2, User, UserPlus, LogIn, ArrowLeft, QrCode, Eye, EyeOff } from "lucide-react";
 
-type OrgInfo = { orgName: string; siteId: string; employeeRoleLabel: string };
+type OrgInfo = { orgName: string; siteId: string; employeeRoleLabel: string; allowPasswordCreation: boolean };
 
 export default function JoinPage() {
   const { siteId } = useParams<{ siteId: string }>();
@@ -23,6 +23,10 @@ export default function JoinPage() {
 
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState<"username" | "register">("username");
   const [isPending, setIsPending] = useState(false);
 
@@ -71,12 +75,23 @@ export default function JoinPage() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !fullName.trim()) return;
+    const allowPwd = org?.allowPasswordCreation ?? true;
+    if (allowPwd && password && password !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Please make sure both password fields match.", variant: "destructive" });
+      return;
+    }
+    if (allowPwd && password && password.length < 6) {
+      toast({ title: "Password too short", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
     setIsPending(true);
     try {
+      const body: Record<string, string> = { siteId, username: username.trim(), fullName: fullName.trim() };
+      if (allowPwd && password.trim()) body.password = password.trim();
       const res = await fetch("/api/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId, username: username.trim(), fullName: fullName.trim() }),
+        body: JSON.stringify(body),
         credentials: "include",
       });
       const data = await res.json();
@@ -232,10 +247,54 @@ export default function JoinPage() {
                       data-testid="input-join-fullname"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    No password or email required — your QR code is your access.
-                  </p>
                 </div>
+
+                {(org?.allowPasswordCreation ?? true) && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="join-password">Password <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                      <div className="relative">
+                        <Input
+                          id="join-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Create a password"
+                          className="pr-9"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          autoComplete="new-password"
+                          data-testid="input-join-password"
+                        />
+                        <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    {password && (
+                      <div className="space-y-2">
+                        <Label htmlFor="join-confirm-password">Confirm Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="join-confirm-password"
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="Confirm your password"
+                            className="pr-9"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            autoComplete="new-password"
+                            data-testid="input-join-confirm-password"
+                          />
+                          <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(v => !v)} tabIndex={-1}>
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  {(org?.allowPasswordCreation ?? true) ? "Password is optional — you can always add one later." : "No password required — your QR code is your access."}
+                </p>
 
                 <Button
                   type="submit"
@@ -254,7 +313,7 @@ export default function JoinPage() {
                   type="button"
                   variant="ghost"
                   className="w-full text-muted-foreground"
-                  onClick={() => { setStep("username"); setFullName(""); }}
+                  onClick={() => { setStep("username"); setFullName(""); setPassword(""); setConfirmPassword(""); }}
                   data-testid="button-join-back"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />

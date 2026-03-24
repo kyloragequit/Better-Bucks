@@ -337,6 +337,12 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
   const [siteId, setSiteId] = useState(defaultSiteId);
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showSiteId, setShowSiteId] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [allowPasswordCreation, setAllowPasswordCreation] = useState(true);
   const [step, setStep] = useState<"credentials" | "register">("credentials");
   const [isPending, setIsPending] = useState(false);
   const queryClient = useQueryClient();
@@ -360,6 +366,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
         return;
       }
       if (data.needsRegistration) {
+        setAllowPasswordCreation(data.allowPasswordCreation ?? true);
         setStep("register");
         return;
       }
@@ -374,12 +381,22 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) return;
+    if (allowPasswordCreation && password && password !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Please make sure both password fields match.", variant: "destructive" });
+      return;
+    }
+    if (allowPasswordCreation && password && password.length < 6) {
+      toast({ title: "Password too short", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
     setIsPending(true);
     try {
+      const body: Record<string, string> = { siteId: siteId.trim().toLowerCase(), username: username.trim(), fullName: fullName.trim() };
+      if (allowPasswordCreation && password.trim()) body.password = password.trim();
       const res = await fetch("/api/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId: siteId.trim().toLowerCase(), username: username.trim(), fullName: fullName.trim() }),
+        body: JSON.stringify(body),
         credentials: "include",
       });
       const data = await res.json();
@@ -418,8 +435,50 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
               data-testid="input-emp-fullname"
             />
           </div>
-          <p className="text-xs text-muted-foreground">No password or email required.</p>
         </div>
+        {allowPasswordCreation && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="emp-reg-password">Password <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <div className="relative">
+                <Input
+                  id="emp-reg-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Create a password"
+                  className="pr-9"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  data-testid="input-emp-reg-password"
+                />
+                <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            {password && (
+              <div className="space-y-2">
+                <Label htmlFor="emp-reg-confirm-password">Confirm Password</Label>
+                <div className="relative">
+                  <Input
+                    id="emp-reg-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    className="pr-9"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    data-testid="input-emp-reg-confirm-password"
+                  />
+                  <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(v => !v)} tabIndex={-1}>
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        <p className="text-xs text-muted-foreground">{allowPasswordCreation ? "Password is optional — you can always add one later." : "No password required — your Site ID and employee code are your access."}</p>
         <Button
           type="submit"
           className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
@@ -428,7 +487,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
         >
           {isPending ? <><SpinningLogo className="mr-2 h-4 w-4" />Creating...</> : <><UserPlus className="mr-2 h-4 w-4" />Create Account & Sign In</>}
         </Button>
-        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={() => { setStep("credentials"); setFullName(""); }} data-testid="button-emp-back">
+        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={() => { setStep("credentials"); setFullName(""); setPassword(""); setConfirmPassword(""); }} data-testid="button-emp-back">
           <ArrowLeft className="mr-2 h-4 w-4" />Back
         </Button>
       </form>
@@ -443,14 +502,18 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
           <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="emp-site-id"
-            placeholder="e.g. warehouse-1"
-            className="pl-9"
+            type={showSiteId ? "text" : "password"}
+            placeholder="••••••••••"
+            className="pl-9 pr-9"
             value={siteId}
             onChange={(e) => setSiteId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
             required
-            autoComplete="organization"
+            autoComplete="off"
             data-testid="input-emp-site-id"
           />
+          <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowSiteId(v => !v)} tabIndex={-1} data-testid="button-toggle-site-id">
+            {showSiteId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
         <p className="text-xs text-muted-foreground">Ask your manager for your workplace Site ID.</p>
       </div>

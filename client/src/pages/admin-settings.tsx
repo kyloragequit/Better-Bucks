@@ -808,9 +808,10 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
   const queryClient = useQueryClient();
   const [storeEnabled, setStoreEnabled] = useState(org.storeEnabled ?? true);
   const [manualOrdersEnabled, setManualOrdersEnabled] = useState(org.manualOrdersEnabled ?? true);
+  const [allowEmployeePasswordCreation, setAllowEmployeePasswordCreation] = useState(org.allowEmployeePasswordCreation ?? true);
 
   const mutation = useMutation({
-    mutationFn: async (flags: { storeEnabled: boolean; manualOrdersEnabled: boolean }) => {
+    mutationFn: async (flags: { storeEnabled: boolean; manualOrdersEnabled: boolean; allowEmployeePasswordCreation: boolean }) => {
       const res = await apiRequest("PATCH", "/api/organizations/feature-flags", flags);
       return res.json();
     },
@@ -822,12 +823,15 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
     onError: () => toast({ title: "Error", description: "Could not save settings.", variant: "destructive" }),
   });
 
-  const handleToggle = (field: "storeEnabled" | "manualOrdersEnabled", value: boolean) => {
-    const next = field === "storeEnabled"
-      ? { storeEnabled: value, manualOrdersEnabled }
-      : { storeEnabled, manualOrdersEnabled: value };
+  const handleToggle = (field: "storeEnabled" | "manualOrdersEnabled" | "allowEmployeePasswordCreation", value: boolean) => {
+    const next = {
+      storeEnabled: field === "storeEnabled" ? value : storeEnabled,
+      manualOrdersEnabled: field === "manualOrdersEnabled" ? value : manualOrdersEnabled,
+      allowEmployeePasswordCreation: field === "allowEmployeePasswordCreation" ? value : allowEmployeePasswordCreation,
+    };
     if (field === "storeEnabled") setStoreEnabled(value);
-    else setManualOrdersEnabled(value);
+    else if (field === "manualOrdersEnabled") setManualOrdersEnabled(value);
+    else setAllowEmployeePasswordCreation(value);
     mutation.mutate(next);
   };
 
@@ -863,6 +867,18 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
             onCheckedChange={(v) => handleToggle("manualOrdersEnabled", v)}
             disabled={mutation.isPending}
             data-testid="switch-manual-orders-enabled"
+          />
+        </div>
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div>
+            <p className="font-medium text-sm">Employee Password Creation</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Allow employees to set their own password when registering for the first time.</p>
+          </div>
+          <Switch
+            checked={allowEmployeePasswordCreation}
+            onCheckedChange={(v) => handleToggle("allowEmployeePasswordCreation", v)}
+            disabled={mutation.isPending}
+            data-testid="switch-allow-employee-password"
           />
         </div>
       </CardContent>

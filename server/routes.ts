@@ -783,7 +783,7 @@ export async function registerRoutes(
       if (!org || org.status !== "active") {
         return res.status(404).json({ message: "Invalid or inactive Site ID" });
       }
-      res.json({ orgName: org.name, siteId: org.siteId, employeeRoleLabel: org.employeeRoleLabel });
+      res.json({ orgName: org.name, siteId: org.siteId, employeeRoleLabel: org.employeeRoleLabel, allowPasswordCreation: org.allowEmployeePasswordCreation ?? true });
     } catch (e) {
       res.status(500).json({ message: "Internal Server Error" });
     }
@@ -792,7 +792,7 @@ export async function registerRoutes(
   // Public: employee login or self-registration via Site ID (no password)
   app.post("/api/join", async (req, res) => {
     try {
-      const { siteId, username, fullName } = req.body;
+      const { siteId, username, fullName, password } = req.body;
       if (!siteId || !username) {
         return res.status(400).json({ message: "Site ID and username are required" });
       }
@@ -819,7 +819,7 @@ export async function registerRoutes(
 
       // New employee — need full name to register
       if (!fullName || !String(fullName).trim()) {
-        return res.status(200).json({ needsRegistration: true });
+        return res.status(200).json({ needsRegistration: true, allowPasswordCreation: org.allowEmployeePasswordCreation ?? true });
       }
 
       const trimmedFullName = String(fullName).trim();
@@ -838,11 +838,15 @@ export async function registerRoutes(
         return res.status(409).json({ message: "This username is already taken. Please choose a different one." });
       }
 
-      // Create passwordless employee — store a random unhashable placeholder
-      const randomPass = crypto.randomBytes(32).toString("hex");
+      // Use provided password if org allows it, otherwise assign a random placeholder
+      const allowPwdCreation = org.allowEmployeePasswordCreation ?? true;
+      const rawPass = (allowPwdCreation && password && String(password).trim().length >= 6)
+        ? String(password).trim()
+        : crypto.randomBytes(32).toString("hex");
+      const hashedPass = await hashPassword(rawPass);
       const user = await storage.createUser({
         username: trimmedUsername,
-        password: await hashPassword(randomPass),
+        password: hashedPass,
         fullName: trimmedFullName,
         email: null,
         phone: null,
@@ -2281,12 +2285,13 @@ export async function registerRoutes(
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const { storeEnabled, manualOrdersEnabled } = z.object({
+    const { storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation } = z.object({
       storeEnabled: z.boolean(),
       manualOrdersEnabled: z.boolean(),
+      allowEmployeePasswordCreation: z.boolean(),
     }).parse(req.body);
-    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled);
-    res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled });
+    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation);
+    res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation });
   });
 
   // Budget settings - get

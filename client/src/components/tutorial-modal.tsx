@@ -7,7 +7,8 @@ import {
   Wallet, ShoppingBag, ShoppingCart, LayoutDashboard, Users, Zap,
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
-  ArrowRight, Heart, ExternalLink, Target, Timer, Hash,
+  ArrowRight, Heart, ExternalLink, Target, Timer, Hash, BookOpen, KeyRound,
+  ChevronDown,
 } from "lucide-react";
 
 const NAVY = "#162A4A";
@@ -438,32 +439,61 @@ function buildSlides(role: string, name: string): Slide[] {
                 <span className="text-sm text-gray-500">Sarah Chen — EMP-001</span>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-gray-600">Amount</p>
-                <div className="border rounded-lg px-3 py-2 bg-gray-50">
-                  <span className="text-sm font-bold" style={{ color: GREEN }}>+ 100 Bucks</span>
-                </div>
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                <BookOpen className="h-3 w-3" style={{ color: GREEN }} /> Catalogue Code <span className="font-normal text-gray-400">(optional)</span>
+              </p>
+              <div className="flex gap-2">
+                <div className="flex-1 border rounded-lg px-3 py-2 bg-gray-50 font-mono text-sm text-gray-600">SAFETY5</div>
+                <div className="px-3 py-2 rounded-lg border text-xs font-semibold text-gray-500">Look up</div>
               </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-gray-600">Type</p>
-                <div className="border rounded-lg px-3 py-2 bg-gray-50">
-                  <span className="text-sm text-gray-500">Bonus Award</span>
-                </div>
-              </div>
+              <p className="text-xs flex items-center gap-1" style={{ color: GREEN }}>✓ Safety Compliance — 250 Bucks pre-filled</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-semibold text-gray-600">Reason</p>
               <div className="border rounded-lg px-3 py-2 bg-gray-50">
-                <span className="text-sm text-gray-400">Outstanding safety compliance this week</span>
+                <span className="text-sm text-gray-400">Safety Compliance</span>
               </div>
             </div>
             <button className="w-full py-2 rounded-lg text-sm font-bold text-white" style={{ background: GREEN }}>
-              Award 100 Bucks
+              Credit 250 Bucks
             </button>
           </div>
           <p className="text-xs text-gray-400 text-center">
-            Find this under the ⚡ Instant Transaction tab in the navigation.
+            Find Instant Transaction in the navigation dropdown at the top of the page.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "catalogue",
+      title: "Catalogue Maker",
+      subtitle: "Pre-set Bucks amounts with short codes — use them in Instant Transaction to skip the math.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> Catalogue</span>
+              <button className="px-3 py-1 rounded text-xs font-semibold text-white" style={{ background: GREEN }}>+ Add Item</button>
+            </div>
+            <div className="divide-y bg-white">
+              {[
+                { code: "PERF10", name: "Performance Bonus", bucks: 250 },
+                { code: "SAFETY5", name: "Safety Compliance", bucks: 100 },
+                { code: "ATTEND", name: "Attendance Award", bucks: 50 },
+              ].map(({ code, name, bucks }) => (
+                <div key={code} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded border border-gray-200 bg-gray-50" style={{ color: NAVY }}>{code}</span>
+                    <span className="text-xs text-gray-600">{name}</span>
+                  </div>
+                  <span className="text-xs font-bold" style={{ color: GREEN }}>{bucks} Bucks</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            In Instant Transaction, type a code like <span className="font-mono font-bold text-gray-600">PERF10</span> and hit Look Up — the Bucks amount and reason fill in automatically.
           </p>
         </div>
       ),
@@ -524,8 +554,10 @@ function buildSlides(role: string, name: string): Slide[] {
               { icon: LayoutDashboard, text: "Dashboard — Org-wide stats and charts" },
               { icon: Users, text: "Employees — Add, manage & award your team" },
               { icon: ShoppingCart, text: "Orders — Review and fulfill requests" },
-              { icon: Zap, text: "Instant Transaction — Quick Bucks awards" },
+              { icon: Zap, text: "Instant Transaction — Quick awards (use catalogue codes!)" },
+              { icon: BookOpen, text: "Catalogue — Shorthand codes with preset Bucks values" },
               { icon: Target, text: "Goals — Add progress to quantity goals" },
+              { icon: Package, text: "Items — Give and redeem custom non-Bucks tokens" },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-2.5 text-left">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>
@@ -535,6 +567,7 @@ function buildSlides(role: string, name: string): Slide[] {
               </div>
             ))}
           </div>
+          <p className="text-xs text-gray-400 text-center">Navigate using the dropdown in the top bar.</p>
         </div>
       ),
     },
@@ -584,24 +617,28 @@ function buildSlides(role: string, name: string): Slide[] {
     {
       id: "settings",
       title: "Organization Settings",
-      subtitle: "Configure your org code, billing plan, role labels, and more.",
+      subtitle: "Configure your org code, Universal Passkey, billing plan, role labels, and more.",
       body: (
         <div className="space-y-3">
           <div className="rounded-xl border overflow-hidden bg-white">
             {[
               { label: "Org Name", value: "Acme Corp" },
               { label: "Org Code", value: "ACME1234 (share with employees to register)" },
+              { label: "Universal Passkey", value: "One shared PIN all employees can log in with" },
               { label: "Plan", value: "Mid-Size · 300 employees max" },
               { label: "Role Labels", value: '"Bucks" → "Points" (customize anytime)' },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between px-4 py-3 border-b last:border-0">
-                <p className="text-xs font-semibold text-gray-500">{label}</p>
+                <p className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+                  {label === "Universal Passkey" && <KeyRound className="h-3 w-3" style={{ color: NAVY + "80" }} />}
+                  {label}
+                </p>
                 <p className="text-xs text-right text-gray-700 max-w-[55%]">{value}</p>
               </div>
             ))}
           </div>
           <p className="text-xs text-gray-400 text-center">
-            Settings are only visible to Organization Owners. Share the Org Code so your team can register.
+            Settings are only visible to Organization Owners. The Universal Passkey lets any employee use a shared PIN as a fallback login.
           </p>
         </div>
       ),
@@ -629,10 +666,12 @@ function buildSlides(role: string, name: string): Slide[] {
                 { icon: LayoutDashboard, text: "Dashboard — Full platform analytics" },
                 { icon: Users, text: "Employees — Add, manage & award your team" },
                 { icon: ShoppingCart, text: "Orders — Approve and fulfill requests" },
-                { icon: Zap, text: "Instant Transaction — Quick awards" },
+                { icon: Zap, text: "Instant Transaction — Quick awards (with catalogue codes)" },
+                { icon: BookOpen, text: "Catalogue — Preset codes with Bucks values" },
                 { icon: Target, text: "Goals — Create goals & distribute Bucks" },
+                { icon: Package, text: "Items — Custom non-Bucks token system" },
                 { icon: ShoppingBag, text: "Store — Curate what employees can redeem" },
-                { icon: Settings, text: "Settings — Org config, billing & labels" },
+                { icon: Settings, text: "Settings — Org config, Universal Passkey & billing" },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-2.5 text-left">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>

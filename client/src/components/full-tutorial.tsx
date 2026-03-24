@@ -125,17 +125,32 @@ const adminSteps: Step[] = [
     optional: true,
   },
   {
+    id: "catalogue",
+    path: "/admin/catalogue",
+    selector: '[data-testid="button-add-catalogue-item"]',
+    title: "Catalogue Maker",
+    description: "Create shorthand codes like PERF10 or SAFETY5 and assign Bucks values to them. When you do an Instant Transaction, type a catalogue code to auto-fill the amount and reason instantly — no more remembering numbers.",
+    optional: true,
+  },
+  {
+    id: "custom-items",
+    path: "/admin/items",
+    title: "Custom (Non-Bucks) Items",
+    description: "Beyond Bucks, your org can run a second incentive system — things like Safety Stars, Raffle Tickets, or any token you define. Give and redeem custom items separately from Bucks using this page.",
+    optional: true,
+  },
+  {
     id: "settings",
     path: "/admin/settings",
     selector: '[data-testid="text-settings-org-code"]',
     title: "Organization Settings",
-    description: "Your organization's unique code is here — new employees use it when registering. You can also manage your store, customize labels, and view subscription details.",
+    description: "Your organization's unique code is here — new employees use it when registering. You can also set a Universal Passkey so employees always have a fallback login PIN, customize role labels, and view subscription details.",
   },
   {
     id: "done",
     path: "/admin/dashboard",
     title: "You're Ready to Go!",
-    description: "You've seen all the key features. The best managers check in regularly, award Bucks generously, and keep goals active to maintain team momentum. Let's go!",
+    description: "You've seen all the key features — Bucks management, Instant Transaction with catalogue codes, team goals, custom item tokens, and settings. The best managers check in regularly, award Bucks generously, and keep goals active. Let's go!",
   },
 ];
 

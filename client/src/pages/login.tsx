@@ -1,18 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
-import { useUser, useRegisterAdmin } from "@/hooks/use-auth";
+import { useRegisterAdmin } from "@/hooks/use-auth";
 import { PageSEO } from "@/components/page-seo";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff, ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
-import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -21,46 +19,16 @@ import { PasskeySetupPrompt } from "@/components/passkey-manager";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { data: user } = useUser();
 
   const params = new URLSearchParams(window.location.search);
   const urlOrgCode = params.get("orgCode") || "";
   const urlTab = params.get("tab") || "employee";
   const urlMode = params.get("mode") || "";
 
-  const prevUser = useRef<typeof user>(null);
-  const [rememberMeUser, setRememberMeUser] = useState<typeof user>(null);
-
-  function doRedirect(u: NonNullable<typeof user>) {
-    if (u.role === 'admin' || u.role === 'prime_admin') setLocation('/admin/dashboard');
-    else setLocation('/dashboard');
-  }
-
+  // Clear any stale "remember me" opt-in from previous app versions
   useEffect(() => {
-    if (user && !prevUser.current) {
-      const optedIn = localStorage.getItem("bb_remember_opted_in") === "1";
-      if (optedIn) {
-        fetch("/api/auth/remember", { method: "POST", credentials: "include" }).catch(() => {});
-        doRedirect(user);
-      } else {
-        setRememberMeUser(user);
-      }
-    }
-    if (user && prevUser.current) {
-      doRedirect(user);
-    }
-    prevUser.current = user ?? null;
-  }, [user]);
-
-  function handleRemember(remember: boolean) {
-    if (remember) {
-      localStorage.setItem("bb_remember_opted_in", "1");
-      fetch("/api/auth/remember", { method: "POST", credentials: "include" }).catch(() => {});
-    }
-    const u = rememberMeUser;
-    setRememberMeUser(null);
-    if (u) doRedirect(u);
-  }
+    localStorage.removeItem("bb_remember_opted_in");
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
@@ -140,34 +108,6 @@ export default function LoginPage() {
       </div>
       <SiteFooter dark absolute />
       <InstagramFloat />
-
-      <Dialog open={!!rememberMeUser} onOpenChange={() => {}}>
-        <DialogContent className="max-w-sm" data-testid="dialog-remember-me">
-          <DialogHeader>
-            <DialogTitle>Remember this device?</DialogTitle>
-            <DialogDescription>
-              Stay signed in on this device so you don't have to log in every time. Only do this on a device you trust.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
-            <Button
-              className="w-full"
-              onClick={() => handleRemember(true)}
-              data-testid="button-remember-yes"
-            >
-              Remember me
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full text-muted-foreground"
-              onClick={() => handleRemember(false)}
-              data-testid="button-remember-skip"
-            >
-              Not on this device
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -268,9 +208,15 @@ function CaptchaStep({
   );
 }
 
+function redirectAfterLogin(role: string, setLocation: (path: string) => void) {
+  if (role === "admin" || role === "prime_admin") setLocation("/admin/dashboard");
+  else setLocation("/dashboard");
+}
+
 function useLoginFlow() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [isPending, setIsPending] = useState(false);
   const [captchaChallenge, setCaptchaChallenge] = useState<CaptchaChallenge | null>(null);
 
@@ -305,6 +251,7 @@ function useLoginFlow() {
       queryClient.setQueryData(["/api/user"], data);
       toast({ title: "Welcome back!", description: `Logged in as ${data.fullName}` });
       setCaptchaChallenge(null);
+      redirectAfterLogin(data.role, setLocation);
       return { captchaRequired: false };
     } finally {
       setIsPending(false);
@@ -317,6 +264,7 @@ function useLoginFlow() {
 function usePasskeySignIn() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [isPending, setIsPending] = useState(false);
 
   async function signInWithPasskey(): Promise<boolean> {
@@ -339,6 +287,7 @@ function usePasskeySignIn() {
       const user = await finishRes.json();
       queryClient.setQueryData(["/api/user"], user);
       toast({ title: "Signed in!", description: `Welcome back, ${user.fullName}` });
+      redirectAfterLogin(user.role, setLocation);
       return true;
     } catch (err: any) {
       if (err?.name !== "NotAllowedError") {
@@ -392,6 +341,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
   const [isPending, setIsPending] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -415,6 +365,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
       }
       queryClient.setQueryData(["/api/user"], data);
       toast({ title: "Welcome back!", description: `Signed in as ${data.fullName}` });
+      redirectAfterLogin(data.role, setLocation);
     } finally {
       setIsPending(false);
     }
@@ -438,6 +389,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
       }
       queryClient.setQueryData(["/api/user"], data);
       toast({ title: "Account created!", description: `Welcome, ${data.fullName}!` });
+      redirectAfterLogin(data.role, setLocation);
     } finally {
       setIsPending(false);
     }

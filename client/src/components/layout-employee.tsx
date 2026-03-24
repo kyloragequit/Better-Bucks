@@ -15,7 +15,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const { data: user } = useUser();
   const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { data: features } = useQuery<{ storeEnabled: boolean; manualOrdersEnabled: boolean }>({
+  const { data: features } = useQuery<{ storeEnabled: boolean; manualOrdersEnabled: boolean; ordersEnabled: boolean }>({
     queryKey: ["/api/organizations/features"],
     enabled: !!user,
   });
@@ -29,7 +29,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
     ...(features?.storeEnabled !== false ? [{ href: "/store", label: "Store", icon: Store, testId: "link-store" }] : []),
-    { href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
+    ...(features?.ordersEnabled !== false ? [{ href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" }] : []),
     { href: "/surveys", label: "Surveys", icon: ClipboardList, testId: "link-surveys" },
     { href: "/settings", label: "Settings", icon: Settings, testId: "link-settings" },
   ];

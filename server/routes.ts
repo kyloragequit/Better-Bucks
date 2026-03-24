@@ -2275,9 +2275,9 @@ export async function registerRoutes(
   app.get("/api/organizations/features", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
-    if (!user.organizationId) return res.json({ storeEnabled: true, manualOrdersEnabled: true });
+    if (!user.organizationId) return res.json({ storeEnabled: true, manualOrdersEnabled: true, ordersEnabled: true });
     const org = await storage.getOrganization(user.organizationId);
-    res.json({ storeEnabled: org?.storeEnabled ?? true, manualOrdersEnabled: org?.manualOrdersEnabled ?? true });
+    res.json({ storeEnabled: org?.storeEnabled ?? true, manualOrdersEnabled: org?.manualOrdersEnabled ?? true, ordersEnabled: org?.ordersEnabled ?? true });
   });
 
   // Update feature flags (prime admin only)
@@ -2285,13 +2285,14 @@ export async function registerRoutes(
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const { storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation } = z.object({
+    const { storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled } = z.object({
       storeEnabled: z.boolean(),
       manualOrdersEnabled: z.boolean(),
       allowEmployeePasswordCreation: z.boolean(),
+      ordersEnabled: z.boolean(),
     }).parse(req.body);
-    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation);
-    res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation });
+    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled);
+    res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation, ordersEnabled: updated.ordersEnabled });
   });
 
   // Budget settings - get

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingBag, ExternalLink, Coins, Heart, X, RefreshCw, Globe, Ruler, Palette, Plus, Minus } from "lucide-react";
+import { ShoppingBag, ExternalLink, Coins, Heart, X, RefreshCw, Globe, Ruler, Palette, Plus, Minus, Search } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,24 +28,39 @@ export default function EmployeeStorePage() {
 
   const [browsingItem, setBrowsingItem] = useState<StoreItem | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
+  const [search, setSearch] = useState("");
 
   const wishlistedIds = new Set(wishlist?.map(w => w.storeItemId) ?? []);
 
+  const filteredItems = items?.filter(item =>
+    !search.trim() || item.name.toLowerCase().includes(search.trim().toLowerCase())
+  );
+
   return (
     <EmployeeLayout>
-      <div className="mb-8 animate-in">
+      <div className="mb-6 animate-in">
         <h1 className="text-3xl font-display font-bold text-foreground" data-testid="text-store-title">
           Shop
         </h1>
         <p className="text-muted-foreground mt-1">Browse items and spend your Bucks. Heart an item to save it to your wishlist.</p>
       </div>
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+        <div className="flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 shrink-0">
           <Coins className="h-4 w-4" />
           <span className="font-semibold text-sm" data-testid="text-store-balance">
             {(userDetails?.balance || 0).toLocaleString()} Bucks available
           </span>
+        </div>
+        <div className="relative flex-1 w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search items…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+            data-testid="input-store-search"
+          />
         </div>
       </div>
 
@@ -57,9 +72,15 @@ export default function EmployeeStorePage() {
           <p className="text-lg font-medium">No items in the store yet</p>
           <p className="text-sm mt-1">Check back later — your admin will be adding items soon.</p>
         </div>
+      ) : filteredItems?.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p className="text-lg font-medium">No items match your search</p>
+          <p className="text-sm mt-1">Try a different keyword.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {items.map((item) => (
+          {filteredItems?.map((item) => (
             <StoreItemCard
               key={item.id}
               item={item}

@@ -80,7 +80,7 @@ export interface IStorage {
   getPageContent(): Promise<Record<string, string>>;
   setPageContent(entries: Record<string, string>): Promise<void>;
 
-  updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean): Promise<Organization>;
+  updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean): Promise<Organization>;
   updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number): Promise<Organization>;
   setOrganizationDefaultPin(orgId: number, hashedPin: string | null): Promise<Organization>;
 
@@ -645,8 +645,8 @@ export class DatabaseStorage implements IStorage {
     await db.delete(storeItems).where(eq(storeItems.id, id));
   }
 
-  async updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean): Promise<Organization> {
-    const [updated] = await db.update(organizations).set({ storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation }).where(eq(organizations.id, id)).returning();
+  async updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled }).where(eq(organizations.id, id)).returning();
     return updated;
   }
 

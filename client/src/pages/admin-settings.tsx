@@ -809,9 +809,10 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
   const [storeEnabled, setStoreEnabled] = useState(org.storeEnabled ?? true);
   const [manualOrdersEnabled, setManualOrdersEnabled] = useState(org.manualOrdersEnabled ?? true);
   const [allowEmployeePasswordCreation, setAllowEmployeePasswordCreation] = useState(org.allowEmployeePasswordCreation ?? true);
+  const [ordersEnabled, setOrdersEnabled] = useState(org.ordersEnabled ?? true);
 
   const mutation = useMutation({
-    mutationFn: async (flags: { storeEnabled: boolean; manualOrdersEnabled: boolean; allowEmployeePasswordCreation: boolean }) => {
+    mutationFn: async (flags: { storeEnabled: boolean; manualOrdersEnabled: boolean; allowEmployeePasswordCreation: boolean; ordersEnabled: boolean }) => {
       const res = await apiRequest("PATCH", "/api/organizations/feature-flags", flags);
       return res.json();
     },
@@ -823,15 +824,17 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
     onError: () => toast({ title: "Error", description: "Could not save settings.", variant: "destructive" }),
   });
 
-  const handleToggle = (field: "storeEnabled" | "manualOrdersEnabled" | "allowEmployeePasswordCreation", value: boolean) => {
+  const handleToggle = (field: "storeEnabled" | "manualOrdersEnabled" | "allowEmployeePasswordCreation" | "ordersEnabled", value: boolean) => {
     const next = {
       storeEnabled: field === "storeEnabled" ? value : storeEnabled,
       manualOrdersEnabled: field === "manualOrdersEnabled" ? value : manualOrdersEnabled,
       allowEmployeePasswordCreation: field === "allowEmployeePasswordCreation" ? value : allowEmployeePasswordCreation,
+      ordersEnabled: field === "ordersEnabled" ? value : ordersEnabled,
     };
     if (field === "storeEnabled") setStoreEnabled(value);
     else if (field === "manualOrdersEnabled") setManualOrdersEnabled(value);
-    else setAllowEmployeePasswordCreation(value);
+    else if (field === "allowEmployeePasswordCreation") setAllowEmployeePasswordCreation(value);
+    else setOrdersEnabled(value);
     mutation.mutate(next);
   };
 
@@ -879,6 +882,18 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
             onCheckedChange={(v) => handleToggle("allowEmployeePasswordCreation", v)}
             disabled={mutation.isPending}
             data-testid="switch-allow-employee-password"
+          />
+        </div>
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div>
+            <p className="font-medium text-sm">Orders Page</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Show the Orders tab to employees so they can view and submit order requests.</p>
+          </div>
+          <Switch
+            checked={ordersEnabled}
+            onCheckedChange={(v) => handleToggle("ordersEnabled", v)}
+            disabled={mutation.isPending}
+            data-testid="switch-orders-enabled"
           />
         </div>
       </CardContent>

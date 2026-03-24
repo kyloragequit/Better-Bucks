@@ -194,15 +194,17 @@ export default function AdminInstantTransactionPage() {
   const handleCatalogueLookup = async () => {
     if (!catalogueCode.trim()) return;
     try {
-      const res = await apiRequest("GET", `/api/admin/catalogue/lookup/${encodeURIComponent(catalogueCode.trim())}`);
+      const res = await fetch(`/api/admin/catalogue/lookup/${encodeURIComponent(catalogueCode.trim())}`, { credentials: "include" });
       if (res.ok) {
         const item = await res.json();
         setCatalogueMatch(item);
         setAmount(item.bucksValue.toString());
         if (!reason) setReason(item.name);
-      } else {
+      } else if (res.status === 404) {
         setCatalogueMatch(null);
         toast({ title: "Not Found", description: "No catalogue item found with that code.", variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: "Could not look up catalogue code.", variant: "destructive" });
       }
     } catch {
       toast({ title: "Error", description: "Could not look up catalogue code.", variant: "destructive" });

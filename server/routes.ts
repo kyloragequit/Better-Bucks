@@ -4343,9 +4343,11 @@ export async function registerRoutes(
     if (user.role === "admin") {
       if (target.role === "prime_admin") return res.status(403).json({ message: "Cannot give items to the Organization Owner." });
       if (target.role !== "employee") return res.status(403).json({ message: "Admins can only give items to employees." });
-      // Balance check for non-prime admins
-      if (user.customItemBalance < amount) {
-        return res.status(400).json({ message: `Insufficient item balance. You have ${user.customItemBalance} available.` });
+      // Reload admin from DB to get fresh balance (session balance can be stale)
+      const freshAdmin = await storage.getUser(user.id);
+      const currentBalance = freshAdmin?.customItemBalance ?? 0;
+      if (currentBalance < amount) {
+        return res.status(400).json({ message: `Insufficient item balance. You have ${currentBalance} available.` });
       }
       // Deduct from admin
       await storage.updateUserCustomItemBalance(user.id, -amount);

@@ -8,6 +8,7 @@ import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DemoBanner } from "@/components/demo-banner";
 import { useToast } from "@/hooks/use-toast";
@@ -119,65 +120,55 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
-            <TooltipProvider delayDuration={200}>
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={item.href}
-                        className={`inline-flex items-center justify-center rounded-md p-2.5 transition-colors ${
-                          isActive(item.href)
-                            ? "bg-white/15 text-white"
-                            : "text-white/65 hover:bg-white/10 hover:text-white"
-                        }`}
-                        data-testid={item.testId || `link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-              {user?.role === "admin" ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href="/admin/account-settings"
-                      className={`inline-flex items-center justify-center rounded-md p-2.5 transition-colors ${
-                        isActive("/admin/account-settings")
-                          ? "bg-white/15 text-white"
-                          : "text-white/65 hover:bg-white/10 hover:text-white"
-                      }`}
-                      data-testid="link-account-settings"
-                    >
-                      <Settings className="h-5 w-5" />
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Account Settings</TooltipContent>
-                </Tooltip>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <a
-                      href="https://www.instagram.com/better_bucks"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center rounded-md p-2.5 transition-colors text-white/65 hover:bg-white/10 hover:text-pink-300"
-                      data-testid="link-instagram-admin-nav"
-                    >
-                      <SiInstagram className="h-5 w-5" />
-                    </a>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">@better_bucks</TooltipContent>
-                </Tooltip>
-              )}
-            </TooltipProvider>
+          <nav className="hidden md:block">
+            {(() => {
+              const allItems = [
+                ...navItems,
+                ...(user?.role === "admin"
+                  ? [{ href: "/admin/account-settings", label: "Account Settings", icon: Settings }]
+                  : []),
+              ];
+              const activeItem = allItems.find(item => isActive(item.href));
+              return (
+                <Select
+                  value={activeItem?.href ?? ""}
+                  onValueChange={(val) => setLocation(val)}
+                >
+                  <SelectTrigger
+                    className="w-56 bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-white/30 focus:ring-offset-0 [&>svg]:text-white/70"
+                    data-testid="select-admin-nav"
+                  >
+                    <SelectValue>
+                      {activeItem ? (
+                        <span className="flex items-center gap-2">
+                          <activeItem.icon className="h-4 w-4 shrink-0" />
+                          {activeItem.label}
+                        </span>
+                      ) : (
+                        <span className="text-white/60">Navigate…</span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="w-56">
+                    {allItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <SelectItem
+                          key={item.href}
+                          value={item.href}
+                          data-testid={(item as any).testId || `nav-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            {item.label}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              );
+            })()}
           </nav>
 
           <div className="flex items-center gap-2">

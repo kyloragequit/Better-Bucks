@@ -1,5 +1,6 @@
 import { AppLogo } from "@/components/app-logo";
 import { Link } from "wouter";
+import { Mail } from "lucide-react";
 
 export function SiteFooter({ dark = false, absolute = false }: { dark?: boolean; absolute?: boolean }) {
   return (
@@ -24,6 +25,18 @@ export function SiteFooter({ dark = false, absolute = false }: { dark?: boolean;
         >
           Terms of Service
         </Link>
+      </p>
+      <p className="text-[11px] flex items-center gap-1">
+        <Mail className="h-3 w-3 shrink-0" />
+        Contact us:{" "}
+        <a
+          href="mailto:miles.chase@betterbucks.net"
+          className={`underline underline-offset-2 transition-opacity hover:opacity-80 ${
+            dark ? "text-white/50" : "text-muted-foreground"
+          }`}
+        >
+          miles.chase@betterbucks.net
+        </a>
       </p>
     </footer>
   );

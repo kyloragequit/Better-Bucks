@@ -612,13 +612,16 @@ export default function LandingPage() {
               <AppLogo size="sm" />
               <span>Better Bucks LLC</span>
             </div>
-            <a
-              href="mailto:miles.chase@betterbucks.net"
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-              data-testid="link-contact-email"
-            >
-              miles.chase@betterbucks.net
-            </a>
+            <p className="flex items-center gap-1">
+              Contact us:{" "}
+              <a
+                href="mailto:miles.chase@betterbucks.net"
+                className="text-gray-500 hover:text-gray-700 transition-colors underline underline-offset-2"
+                data-testid="link-contact-email"
+              >
+                miles.chase@betterbucks.net
+              </a>
+            </p>
           </div>
         </div>
       </footer>

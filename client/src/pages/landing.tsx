@@ -217,10 +217,10 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <PageSEO
-        title="Better Bucks – Employee Incentive Software for Logistics & Manufacturing"
-        description="Better Bucks is employee incentive software and employee recognition platform built for logistics, warehousing, and manufacturing teams. Replace spreadsheets with workplace rewards software that automates incentive tracking, boosts employee engagement, and powers your performance recognition system."
+        title="Better Bucks – Improve Operational Efficiency & Employee Performance"
+        description="Better Bucks is an employee performance and incentive platform built for logistics, warehousing, and manufacturing operations. Drive productivity, reduce turnover, and reward top performers in real time — giving managers the visibility they need to improve operational efficiency across every shift."
         canonicalPath="/"
-        keywords="employee incentive software, employee recognition platform, workplace rewards software, incentive tracking software, employee engagement tools, performance recognition system, employee reward tracking, spreadsheet reward system, safety compliance motivation, employee engagement platform, reward program management, performance visibility, logistics employee incentives, warehousing employee recognition, manufacturing incentive program, frontline worker rewards"
+        keywords="employee performance software, operational efficiency tools, employee productivity platform, frontline worker performance, workforce performance management, employee incentive software, logistics workforce efficiency, warehousing employee performance, manufacturing productivity tools, employee recognition platform, performance-based incentives, real-time performance tracking, employee engagement platform, reduce employee turnover, reward top performers, shift performance management"
         jsonLd={jsonLd}
       />
 

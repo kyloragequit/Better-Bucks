@@ -1805,6 +1805,7 @@ export async function registerRoutes(
     tier: z.enum(["small", "mid", "large", "enterprise"]),
     referralCode: z.string().optional(),
     licenseAccepted: z.boolean().refine(v => v === true, { message: "You must agree to the Terms of Service and Software License Agreement to proceed." }),
+    marketingOptIn: z.boolean().optional().default(false),
   });
 
   // Shared helper: build and send a signup notification email to the admin
@@ -1865,7 +1866,7 @@ export async function registerRoutes(
 
   app.post("/api/organizations/signup", async (req, res) => {
     try {
-      const { organizationName, email, tier, referralCode } = signupSchema.parse(req.body);
+      const { organizationName, email, tier, referralCode, marketingOptIn } = signupSchema.parse(req.body);
       const config = tierConfig[tier];
 
       const isPromoSignup = !!(referralCode && referralCode.trim().toUpperCase() === "GOKU11");
@@ -1938,6 +1939,7 @@ export async function registerRoutes(
         tier,
         maxEmployees: config.maxEmployees,
         licenseAcceptedAt: new Date(),
+        marketingOptIn: marketingOptIn ?? false,
       });
 
       // Alert when the 45th company signs up (5 slots left for founder pricing)
@@ -2762,7 +2764,7 @@ export async function registerRoutes(
           adminCount: admins.length,
           employeeCount: employees.length,
           totalUsers: orgUsers.length,
-          primeAdmin: primeAdmin ? { id: primeAdmin.id, username: primeAdmin.username, fullName: primeAdmin.fullName } : null,
+          primeAdmin: primeAdmin ? { id: primeAdmin.id, username: primeAdmin.username, fullName: primeAdmin.fullName, email: primeAdmin.email ?? null } : null,
         };
       }));
       res.json(orgData);

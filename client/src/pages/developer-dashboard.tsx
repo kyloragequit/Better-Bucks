@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
 
@@ -67,7 +67,7 @@ type OrgWithStats = Organization & {
   adminCount: number;
   employeeCount: number;
   totalUsers: number;
-  primeAdmin: { id: number; username: string; fullName: string } | null;
+  primeAdmin: { id: number; username: string; fullName: string; email: string | null } | null;
 };
 
 const tierLabels: Record<string, string> = {
@@ -132,6 +132,8 @@ export default function DeveloperDashboardPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [marketingFilter, setMarketingFilter] = useState(false);
+  const [copiedEmailId, setCopiedEmailId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 25;
 
@@ -146,8 +148,9 @@ export default function DeveloperDashboardPage() {
       else if (typeFilter === "promo") list = list.filter(o => !!o.stripeCustomerId?.startsWith("promo_"));
       else list = list.filter(o => o.tier === typeFilter && o.stripeCustomerId !== "free_membership" && !o.stripeCustomerId?.startsWith("promo_"));
     }
+    if (marketingFilter) list = list.filter(o => o.marketingOptIn);
     return list;
-  }, [organizations, searchQuery, typeFilter]);
+  }, [organizations, searchQuery, typeFilter, marketingFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrgs.length / PAGE_SIZE));
   const paginatedOrgs = filteredOrgs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -1158,6 +1161,16 @@ export default function DeveloperDashboardPage() {
                       <option value="enterprise">Enterprise ($299.99/mo)</option>
                     </select>
                   </div>
+                  <Button
+                    variant={marketingFilter ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => { setMarketingFilter(v => !v); setCurrentPage(1); }}
+                    data-testid="button-filter-marketing"
+                    className="whitespace-nowrap"
+                  >
+                    <Mail className="h-3.5 w-3.5 mr-1.5" />
+                    Marketing opt-in{marketingFilter ? ` (${filteredOrgs.length})` : ""}
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -1211,9 +1224,34 @@ export default function DeveloperDashboardPage() {
                               <TableCell className="text-center font-medium">{org.employeeCount}</TableCell>
                               <TableCell className="text-sm">
                                 {org.primeAdmin ? (
-                                  <div>
+                                  <div className="space-y-0.5">
                                     <div className="font-medium">{org.primeAdmin.fullName}</div>
                                     <div className="text-xs text-muted-foreground">{org.primeAdmin.username}</div>
+                                    {org.primeAdmin.email && (
+                                      <div className="flex items-center gap-1 mt-1">
+                                        <span className="text-xs text-muted-foreground truncate max-w-[140px]">{org.primeAdmin.email}</span>
+                                        <button
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(org.primeAdmin!.email!);
+                                            setCopiedEmailId(org.id);
+                                            setTimeout(() => setCopiedEmailId(null), 1500);
+                                          }}
+                                          className="p-0.5 rounded hover:bg-gray-100 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                          data-testid={`button-copy-email-${org.id}`}
+                                          title="Copy email"
+                                        >
+                                          {copiedEmailId === org.id
+                                            ? <Check className="h-3 w-3 text-green-600" />
+                                            : <Copy className="h-3 w-3" />}
+                                        </button>
+                                      </div>
+                                    )}
+                                    {org.marketingOptIn && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-0.5 mt-0.5">
+                                        <Mail className="h-2.5 w-2.5" />
+                                        Marketing
+                                      </span>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-muted-foreground">Not set up</span>
@@ -1305,11 +1343,32 @@ export default function DeveloperDashboardPage() {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between pt-4 border-t mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    {filteredOrgs.length === 0
-                      ? "No results"
-                      : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredOrgs.length)} of ${filteredOrgs.length}`}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-muted-foreground">
+                      {filteredOrgs.length === 0
+                        ? "No results"
+                        : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredOrgs.length)} of ${filteredOrgs.length}`}
+                    </p>
+                    {marketingFilter && filteredOrgs.length > 0 && (() => {
+                      const emails = filteredOrgs.flatMap(o => o.primeAdmin?.email ? [o.primeAdmin.email] : []);
+                      if (emails.length === 0) return null;
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+                          onClick={() => {
+                            navigator.clipboard.writeText(emails.join(", "));
+                            toast({ title: "Emails copied", description: `${emails.length} email${emails.length > 1 ? "s" : ""} copied to clipboard.` });
+                          }}
+                          data-testid="button-copy-all-marketing-emails"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy all {emails.length} emails
+                        </Button>
+                      );
+                    })()}
+                  </div>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"

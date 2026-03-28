@@ -78,6 +78,7 @@ export default function SignupPage() {
   const [referralExtraMonths, setReferralExtraMonths] = useState(1);
   const [contactPending, setContactPending] = useState(false);
   const [licenseAccepted, setLicenseAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const [rfiName, setRfiName] = useState("");
   const [rfiEmail, setRfiEmail] = useState("");
@@ -130,6 +131,7 @@ export default function SignupPage() {
         tier: selectedTier,
         referralCode: referralCode.trim() || undefined,
         licenseAccepted: true,
+        marketingOptIn,
       });
       return await res.json();
     },
@@ -478,6 +480,20 @@ export default function SignupPage() {
                       className="text-xs leading-relaxed cursor-pointer text-muted-foreground"
                     >
                       I have read and agree to the <strong className="text-foreground">Terms of Service and Software License Agreement</strong>. I understand this is a binding legal agreement between my organization and Better Bucks LLC, effective {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
+                    </label>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="marketing-opt-in"
+                      checked={marketingOptIn}
+                      onCheckedChange={(checked) => setMarketingOptIn(checked === true)}
+                      data-testid="checkbox-marketing-opt-in"
+                    />
+                    <label
+                      htmlFor="marketing-opt-in"
+                      className="text-xs leading-relaxed cursor-pointer text-muted-foreground"
+                    >
+                      I'd like to receive product updates, tips, and occasional promotions from Better Bucks. <span className="italic">(Optional)</span>
                     </label>
                   </div>
                 </div>

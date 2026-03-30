@@ -44,7 +44,7 @@ export function TermsAgreementModal() {
         <div className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center gap-3">
             <AppLogo size="xs" />
-            <h2 className="text-base font-bold leading-none">Terms of Service &amp; Privacy Policy</h2>
+            <h2 className="text-base font-bold leading-none">Terms of Service &amp; Software License Agreement</h2>
           </div>
           <p className="text-sm text-muted-foreground mt-1.5">
             Please read and agree to our terms before using Better Bucks.
@@ -52,36 +52,79 @@ export function TermsAgreementModal() {
         </div>
 
         {/* Scrollable terms body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 text-sm text-muted-foreground leading-relaxed min-h-0">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 text-sm text-muted-foreground leading-relaxed min-h-0">
 
-          <section className="space-y-3">
-            <h3 className="text-base font-bold text-foreground">Terms of Service</h3>
-            <p className="text-xs text-muted-foreground">Last Updated: 3/2/2026</p>
-            <p>These Terms of Service ("Terms") govern your access to and use of the Better Bucks web application and related services operated by Better Bucks LLC. By checking the box below, you agree to be bound by these Terms.</p>
+          <p className="font-bold text-foreground text-sm">BETTER BUCKS LLC – TERMS OF SERVICE &amp; SOFTWARE LICENSE AGREEMENT</p>
 
-            <div><p className="font-semibold text-foreground mb-1">1. Service Overview</p><p>Better Bucks provides a cloud-based employee incentive and recognition platform for organizational use only.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">2. Account Responsibilities</p><p>Organizations are responsible for ensuring authorized use, maintaining credential confidentiality, and providing accurate information. Better Bucks reserves the right to suspend accounts that violate these Terms.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">3. Acceptable Use</p><p>You agree not to use the Service for unlawful purposes, attempt unauthorized access, upload malicious content, interfere with system security, or misrepresent identity. Violations may result in immediate termination.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">4. Customer Data Ownership</p><p>Organizations retain ownership of all submitted data. You grant Better Bucks a limited license to process data solely for operating and improving the Service.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">5. Fees &amp; Subscriptions</p><p>If operating under a paid plan, fees follow agreed pricing tiers, are due per billing terms, and are non-refundable unless agreed in writing. Non-payment may result in suspended access.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">6. Service Availability</p><p>Better Bucks strives for reliable uptime but does not guarantee uninterrupted access. Temporary interruptions may occur due to maintenance, technical issues, or circumstances beyond our control.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">7. Intellectual Property</p><p>All software, branding, and platform functionality are the exclusive property of Better Bucks. You may not copy, distribute, reverse engineer, or sublicense the Service without written permission.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">8. Limitation of Liability</p><p>To the fullest extent permitted by law, Better Bucks is not liable for indirect or consequential damages, loss of profits, or decisions made based on platform data. The Service is provided "as is."</p></div>
-            <div><p className="font-semibold text-foreground mb-1">9. Termination</p><p>We may suspend or terminate access for violations, non-payment, or legal risk. Organizations may discontinue use at any time.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">10. Governing Law</p><p>These Terms are governed by the laws of the United States.</p></div>
-          </section>
+          <div>
+            <p className="font-semibold text-foreground mb-1">1. LICENSE GRANT</p>
+            <p>Better Bucks LLC ("Company," "we," "us") grants you a limited, non-exclusive, non-transferable, revocable license to access and use the Software for internal business purposes. This is a license—not a sale.</p>
+          </div>
 
-          <hr className="border-border" />
+          <div>
+            <p className="font-semibold text-foreground mb-1">2. OWNERSHIP</p>
+            <p>All rights, title, and interest in and to the Software—including all intellectual property—are and will remain the exclusive property of Better Bucks LLC. You do not acquire any ownership rights through use of the Software.</p>
+          </div>
 
-          <section className="space-y-3">
-            <h3 className="text-base font-bold text-foreground">Privacy Policy</h3>
-            <p className="text-xs text-muted-foreground">Last Updated: 3/2/2026</p>
-            <div><p className="font-semibold text-foreground mb-1">Information We Collect</p><p>We may collect names, email addresses, phone numbers, employee identifiers, account credentials, and activity data. We also automatically collect IP addresses, device/browser information, and usage analytics.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">How We Use Information</p><p>We use your information to operate the Service, provide support, improve features, maintain security, and provide analytics. <strong className="text-foreground">We do not sell personal information.</strong></p></div>
-            <div><p className="font-semibold text-foreground mb-1">Data Sharing</p><p>We may share data only with hosting providers, platform service providers, and legal authorities when required by law. All providers are required to protect data confidentiality.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">Data Security &amp; Retention</p><p>We implement reasonable safeguards to protect your information. Data is retained while accounts are active or as legally required. Organizations may request data deletion upon termination.</p></div>
-            <div><p className="font-semibold text-foreground mb-1">Contact</p><p>For questions or data requests: <a href="mailto:miles.chase@betterbucks.net" className="text-primary underline">miles.chase@betterbucks.net</a></p></div>
-          </section>
+          <div>
+            <p className="font-semibold text-foreground mb-1">3. PERMITTED USE</p>
+            <p>You agree to use the Software solely for: managing employee incentives, tracking performance, conducting internal surveys, and internal business operations.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">4. RESTRICTIONS</p>
+            <p>You may NOT: copy, reproduce, or distribute the Software; modify, adapt, or create derivative works; reverse engineer or attempt to extract source code; resell, sublicense, or commercially exploit the Software; or allow unauthorized third-party access.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">5. ACCOUNT RESPONSIBILITY</p>
+            <p>You are responsible for maintaining account security, all activity under your account, and ensuring your users comply with this Agreement.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">6. HOSTING &amp; ACCESS</p>
+            <p>The Software is hosted and maintained exclusively by Better Bucks LLC. We reserve the right to modify features, update functionality, and suspend or restrict access if necessary.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">7. FEES &amp; BILLING</p>
+            <p>Subscription fees will be billed on a recurring basis. Pricing is subject to change with notice. Failure to pay may result in suspension or termination.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">8. TERMINATION</p>
+            <p>We may suspend or terminate your access at any time if you violate these terms, payment is not received, or misuse of the platform occurs. Upon termination, your license is revoked immediately and access to the Software will be discontinued.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">9. DATA &amp; PRIVACY</p>
+            <p>You retain ownership of your business data. However, you grant Better Bucks LLC the right to store and process data necessary to provide the service, and use aggregated, anonymized data for platform improvements.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">10. DISCLAIMER OF WARRANTIES</p>
+            <p>The Software is provided "as is" and "as available." We make no guarantees regarding performance, uptime, or results from use.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">11. LIMITATION OF LIABILITY</p>
+            <p>To the fullest extent permitted by law, Better Bucks LLC shall not be liable for indirect, incidental, or consequential damages, or loss of profits, data, or business opportunities.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">12. GOVERNING LAW</p>
+            <p>This Agreement shall be governed by the laws of the State of Texas.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">13. CHANGES TO TERMS</p>
+            <p>We may update these terms at any time. Continued use of the Software constitutes acceptance of any changes.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-foreground mb-1">14. ACCEPTANCE OF TERMS</p>
+            <p>By checking the box below, you acknowledge that you have read, understood, and agree to be bound by this Agreement.</p>
+          </div>
 
         </div>
 
@@ -95,8 +138,9 @@ export function TermsAgreementModal() {
               data-testid="checkbox-agree-terms"
             />
             <Label htmlFor="terms-agree" className="text-sm leading-snug cursor-pointer">
-              <span className="font-semibold text-foreground">I agree to the Terms of Service and Privacy Policy</span>
+              <span className="font-semibold text-foreground">I have read and agree to the Terms of Service and Software License Agreement.</span>
               <span className="text-destructive ml-1">*</span>
+              <span className="block text-muted-foreground font-normal mt-0.5 text-xs">I understand this is a binding legal agreement between my organization and Better Bucks LLC.</span>
             </Label>
           </div>
 
@@ -108,7 +152,7 @@ export function TermsAgreementModal() {
               data-testid="checkbox-agree-marketing"
             />
             <Label htmlFor="marketing-agree" className="text-sm leading-snug cursor-pointer text-muted-foreground">
-              I agree to receive marketing communications from Better Bucks (optional)
+              I'd like to receive product updates, tips, and occasional promotions from Better Bucks. <span className="italic">(Optional)</span>
             </Label>
           </div>
 

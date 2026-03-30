@@ -196,7 +196,16 @@ export function setupAuth(app: Express) {
   app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) console.error("Session destroy error:", destroyErr);
+        res.clearCookie("connect.sid", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+        });
+        res.sendStatus(200);
+      });
     });
   });
 

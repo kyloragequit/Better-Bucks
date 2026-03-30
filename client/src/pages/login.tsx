@@ -495,7 +495,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
   }
 
   return (
-    <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+    <form onSubmit={handleCredentialsSubmit} className="space-y-4" autoComplete="off">
       <div className="space-y-2">
         <Label htmlFor="emp-site-id">Site ID / Password</Label>
         <div className="relative">
@@ -528,7 +528,7 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
-            autoComplete="username"
+            autoComplete="off"
             data-testid="input-employee-code"
           />
         </div>
@@ -608,7 +608,7 @@ function AdminLoginForm() {
   }
 
   return (
-    <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+    <form onSubmit={handleCredentialsSubmit} className="space-y-4" autoComplete="off">
       <div className="space-y-2">
         <Label htmlFor="admin-username">Username</Label>
         <div className="relative">
@@ -620,7 +620,7 @@ function AdminLoginForm() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
-            autoComplete="username"
+            autoComplete="off"
             data-testid="input-admin-username"
           />
         </div>
@@ -646,7 +646,7 @@ function AdminLoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            autoComplete="current-password"
+            autoComplete="off"
             data-testid="input-admin-password"
           />
           <button

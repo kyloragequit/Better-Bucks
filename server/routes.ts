@@ -77,6 +77,14 @@ async function getOrgPrimeAdminEmail(organizationId: number): Promise<string | n
   return primeAdmin?.email ?? null;
 }
 
+async function getOrgAdminEmails(organizationId: number): Promise<string[]> {
+  const orgUsers = await storage.getUsersByOrganization(organizationId);
+  const emails = orgUsers
+    .filter(u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.status === "approved")
+    .map(u => u.email as string);
+  return [...new Set(emails)];
+}
+
 async function notifyAdmin(to: string, subject: string, details: Record<string, string>): Promise<void> {
   const rows = Object.entries(details)
     .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#666;font-weight:500;white-space:nowrap">${k}</td><td style="padding:4px 8px;">${v || "—"}</td></tr>`)

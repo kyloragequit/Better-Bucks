@@ -8,7 +8,7 @@ import {
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
   ArrowRight, Heart, ExternalLink, Target, Timer, Hash, BookOpen, KeyRound,
-  ChevronDown,
+  ChevronDown, FileSpreadsheet, Upload, Download,
 } from "lucide-react";
 
 const NAVY = "#162A4A";
@@ -386,6 +386,53 @@ function buildSlides(role: string, name: string): Slide[] {
           </div>
           <p className="text-xs text-gray-400 text-center">
             Click Award to send Bucks instantly. Use the Instant Transaction tab for quick bulk awards.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "bulk-import",
+      title: "Import Employees from Spreadsheet",
+      subtitle: "Add dozens of employees in one shot — download the template, fill it in, upload it.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><FileSpreadsheet className="h-4 w-4" /> Import Spreadsheet</span>
+              <div className="flex gap-2">
+                <button className="px-3 py-1 rounded text-xs font-semibold" style={{ background: "white", color: NAVY }}>
+                  <Download className="inline h-3 w-3 mr-1" />Template
+                </button>
+              </div>
+            </div>
+            <div className="p-3 bg-white space-y-2">
+              <div className="rounded-lg border-2 border-dashed border-gray-200 py-4 flex flex-col items-center gap-1.5 text-center bg-gray-50">
+                <Upload className="h-5 w-5 text-gray-400" />
+                <p className="text-xs font-semibold text-gray-600">Drop your .xlsx file here</p>
+                <p className="text-xs text-gray-400">or click to browse</p>
+              </div>
+              <div className="rounded-lg border text-xs overflow-hidden">
+                <div className="grid grid-cols-5 bg-gray-50 px-2 py-1.5 font-semibold text-gray-500 border-b">
+                  <span>Full Name</span><span>Code</span><span>Role</span><span>Dept</span><span>Email</span>
+                </div>
+                {[
+                  { name: "Jane Smith", code: "EMP-001", role: "employee", dept: "Warehouse", email: "" },
+                  { name: "Bob Johnson", code: "EMP-002", role: "employee", dept: "Logistics", email: "" },
+                  { name: "Alice Mgr", code: "MGR-001", role: "admin", dept: "Shipping", email: "alice@co.com" },
+                ].map(r => (
+                  <div key={r.code} className="grid grid-cols-5 px-2 py-1.5 border-b last:border-0 text-gray-600">
+                    <span className="font-medium" style={{ color: NAVY }}>{r.name}</span>
+                    <span className="font-mono">{r.code}</span>
+                    <span className={r.role === "admin" ? "font-semibold" : ""} style={{ color: r.role === "admin" ? GREEN : "inherit" }}>{r.role}</span>
+                    <span>{r.dept}</span>
+                    <span className="truncate">{r.email || "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Each row becomes an employee account. Errors are shown row-by-row so you can fix and re-import.
           </p>
         </div>
       ),

@@ -1108,6 +1108,117 @@ export async function registerRoutes(
     res.json({ credited });
   });
 
+  app.post("/api/users/bulk-import", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const rows: Array<{
+      fullName: string;
+      username: string;
+      role?: string;
+      email?: string;
+      password?: string;
+      departmentName?: string;
+    }> = req.body.employees;
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ message: "No employee rows provided" });
+    }
+
+    const org = await storage.getOrganization(user.organizationId);
+    const departments = await storage.getDepartments(user.organizationId);
+    const deptMap = new Map(departments.map(d => [d.name.toLowerCase(), d.id]));
+
+    const results: Array<{ row: number; username: string; fullName: string; success: boolean; error?: string }> = [];
+    let imported = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+
+      if (!row.fullName?.trim()) {
+        results.push({ row: rowNum, username: row.username || "", fullName: row.fullName || "", success: false, error: "Full Name is required" });
+        continue;
+      }
+      if (!row.username?.trim()) {
+        results.push({ row: rowNum, username: "", fullName: row.fullName, success: false, error: "Employee Code is required" });
+        continue;
+      }
+
+      const role = (row.role?.toLowerCase() === "admin") ? "admin" : "employee";
+      const email = row.email?.trim() || null;
+      const hasEmail = !!(email && z.string().email().safeParse(email).success);
+
+      if (role === "admin" && !hasEmail) {
+        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Admin accounts require a valid email" });
+        continue;
+      }
+
+      // Check employee limit
+      if (org && org.maxEmployees > 0) {
+        const currentCount = await storage.getUsersByOrganization(user.organizationId);
+        if (currentCount.length >= org.maxEmployees) {
+          results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Employee limit reached — upgrade your plan" });
+          continue;
+        }
+      }
+
+      // Check duplicate username
+      const existing = await storage.getUserByUsernameAndOrg(row.username.trim(), user.organizationId);
+      if (existing) {
+        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Employee code already exists" });
+        continue;
+      }
+
+      // Check duplicate email
+      if (hasEmail) {
+        const existingEmail = await storage.getUserByEmailGlobal(email!);
+        if (existingEmail) {
+          results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Email already in use by another account" });
+          continue;
+        }
+      }
+
+      const deptId = row.departmentName ? (deptMap.get(row.departmentName.toLowerCase()) ?? null) : null;
+      const rawPassword = row.password?.trim();
+      const userPassword = rawPassword && rawPassword.length >= 6
+        ? await hashPassword(rawPassword)
+        : await hashPassword(crypto.randomBytes(32).toString("hex"));
+
+      const verificationCode = hasEmail ? Math.floor(100000 + Math.random() * 900000).toString() : null;
+
+      try {
+        await storage.createUser({
+          username: row.username.trim(),
+          password: userPassword,
+          fullName: row.fullName.trim(),
+          email: hasEmail ? email : null,
+          phone: null,
+          emailVerified: !hasEmail,
+          emailVerificationCode: verificationCode,
+          role: role as "employee" | "admin",
+          barcode: row.username.trim(),
+          status: "approved",
+          mustChangePassword: !!(rawPassword && rawPassword.length >= 6),
+          organizationId: user.organizationId,
+          departmentId: deptId,
+        });
+        if (hasEmail && verificationCode) {
+          await sendVerificationCode(email, null, verificationCode, row.fullName.trim());
+        }
+        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: true });
+        imported++;
+      } catch (err) {
+        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Failed to create account" });
+      }
+    }
+
+    res.json({ imported, total: rows.length, results });
+  });
+
   app.post(api.users.updateBalance.path, async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {

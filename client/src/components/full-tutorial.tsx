@@ -111,6 +111,13 @@ const adminSteps: Step[] = [
     description: "Use this to award Bucks to multiple employees at once — perfect for shift bonuses, safety milestones, or weekly performance rewards. Select employees, enter an amount and reason, then send.",
   },
   {
+    id: "bulk-import",
+    path: "/admin/employees",
+    selector: '[data-testid="button-bulk-import"]',
+    title: "Import Employees from Spreadsheet",
+    description: "Adding a lot of people at once? Use Import Spreadsheet to upload an Excel file (.xlsx) with your team's details. Download the template, fill it in with names and codes, then upload it — everyone is created in one shot.",
+  },
+  {
     id: "orders",
     path: "/admin/orders",
     title: "Order Management",

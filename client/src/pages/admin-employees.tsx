@@ -71,13 +71,15 @@ export default function AdminEmployeesPage() {
           <h1 className="text-3xl font-display font-bold text-foreground">{isPrimeAdmin ? "Team Members" : "Employees"}</h1>
           <p className="text-muted-foreground mt-1">{isPrimeAdmin ? "Manage all team member accounts and balances" : "Manage employee accounts and balances"}</p>
         </div>
-        {!isPublicDemo && (
-          <div className="flex gap-2 flex-wrap">
-            <BulkImportDialog departments={departments ?? []} />
-            <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
-            <CreateEmployeeDialog />
-          </div>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          <BulkImportDialog departments={departments ?? []} demoMode={isPublicDemo} />
+          {!isPublicDemo && (
+            <>
+              <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
+              <CreateEmployeeDialog />
+            </>
+          )}
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">
@@ -728,7 +730,7 @@ function parseSpreadsheet(file: File): Promise<ImportRow[]> {
   });
 }
 
-function BulkImportDialog({ departments }: { departments: Department[] }) {
+function BulkImportDialog({ departments, demoMode = false }: { departments: Department[]; demoMode?: boolean }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [results, setResults] = useState<ImportResult[] | null>(null);
@@ -803,12 +805,43 @@ function BulkImportDialog({ departments }: { departments: Department[] }) {
   const hasErrors = rowErrors.some(e => e.length > 0);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={demoMode ? () => {} : handleClose}>
       <DialogTrigger asChild>
-        <Button variant="outline" data-testid="button-bulk-import">
+        <Button variant="outline" data-testid="button-bulk-import" onClick={demoMode ? () => setOpen(true) : undefined}>
           <FileSpreadsheet className="mr-2 h-4 w-4" /> Import Spreadsheet
         </Button>
       </DialogTrigger>
+      {demoMode ? (
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" /> Import Spreadsheet
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              In your own organization, this button opens a dialog where you can upload an Excel (.xlsx) file to add dozens of employees in one shot.
+            </p>
+            <ul className="text-sm space-y-1.5 list-none">
+              {[
+                "Download a pre-formatted template",
+                "Fill in names, codes, departments & roles",
+                "Upload — every row becomes an employee",
+                "Errors shown row-by-row for easy fixing",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-2 text-muted-foreground">
+                  <span className="mt-0.5 h-4 w-4 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style={{ background: "#4E9F3D" }}>✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground italic">This feature is disabled in the demo organization.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      ) : (
       <DialogContent className="sm:max-w-[680px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Import Employees from Spreadsheet</DialogTitle>
@@ -1010,6 +1043,7 @@ function BulkImportDialog({ departments }: { departments: Department[] }) {
           )}
         </DialogFooter>
       </DialogContent>
+      )}
     </Dialog>
   );
 }

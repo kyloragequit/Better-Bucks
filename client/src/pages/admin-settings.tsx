@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -790,6 +790,7 @@ export default function AdminSettingsPage() {
                 )}
               </CardContent>
             </Card>
+            <WeeklyReportCard />
           </>
         ) : (
           <Card>
@@ -1415,6 +1416,96 @@ function ShopWebsitesSection() {
             ))}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function WeeklyReportCard() {
+  const { toast } = useToast();
+  const [sent, setSent] = useState(false);
+
+  const { data: allUsers } = useQuery<Array<{ id: number; fullName: string; email: string | null; role: string; status: string }>>({
+    queryKey: ["/api/users"],
+  });
+
+  const adminRecipients = (allUsers ?? []).filter(
+    u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.status === "approved"
+  );
+
+  const triggerMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/weekly-report/trigger", {});
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to send report");
+      }
+      return res.json() as Promise<{ message: string; recipients: string[] }>;
+    },
+    onSuccess: (data) => {
+      setSent(true);
+      toast({ title: "Weekly Report Sent", description: data.message });
+      setTimeout(() => setSent(false), 4000);
+    },
+    onError: (e: Error) => {
+      toast({ title: "Failed to Send", description: e.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Mail className="h-5 w-5" />
+          Weekly Report Emails
+        </CardTitle>
+        <CardDescription>
+          A summary email is sent every Monday at 7 AM to all administrators with email addresses on file.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Current Recipients</Label>
+          {adminRecipients.length === 0 ? (
+            <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+              No admin email addresses configured. Add an email to an admin account to receive weekly reports.
+            </div>
+          ) : (
+            <div className="rounded-lg border divide-y">
+              {adminRecipients.map(u => (
+                <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium">{u.fullName}</span>
+                    <Badge variant="outline" className="text-xs">{u.role === "prime_admin" ? "Owner" : "Admin"}</Badge>
+                  </div>
+                  <span className="text-sm text-muted-foreground">{u.email}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
+          <div className="text-sm text-muted-foreground">
+            Schedule: <span className="font-medium text-foreground">Every Monday at 7:00 AM</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => triggerMutation.mutate()}
+            disabled={triggerMutation.isPending || sent || adminRecipients.length === 0}
+            data-testid="button-send-test-report"
+          >
+            {triggerMutation.isPending ? (
+              <>Sending…</>
+            ) : sent ? (
+              <><Check className="mr-1.5 h-3.5 w-3.5 text-green-600" /> Sent!</>
+            ) : (
+              <><Send className="mr-1.5 h-3.5 w-3.5" /> Send Now</>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -78,10 +78,10 @@ const tierLabels: Record<string, string> = {
 };
 
 const tierPrices: Record<string, number> = {
-  small: 49.99,
-  mid: 99.99,
-  large: 149.99,
-  enterprise: 299.99,
+  small: 99.99,
+  mid: 199.99,
+  large: 299.99,
+  enterprise: 599.99,
 };
 
 export default function DeveloperDashboardPage() {
@@ -1155,10 +1155,10 @@ export default function DeveloperDashboardPage() {
                       <option value="all">All Types</option>
                       <option value="free">Free</option>
                       <option value="promo">Promo</option>
-                      <option value="small">Small ($49.99/mo)</option>
-                      <option value="mid">Mid ($99.99/mo)</option>
-                      <option value="large">Large ($149.99/mo)</option>
-                      <option value="enterprise">Enterprise ($299.99/mo)</option>
+                      <option value="small">Small ($99.99/mo)</option>
+                      <option value="mid">Mid ($199.99/mo)</option>
+                      <option value="large">Large ($299.99/mo)</option>
+                      <option value="enterprise">Enterprise ($599.99/mo)</option>
                     </select>
                   </div>
                   <Button

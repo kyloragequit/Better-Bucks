@@ -1792,10 +1792,10 @@ export async function registerRoutes(
 
   // Tier pricing configuration
   const tierConfig = {
-    small:      { price: 2499,  maxEmployees: 25,  name: "Small Site",      description: "Up to 25 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
-    mid:        { price: 4999,  maxEmployees: 75,  name: "Mid-Size Site",   description: "26–75 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    large:      { price: 7499,  maxEmployees: 150, name: "Large Site",      description: "76–150 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    enterprise: { price: 14999, maxEmployees: -1,  name: "Enterprise Site", description: "150+ employees — includes 60-day free pilot, unlimited logins, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
+    small:      { price: 4999,  maxEmployees: 25,  name: "Small Site",      description: "Up to 25 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
+    mid:        { price: 9999,  maxEmployees: 75,  name: "Mid-Size Site",   description: "26–75 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    large:      { price: 14999, maxEmployees: 150, name: "Large Site",      description: "76–150 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    enterprise: { price: 29999, maxEmployees: -1,  name: "Enterprise Site", description: "150+ employees — includes 60-day free pilot, unlimited logins, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
   } as const;
 
   // Organization signup - create checkout session
@@ -1817,7 +1817,7 @@ export async function registerRoutes(
     orgCode: string; referralCode?: string; mode: "stripe" | "contactPending" | "promo";
   }) {
     const planPrices: Record<string, string> = {
-      small: "$24.99/mo", mid: "$49.99/mo", large: "$74.99/mo", enterprise: "$149.99/mo",
+      small: "$49.99/mo", mid: "$99.99/mo", large: "$149.99/mo", enterprise: "$299.99/mo",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;
@@ -1902,7 +1902,7 @@ export async function registerRoutes(
         const referralText = validatedReferral
           ? `\nReferral Code: ${validatedReferral.code} ✅ (+${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""})`
           : referralCode?.trim() ? `\nReferral Code: ${referralCode.trim()} (invalid)` : "";
-        const planPrices: Record<string, string> = { small: "$24.99/mo", mid: "$49.99/mo", large: "$74.99/mo", enterprise: "$149.99/mo" };
+        const planPrices: Record<string, string> = { small: "$49.99/mo", mid: "$99.99/mo", large: "$149.99/mo", enterprise: "$299.99/mo" };
 
         sendEmail({
           to: ADMIN_NOTIFY_EMAIL,
@@ -2783,7 +2783,7 @@ export async function registerRoutes(
       const allOrgs = await storage.getAllOrganizationsIncludingDeleted();
       const totalCreated = allOrgs.length;
       const totalDeleted = allOrgs.filter(o => o.status === "deleted").length;
-      const tierPrices: Record<string, number> = { small: 49.99, mid: 99.99, large: 149.99, enterprise: 299.99 };
+      const tierPrices: Record<string, number> = { small: 99.99, mid: 199.99, large: 299.99, enterprise: 599.99 };
       const monthlyBilling = allOrgs
         .filter(o => o.status === "active" && o.stripeCustomerId !== "free_membership" && !o.stripeCustomerId?.startsWith("promo_"))
         .reduce((sum, o) => sum + (tierPrices[o.tier] || 0), 0);

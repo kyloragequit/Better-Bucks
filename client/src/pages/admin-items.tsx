@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,9 +16,9 @@ import { useUser } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader } from "@/components/ui/loader";
 import { format } from "date-fns";
-import { Gift, Undo2, Pencil, Settings, Package } from "lucide-react";
+import { Gift, Undo2, Settings, Package, Users } from "lucide-react";
 import { useRoleLabels } from "@/hooks/use-role-labels";
-import type { CustomItemTransaction } from "@shared/schema";
+import type { CustomItemTransaction, Department } from "@shared/schema";
 
 type ItemUser = { id: number; fullName: string; username: string; role: string; departmentId: number | null; customItemBalance: number };
 type ItemTx = CustomItemTransaction & { user: { fullName: string; username: string } };
@@ -37,6 +38,9 @@ export default function AdminItemsPage() {
   });
   const { data: transactions, isLoading: txLoading } = useQuery<ItemTx[]>({
     queryKey: ["/api/admin/custom-items/transactions"],
+  });
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
   });
 
   const itemName = config?.itemName;
@@ -68,6 +72,8 @@ export default function AdminItemsPage() {
       </AdminLayout>
     );
   }
+
+  const [bulkGiveOpen, setBulkGiveOpen] = useState(false);
 
   const employees = (itemUsers ?? []).filter(u => u.role === "employee");
   const admins = (itemUsers ?? []).filter(u => u.role === "admin" || u.role === "prime_admin");
@@ -106,8 +112,15 @@ export default function AdminItemsPage() {
         <TabsContent value="employees">
           <Card className="shadow-md">
             <CardHeader>
-              <CardTitle>Employee {itemName} Balances</CardTitle>
-              <CardDescription>Give or redeem {itemName} from employee accounts</CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle>Employee {itemName} Balances</CardTitle>
+                  <CardDescription>Give or redeem {itemName} from employee accounts</CardDescription>
+                </div>
+                <Button size="sm" onClick={() => setBulkGiveOpen(true)} data-testid="button-bulk-give-items">
+                  <Users className="mr-1.5 h-3.5 w-3.5" /> Bulk Give
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {employees.length === 0 ? (
@@ -229,6 +242,20 @@ export default function AdminItemsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <BulkGiveDialog
+        open={bulkGiveOpen}
+        onOpenChange={setBulkGiveOpen}
+        employees={employees}
+        departments={departments ?? []}
+        itemName={itemName}
+        adminBalance={myBalance}
+        isPrime={isPrime}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/admin/custom-items/users"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/admin/custom-items/transactions"] });
+        }}
+      />
     </AdminLayout>
   );
 }
@@ -419,5 +446,164 @@ function ItemActionButton({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function BulkGiveDialog({
+  open, onOpenChange, employees, departments, itemName, adminBalance, isPrime, onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  employees: ItemUser[];
+  departments: Department[];
+  itemName: string;
+  adminBalance: number;
+  isPrime: boolean;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+
+  const filtered = deptFilter === "all"
+    ? employees
+    : employees.filter(u => u.departmentId === Number(deptFilter));
+
+  const allSelected = filtered.length > 0 && filtered.every(u => selectedIds.includes(u.id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(prev => prev.filter(id => !filtered.some(u => u.id === id)));
+    } else {
+      const newIds = filtered.map(u => u.id).filter(id => !selectedIds.includes(id));
+      setSelectedIds(prev => [...prev, ...newIds]);
+    }
+  };
+
+  const toggle = (id: number) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const parsedAmt = parseInt(amount) || 0;
+  const totalNeeded = parsedAmt * selectedIds.length;
+  const wouldOverspend = !isPrime && parsedAmt > 0 && totalNeeded > adminBalance;
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/custom-items/give-bulk", {
+        userIds: selectedIds,
+        amount: parsedAmt,
+        reason: reason.trim() || undefined,
+      });
+      if (!res.ok) { const b = await res.json(); throw new Error(b.message); }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Items Given", description: `${parsedAmt} ${itemName} given to ${selectedIds.length} employee${selectedIds.length !== 1 ? "s" : ""}.` });
+      onSuccess();
+      onOpenChange(false);
+      setSelectedIds([]);
+      setAmount("");
+      setReason("");
+      setDeptFilter("all");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const canSubmit = selectedIds.length > 0 && parsedAmt >= 1 && !wouldOverspend && !mutation.isPending;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setSelectedIds([]); setAmount(""); setReason(""); setDeptFilter("all"); } }}>
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Bulk Give {itemName}</DialogTitle>
+          <DialogDescription>Select employees, enter a quantity, and give {itemName} to everyone at once.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+          {departments.length > 0 && (
+            <div className="grid gap-1.5">
+              <Label>Filter by Department</Label>
+              <Select value={deptFilter} onValueChange={setDeptFilter}>
+                <SelectTrigger data-testid="select-bulk-dept-filter">
+                  <SelectValue placeholder="All departments" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="grid gap-1.5">
+            <div className="flex items-center justify-between">
+              <Label>Select Employees ({selectedIds.length} selected)</Label>
+              {filtered.length > 0 && (
+                <button type="button" className="text-xs text-primary hover:underline" onClick={toggleAll} data-testid="button-bulk-select-all">
+                  {allSelected ? "Deselect All" : "Select All"}
+                </button>
+              )}
+            </div>
+            <div className="border rounded-lg divide-y max-h-52 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4 text-sm">No employees in this department</p>
+              ) : (
+                filtered.map(u => (
+                  <label key={u.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors" data-testid={`checkbox-bulk-emp-${u.id}`}>
+                    <Checkbox
+                      checked={selectedIds.includes(u.id)}
+                      onCheckedChange={() => toggle(u.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{u.fullName}</p>
+                      <p className="text-xs text-muted-foreground">Balance: {u.customItemBalance.toLocaleString()}</p>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Amount per Employee</Label>
+            <Input
+              type="number"
+              min={1}
+              placeholder="e.g. 5"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              data-testid="input-bulk-amount"
+            />
+            {!isPrime && parsedAmt > 0 && selectedIds.length > 0 && (
+              <p className={`text-xs ${wouldOverspend ? "text-destructive" : "text-muted-foreground"}`}>
+                Total needed: {totalNeeded.toLocaleString()} — Your balance: {adminBalance.toLocaleString()}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Reason <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
+            <Input
+              placeholder="e.g. Monthly safety bonus"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              data-testid="input-bulk-reason"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => mutation.mutate()} disabled={!canSubmit} data-testid="button-confirm-bulk-give">
+            {mutation.isPending ? "Giving..." : `Give to ${selectedIds.length} Employee${selectedIds.length !== 1 ? "s" : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

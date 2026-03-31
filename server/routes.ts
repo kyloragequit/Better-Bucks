@@ -3438,11 +3438,17 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  const storeItemSchema = z.object({
+  const storeItemBaseSchema = z.object({
     name: z.string().min(1).max(100),
     price: z.coerce.number().int().positive(),
-    url: z.string().url(),
-    imageUrl: z.string().url(),
+    url: z.string().optional().default(""),
+    imageUrl: z.string().optional().default(""),
+    requiresSize: z.boolean().optional().default(false),
+    requiresColor: z.boolean().optional().default(false),
+  });
+  const storeItemSchema = storeItemBaseSchema.partial().extend({
+    url: z.string().optional().default(""),
+    imageUrl: z.string().optional().default(""),
     requiresSize: z.boolean().optional().default(false),
     requiresColor: z.boolean().optional().default(false),
   });
@@ -3452,7 +3458,7 @@ export async function registerRoutes(
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
       return res.status(401).send("Unauthorized");
     }
-    const parsed = storeItemSchema.safeParse(req.body);
+    const parsed = storeItemBaseSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
     }
@@ -3461,8 +3467,8 @@ export async function registerRoutes(
       organizationId: user.organizationId!,
       name,
       price,
-      url,
-      imageUrl,
+      url: url ?? "",
+      imageUrl: imageUrl ?? "",
       requiresSize: requiresSize ?? false,
       requiresColor: requiresColor ?? false,
     });
@@ -3482,7 +3488,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Store item not found" });
     }
 
-    const parsed = storeItemSchema.partial().safeParse(req.body);
+    const parsed = storeItemSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
     }
@@ -4681,6 +4687,60 @@ export async function registerRoutes(
     });
 
     res.json({ success: true });
+  });
+
+  // Bulk give custom items to multiple users at once
+  app.post("/api/admin/custom-items/give-bulk", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const parsed = z.object({
+      userIds: z.array(z.number().int().positive()).min(1),
+      amount: z.number().int().min(1, "Amount must be at least 1"),
+      reason: z.string().optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const { userIds, amount, reason } = parsed.data;
+
+    // For non-prime admins, check they have enough balance
+    if (user.role === "admin") {
+      const freshAdmin = await storage.getUser(user.id);
+      const currentBalance = freshAdmin?.customItemBalance ?? 0;
+      const totalNeeded = amount * userIds.length;
+      if (currentBalance < totalNeeded) {
+        return res.status(400).json({ message: `Insufficient item balance. You have ${currentBalance} but need ${totalNeeded} total.` });
+      }
+    }
+
+    const errors: string[] = [];
+    for (const userId of userIds) {
+      const target = await storage.getUser(userId);
+      if (!target || target.organizationId !== user.organizationId) {
+        errors.push(`User ${userId} not found`);
+        continue;
+      }
+      if (user.role === "admin" && target.role === "prime_admin") {
+        errors.push(`Cannot give to Organization Owner`);
+        continue;
+      }
+      await storage.updateUserCustomItemBalance(userId, amount);
+      if (user.role === "admin") {
+        await storage.updateUserCustomItemBalance(user.id, -amount);
+      }
+      await storage.createCustomItemTransaction({
+        orgId: user.organizationId,
+        userId,
+        amount,
+        reason: reason || null,
+        performedBy: user.id,
+      });
+    }
+
+    res.json({ success: true, errors });
   });
 
   // Get custom item transactions for the org

@@ -220,8 +220,8 @@ export default function AdminStorePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !price || !url || !imageUrl) {
-      toast({ title: "Missing fields", description: "All fields are required.", variant: "destructive" });
+    if (!name || !price) {
+      toast({ title: "Missing fields", description: "Item name and price are required.", variant: "destructive" });
       return;
     }
     if (editingItem) updateMutation.mutate();
@@ -277,14 +277,14 @@ export default function AdminStorePage() {
                   <Input id="si-price" type="number" min="1" value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 500" data-testid="input-store-item-price" />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="si-url">Item URL</Label>
+                  <Label htmlFor="si-url">Item URL <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
                   <div className="relative">
                     <Link2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input id="si-url" className="pl-9" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/item" data-testid="input-store-item-url" />
                   </div>
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>Preview Image</Label>
+                  <Label>Preview Image <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
                   <div className="flex items-start gap-4">
                     {imageUrl ? (
                       <img src={imageUrl} alt="preview" className="h-20 w-20 object-cover rounded-lg border flex-shrink-0" />

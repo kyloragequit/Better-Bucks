@@ -16,13 +16,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
 import { useUser } from "@/hooks/use-auth";
 import { AppLogo } from "@/components/app-logo";
-import type { InsertUser, Department, User, Organization } from "@shared/schema";
+import type { InsertUser, Department, User, Organization, Invitation } from "@shared/schema";
 
 export default function AdminEmployeesPage() {
   const isPublicDemo = usePublicDemo();
@@ -76,6 +76,7 @@ export default function AdminEmployeesPage() {
           {!isPublicDemo && (
             <>
               <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
+              {isPrimeAdmin && <InviteUserDialog departments={departments ?? []} />}
               <CreateEmployeeDialog />
             </>
           )}
@@ -179,7 +180,205 @@ export default function AdminEmployeesPage() {
           </Table>
         </div>
       )}
+
+      {isPrimeAdmin && <PendingInvitesList />}
     </AdminLayout>
+  );
+}
+
+function PendingInvitesList() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: invites = [], isLoading } = useQuery<Invitation[]>({
+    queryKey: ["/api/invitations"],
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/invitations/${id}`, undefined);
+      if (!res.ok) throw new Error("Failed to revoke invitation");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+      toast({ title: "Invitation Revoked" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not revoke invitation.", variant: "destructive" });
+    },
+  });
+
+  if (isLoading || invites.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-foreground">
+        <Clock className="h-4 w-4 text-muted-foreground" /> Pending Invitations
+      </h2>
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader className="bg-muted/30">
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Expires</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invites.map(inv => (
+              <TableRow key={inv.id}>
+                <TableCell className="font-medium">{inv.fullName}</TableCell>
+                <TableCell className="text-muted-foreground">{inv.email}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize text-xs">
+                    {inv.role === "prime_admin" ? "Prime Admin" : inv.role}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {new Date(inv.expiresAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => revokeMutation.mutate(inv.id)}
+                    disabled={revokeMutation.isPending}
+                    data-testid={`button-revoke-invite-${inv.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function InviteUserDialog({ departments }: { departments: Department[] }) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"employee" | "admin" | "prime_admin">("employee");
+  const [selectedDept, setSelectedDept] = useState<string>("none");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const inviteMutation = useMutation({
+    mutationFn: async (payload: object) => {
+      const res = await apiRequest("POST", "/api/invitations", payload);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to send invitation");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+      toast({ title: "Invitation Sent", description: `An invitation email has been sent to ${email}.` });
+      setOpen(false);
+      setFullName("");
+      setEmail("");
+      setRole("employee");
+      setSelectedDept("none");
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    inviteMutation.mutate({
+      fullName: fullName.trim(),
+      email: email.trim(),
+      role,
+      departmentId: selectedDept !== "none" ? parseInt(selectedDept) : null,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" data-testid="button-invite-user">
+          <Send className="mr-2 h-4 w-4" /> Invite User
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>Invite a New User</DialogTitle>
+          <DialogDescription>
+            Set their permissions and send them an invite link to create their own account.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="grid gap-2">
+            <Label htmlFor="invite-fullname">Full Name</Label>
+            <Input
+              id="invite-fullname"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              placeholder="Jane Smith"
+              required
+              data-testid="input-invite-fullname"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="invite-email">Email Address</Label>
+            <Input
+              id="invite-email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="jane@example.com"
+              required
+              data-testid="input-invite-email"
+            />
+            <p className="text-xs text-muted-foreground">The invite link will be sent to this address.</p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="invite-role">Role</Label>
+            <Select value={role} onValueChange={v => setRole(v as any)}>
+              <SelectTrigger id="invite-role" data-testid="select-invite-role">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="employee">Employee</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="prime_admin">Prime Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {departments.length > 0 && (
+            <div className="grid gap-2">
+              <Label htmlFor="invite-dept">Department (optional)</Label>
+              <Select value={selectedDept} onValueChange={setSelectedDept}>
+                <SelectTrigger id="invite-dept" data-testid="select-invite-department">
+                  <SelectValue placeholder="No Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Department</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={inviteMutation.isPending} data-testid="button-send-invite">
+              {inviteMutation.isPending ? "Sending..." : "Send Invitation"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

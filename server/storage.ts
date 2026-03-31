@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, catalogueItems, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type CatalogueItem, type InsertCatalogueItem } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, catalogueItems, invitations, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type CatalogueItem, type InsertCatalogueItem, type Invitation, type InsertInvitation } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -148,6 +148,12 @@ export interface IStorage {
   submitSurveyResponse(surveyId: number, userId: number, answers: { questionId: number; answerText?: string; selectedOption?: number }[]): Promise<void>;
   getSurveyResults(surveyId: number): Promise<{ question: SurveyQuestion; answers: SurveyAnswer[]; respondents: number }[]>;
   getSurveyRespondents(surveyId: number): Promise<{ user: Pick<User, "id" | "fullName">; submittedAt: Date }[]>;
+
+  createInvitation(data: InsertInvitation): Promise<Invitation>;
+  getInvitationsByOrganization(orgId: number): Promise<Invitation[]>;
+  getInvitationByToken(token: string): Promise<Invitation | undefined>;
+  acceptInvitation(id: number): Promise<Invitation>;
+  revokeInvitation(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1011,6 +1017,31 @@ export class DatabaseStorage implements IStorage {
     const uMap: Record<number, string> = {};
     for (const u of us) uMap[u.id] = u.fullName;
     return rows.map(r => ({ user: { id: r.userId, fullName: uMap[r.userId] ?? "Unknown" }, submittedAt: r.submittedAt }));
+  }
+
+  async createInvitation(data: InsertInvitation): Promise<Invitation> {
+    const [inv] = await db.insert(invitations).values(data).returning();
+    return inv;
+  }
+
+  async getInvitationsByOrganization(orgId: number): Promise<Invitation[]> {
+    return db.select().from(invitations)
+      .where(and(eq(invitations.organizationId, orgId), isNull(invitations.acceptedAt)))
+      .orderBy(desc(invitations.createdAt));
+  }
+
+  async getInvitationByToken(token: string): Promise<Invitation | undefined> {
+    const [inv] = await db.select().from(invitations).where(eq(invitations.token, token));
+    return inv;
+  }
+
+  async acceptInvitation(id: number): Promise<Invitation> {
+    const [inv] = await db.update(invitations).set({ acceptedAt: new Date() }).where(eq(invitations.id, id)).returning();
+    return inv;
+  }
+
+  async revokeInvitation(id: number): Promise<void> {
+    await db.delete(invitations).where(eq(invitations.id, id));
   }
 }
 

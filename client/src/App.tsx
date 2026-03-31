@@ -54,6 +54,7 @@ const TermsPage = lazy(() => import("@/pages/terms"));
 const BlogPage = lazy(() => import("@/pages/blog"));
 const BlogPostPage = lazy(() => import("@/pages/blog-post"));
 const JoinPage = lazy(() => import("@/pages/join"));
+const InviteAcceptPage = lazy(() => import("@/pages/invite-accept"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function GoalNotificationModal() {
@@ -217,6 +218,7 @@ function Router() {
         <Route path="/reactivate" component={ReactivatePage} />
         <Route path="/setup" component={SetupPrimePage} />
         <Route path="/login" component={LoginRoute} />
+        <Route path="/invite/:token" component={InviteAcceptPage} />
         
         <Route path="/dashboard">
           <ProtectedRoute component={EmployeeDashboard} />

@@ -399,3 +399,21 @@ export type SurveyQuestion = typeof surveyQuestions.$inferSelect;
 export type InsertSurveyQuestion = z.infer<typeof insertSurveyQuestionSchema>;
 export type SurveyResponse = typeof surveyResponses.$inferSelect;
 export type SurveyAnswer = typeof surveyAnswers.$inferSelect;
+
+export const invitations = pgTable("invitations", {
+  id: serial("id").primaryKey(),
+  token: text("token").notNull().unique(),
+  organizationId: integer("organization_id").notNull(),
+  invitedBy: integer("invited_by").notNull(),
+  email: text("email").notNull(),
+  fullName: text("full_name").notNull(),
+  role: text("role", { enum: ["employee", "admin", "prime_admin"] }).default("employee").notNull(),
+  departmentId: integer("department_id"),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInvitationSchema = createInsertSchema(invitations).omit({ id: true, createdAt: true });
+export type Invitation = typeof invitations.$inferSelect;
+export type InsertInvitation = z.infer<typeof insertInvitationSchema>;

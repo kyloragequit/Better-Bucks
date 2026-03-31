@@ -4766,5 +4766,152 @@ export async function registerRoutes(
     }
   });
 
+  // ─── Invitations ─────────────────────────────────────────────────────────────
+
+  // Create invite (prime_admin only)
+  app.post("/api/invitations", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const schema = z.object({
+      email: z.string().email(),
+      fullName: z.string().min(1).max(100),
+      role: z.enum(["employee", "admin", "prime_admin"]).default("employee"),
+      departmentId: z.number().int().nullable().optional(),
+    });
+    const data = schema.parse(req.body);
+
+    // Check if email already has a pending invite for this org
+    const existing = await storage.getInvitationsByOrganization(user.organizationId);
+    const dup = existing.find(i => i.email.toLowerCase() === data.email.toLowerCase());
+    if (dup) return res.status(400).json({ message: "A pending invitation already exists for this email address." });
+
+    // Check email not already a member
+    const existingUser = await storage.getUserByEmailAndOrg(data.email, user.organizationId);
+    if (existingUser) return res.status(400).json({ message: "A user with this email address already exists in your organization." });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const inv = await storage.createInvitation({
+      token,
+      organizationId: user.organizationId,
+      invitedBy: user.id,
+      email: data.email,
+      fullName: data.fullName,
+      role: data.role,
+      departmentId: data.departmentId ?? null,
+      expiresAt,
+      acceptedAt: null,
+    });
+
+    const org = await storage.getOrganization(user.organizationId);
+    const appUrl = process.env.APP_URL || `https://${req.hostname}`;
+    const inviteUrl = `${appUrl}/invite/${token}`;
+    try {
+      await sendEmail({
+        to: data.email,
+        subject: `[Better Bucks] You've been invited to join ${org?.name || "Better Bucks"}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+            <h2 style="color:#162A4A;margin-bottom:4px;">Better Bucks</h2>
+            <h3 style="color:#4E9F3D;margin-top:0;">You're invited!</h3>
+            <p>Hi ${data.fullName},</p>
+            <p><strong>${user.fullName}</strong> has invited you to join <strong>${org?.name || "their organization"}</strong> on Better Bucks — an employee incentive platform for tracking and rewarding great work.</p>
+            <p>Click the button below to create your account. This invitation expires in 7 days.</p>
+            <div style="text-align:center;margin:32px 0;">
+              <a href="${inviteUrl}" style="background:#4E9F3D;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;">Accept Invitation</a>
+            </div>
+            <p style="color:#999;font-size:12px;">Or copy this link: ${inviteUrl}</p>
+            <p style="color:#999;font-size:12px;">If you didn't expect this invitation, you can safely ignore this email.</p>
+          </div>
+        `,
+      });
+    } catch (err) {
+      console.error("[Invite] Email failed:", err);
+      // Don't fail the request — the invite is created, email just didn't send
+    }
+
+    res.json(inv);
+  });
+
+  // List pending invites for org (prime_admin only)
+  app.get("/api/invitations", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(200).json([]);
+    const list = await storage.getInvitationsByOrganization(user.organizationId);
+    // Filter out expired ones from the result
+    const now = new Date();
+    res.json(list.filter(i => i.expiresAt > now));
+  });
+
+  // Revoke invite (prime_admin only)
+  app.delete("/api/invitations/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+    await storage.revokeInvitation(id);
+    res.json({ ok: true });
+  });
+
+  // Public: look up invite by token
+  app.get("/api/invite/:token", async (req, res) => {
+    const inv = await storage.getInvitationByToken(req.params.token);
+    if (!inv) return res.status(404).json({ message: "Invitation not found." });
+    if (inv.acceptedAt) return res.status(410).json({ message: "This invitation has already been used." });
+    if (inv.expiresAt < new Date()) return res.status(410).json({ message: "This invitation has expired." });
+    const org = await storage.getOrganization(inv.organizationId);
+    res.json({ ...inv, organizationName: org?.name || "" });
+  });
+
+  // Public: accept invite — create account
+  app.post("/api/invite/:token/accept", async (req, res) => {
+    const inv = await storage.getInvitationByToken(req.params.token);
+    if (!inv) return res.status(404).json({ message: "Invitation not found." });
+    if (inv.acceptedAt) return res.status(410).json({ message: "This invitation has already been used." });
+    if (inv.expiresAt < new Date()) return res.status(410).json({ message: "This invitation has expired." });
+
+    const schema = z.object({
+      username: z.string().min(3).max(50),
+      password: z.string().min(6),
+    });
+    const data = schema.parse(req.body);
+
+    // Check username is unique in this org
+    const taken = await storage.getUserByUsernameAndOrg(data.username, inv.organizationId);
+    if (taken) return res.status(400).json({ message: "That username is already taken in this organization. Please choose another." });
+
+    const { hashPassword } = await import("./auth");
+    const hashed = await hashPassword(data.password);
+    const barcode = crypto.randomBytes(6).toString("hex").toUpperCase();
+
+    const newUser = await storage.createUser({
+      username: data.username,
+      password: hashed,
+      fullName: inv.fullName,
+      email: inv.email,
+      emailVerified: true,
+      role: inv.role,
+      status: "approved",
+      organizationId: inv.organizationId,
+      departmentId: inv.departmentId ?? undefined,
+      barcode,
+      termsAcceptedAt: new Date(),
+      mustChangePassword: false,
+    } as any);
+
+    await storage.acceptInvitation(inv.id);
+
+    // Log the user in automatically
+    await new Promise<void>((resolve, reject) => {
+      req.login(newUser, err => err ? reject(err) : resolve());
+    });
+
+    res.json(newUser);
+  });
+
   return httpServer;
 }

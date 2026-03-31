@@ -43,6 +43,9 @@ export function useTutorial() {
 
   const completeTutorial = async () => {
     if (!user) return;
+    // Mark completed in cache first so dbCompleted=true before localStorage is cleared,
+    // preventing the choice modal from flashing open during the async API call.
+    queryClient.setQueryData(["/api/user"], { ...user, tutorialCompleted: true });
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
     await apiRequest("POST", "/api/users/complete-tutorial");

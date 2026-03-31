@@ -347,21 +347,19 @@ export default function AdminDashboardPage() {
       {currentUser && <div className="mb-4"><PasskeyFirstTimePrompt userId={currentUser.id} /></div>}
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div className="flex items-start gap-4">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground" data-testid="heading-dashboard">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Bucks distributed from administrators to employees</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-display font-bold text-foreground" data-testid="heading-dashboard">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Bucks distributed from administrators to employees</p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
           <button
             onClick={restartTutorial}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 mt-2 px-3 py-1.5 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 px-3 py-1.5 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5"
             data-testid="button-replay-tutorial"
           >
             <BookOpen className="h-3.5 w-3.5" />
             Take the tour again
           </button>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
             <SelectTrigger className="w-full sm:w-48" data-testid="select-dept-filter-dashboard">
               <SelectValue placeholder="Filter by department" />

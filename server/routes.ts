@@ -95,6 +95,8 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
 }
 
 const ADMIN_NOTIFY_EMAIL = "miles.chase@betterbucks.net";
+const EMAIL_LOGO_URL = "https://betterbucks.net/logo.png";
+const emailLogoHeader = `<div style="text-align:center;padding:20px 0 12px;"><img src="${EMAIL_LOGO_URL}" alt="Better Bucks" width="64" height="64" style="display:block;margin:0 auto;" /></div>`;
 
 async function getOrgPrimeAdminEmail(organizationId: number): Promise<string | null> {
   const orgUsers = await storage.getUsersByOrganization(organizationId);
@@ -116,8 +118,8 @@ async function notifyAdmin(to: string, subject: string, details: Record<string, 
     .join("");
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
-      <h2 style="color:#162A4A;margin-bottom:4px;">Better Bucks</h2>
-      <h3 style="color:#4E9F3D;margin-top:0;">${subject}</h3>
+      ${emailLogoHeader}
+      <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">${subject}</h3>
       <table style="border-collapse:collapse;width:100%;background:#F8FAFC;border-radius:8px;overflow:hidden;">
         ${rows}
       </table>
@@ -138,7 +140,7 @@ async function sendVerificationEmail(email: string, code: string, fullName: stri
       subject: "Verify your email - Better Bucks",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-          <h2 style="color: #162A4A;">Better Bucks</h2>
+          ${emailLogoHeader}
           <p>Hi ${fullName},</p>
           <p>Your verification code is:</p>
           <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #162A4A;">${code}</div>
@@ -315,8 +317,8 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
 <div style="max-width:640px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 
   <!-- Header -->
-  <div style="background:#162A4A;padding:28px 32px;">
-    <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Better Bucks</h1>
+  <div style="background:#162A4A;padding:28px 32px;text-align:center;">
+    <img src="${EMAIL_LOGO_URL}" alt="Better Bucks" width="56" height="56" style="display:block;margin:0 auto 10px;" />
     <p style="color:#8BA3C2;margin:6px 0 0;font-size:14px;">Weekly Activity Report · ${weekLabel}</p>
   </div>
 
@@ -583,7 +585,7 @@ export async function registerRoutes(
           subject: "Reset your Better Bucks password",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-              <h2 style="color: #162A4A;">Better Bucks</h2>
+              ${emailLogoHeader}
               <p>Hi ${user.fullName},</p>
               <p>We received a request to reset your password. Your reset code is:</p>
               <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #162A4A;">${code}</div>
@@ -1284,8 +1286,8 @@ export async function registerRoutes(
           const statusLabel = job.status === "cancelled" ? "Cancelled" : "Complete";
           const html = `
             <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;padding:24px;">
-              <h2 style="color:#162A4A;margin-bottom:4px;">Better Bucks</h2>
-              <h3 style="color:#4E9F3D;margin-top:0;">Employee Import ${statusLabel}</h3>
+              ${emailLogoHeader}
+              <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">Employee Import ${statusLabel}</h3>
               <p style="color:#555;font-size:14px;">Hi ${job.initiatorName},</p>
               <p style="color:#555;font-size:14px;">Your employee spreadsheet import has finished processing.</p>
               <table style="border-collapse:collapse;width:100%;background:#F8FAFC;border-radius:8px;overflow:hidden;margin:16px 0;">
@@ -2068,9 +2070,9 @@ export async function registerRoutes(
       to: ADMIN_NOTIFY_EMAIL,
       subject: `${modeLabel} – ${config.name} – ${organizationName}${validatedReferral ? " 🎁" : ""}`,
       html: `<div style="font-family:sans-serif;max-width:520px">
-<div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
-  <p style="margin:0;font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:0.7">Better Bucks</p>
-  <h2 style="margin:4px 0 0;font-size:20px">${modeLabel}</h2>
+<div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;text-align:center">
+  <img src="${EMAIL_LOGO_URL}" alt="Better Bucks" width="48" height="48" style="display:block;margin:0 auto 8px;" />
+  <h2 style="margin:0;font-size:20px">${modeLabel}</h2>
 </div>
 <div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
   <table style="border-collapse:collapse;width:100%">
@@ -2136,9 +2138,9 @@ export async function registerRoutes(
           to: ADMIN_NOTIFY_EMAIL,
           subject: `⭐ FOUNDER PRICING REQUEST – ${config.name} – ${organizationName}${validatedReferral ? " 🎁 Referral" : ""}`,
           html: `<div style="font-family:sans-serif;max-width:520px">
-<div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
-  <p style="margin:0;font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:0.7">Better Bucks</p>
-  <h2 style="margin:4px 0 0;font-size:20px">⭐ New Founder Pricing Request</h2>
+<div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;text-align:center">
+  <img src="${EMAIL_LOGO_URL}" alt="Better Bucks" width="48" height="48" style="display:block;margin:0 auto 8px;" />
+  <h2 style="margin:0;font-size:20px">⭐ New Founder Pricing Request</h2>
 </div>
 <div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
   <table style="border-collapse:collapse;width:100%">
@@ -4815,8 +4817,8 @@ export async function registerRoutes(
         subject: `[Better Bucks] You've been invited to join ${org?.name || "Better Bucks"}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
-            <h2 style="color:#162A4A;margin-bottom:4px;">Better Bucks</h2>
-            <h3 style="color:#4E9F3D;margin-top:0;">You're invited!</h3>
+            ${emailLogoHeader}
+            <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">You're invited!</h3>
             <p>Hi ${data.fullName},</p>
             <p><strong>${user.fullName}</strong> has invited you to join <strong>${org?.name || "their organization"}</strong> on Better Bucks — an employee incentive platform for tracking and rewarding great work.</p>
             <p>Click the button below to create your account. This invitation expires in 7 days.</p>

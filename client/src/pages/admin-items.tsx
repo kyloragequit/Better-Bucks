@@ -42,6 +42,7 @@ export default function AdminItemsPage() {
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
   });
+  const [bulkGiveOpen, setBulkGiveOpen] = useState(false);
 
   const itemName = config?.itemName;
 
@@ -72,8 +73,6 @@ export default function AdminItemsPage() {
       </AdminLayout>
     );
   }
-
-  const [bulkGiveOpen, setBulkGiveOpen] = useState(false);
 
   const employees = (itemUsers ?? []).filter(u => u.role === "employee");
   const admins = (itemUsers ?? []).filter(u => u.role === "admin" || u.role === "prime_admin");

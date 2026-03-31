@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLogo } from "@/components/app-logo";
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { LogoBackground } from "@/components/logo-background";
-import { Building2, User, UserPlus, LogIn, ArrowLeft, QrCode, Eye, EyeOff } from "lucide-react";
+import { Building2, User, UserPlus, LogIn, ArrowLeft, QrCode, Eye, EyeOff, Clock } from "lucide-react";
 
 type OrgInfo = { orgName: string; siteId: string; employeeRoleLabel: string; allowPasswordCreation: boolean };
 
@@ -27,8 +27,9 @@ export default function JoinPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [step, setStep] = useState<"username" | "register">("username");
+  const [step, setStep] = useState<"username" | "register" | "pending">("username");
   const [isPending, setIsPending] = useState(false);
+  const [pendingName, setPendingName] = useState("");
 
   const { data: org, isLoading, isError } = useQuery<OrgInfo>({
     queryKey: [`/api/join/${siteId}`],
@@ -98,6 +99,12 @@ export default function JoinPage() {
 
       if (!res.ok) {
         toast({ title: "Registration Failed", description: data.message || "Something went wrong", variant: "destructive" });
+        return;
+      }
+
+      if (data.pendingApproval) {
+        setPendingName(data.fullName || fullName);
+        setStep("pending");
         return;
       }
 
@@ -175,6 +182,15 @@ export default function JoinPage() {
                   Enter your employee code to sign in or register
                 </CardDescription>
               </>
+            ) : step === "pending" ? (
+              <>
+                <CardTitle className="text-xl font-bold font-display">
+                  Request Submitted
+                </CardTitle>
+                <CardDescription>
+                  Your account is awaiting approval
+                </CardDescription>
+              </>
             ) : (
               <>
                 <CardTitle className="text-xl font-bold font-display">
@@ -188,7 +204,38 @@ export default function JoinPage() {
           </CardHeader>
 
           <CardContent className="pb-6">
-            {step === "username" ? (
+            {step === "pending" ? (
+              <div className="space-y-5 text-center py-2">
+                <div className="flex justify-center">
+                  <div className="rounded-full bg-amber-50 border border-amber-200 p-5">
+                    <Clock className="h-8 w-8 text-amber-500" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-semibold text-base" data-testid="text-pending-name">Hi, {pendingName || username}!</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your account request has been submitted. An administrator at <strong>{org.orgName}</strong> will review and approve your account.
+                  </p>
+                </div>
+                <div className="rounded-lg bg-muted/50 border px-4 py-3 text-sm text-left space-y-1">
+                  <p className="font-medium text-foreground">What happens next?</p>
+                  <ul className="text-muted-foreground space-y-1 text-xs list-disc list-inside">
+                    <li>Your manager or admin will be notified</li>
+                    <li>Once approved, you can sign in with your employee code</li>
+                    <li>Check back later or ask your manager to approve your account</li>
+                  </ul>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setLocation("/login")}
+                  data-testid="button-pending-go-login"
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Go to Sign In
+                </Button>
+              </div>
+            ) : step === "username" ? (
               <form onSubmit={handleUsernameSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="join-username">Employee Code / Username</Label>

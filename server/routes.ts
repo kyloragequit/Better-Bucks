@@ -112,6 +112,19 @@ async function getOrgAdminEmails(organizationId: number): Promise<string[]> {
   return [...new Set(emails)];
 }
 
+async function getOrgPrimeAdminEmails(organizationId: number): Promise<string[]> {
+  const orgUsers = await storage.getUsersByOrganization(organizationId);
+  const emails = orgUsers
+    .filter(u => u.role === "prime_admin" && u.email && u.status === "approved")
+    .map(u => u.email as string);
+  return [...new Set(emails)];
+}
+
+async function notifyAllPrimeAdmins(organizationId: number, subject: string, details: Record<string, string>): Promise<void> {
+  const emails = await getOrgPrimeAdminEmails(organizationId);
+  await Promise.all(emails.map(email => notifyAdmin(email, subject, details).catch(() => {})));
+}
+
 async function notifyAdmin(to: string, subject: string, details: Record<string, string>): Promise<void> {
   const rows = Object.entries(details)
     .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#666;font-weight:500;white-space:nowrap">${k}</td><td style="padding:4px 8px;">${v || "—"}</td></tr>`)
@@ -723,17 +736,16 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? adminEmail : null, hasPhone ? adminPhone : null, verificationCode, adminData.fullName);
-      const orgPrimeEmail = await getOrgPrimeAdminEmail(org.id);
-      if (orgPrimeEmail) {
-        notifyAdmin(orgPrimeEmail, "New Admin Account — Pending Approval", {
-          "Name": adminData.fullName,
-          "Username": adminData.username,
-          "Organization": org.name,
-          "Email": adminEmail || "—",
-          "Phone": adminPhone || "—",
-          "Status": "Pending verification",
-        });
-      }
+      notifyAllPrimeAdmins(org.id, "New Account Pending Approval", {
+        "Name": adminData.fullName,
+        "Username": adminData.username,
+        "Organization": org.name,
+        "Email": adminEmail || "—",
+        "Phone": adminPhone || "—",
+        "Requested Role": "Admin",
+        "Status": "Awaiting your approval",
+        "Action": "Log in to Better Bucks → Employees → Pending Accounts to approve or reject.",
+      });
       console.log(`New admin registration: ${user.username} for org ${org.name} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
@@ -803,17 +815,16 @@ export async function registerRoutes(
       });
 
       await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, empData.fullName);
-      const orgPrimeEmail = await getOrgPrimeAdminEmail(org.id);
-      if (orgPrimeEmail) {
-        notifyAdmin(orgPrimeEmail, "New Employee Account — Pending Approval", {
-          "Name": empData.fullName,
-          "Username": empData.username,
-          "Organization": org.name,
-          "Email": empEmail || "—",
-          "Phone": empPhone || "—",
-          "Status": "Pending admin approval",
-        });
-      }
+      notifyAllPrimeAdmins(org.id, "New Account Pending Approval", {
+        "Name": empData.fullName,
+        "Username": empData.username,
+        "Organization": org.name,
+        "Email": empEmail || "—",
+        "Phone": empPhone || "—",
+        "Requested Role": "Employee",
+        "Status": "Awaiting your approval",
+        "Action": "Log in to Better Bucks → Employees → Pending Accounts to approve or reject.",
+      });
       console.log(`New employee registration: ${user.username} for org ${org.name} (pending approval)`);
       res.status(201).json({ ...user, message: "Employee registration submitted. Awaiting admin approval." });
     } catch (e) {
@@ -906,25 +917,21 @@ export async function registerRoutes(
         emailVerified: true,
         role: "employee",
         barcode: trimmedUsername,
-        status: "approved",
+        status: "pending",
         organizationId: org.id,
       });
 
-      const orgPrimeEmail = await getOrgPrimeAdminEmail(org.id);
-      if (orgPrimeEmail) {
-        notifyAdmin(orgPrimeEmail, "New Employee Account — QR Registration", {
-          "Name": trimmedFullName,
-          "Username": trimmedUsername,
-          "Organization": org.name,
-          "Method": "QR Code / Site ID",
-          "Status": "Approved",
-        }).catch(() => {});
-      }
+      notifyAllPrimeAdmins(org.id, "New Account Pending Approval", {
+        "Name": trimmedFullName,
+        "Username": trimmedUsername,
+        "Organization": org.name,
+        "Method": "QR Code / Site ID",
+        "Requested Role": "Employee",
+        "Status": "Awaiting your approval",
+        "Action": "Log in to Better Bucks → Employees → Pending Accounts to approve or reject.",
+      }).catch(() => {});
 
-      req.login(user, async (err) => {
-        if (err) return res.status(500).json({ message: "Registration failed" });
-        return res.status(201).json(user);
-      });
+      return res.status(201).json({ pendingApproval: true, fullName: trimmedFullName });
     } catch (e) {
       console.error("Join error:", e);
       res.status(500).json({ message: "Internal Server Error" });
@@ -1523,7 +1530,17 @@ export async function registerRoutes(
     }
   });
 
-  // Approve pending admin (prime account only, same org)
+  // List pending (awaiting approval) users for the org
+  app.get("/api/users/pending", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+    const pending = orgUsers.filter(u => u.status === "pending");
+    res.json(pending);
+  });
+
   app.post("/api/users/:id/approve", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
@@ -1537,15 +1554,22 @@ export async function registerRoutes(
       if (!targetUser || (user.organizationId && targetUser.organizationId !== user.organizationId)) {
         return res.status(404).json({ message: "User not found" });
       }
+      // Optionally update role before approving
+      const roleRaw = req.body?.role;
+      const validRoles = ["employee", "admin", "prime_admin"] as const;
+      const newRole = validRoles.includes(roleRaw) ? roleRaw as typeof validRoles[number] : null;
+      if (newRole && newRole !== targetUser.role) {
+        await storage.updateUserRole(id, newRole === "prime_admin" ? "admin" : newRole);
+      }
       const approvedUser = await storage.approveAdminUser(id);
       res.json(approvedUser);
     } catch (error) {
-      console.error("Error approving admin:", error);
+      console.error("Error approving user:", error);
       res.status(500).send("Internal Server Error");
     }
   });
 
-  // Reject/Delete pending admin (prime account only)
+  // Reject/Delete pending user (prime account only)
   app.delete("/api/users/:id/reject", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {

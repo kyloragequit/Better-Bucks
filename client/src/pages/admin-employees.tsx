@@ -181,8 +181,125 @@ export default function AdminEmployeesPage() {
         </div>
       )}
 
+      {isPrimeAdmin && <PendingAccountsList />}
       {isPrimeAdmin && <PendingInvitesList />}
     </AdminLayout>
+  );
+}
+
+type PendingUser = { id: number; fullName: string; username: string; email: string | null; phone: string | null; role: string };
+
+function PendingAccountsList() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { getRoleLabel } = useRoleLabels();
+  const [roleSelections, setRoleSelections] = useState<Record<number, string>>({});
+
+  const { data: pending = [], isLoading } = useQuery<PendingUser[]>({
+    queryKey: ["/api/users/pending"],
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async ({ id, role }: { id: number; role: string }) => {
+      const res = await apiRequest("POST", `/api/users/${id}/approve`, { role });
+      if (!res.ok) throw new Error("Failed to approve");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Account Approved", description: "The user can now sign in." });
+    },
+    onError: () => toast({ title: "Error", description: "Could not approve account.", variant: "destructive" }),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/users/${id}/reject`, undefined);
+      if (!res.ok) throw new Error("Failed to reject");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/pending"] });
+      toast({ title: "Account Rejected", description: "The account request has been removed." });
+    },
+    onError: () => toast({ title: "Error", description: "Could not reject account.", variant: "destructive" }),
+  });
+
+  if (isLoading || pending.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-foreground">
+        <Clock className="h-4 w-4 text-amber-500" />
+        Pending Accounts
+        <Badge className="ml-1 bg-amber-100 text-amber-700 border border-amber-200 text-xs font-semibold">{pending.length}</Badge>
+      </h2>
+      <div className="bg-card rounded-xl border border-amber-200/60 shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader className="bg-amber-50/50">
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Username</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Assign Role</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pending.map(u => {
+              const selectedRole = roleSelections[u.id] ?? u.role ?? "employee";
+              return (
+                <TableRow key={u.id} data-testid={`row-pending-${u.id}`}>
+                  <TableCell className="font-medium" data-testid={`text-pending-name-${u.id}`}>{u.fullName}</TableCell>
+                  <TableCell className="text-muted-foreground font-mono text-sm">{u.username}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {u.email || u.phone || <span className="italic">No contact</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={selectedRole}
+                      onValueChange={(v) => setRoleSelections(prev => ({ ...prev, [u.id]: v }))}
+                    >
+                      <SelectTrigger className="w-36 h-8 text-xs" data-testid={`select-role-${u.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="employee">{getRoleLabel("employee")}</SelectItem>
+                        <SelectItem value="admin">{getRoleLabel("admin")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                        onClick={() => approveMutation.mutate({ id: u.id, role: selectedRole })}
+                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                        data-testid={`button-approve-${u.id}`}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive text-xs"
+                        onClick={() => rejectMutation.mutate(u.id)}
+                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                        data-testid={`button-reject-${u.id}`}
+                      >
+                        <XCircle className="h-3.5 w-3.5 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }
 

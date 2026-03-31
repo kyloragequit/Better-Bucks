@@ -189,7 +189,7 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
-  async updateUserProfile(userId: number, data: { username?: string; password?: string; email?: string | null; departmentId?: number | null }): Promise<User> {
+  async updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null }): Promise<User> {
     const { hashPassword } = await import("./auth");
     const updateData: any = { ...data };
     if (data.password) {

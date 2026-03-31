@@ -1433,6 +1433,10 @@ export async function registerRoutes(
     if (isPrime && data.departmentId !== undefined) {
       profileData.departmentId = data.departmentId;
     }
+    // Only prime admins may update a user's display name
+    if (isPrime && data.fullName?.trim()) {
+      profileData.fullName = data.fullName.trim();
+    }
     const updatedUser = await storage.updateUserProfile(id, profileData);
     res.json(updatedUser);
   });

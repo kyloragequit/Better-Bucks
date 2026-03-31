@@ -301,6 +301,7 @@ function ChangeRoleDialog({ userId, currentRole, fullName }: { userId: number; c
 
 function EditProfileDialog({ user }: { user: any }) {
   const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState(user.fullName || "");
   const [username, setUsername] = useState(user.username);
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState(user.email || "");
@@ -318,6 +319,9 @@ function EditProfileDialog({ user }: { user: any }) {
     const payload: any = { id: user.id, username, password: password || undefined, email: email || undefined };
     if (isPrimeAdmin) {
       payload.departmentId = selectedDept !== "none" ? parseInt(selectedDept) : null;
+      if (fullName.trim() && fullName.trim() !== user.fullName) {
+        payload.fullName = fullName.trim();
+      }
     }
     updateProfile(payload, {
       onSuccess: () => setOpen(false)
@@ -334,9 +338,23 @@ function EditProfileDialog({ user }: { user: any }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Profile Settings</DialogTitle>
-          <DialogDescription>Update login credentials for {user.fullName}</DialogDescription>
+          <DialogDescription>Update profile information for {user.fullName}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {isPrimeAdmin && (
+            <div className="grid gap-2">
+              <Label htmlFor="fullName">Display Name</Label>
+              <Input
+                id="fullName"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                placeholder="Full name"
+                required
+                data-testid="input-edit-fullname"
+              />
+              <p className="text-xs text-muted-foreground">The name displayed throughout the platform for this user.</p>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="username">Username / Code</Label>
             <Input id="username" value={username} onChange={e => setUsername(e.target.value)} required data-testid="input-edit-username" />

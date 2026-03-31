@@ -137,6 +137,7 @@ export const api = {
       method: 'PATCH' as const,
       path: '/api/users/:id/profile',
       input: z.object({
+        fullName: z.string().min(1).max(100).optional(),
         username: z.string().min(3).optional(),
         password: z.string().min(6).optional(),
         email: z.string().email().optional().or(z.literal("")).transform(v => v || null),

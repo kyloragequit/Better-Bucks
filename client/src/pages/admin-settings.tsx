@@ -162,8 +162,9 @@ export default function AdminSettingsPage() {
   const [pinValue, setPinValue] = useState("");
   const [confirmPinValue, setConfirmPinValue] = useState("");
   const [showPin, setShowPin] = useState(false);
+  const [showCurrentPin, setShowCurrentPin] = useState(false);
 
-  const { data: pinStatus } = useQuery<{ hasUniversalPin: boolean }>({
+  const { data: pinStatus } = useQuery<{ hasUniversalPin: boolean; pin: string | null }>({
     queryKey: ["/api/admin/settings/universal-pin"],
   });
 
@@ -425,6 +426,30 @@ export default function AdminSettingsPage() {
                     </Button>
                   </div>
                 </div>
+
+                {pinStatus?.hasUniversalPin && !showPinForm && (
+                  <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Current Universal PIN</p>
+                      <p className="font-mono font-semibold tracking-widest text-foreground" data-testid="text-current-pin">
+                        {pinStatus.pin
+                          ? (showCurrentPin ? pinStatus.pin : "•".repeat(pinStatus.pin.length))
+                          : <span className="text-muted-foreground text-sm font-normal italic">Set before this feature was added — change to reveal</span>
+                        }
+                      </p>
+                    </div>
+                    {pinStatus.pin && (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground ml-4"
+                        onClick={() => setShowCurrentPin(v => !v)}
+                        data-testid="button-toggle-pin-visibility"
+                      >
+                        {showCurrentPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {showPinForm && (
                   <div className="space-y-3 border-t pt-4">

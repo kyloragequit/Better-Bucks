@@ -26,6 +26,7 @@ export const organizations = pgTable("organizations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   customItemName: text("custom_item_name"),
   defaultPin: text("default_pin"),
+  defaultPinPlain: text("default_pin_plain"),
   allowEmployeePasswordCreation: boolean("allow_employee_password_creation").default(true).notNull(),
   ordersEnabled: boolean("orders_enabled").default(true).notNull(),
   marketingOptIn: boolean("marketing_opt_in").default(false).notNull(),

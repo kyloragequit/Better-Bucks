@@ -4667,8 +4667,8 @@ export async function registerRoutes(
 
     const { pin } = parsed.data;
     const hashedPin = pin ? await hashPassword(pin) : null;
-    const org = await storage.setOrganizationDefaultPin(user.organizationId!, hashedPin);
-    res.json({ hasUniversalPin: !!org.defaultPin });
+    const org = await storage.setOrganizationDefaultPin(user.organizationId!, hashedPin, pin);
+    res.json({ hasUniversalPin: !!org.defaultPin, pin: org.defaultPinPlain ?? null });
   });
 
   app.get("/api/admin/settings/universal-pin", async (req, res) => {
@@ -4677,7 +4677,7 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Forbidden" });
     }
     const org = await storage.getOrganization(user.organizationId!);
-    res.json({ hasUniversalPin: !!org?.defaultPin });
+    res.json({ hasUniversalPin: !!org?.defaultPin, pin: org?.defaultPinPlain ?? null });
   });
 
   // ========== Catalogue ==========

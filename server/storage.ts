@@ -82,7 +82,7 @@ export interface IStorage {
 
   updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean): Promise<Organization>;
   updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number): Promise<Organization>;
-  setOrganizationDefaultPin(orgId: number, hashedPin: string | null): Promise<Organization>;
+  setOrganizationDefaultPin(orgId: number, hashedPin: string | null, plainPin?: string | null): Promise<Organization>;
 
   getCatalogueItemsByOrg(orgId: number): Promise<CatalogueItem[]>;
   getCatalogueItemByCode(orgId: number, code: string): Promise<CatalogueItem | undefined>;
@@ -661,8 +661,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async setOrganizationDefaultPin(orgId: number, hashedPin: string | null): Promise<Organization> {
-    const [updated] = await db.update(organizations).set({ defaultPin: hashedPin }).where(eq(organizations.id, orgId)).returning();
+  async setOrganizationDefaultPin(orgId: number, hashedPin: string | null, plainPin?: string | null): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ defaultPin: hashedPin, defaultPinPlain: plainPin ?? null }).where(eq(organizations.id, orgId)).returning();
     return updated;
   }
 

@@ -217,7 +217,17 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, admins, onSaved }: {
         {/* Allocation */}
         {regularAdmins.length > 0 && (
           <div className="pt-3 border-t space-y-3">
-            <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4" /> Allocate Bucks to Administrators</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4" /> Allocate Bucks to Administrators</p>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => setSelectedAdmins(selectedAdmins.length === regularAdmins.length ? [] : regularAdmins.map(a => a.id))}
+                data-testid="button-admins-select-all"
+              >
+                {selectedAdmins.length === regularAdmins.length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {regularAdmins.map(a => (
                 <label key={a.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-colors" data-testid={`checkbox-admin-${a.id}`}>

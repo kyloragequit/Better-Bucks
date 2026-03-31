@@ -1530,12 +1530,29 @@ function WeeklyReportCard() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Report Recipients</Label>
-            {dirty && (
-              <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} data-testid="button-save-recipients">
-                <UserCheck className="mr-1.5 h-3.5 w-3.5" />
-                {saveMutation.isPending ? "Saving…" : "Save Changes"}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {eligible.length > 0 && (
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => {
+                    const allIds = eligible.map(u => u.id);
+                    const allSelected = allIds.every(id => selectedIds.includes(id));
+                    setPendingIds(allSelected ? [] : allIds);
+                    setDirty(true);
+                  }}
+                  data-testid="button-recipients-select-all"
+                >
+                  {eligible.length > 0 && eligible.every(u => selectedIds.includes(u.id)) ? "Deselect All" : "Select All"}
+                </button>
+              )}
+              {dirty && (
+                <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} data-testid="button-save-recipients">
+                  <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+                  {saveMutation.isPending ? "Saving…" : "Save Changes"}
+                </Button>
+              )}
+            </div>
           </div>
 
           {isLoading ? (

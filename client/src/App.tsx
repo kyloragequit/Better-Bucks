@@ -151,7 +151,7 @@ function ProtectedRoute({
   adminOnly?: boolean 
 }) {
   const { data: user, isLoading } = useUser();
-  const { data: demoStatus } = useQuery<DemoStatus>({
+  const { data: demoStatus, isLoading: demoLoading } = useQuery<DemoStatus>({
     queryKey: ["/api/demo/status"],
     staleTime: 30 * 1000,
   });
@@ -177,8 +177,9 @@ function ProtectedRoute({
     return <Redirect to="/pending-verification" />;
   }
 
-  if (!user.emailVerified && (user.email || user.phone) && window.location.pathname !== '/verify-email' && !demoStatus?.inDemo) {
-    return <Redirect to="/verify-email" />;
+  if (!user.emailVerified && (user.email || user.phone) && window.location.pathname !== '/verify-email') {
+    if (demoLoading) return <FullPageLoader />;
+    if (!demoStatus?.inDemo) return <Redirect to="/verify-email" />;
   }
 
   if (user.mustChangePassword && window.location.pathname !== '/change-password') {

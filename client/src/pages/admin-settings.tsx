@@ -10,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send, UserCheck } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1448,15 +1449,49 @@ function ShopWebsitesSection() {
 
 function WeeklyReportCard() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [sent, setSent] = useState(false);
+  const [pendingIds, setPendingIds] = useState<number[] | null | undefined>(undefined);
+  const [dirty, setDirty] = useState(false);
 
-  const { data: allUsers } = useQuery<Array<{ id: number; fullName: string; email: string | null; role: string; status: string }>>({
-    queryKey: ["/api/users"],
+  type ReportRecipientData = {
+    eligible: Array<{ id: number; fullName: string; email: string | null; role: string }>;
+    selectedIds: number[] | null;
+  };
+
+  const { data: recipientData, isLoading } = useQuery<ReportRecipientData>({
+    queryKey: ["/api/admin/settings/report-recipients"],
   });
 
-  const adminRecipients = (allUsers ?? []).filter(
-    u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.status === "approved"
-  );
+  // Initialise local state once data arrives
+  const selectedIds: number[] = (() => {
+    if (pendingIds !== undefined) return pendingIds ?? [];
+    if (recipientData === undefined) return [];
+    // null means "all eligible" (default)
+    return recipientData.selectedIds ?? recipientData.eligible.map(u => u.id);
+  })();
+
+  const toggle = (id: number) => {
+    const base = pendingIds !== undefined
+      ? (pendingIds ?? recipientData?.eligible.map(u => u.id) ?? [])
+      : (recipientData?.selectedIds ?? recipientData?.eligible.map(u => u.id) ?? []);
+    const next = base.includes(id) ? base.filter(x => x !== id) : [...base, id];
+    setPendingIds(next);
+    setDirty(true);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", "/api/admin/settings/report-recipients", { userIds: pendingIds ?? null });
+      if (!res.ok) throw new Error((await res.json()).message || "Failed to save");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings/report-recipients"] });
+      setDirty(false);
+      toast({ title: "Recipients Saved", description: "Report recipient list has been updated." });
+    },
+    onError: (e: Error) => toast({ title: "Failed to Save", description: e.message, variant: "destructive" }),
+  });
 
   const triggerMutation = useMutation({
     mutationFn: async () => {
@@ -1477,6 +1512,9 @@ function WeeklyReportCard() {
     },
   });
 
+  const eligible = recipientData?.eligible ?? [];
+  const activeCount = selectedIds.length;
+
   return (
     <Card>
       <CardHeader>
@@ -1485,28 +1523,50 @@ function WeeklyReportCard() {
           Weekly Report Emails
         </CardTitle>
         <CardDescription>
-          A summary email is sent every Monday at 7 AM to all administrators with email addresses on file.
+          A summary email is sent every Monday at 7 AM. Choose who receives it below.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Current Recipients</Label>
-          {adminRecipients.length === 0 ? (
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Report Recipients</Label>
+            {dirty && (
+              <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} data-testid="button-save-recipients">
+                <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+                {saveMutation.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            )}
+          </div>
+
+          {isLoading ? (
+            <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">Loading…</div>
+          ) : eligible.length === 0 ? (
             <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              No admin email addresses configured. Add an email to an admin account to receive weekly reports.
+              No admin email addresses configured. Add an email to an admin account to enable report emails.
             </div>
           ) : (
             <div className="rounded-lg border divide-y">
-              {adminRecipients.map(u => (
-                <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-sm font-medium">{u.fullName}</span>
-                    <Badge variant="outline" className="text-xs">{u.role === "prime_admin" ? "Owner" : "Admin"}</Badge>
-                  </div>
-                  <span className="text-sm text-muted-foreground">{u.email}</span>
-                </div>
-              ))}
+              {eligible.map(u => {
+                const checked = selectedIds.includes(u.id);
+                return (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                    data-testid={`label-recipient-${u.id}`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggle(u.id)}
+                      data-testid={`checkbox-recipient-${u.id}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium">{u.fullName}</span>
+                      <Badge variant="outline" className="ml-2 text-xs">{u.role === "prime_admin" ? "Organization User" : "Admin"}</Badge>
+                    </div>
+                    <span className="text-sm text-muted-foreground truncate">{u.email}</span>
+                  </label>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1514,13 +1574,15 @@ function WeeklyReportCard() {
         <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
           <div className="text-sm text-muted-foreground">
             Schedule: <span className="font-medium text-foreground">Every Monday at 7:00 AM</span>
+            {activeCount > 0 && <span className="ml-2 text-xs">· {activeCount} recipient{activeCount !== 1 ? "s" : ""}</span>}
           </div>
           <Button
             size="sm"
             variant="outline"
             onClick={() => triggerMutation.mutate()}
-            disabled={triggerMutation.isPending || sent || adminRecipients.length === 0}
+            disabled={triggerMutation.isPending || sent || activeCount === 0 || dirty}
             data-testid="button-send-test-report"
+            title={dirty ? "Save recipient changes before sending" : undefined}
           >
             {triggerMutation.isPending ? (
               <>Sending…</>

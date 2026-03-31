@@ -381,7 +381,7 @@ export default function AdminDashboardPage() {
               <SelectItem value="all" data-testid="option-admin-all">All Administrators</SelectItem>
               {admins?.map((admin) => (
                 <SelectItem key={admin.id} value={String(admin.id)} data-testid={`option-admin-${admin.id}`}>
-                  {admin.fullName} {admin.role === "prime_admin" ? "(Prime)" : ""}
+                  {admin.fullName} {admin.role === "prime_admin" ? "(Org User)" : ""}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -233,7 +233,7 @@ function PendingInvitesList() {
                 <TableCell className="text-muted-foreground">{inv.email}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="capitalize text-xs">
-                    {inv.role === "prime_admin" ? "Prime Admin" : inv.role}
+                    {inv.role === "prime_admin" ? "Organization User" : inv.role}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
@@ -350,7 +350,7 @@ function InviteUserDialog({ departments }: { departments: Department[] }) {
               <SelectContent>
                 <SelectItem value="employee">Employee</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="prime_admin">Prime Admin</SelectItem>
+                <SelectItem value="prime_admin">Organization User</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1048,7 +1048,7 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
     if (!r.fullName) errs.push("Missing name");
     if (!r.username) errs.push("Missing code");
     const rl = r.role.toLowerCase();
-    if ((rl === "admin" || rl === "prime_admin") && !r.email) errs.push(`${rl === "prime_admin" ? "Prime Admin" : "Admin"} needs email`);
+    if ((rl === "admin" || rl === "prime_admin") && !r.email) errs.push(`${rl === "prime_admin" ? "Organization User" : "Admin"} needs email`);
     return errs;
   });
   const hasErrors = rowErrors.some(e => e.length > 0);
@@ -1076,7 +1076,7 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
             <ul className="text-sm space-y-1.5 list-none">
               {[
                 "Download a pre-formatted template",
-                "Fill in names, codes, departments & roles (including Prime Admin)",
+                "Fill in names, codes, departments & roles (including Organization User)",
                 "Upload — processes in the background, you'll get an email when done",
                 "Errors shown row-by-row for easy fixing",
               ].map(item => (
@@ -1220,7 +1220,7 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                                   variant={rl === "prime_admin" ? "default" : rl === "admin" ? "secondary" : "outline"}
                                   className="text-xs"
                                 >
-                                  {rl === "prime_admin" ? "Prime Admin" : rl === "admin" ? "Admin" : "Employee"}
+                                  {rl === "prime_admin" ? "Organization User" : rl === "admin" ? "Admin" : "Employee"}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-xs text-muted-foreground">

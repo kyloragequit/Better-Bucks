@@ -431,16 +431,30 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
   console.log(`[WeeklyReport] Sent report to ${recipientList.length} recipient(s) for org ${orgName}: ${recipientList.join(", ")}`);
 }
 
+async function getOrgReportEmails(orgId: number, reportRecipientIds: string | null | undefined): Promise<string[]> {
+  const orgUsers = await storage.getUsersByOrganization(orgId);
+  const approved = orgUsers.filter(u => u.email && u.status === "approved");
+  if (reportRecipientIds) {
+    try {
+      const ids: number[] = JSON.parse(reportRecipientIds);
+      const emails = approved.filter(u => ids.includes(u.id)).map(u => u.email as string);
+      if (emails.length > 0) return [...new Set(emails)];
+    } catch {}
+  }
+  // Default: all admins & prime admins with email
+  return [...new Set(approved.filter(u => u.role === "prime_admin" || u.role === "admin").map(u => u.email as string))];
+}
+
 async function sendAllWeeklyReports(): Promise<void> {
   const allOrgs = await storage.getAllOrganizations();
   let sent = 0;
   let skipped = 0;
   for (const org of allOrgs) {
     if (org.status !== "active") { skipped++; continue; }
-    const adminEmails = await getOrgAdminEmails(org.id);
-    if (adminEmails.length === 0) { skipped++; continue; }
+    const reportEmails = await getOrgReportEmails(org.id, org.reportRecipientIds);
+    if (reportEmails.length === 0) { skipped++; continue; }
     try {
-      await sendWeeklyReportForOrg(org.id, org.name, adminEmails);
+      await sendWeeklyReportForOrg(org.id, org.name, reportEmails);
       sent++;
     } catch (err) {
       console.error(`[WeeklyReport] Failed for org ${org.name} (${org.id}):`, err);
@@ -4751,18 +4765,42 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // GET report recipients
+  app.get("/api/admin/settings/report-recipients", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).json({ message: "Forbidden" });
+    const org = await storage.getOrganization(user.organizationId!);
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+    const eligible = orgUsers.filter(u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.status === "approved");
+    let selectedIds: number[] | null = null;
+    if (org?.reportRecipientIds) {
+      try { selectedIds = JSON.parse(org.reportRecipientIds); } catch {}
+    }
+    res.json({ eligible: eligible.map(u => ({ id: u.id, fullName: u.fullName, email: u.email, role: u.role })), selectedIds });
+  });
+
+  // PATCH report recipients
+  app.patch("/api/admin/settings/report-recipients", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).json({ message: "Forbidden" });
+    const parsed = z.object({ userIds: z.array(z.number().int()).nullable() }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+    await storage.setOrganizationReportRecipients(user.organizationId!, parsed.data.userIds);
+    res.json({ ok: true });
+  });
+
   // Developer endpoint to manually trigger a weekly report
   app.post("/api/admin/weekly-report/trigger", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
       return res.status(403).send("Unauthorized");
     }
-    const adminEmails = await getOrgAdminEmails(user.organizationId!);
-    if (adminEmails.length === 0) return res.status(400).json({ message: "No admin email addresses configured." });
+    const org = await storage.getOrganization(user.organizationId!);
+    const reportEmails = await getOrgReportEmails(user.organizationId!, org?.reportRecipientIds);
+    if (reportEmails.length === 0) return res.status(400).json({ message: "No report recipients configured." });
     try {
-      const org = await storage.getOrganization(user.organizationId!);
-      await sendWeeklyReportForOrg(user.organizationId!, org?.name || "Your Organization", adminEmails);
-      res.json({ message: `Weekly report sent to ${adminEmails.length} admin(s).`, recipients: adminEmails });
+      await sendWeeklyReportForOrg(user.organizationId!, org?.name || "Your Organization", reportEmails);
+      res.json({ message: `Weekly report sent to ${reportEmails.length} recipient(s).`, recipients: reportEmails });
     } catch (err: any) {
       res.status(500).json({ message: err?.message || "Failed to send report." });
     }

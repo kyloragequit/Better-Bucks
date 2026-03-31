@@ -22,7 +22,7 @@ type InviteInfo = {
 };
 
 function roleLabel(role: string) {
-  if (role === "prime_admin") return "Prime Admin";
+  if (role === "prime_admin") return "Organization User";
   if (role === "admin") return "Admin";
   return "Employee";
 }

@@ -132,14 +132,6 @@ const adminSteps: Step[] = [
     optional: true,
   },
   {
-    id: "catalogue",
-    path: "/admin/catalogue",
-    selector: '[data-testid="button-add-catalogue-item"]',
-    title: "Catalogue Maker",
-    description: "Create shorthand codes like PERF10 or SAFETY5 and assign Bucks values to them. When you do an Instant Transaction, type a catalogue code to auto-fill the amount and reason instantly — no more remembering numbers.",
-    optional: true,
-  },
-  {
     id: "custom-items",
     path: "/admin/items",
     title: "Custom (Non-Bucks) Items",
@@ -157,7 +149,7 @@ const adminSteps: Step[] = [
     id: "done",
     path: "/admin/dashboard",
     title: "You're Ready to Go!",
-    description: "You've seen all the key features — Bucks management, Instant Transaction with catalogue codes, team goals, custom item tokens, and settings. The best managers check in regularly, award Bucks generously, and keep goals active. Let's go!",
+    description: "You've seen all the key features — Bucks management, Instant Transaction, team goals, custom item tokens, and settings. The best managers check in regularly, award Bucks generously, and keep goals active. Let's go!",
   },
 ];
 

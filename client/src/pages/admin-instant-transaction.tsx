@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Camera, QrCode, Search, ArrowLeft, Plus, Minus, X, BookOpen, CheckCircle } from "lucide-react";
+import { Camera, QrCode, Search, ArrowLeft, Plus, Minus, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { User } from "@shared/schema";
@@ -36,8 +36,6 @@ export default function AdminInstantTransactionPage() {
   const [reason, setReason] = useState("");
   const [txType, setTxType] = useState<"credit" | "debit">("credit");
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
-  const [catalogueCode, setCatalogueCode] = useState("");
-  const [catalogueMatch, setCatalogueMatch] = useState<{ code: string; name: string; bucksValue: number } | null>(null);
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -187,28 +185,6 @@ export default function AdminInstantTransactionPage() {
     setReason("");
     setTxType("credit");
     setMode("scan");
-    setCatalogueCode("");
-    setCatalogueMatch(null);
-  };
-
-  const handleCatalogueLookup = async () => {
-    if (!catalogueCode.trim()) return;
-    try {
-      const res = await fetch(`/api/admin/catalogue/lookup/${encodeURIComponent(catalogueCode.trim())}`, { credentials: "include" });
-      if (res.ok) {
-        const item = await res.json();
-        setCatalogueMatch(item);
-        setAmount(item.bucksValue.toString());
-        if (!reason) setReason(item.name);
-      } else if (res.status === 404) {
-        setCatalogueMatch(null);
-        toast({ title: "Not Found", description: "No catalogue item found with that code.", variant: "destructive" });
-      } else {
-        toast({ title: "Error", description: "Could not look up catalogue code.", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Error", description: "Could not look up catalogue code.", variant: "destructive" });
-    }
   };
 
   return (
@@ -269,39 +245,13 @@ export default function AdminInstantTransactionPage() {
                   </Button>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="catalogue-lookup" className="flex items-center gap-1.5">
-                    <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                    Catalogue Code <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="catalogue-lookup"
-                      value={catalogueCode}
-                      onChange={e => { setCatalogueCode(e.target.value.toUpperCase()); setCatalogueMatch(null); }}
-                      onKeyDown={e => e.key === "Enter" && handleCatalogueLookup()}
-                      placeholder="e.g. PERF10"
-                      className="font-mono uppercase"
-                      data-testid="input-catalogue-lookup"
-                    />
-                    <Button type="button" variant="outline" size="sm" onClick={handleCatalogueLookup} data-testid="button-catalogue-lookup">
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {catalogueMatch && (
-                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400" data-testid="text-catalogue-match">
-                      <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span>{catalogueMatch.name} — {catalogueMatch.bucksValue.toLocaleString()} Bucks pre-filled</span>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1">
                   <Label htmlFor="tx-amount">Amount (Bucks)</Label>
                   <Input
                     id="tx-amount"
                     type="number"
                     min={1}
                     value={amount}
-                    onChange={(e) => { setAmount(e.target.value); setCatalogueMatch(null); }}
+                    onChange={(e) => setAmount(e.target.value)}
                     placeholder="Enter Bucks amount"
                     data-testid="input-tx-amount"
                   />

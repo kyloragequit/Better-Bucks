@@ -7,7 +7,7 @@ import {
   Wallet, ShoppingBag, ShoppingCart, LayoutDashboard, Users, Zap,
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
-  ArrowRight, Heart, ExternalLink, Target, Timer, Hash, BookOpen, KeyRound,
+  ArrowRight, Heart, ExternalLink, Target, Timer, Hash, KeyRound,
   ChevronDown, FileSpreadsheet, Upload, Download,
 } from "lucide-react";
 
@@ -487,16 +487,6 @@ function buildSlides(role: string, name: string): Slide[] {
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
-                <BookOpen className="h-3 w-3" style={{ color: GREEN }} /> Catalogue Code <span className="font-normal text-gray-400">(optional)</span>
-              </p>
-              <div className="flex gap-2">
-                <div className="flex-1 border rounded-lg px-3 py-2 bg-gray-50 font-mono text-sm text-gray-600">SAFETY5</div>
-                <div className="px-3 py-2 rounded-lg border text-xs font-semibold text-gray-500">Look up</div>
-              </div>
-              <p className="text-xs flex items-center gap-1" style={{ color: GREEN }}>✓ Safety Compliance — 250 Bucks pre-filled</p>
-            </div>
-            <div className="space-y-1">
               <p className="text-xs font-semibold text-gray-600">Reason</p>
               <div className="border rounded-lg px-3 py-2 bg-gray-50">
                 <span className="text-sm text-gray-400">Safety Compliance</span>
@@ -508,39 +498,6 @@ function buildSlides(role: string, name: string): Slide[] {
           </div>
           <p className="text-xs text-gray-400 text-center">
             Find Instant Transaction in the navigation dropdown at the top of the page.
-          </p>
-        </div>
-      ),
-    },
-    {
-      id: "catalogue",
-      title: "Catalogue Maker",
-      subtitle: "Pre-set Bucks amounts with short codes — use them in Instant Transaction to skip the math.",
-      body: (
-        <div className="space-y-3">
-          <div className="rounded-xl border overflow-hidden">
-            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
-              <span className="text-white font-bold text-sm flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> Catalogue</span>
-              <button className="px-3 py-1 rounded text-xs font-semibold text-white" style={{ background: GREEN }}>+ Add Item</button>
-            </div>
-            <div className="divide-y bg-white">
-              {[
-                { code: "PERF10", name: "Performance Bonus", bucks: 250 },
-                { code: "SAFETY5", name: "Safety Compliance", bucks: 100 },
-                { code: "ATTEND", name: "Attendance Award", bucks: 50 },
-              ].map(({ code, name, bucks }) => (
-                <div key={code} className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded border border-gray-200 bg-gray-50" style={{ color: NAVY }}>{code}</span>
-                    <span className="text-xs text-gray-600">{name}</span>
-                  </div>
-                  <span className="text-xs font-bold" style={{ color: GREEN }}>{bucks} Bucks</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className="text-xs text-gray-400 text-center">
-            In Instant Transaction, type a code like <span className="font-mono font-bold text-gray-600">PERF10</span> and hit Look Up — the Bucks amount and reason fill in automatically.
           </p>
         </div>
       ),
@@ -601,8 +558,7 @@ function buildSlides(role: string, name: string): Slide[] {
               { icon: LayoutDashboard, text: "Dashboard — Org-wide stats and charts" },
               { icon: Users, text: "Employees — Add, manage & award your team" },
               { icon: ShoppingCart, text: "Orders — Review and fulfill requests" },
-              { icon: Zap, text: "Instant Transaction — Quick awards (use catalogue codes!)" },
-              { icon: BookOpen, text: "Catalogue — Shorthand codes with preset Bucks values" },
+              { icon: Zap, text: "Instant Transaction — Quick awards to team members" },
               { icon: Target, text: "Goals — Add progress to quantity goals" },
               { icon: Package, text: "Items — Give and redeem custom non-Bucks tokens" },
             ].map(({ icon: Icon, text }) => (
@@ -713,8 +669,7 @@ function buildSlides(role: string, name: string): Slide[] {
                 { icon: LayoutDashboard, text: "Dashboard — Full platform analytics" },
                 { icon: Users, text: "Employees — Add, manage & award your team" },
                 { icon: ShoppingCart, text: "Orders — Approve and fulfill requests" },
-                { icon: Zap, text: "Instant Transaction — Quick awards (with catalogue codes)" },
-                { icon: BookOpen, text: "Catalogue — Preset codes with Bucks values" },
+                { icon: Zap, text: "Instant Transaction — Quick awards to team members" },
                 { icon: Target, text: "Goals — Create goals & distribute Bucks" },
                 { icon: Package, text: "Items — Custom non-Bucks token system" },
                 { icon: ShoppingBag, text: "Store — Curate what employees can redeem" },

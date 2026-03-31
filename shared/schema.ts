@@ -95,17 +95,6 @@ export const insertCustomItemTransactionSchema = createInsertSchema(customItemTr
 export type CustomItemTransaction = typeof customItemTransactions.$inferSelect;
 export type InsertCustomItemTransaction = z.infer<typeof insertCustomItemTransactionSchema>;
 
-export const catalogueItems = pgTable("catalogue_items", {
-  id: serial("id").primaryKey(),
-  orgId: integer("org_id").notNull(),
-  code: text("code").notNull(),
-  name: text("name").notNull(),
-  bucksValue: integer("bucks_value").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-export const insertCatalogueItemSchema = createInsertSchema(catalogueItems).omit({ id: true, createdAt: true });
-export type CatalogueItem = typeof catalogueItems.$inferSelect;
-export type InsertCatalogueItem = z.infer<typeof insertCatalogueItemSchema>;
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),

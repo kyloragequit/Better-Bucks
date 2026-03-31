@@ -2612,22 +2612,33 @@ export async function registerRoutes(
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
     const mode = (req.query.mode as string) || "admins"; // "admins" | "employees"
+    const deptId = req.query.departmentId ? parseInt(req.query.departmentId as string) : null;
+
     const orgUsers = await storage.getUsersByOrganization(user.organizationId);
-    const admins = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
-    const employees = orgUsers.filter(u => u.role === "employee");
+    let admins = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
+    let employees = orgUsers.filter(u => u.role === "employee");
+
+    // Apply department filter
+    if (deptId) {
+      employees = employees.filter(u => u.departmentId === deptId);
+      admins = admins.filter(u => u.departmentId === deptId);
+    }
+
     if (mode === "admins") {
       if (admins.length === 0) return res.json([]);
-      const employeeIds = employees.map(u => u.id);
-      if (employeeIds.length === 0) return res.json(admins.map(a => ({ id: a.id, name: a.fullName, bucks: 0 })));
+      const allEmployees = orgUsers.filter(u => u.role === "employee");
+      const employeeIds = allEmployees.map(u => u.id);
+      const adminIds = admins.map(a => a.id);
+      if (employeeIds.length === 0) return res.json(admins.map(a => ({ id: a.id, name: a.fullName, bucks: 0, balance: a.balance })));
       const rows = await db.select({
         performedBy: transactions.performedBy,
         total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
       }).from(transactions)
-        .where(and(inArray(transactions.userId, employeeIds), gt(transactions.amount, 0), inArray(transactions.performedBy, admins.map(a => a.id))))
+        .where(and(inArray(transactions.userId, employeeIds), gt(transactions.amount, 0), inArray(transactions.performedBy, adminIds)))
         .groupBy(transactions.performedBy);
       const byAdmin: Record<number, number> = {};
       for (const r of rows) if (r.performedBy) byAdmin[r.performedBy] = Number(r.total);
-      return res.json(admins.map(a => ({ id: a.id, name: a.fullName, bucks: byAdmin[a.id] ?? 0 })).sort((a, b) => b.bucks - a.bucks));
+      return res.json(admins.map(a => ({ id: a.id, name: a.fullName, bucks: byAdmin[a.id] ?? 0, balance: a.balance })).sort((a, b) => b.bucks - a.bucks));
     } else {
       // employees mode - balance and spent
       if (employees.length === 0) return res.json([]);

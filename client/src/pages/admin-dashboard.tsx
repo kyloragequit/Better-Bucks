@@ -30,7 +30,7 @@ import {
 
 type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedDollars: string; totalDollars: string };
 
-type AdminLeaderboardEntry = { id: number; name: string; bucks: number };
+type AdminLeaderboardEntry = { id: number; name: string; bucks: number; balance: number };
 type EmployeeEntry = { id: number; name: string; balance: number; spent: number };
 type BudgetSettings = { bucksPerDollar: number; monthlyBudgetBucks: number };
 
@@ -278,7 +278,9 @@ export default function AdminDashboardPage() {
   const [orderPeriod, setOrderPeriod] = useState<"week" | "month" | "year">("week");
   const [leaderboardMode, setLeaderboardMode] = useState<"admins" | "employees">("admins");
   const [empMetric, setEmpMetric] = useState<"balance" | "spent">("balance");
+  const [adminMetric, setAdminMetric] = useState<"given" | "balance">("given");
   const [showDollars, setShowDollars] = useState(false);
+  const [leaderboardDeptId, setLeaderboardDeptId] = usePersistedState<string>("bb_lb_deptId", "all");
   const { data: currentUser } = useUser();
   const { restartTutorial } = useTutorial();
   const queryClient = useQueryClient();
@@ -326,9 +328,11 @@ export default function AdminDashboardPage() {
   });
 
   const { data: leaderboard, isLoading: leaderboardLoading } = useQuery<AdminLeaderboardEntry[] | EmployeeEntry[]>({
-    queryKey: ["/api/stats/leaderboard", leaderboardMode],
+    queryKey: ["/api/stats/leaderboard", leaderboardMode, leaderboardDeptId],
     queryFn: async () => {
-      const res = await fetch(`/api/stats/leaderboard?mode=${leaderboardMode}`, { credentials: "include" });
+      const params = new URLSearchParams({ mode: leaderboardMode });
+      if (leaderboardDeptId !== "all") params.set("departmentId", leaderboardDeptId);
+      const res = await fetch(`/api/stats/leaderboard?${params.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -344,7 +348,7 @@ export default function AdminDashboardPage() {
 
   // Build bar chart data
   const adminBarData: { name: string; value: number }[] = leaderboardMode === "admins" && leaderboard
-    ? (leaderboard as AdminLeaderboardEntry[]).map(a => ({ name: shortName(a.name), value: a.bucks }))
+    ? (leaderboard as AdminLeaderboardEntry[]).map(a => ({ name: shortName(a.name), value: adminMetric === "given" ? a.bucks : a.balance }))
     : [];
   const empBarData: { name: string; value: number }[] = leaderboardMode === "employees" && leaderboard
     ? (leaderboard as EmployeeEntry[]).map(e => ({
@@ -477,39 +481,66 @@ export default function AdminDashboardPage() {
 
           {/* Leaderboard bar chart */}
           <div className="mb-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-              <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
-                <Award className="h-5 w-5 text-primary" />
-                {leaderboardMode === "admins" ? "Bucks Given by Administrator" : "Employee Bucks"}
-              </h2>
-              <div className="flex flex-wrap items-center gap-2">
-                {leaderboardMode === "employees" && (
-                  <>
-                    <Tabs value={empMetric} onValueChange={v => setEmpMetric(v as "balance" | "spent")}>
+            <div className="flex flex-col gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                  <Award className="h-5 w-5 text-primary" />
+                  {leaderboardMode === "admins"
+                    ? (adminMetric === "given" ? "Bucks Given by Administrator" : "Administrator Balances")
+                    : "Employee Bucks"}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  {leaderboardMode === "admins" && (
+                    <Tabs value={adminMetric} onValueChange={v => setAdminMetric(v as "given" | "balance")}>
                       <TabsList className="h-8">
-                        <TabsTrigger value="balance" className="text-xs px-3" data-testid="tab-emp-balance">Balance</TabsTrigger>
-                        <TabsTrigger value="spent" className="text-xs px-3" data-testid="tab-emp-spent">Spent</TabsTrigger>
+                        <TabsTrigger value="given" className="text-xs px-3" data-testid="tab-admin-given">Given</TabsTrigger>
+                        <TabsTrigger value="balance" className="text-xs px-3" data-testid="tab-admin-balance">Balance</TabsTrigger>
                       </TabsList>
                     </Tabs>
-                    <Tabs value={showDollars ? "dollars" : "bucks"} onValueChange={v => setShowDollars(v === "dollars")}>
-                      <TabsList className="h-8">
-                        <TabsTrigger value="bucks" className="text-xs px-3" data-testid="tab-unit-bucks">Bucks</TabsTrigger>
-                        <TabsTrigger value="dollars" className="text-xs px-3" data-testid="tab-unit-dollars">Dollars</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </>
-                )}
-                <Tabs value={leaderboardMode} onValueChange={v => { setLeaderboardMode(v as "admins" | "employees"); setShowDollars(false); }}>
-                  <TabsList className="h-8">
-                    <TabsTrigger value="admins" className="text-xs px-3" data-testid="tab-leaderboard-admins">
-                      <Settings className="h-3 w-3 mr-1" /> Admins
-                    </TabsTrigger>
-                    <TabsTrigger value="employees" className="text-xs px-3" data-testid="tab-leaderboard-employees">
-                      <Users className="h-3 w-3 mr-1" /> Employees
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                  )}
+                  {leaderboardMode === "employees" && (
+                    <>
+                      <Tabs value={empMetric} onValueChange={v => setEmpMetric(v as "balance" | "spent")}>
+                        <TabsList className="h-8">
+                          <TabsTrigger value="balance" className="text-xs px-3" data-testid="tab-emp-balance">Balance</TabsTrigger>
+                          <TabsTrigger value="spent" className="text-xs px-3" data-testid="tab-emp-spent">Spent</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                      <Tabs value={showDollars ? "dollars" : "bucks"} onValueChange={v => setShowDollars(v === "dollars")}>
+                        <TabsList className="h-8">
+                          <TabsTrigger value="bucks" className="text-xs px-3" data-testid="tab-unit-bucks">Bucks</TabsTrigger>
+                          <TabsTrigger value="dollars" className="text-xs px-3" data-testid="tab-unit-dollars">Dollars</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </>
+                  )}
+                  <Tabs value={leaderboardMode} onValueChange={v => { setLeaderboardMode(v as "admins" | "employees"); setShowDollars(false); }}>
+                    <TabsList className="h-8">
+                      <TabsTrigger value="admins" className="text-xs px-3" data-testid="tab-leaderboard-admins">
+                        <Settings className="h-3 w-3 mr-1" /> Admins
+                      </TabsTrigger>
+                      <TabsTrigger value="employees" className="text-xs px-3" data-testid="tab-leaderboard-employees">
+                        <Users className="h-3 w-3 mr-1" /> Employees
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
               </div>
+              {(departments ?? []).length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Select value={leaderboardDeptId} onValueChange={setLeaderboardDeptId}>
+                    <SelectTrigger className="w-48 h-8 text-xs" data-testid="select-leaderboard-dept">
+                      <SelectValue placeholder="All departments" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Departments</SelectItem>
+                      {(departments ?? []).map(d => (
+                        <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <Card className="border shadow-sm">

@@ -105,7 +105,7 @@ export default function TermsPage() {
 
             <div>
               <h2 className="text-lg font-bold text-foreground mb-3">12. Governing Law</h2>
-              <p className="text-sm text-muted-foreground">This Agreement shall be governed by the laws of the State of Texas.</p>
+              <p className="text-sm text-muted-foreground">This Agreement shall be governed by the laws of the State of Louisiana.</p>
             </div>
 
             <div>

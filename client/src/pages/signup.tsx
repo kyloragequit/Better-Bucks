@@ -462,7 +462,7 @@ export default function SignupPage() {
                     <p className="font-semibold text-foreground">11. LIMITATION OF LIABILITY</p>
                     <p>To the fullest extent permitted by law, Better Bucks LLC shall not be liable for indirect, incidental, or consequential damages, or loss of profits, data, or business opportunities.</p>
                     <p className="font-semibold text-foreground">12. GOVERNING LAW</p>
-                    <p>This Agreement shall be governed by the laws of the State of Texas.</p>
+                    <p>This Agreement shall be governed by the laws of the State of Louisiana.</p>
                     <p className="font-semibold text-foreground">13. CHANGES TO TERMS</p>
                     <p>We may update these terms at any time. Continued use of the Software constitutes acceptance of any changes.</p>
                     <p className="font-semibold text-foreground">14. ACCEPTANCE OF TERMS</p>

@@ -113,7 +113,7 @@ export function TermsAgreementModal() {
 
           <div>
             <p className="font-semibold text-foreground mb-1">12. GOVERNING LAW</p>
-            <p>This Agreement shall be governed by the laws of the State of Texas.</p>
+            <p>This Agreement shall be governed by the laws of the State of Louisiana.</p>
           </div>
 
           <div>

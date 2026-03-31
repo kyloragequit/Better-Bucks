@@ -163,9 +163,7 @@ export default function AdminStorePage() {
     setShowAddForm(false);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File) => {
     setUploading(true);
     try {
       const formData = new FormData();
@@ -179,6 +177,19 @@ export default function AdminStorePage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+  };
+
+  const handleImagePaste = (e: React.ClipboardEvent) => {
+    const imageItem = Array.from(e.clipboardData.items).find(item => item.type.startsWith("image/"));
+    if (!imageItem) return;
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (file) uploadFile(file);
   };
 
   const createMutation = useMutation({
@@ -285,7 +296,7 @@ export default function AdminStorePage() {
                 </div>
                 <div className="grid gap-1.5">
                   <Label>Preview Image <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-4" onPaste={handleImagePaste}>
                     {imageUrl ? (
                       <img src={imageUrl} alt="preview" className="h-20 w-20 object-cover rounded-lg border flex-shrink-0" />
                     ) : (
@@ -301,8 +312,15 @@ export default function AdminStorePage() {
                         </Button>
                         <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                       </label>
-                      <p className="text-xs text-muted-foreground">Or paste an image URL below</p>
-                      <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" className="text-sm" data-testid="input-store-item-image-url" />
+                      <p className="text-xs text-muted-foreground">Paste an image with Ctrl+V anywhere here, or enter a URL below</p>
+                      <Input
+                        value={imageUrl}
+                        onChange={e => setImageUrl(e.target.value)}
+                        onPaste={handleImagePaste}
+                        placeholder="https://example.com/image.jpg"
+                        className="text-sm"
+                        data-testid="input-store-item-image-url"
+                      />
                     </div>
                   </div>
                 </div>

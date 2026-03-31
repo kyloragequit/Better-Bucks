@@ -37,6 +37,31 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
   };
 }
 
+// ── Background bulk-import job store ─────────────────────────────────────────
+type ImportJobRow = { fullName: string; username: string; role?: string; email?: string; password?: string; departmentName?: string };
+type ImportJobResult = { row: number; username: string; fullName: string; success: boolean; error?: string };
+type ImportJob = {
+  id: string;
+  orgId: number;
+  initiatorEmail: string | null;
+  initiatorName: string;
+  status: "running" | "done" | "cancelled";
+  total: number;
+  processed: number;
+  imported: number;
+  results: ImportJobResult[];
+  cancelRequested: boolean;
+  createdAt: number;
+};
+const importJobs = new Map<string, ImportJob>();
+// Prune completed jobs older than 2 hours every 30 min
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+  for (const [id, job] of importJobs) {
+    if (job.status !== "running" && job.createdAt < cutoff) importJobs.delete(id);
+  }
+}, 30 * 60 * 1000).unref();
+
 async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }): Promise<void> {
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
@@ -1120,6 +1145,7 @@ export async function registerRoutes(
     res.json({ credited });
   });
 
+  // ── Bulk import: start background job ────────────────────────────────────
   app.post("/api/users/bulk-import", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
@@ -1127,108 +1153,183 @@ export async function registerRoutes(
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
 
-    const rows: Array<{
-      fullName: string;
-      username: string;
-      role?: string;
-      email?: string;
-      password?: string;
-      departmentName?: string;
-    }> = req.body.employees;
-
+    const rows: ImportJobRow[] = req.body.employees;
     if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({ message: "No employee rows provided" });
     }
-
-    const org = await storage.getOrganization(user.organizationId);
-    const departments = await storage.getDepartments(user.organizationId);
-    const deptMap = new Map(departments.map(d => [d.name.toLowerCase(), d.id]));
-
-    const results: Array<{ row: number; username: string; fullName: string; success: boolean; error?: string }> = [];
-    let imported = 0;
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const rowNum = i + 1;
-
-      if (!row.fullName?.trim()) {
-        results.push({ row: rowNum, username: row.username || "", fullName: row.fullName || "", success: false, error: "Full Name is required" });
-        continue;
-      }
-      if (!row.username?.trim()) {
-        results.push({ row: rowNum, username: "", fullName: row.fullName, success: false, error: "Employee Code is required" });
-        continue;
-      }
-
-      const role = (row.role?.toLowerCase() === "admin") ? "admin" : "employee";
-      const email = row.email?.trim() || null;
-      const hasEmail = !!(email && z.string().email().safeParse(email).success);
-
-      if (role === "admin" && !hasEmail) {
-        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Admin accounts require a valid email" });
-        continue;
-      }
-
-      // Check employee limit
-      if (org && org.maxEmployees > 0) {
-        const currentCount = await storage.getUsersByOrganization(user.organizationId);
-        if (currentCount.length >= org.maxEmployees) {
-          results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Employee limit reached — upgrade your plan" });
-          continue;
-        }
-      }
-
-      // Check duplicate username
-      const existing = await storage.getUserByUsernameAndOrg(row.username.trim(), user.organizationId);
-      if (existing) {
-        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Employee code already exists" });
-        continue;
-      }
-
-      // Check duplicate email
-      if (hasEmail) {
-        const existingEmail = await storage.getUserByEmailGlobal(email!);
-        if (existingEmail) {
-          results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Email already in use by another account" });
-          continue;
-        }
-      }
-
-      const deptId = row.departmentName ? (deptMap.get(row.departmentName.toLowerCase()) ?? null) : null;
-      const rawPassword = row.password?.trim();
-      const userPassword = rawPassword && rawPassword.length >= 6
-        ? await hashPassword(rawPassword)
-        : await hashPassword(crypto.randomBytes(32).toString("hex"));
-
-      const verificationCode = hasEmail ? Math.floor(100000 + Math.random() * 900000).toString() : null;
-
-      try {
-        await storage.createUser({
-          username: row.username.trim(),
-          password: userPassword,
-          fullName: row.fullName.trim(),
-          email: hasEmail ? email : null,
-          phone: null,
-          emailVerified: !hasEmail,
-          emailVerificationCode: verificationCode,
-          role: role as "employee" | "admin",
-          barcode: row.username.trim(),
-          status: "approved",
-          mustChangePassword: !!(rawPassword && rawPassword.length >= 6),
-          organizationId: user.organizationId,
-          departmentId: deptId,
-        });
-        if (hasEmail && verificationCode) {
-          await sendVerificationCode(email, null, verificationCode, row.fullName.trim());
-        }
-        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: true });
-        imported++;
-      } catch (err) {
-        results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Failed to create account" });
-      }
+    if (rows.length > 5000) {
+      return res.status(400).json({ message: "Maximum 5 000 rows per import" });
     }
 
-    res.json({ imported, total: rows.length, results });
+    const jobId = crypto.randomBytes(16).toString("hex");
+    const job: ImportJob = {
+      id: jobId,
+      orgId: user.organizationId,
+      initiatorEmail: user.email ?? null,
+      initiatorName: user.fullName,
+      status: "running",
+      total: rows.length,
+      processed: 0,
+      imported: 0,
+      results: [],
+      cancelRequested: false,
+      createdAt: Date.now(),
+    };
+    importJobs.set(jobId, job);
+
+    // Respond immediately — client will poll for progress
+    res.json({ jobId, total: rows.length });
+
+    // Run processing in the background (do not await)
+    (async () => {
+      try {
+        const org = await storage.getOrganization(job.orgId);
+        const departments = await storage.getDepartmentsByOrganization(job.orgId);
+        const deptMap = new Map(departments.map(d => [d.name.toLowerCase(), d.id]));
+
+        for (let i = 0; i < rows.length; i++) {
+          if (job.cancelRequested) { job.status = "cancelled"; break; }
+
+          const row = rows[i];
+          const rowNum = i + 1;
+
+          if (!row.fullName?.trim()) {
+            job.results.push({ row: rowNum, username: row.username || "", fullName: row.fullName || "", success: false, error: "Full Name is required" });
+            job.processed++; continue;
+          }
+          if (!row.username?.trim()) {
+            job.results.push({ row: rowNum, username: "", fullName: row.fullName, success: false, error: "Employee Code is required" });
+            job.processed++; continue;
+          }
+
+          const rawRole = row.role?.toLowerCase().trim() ?? "";
+          const role: "employee" | "admin" | "prime_admin" =
+            rawRole === "prime_admin" ? "prime_admin" :
+            rawRole === "admin" ? "admin" : "employee";
+
+          const email = row.email?.trim() || null;
+          const hasEmail = !!(email && z.string().email().safeParse(email).success);
+
+          if ((role === "admin" || role === "prime_admin") && !hasEmail) {
+            job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: `${role === "prime_admin" ? "Prime Admin" : "Admin"} accounts require a valid email` });
+            job.processed++; continue;
+          }
+
+          // Check employee limit (re-check per row)
+          if (org && org.maxEmployees > 0) {
+            const currentCount = await storage.getUsersByOrganization(job.orgId);
+            if (currentCount.length >= org.maxEmployees) {
+              job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Employee limit reached — upgrade your plan" });
+              job.processed++; continue;
+            }
+          }
+
+          // Duplicate username check
+          const existing = await storage.getUserByUsernameAndOrg(row.username.trim(), job.orgId);
+          if (existing) {
+            job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Employee code already exists" });
+            job.processed++; continue;
+          }
+
+          // Duplicate email check
+          if (hasEmail) {
+            const existingEmail = await storage.getUserByEmailGlobal(email!);
+            if (existingEmail) {
+              job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Email already in use by another account" });
+              job.processed++; continue;
+            }
+          }
+
+          const deptId = row.departmentName ? (deptMap.get(row.departmentName.toLowerCase()) ?? null) : null;
+          const rawPassword = row.password?.trim();
+          const userPassword = rawPassword && rawPassword.length >= 6
+            ? await hashPassword(rawPassword)
+            : await hashPassword(crypto.randomBytes(32).toString("hex"));
+          const verificationCode = hasEmail ? Math.floor(100000 + Math.random() * 900000).toString() : null;
+
+          try {
+            await storage.createUser({
+              username: row.username.trim(),
+              password: userPassword,
+              fullName: row.fullName.trim(),
+              email: hasEmail ? email : null,
+              phone: null,
+              emailVerified: !hasEmail,
+              emailVerificationCode: verificationCode,
+              role,
+              barcode: row.username.trim(),
+              status: "approved",
+              mustChangePassword: !!(rawPassword && rawPassword.length >= 6),
+              organizationId: job.orgId,
+              departmentId: deptId,
+            });
+            if (hasEmail && verificationCode) {
+              await sendVerificationCode(email, null, verificationCode, row.fullName.trim());
+            }
+            job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: true });
+            job.imported++;
+          } catch {
+            job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Failed to create account" });
+          }
+
+          job.processed++;
+          // Yield every 10 rows to keep event loop responsive
+          if (i % 10 === 9) await new Promise(resolve => setImmediate(resolve));
+        }
+
+        if (job.status === "running") job.status = "done";
+
+        // Send completion email to whoever started the import
+        if (job.initiatorEmail) {
+          const statusLabel = job.status === "cancelled" ? "Cancelled" : "Complete";
+          const html = `
+            <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;padding:24px;">
+              <h2 style="color:#162A4A;margin-bottom:4px;">Better Bucks</h2>
+              <h3 style="color:#4E9F3D;margin-top:0;">Employee Import ${statusLabel}</h3>
+              <p style="color:#555;font-size:14px;">Hi ${job.initiatorName},</p>
+              <p style="color:#555;font-size:14px;">Your employee spreadsheet import has finished processing.</p>
+              <table style="border-collapse:collapse;width:100%;background:#F8FAFC;border-radius:8px;overflow:hidden;margin:16px 0;">
+                <tr><td style="padding:8px 12px;color:#666;font-weight:500;">Status</td><td style="padding:8px 12px;">${statusLabel}</td></tr>
+                <tr><td style="padding:8px 12px;color:#666;font-weight:500;">Imported</td><td style="padding:8px 12px;color:#4E9F3D;font-weight:600;">${job.imported}</td></tr>
+                <tr><td style="padding:8px 12px;color:#666;font-weight:500;">Total rows</td><td style="padding:8px 12px;">${job.total}</td></tr>
+                ${job.total - job.imported > 0 ? `<tr><td style="padding:8px 12px;color:#666;font-weight:500;">Skipped / errors</td><td style="padding:8px 12px;color:#DC2626;">${job.total - job.imported}</td></tr>` : ""}
+              </table>
+              <p style="color:#999;font-size:12px;margin-top:16px;">You can review the full row-by-row results in the Better Bucks admin panel.</p>
+            </div>`;
+          sendEmail({ to: job.initiatorEmail, subject: `[Better Bucks] Employee Import ${statusLabel} — ${job.imported}/${job.total} imported`, html })
+            .catch(err => console.error("[BulkImport] Completion email failed:", err));
+        }
+      } catch (err) {
+        console.error("[BulkImport] Background job error:", err);
+        const job = importJobs.get(jobId);
+        if (job) job.status = "done";
+      }
+    })();
+  });
+
+  // ── Bulk import: poll job status ──────────────────────────────────────────
+  app.get("/api/users/bulk-import/:jobId", (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const job = importJobs.get(req.params.jobId);
+    if (!job || job.orgId !== user.organizationId) return res.status(404).json({ message: "Job not found" });
+    res.json({
+      status: job.status,
+      total: job.total,
+      processed: job.processed,
+      imported: job.imported,
+      results: job.status !== "running" ? job.results : [],
+    });
+  });
+
+  // ── Bulk import: cancel job ────────────────────────────────────────────────
+  app.delete("/api/users/bulk-import/:jobId", (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const job = importJobs.get(req.params.jobId);
+    if (!job || job.orgId !== user.organizationId) return res.status(404).json({ message: "Job not found" });
+    if (job.status === "running") job.cancelRequested = true;
+    res.json({ ok: true });
   });
 
   app.post(api.users.updateBalance.path, async (req, res) => {

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { usePublicDemo } from "@/hooks/use-demo";
 import { Link, useLocation } from "wouter";
@@ -673,9 +673,10 @@ function downloadTemplate() {
     ["Jane Smith", "EMP-001", "employee", "Warehouse", "jane@example.com", ""],
     ["Bob Johnson", "EMP-002", "employee", "Logistics", "", ""],
     ["Alice Manager", "MGR-001", "admin", "Shipping", "alice@example.com", "TempPass1!"],
+    ["Sam Director", "DIR-001", "prime_admin", "Operations", "sam@example.com", ""],
   ];
   const ws = XLSX.utils.aoa_to_sheet([...headers, ...examples]);
-  ws["!cols"] = [{ wch: 20 }, { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 28 }, { wch: 16 }];
+  ws["!cols"] = [{ wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 28 }, { wch: 16 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Employees");
   XLSX.writeFile(wb, "better-bucks-employee-template.xlsx");
@@ -735,10 +736,50 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [importedCount, setImportedCount] = useState(0);
+  const [jobStatus, setJobStatus] = useState<"idle" | "running" | "done" | "cancelled">("idle");
+  const [jobProgress, setJobProgress] = useState({ processed: 0, total: 0 });
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jobIdRef = useRef<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  const startPolling = (jobId: string, total: number) => {
+    jobIdRef.current = jobId;
+    setJobStatus("running");
+    setJobProgress({ processed: 0, total });
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await apiRequest("GET", `/api/users/bulk-import/${jobId}`);
+        if (!res.ok) { stopPolling(); return; }
+        const data = await res.json() as { status: string; total: number; processed: number; imported: number; results: ImportResult[] };
+        setJobProgress({ processed: data.processed, total: data.total });
+        if (data.status === "done" || data.status === "cancelled") {
+          stopPolling();
+          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
+          setResults(data.results);
+          setImportedCount(data.imported);
+          setJobStatus(data.status as "done" | "cancelled");
+          const label = data.status === "cancelled" ? "Import Cancelled" : data.imported === data.total ? "Import Complete" : "Import Partially Complete";
+          const desc = data.status === "cancelled"
+            ? `Import was cancelled. ${data.imported} employee${data.imported !== 1 ? "s" : ""} were imported before cancellation.`
+            : data.imported === data.total
+            ? `All ${data.imported} employees imported successfully. A confirmation email has been sent.`
+            : `${data.imported} of ${data.total} imported. Review errors below. A summary email has been sent.`;
+          toast({ title: label, description: desc, variant: data.imported < data.total ? "destructive" : "default" });
+        }
+      } catch {
+        stopPolling();
+      }
+    }, 1500);
+  };
 
   const importMutation = useMutation({
     mutationFn: async (employees: ImportRow[]) => {
@@ -747,29 +788,29 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
         const body = await res.json();
         throw new Error(body.message || "Import failed");
       }
-      return res.json() as Promise<{ imported: number; total: number; results: ImportResult[] }>;
+      return res.json() as Promise<{ jobId: string; total: number }>;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
-      setResults(data.results);
-      setImportedCount(data.imported);
-      if (data.imported === data.total) {
-        toast({ title: "Import Complete", description: `All ${data.imported} employees imported successfully.` });
-      } else {
-        toast({ title: "Import Partially Complete", description: `${data.imported} of ${data.total} employees imported. Review errors below.`, variant: "destructive" });
-      }
+    onSuccess: ({ jobId, total }) => {
+      startPolling(jobId, total);
     },
     onError: (e: Error) => {
+      setJobStatus("idle");
       toast({ title: "Import Failed", description: e.message, variant: "destructive" });
     },
   });
+
+  const handleCancel = async () => {
+    if (jobIdRef.current) {
+      try { await apiRequest("DELETE", `/api/users/bulk-import/${jobIdRef.current}`); } catch { /* ignore */ }
+    }
+  };
 
   const handleFile = async (file: File) => {
     try {
       const parsed = await parseSpreadsheet(file);
       setRows(parsed);
       setResults(null);
+      setJobStatus("idle");
     } catch {
       toast({ title: "Parse Error", description: "Could not read the file. Ensure it's a valid .xlsx or .xls file.", variant: "destructive" });
     }
@@ -783,26 +824,37 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
   };
 
   const reset = () => {
+    stopPolling();
     setRows([]);
     setResults(null);
     setImportedCount(0);
+    setJobStatus("idle");
+    setJobProgress({ processed: 0, total: 0 });
+    jobIdRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleClose = (o: boolean) => {
+    if (jobStatus === "running") return; // block closing while running — use Cancel button
     setOpen(o);
     if (!o) reset();
   };
+
+  // Clean up on unmount
+  useEffect(() => () => stopPolling(), []);
 
   const deptNames = new Set(departments.map(d => d.name));
   const rowErrors = rows.map(r => {
     const errs: string[] = [];
     if (!r.fullName) errs.push("Missing name");
     if (!r.username) errs.push("Missing code");
-    if (r.role.toLowerCase() === "admin" && !r.email) errs.push("Admin needs email");
+    const rl = r.role.toLowerCase();
+    if ((rl === "admin" || rl === "prime_admin") && !r.email) errs.push(`${rl === "prime_admin" ? "Prime Admin" : "Admin"} needs email`);
     return errs;
   });
   const hasErrors = rowErrors.some(e => e.length > 0);
+
+  const progressPct = jobProgress.total > 0 ? Math.round((jobProgress.processed / jobProgress.total) * 100) : 0;
 
   return (
     <Dialog open={open} onOpenChange={demoMode ? () => {} : handleClose}>
@@ -825,8 +877,8 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
             <ul className="text-sm space-y-1.5 list-none">
               {[
                 "Download a pre-formatted template",
-                "Fill in names, codes, departments & roles",
-                "Upload — every row becomes an employee",
+                "Fill in names, codes, departments & roles (including Prime Admin)",
+                "Upload — processes in the background, you'll get an email when done",
                 "Errors shown row-by-row for easy fixing",
               ].map(item => (
                 <li key={item} className="flex items-start gap-2 text-muted-foreground">
@@ -846,12 +898,36 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
         <DialogHeader>
           <DialogTitle>Import Employees from Spreadsheet</DialogTitle>
           <DialogDescription>
-            Upload an Excel file (.xlsx) to add multiple employees at once. Download the template to get started.
+            Upload an Excel file (.xlsx) to add multiple employees at once. The import runs in the background — you'll receive an email when it's complete.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-          {!results && (
+
+          {/* ── Running progress ── */}
+          {jobStatus === "running" && (
+            <div className="space-y-3">
+              <div className="rounded-xl border bg-muted/30 px-5 py-4 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-foreground">Importing employees…</span>
+                  <span className="text-muted-foreground">{jobProgress.processed} / {jobProgress.total}</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-300"
+                    style={{ width: `${progressPct}%` }}
+                    data-testid="progress-bar-import"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Processing in the background. You can cancel at any time — a summary email will be sent when finished.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── File selector + preview (idle only) ── */}
+          {jobStatus === "idle" && !results && (
             <>
               <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm">
@@ -877,9 +953,9 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                   <div className="grid grid-cols-6 px-3 py-2 text-muted-foreground border-t">
                     <span>Required</span>
                     <span>Required</span>
-                    <span>employee/admin</span>
+                    <span className="truncate">employee / admin / prime_admin</span>
                     <span>Optional</span>
-                    <span>Required for admins</span>
+                    <span>Required for admin/prime_admin</span>
                     <span>Optional</span>
                   </div>
                 </div>
@@ -934,14 +1010,18 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                         {rows.map((r, i) => {
                           const errs = rowErrors[i];
                           const hasUnknownDept = r.departmentName && !deptNames.has(r.departmentName);
+                          const rl = r.role.toLowerCase();
                           return (
                             <TableRow key={i} className={errs.length > 0 ? "bg-destructive/5" : undefined}>
                               <TableCell className="text-center text-xs text-muted-foreground">{i + 1}</TableCell>
                               <TableCell className="text-sm font-medium">{r.fullName || <span className="text-destructive italic text-xs">missing</span>}</TableCell>
                               <TableCell className="font-mono text-xs">{r.username || <span className="text-destructive italic text-xs">missing</span>}</TableCell>
                               <TableCell>
-                                <Badge variant={r.role.toLowerCase() === "admin" ? "secondary" : "outline"} className="text-xs">
-                                  {r.role || "employee"}
+                                <Badge
+                                  variant={rl === "prime_admin" ? "default" : rl === "admin" ? "secondary" : "outline"}
+                                  className="text-xs"
+                                >
+                                  {rl === "prime_admin" ? "Prime Admin" : rl === "admin" ? "Admin" : "Employee"}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-xs text-muted-foreground">
@@ -969,61 +1049,71 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
             </>
           )}
 
+          {/* ── Results ── */}
           {results && (
             <div className="space-y-3">
-              <div className={`flex items-center gap-3 rounded-xl px-4 py-3 ${importedCount === results.length ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
-                {importedCount === results.length ? (
+              <div className={`flex items-center gap-3 rounded-xl px-4 py-3 ${jobStatus === "cancelled" ? "bg-amber-50 border border-amber-200" : importedCount === results.length ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
+                {importedCount === results.length && jobStatus !== "cancelled" ? (
                   <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
                 ) : (
                   <XCircle className="h-5 w-5 text-amber-600 shrink-0" />
                 )}
                 <div>
                   <p className="text-sm font-semibold">
-                    {importedCount} of {results.length} employees imported
+                    {jobStatus === "cancelled" ? "Import cancelled — " : ""}{importedCount} of {jobProgress.total || results.length} employees imported
                   </p>
-                  {importedCount < results.length && (
-                    <p className="text-xs text-muted-foreground">{results.length - importedCount} rows had errors — review below</p>
+                  {importedCount < (jobProgress.total || results.length) && jobStatus !== "cancelled" && (
+                    <p className="text-xs text-muted-foreground">{(jobProgress.total || results.length) - importedCount} rows had errors — review below</p>
                   )}
+                  <p className="text-xs text-muted-foreground mt-0.5">A summary email has been sent to your account.</p>
                 </div>
               </div>
-              <ScrollArea className="h-[280px] rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/30">
-                      <TableHead className="w-[28px]">#</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {results.map((r) => (
-                      <TableRow key={r.row} className={r.success ? undefined : "bg-destructive/5"}>
-                        <TableCell className="text-xs text-muted-foreground">{r.row}</TableCell>
-                        <TableCell className="text-sm font-medium">{r.fullName}</TableCell>
-                        <TableCell className="font-mono text-xs">{r.username}</TableCell>
-                        <TableCell>
-                          {r.success ? (
-                            <span className="flex items-center gap-1 text-xs font-semibold text-green-700">
-                              <CheckCircle2 className="h-3.5 w-3.5" /> Imported
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
-                              <XCircle className="h-3.5 w-3.5" /> {r.error}
-                            </span>
-                          )}
-                        </TableCell>
+              {results.length > 0 && (
+                <ScrollArea className="h-[280px] rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="w-[28px]">#</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                    </TableHeader>
+                    <TableBody>
+                      {results.map((r) => (
+                        <TableRow key={r.row} className={r.success ? undefined : "bg-destructive/5"}>
+                          <TableCell className="text-xs text-muted-foreground">{r.row}</TableCell>
+                          <TableCell className="text-sm font-medium">{r.fullName}</TableCell>
+                          <TableCell className="font-mono text-xs">{r.username}</TableCell>
+                          <TableCell>
+                            {r.success ? (
+                              <span className="flex items-center gap-1 text-xs font-semibold text-green-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Imported
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
+                                <XCircle className="h-3.5 w-3.5" /> {r.error}
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              )}
             </div>
           )}
         </div>
 
         <DialogFooter className="mt-4 shrink-0">
-          {!results ? (
+          {jobStatus === "running" ? (
+            <Button variant="destructive" onClick={handleCancel} data-testid="button-cancel-import">
+              Cancel Import
+            </Button>
+          ) : results ? (
+            <Button onClick={() => handleClose(false)} data-testid="button-import-done">Done</Button>
+          ) : (
             <>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
               <Button
@@ -1032,14 +1122,12 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                 data-testid="button-import-submit"
               >
                 {importMutation.isPending
-                  ? "Importing…"
+                  ? "Starting…"
                   : hasErrors
                   ? "Fix errors to import"
                   : `Import ${rows.length} Employee${rows.length !== 1 ? "s" : ""}`}
               </Button>
             </>
-          ) : (
-            <Button onClick={() => handleClose(false)}>Done</Button>
           )}
         </DialogFooter>
       </DialogContent>

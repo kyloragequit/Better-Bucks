@@ -1636,11 +1636,11 @@ export async function registerRoutes(
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     next();
-  }, async (req, res, next) => { const u = await getUpload(); u.array("photos", 10)(req, res, next); }, (req: any, res: any) => {
+  }, async (req, res, next) => { const u = await getUpload(); u.any()(req, res, next); }, (req: any, res: any) => {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) return res.status(400).json({ message: "No files uploaded" });
     const urls = files.map(f => `/uploads/${f.filename}`);
-    res.json({ urls });
+    res.json(urls);
   });
 
   // Orders

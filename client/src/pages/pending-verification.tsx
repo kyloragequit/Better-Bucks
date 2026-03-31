@@ -24,14 +24,14 @@ export default function PendingVerification() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <Clock className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold font-display">Verification Pending</CardTitle>
+          <CardTitle className="text-2xl font-bold font-display">Account Pending Approval</CardTitle>
           <CardDescription>
-            Your administrator account is awaiting approval from the prime account.
+            Your account is awaiting approval from your organization's administrator.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            You will be able to access the admin portal once your account has been verified by DSCLA.
+            Once your account is approved you'll be able to sign in. Check back later or ask your manager to approve your account.
           </p>
         </CardContent>
         <CardFooter className="flex justify-center">

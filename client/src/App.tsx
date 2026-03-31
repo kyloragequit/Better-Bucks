@@ -158,7 +158,7 @@ function ProtectedRoute({
     return <Redirect to="/developer/dashboard" />;
   }
 
-  if (user.role === 'admin' && user.status === 'pending' && window.location.pathname !== '/pending-verification') {
+  if (user.status === 'pending' && window.location.pathname !== '/pending-verification' && window.location.pathname !== '/verify-email') {
     return <Redirect to="/pending-verification" />;
   }
 
@@ -197,6 +197,8 @@ function VerifyEmailRoute() {
   if (isLoading) return <FullPageLoader />;
   if (!user) return <Redirect to="/login" />;
   if (user.emailVerified) {
+    // Pending users must wait for admin approval before accessing the app
+    if (user.status === "pending") return <Redirect to="/pending-verification" />;
     if (user.role === "employee") return <Redirect to="/dashboard" />;
     return <Redirect to="/admin/dashboard" />;
   }

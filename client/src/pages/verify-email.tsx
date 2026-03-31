@@ -29,16 +29,18 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
   const { mutate: verify, isPending: isVerifying } = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/verify-email", { code });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Invalid verification code");
+      }
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedUser) => {
+      // Update cache immediately so routing sees emailVerified=true right away
+      queryClient.setQueryData(["/api/user"], updatedUser);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       toast({ title: `${contactLabel} Verified!`, description: `Your ${contactLabel.toLowerCase()} has been verified successfully.` });
-      if (user.role === "employee") {
-        setLocation("/dashboard");
-      } else {
-        setLocation("/admin/dashboard");
-      }
+      // Let VerifyEmailRoute handle the redirect based on fresh user data
     },
     onError: (error: Error) => {
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });

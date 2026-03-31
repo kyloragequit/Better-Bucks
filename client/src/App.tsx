@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -132,6 +132,17 @@ function GoalNotificationModal() {
   );
 }
 
+function PageRefresher() {
+  const [location] = useLocation();
+  const qc = useQueryClient();
+  useEffect(() => {
+    qc.invalidateQueries();
+  }, [location]);
+  return null;
+}
+
+type DemoStatus = { inDemo: boolean };
+
 function ProtectedRoute({ 
   component: Component, 
   adminOnly = false 
@@ -140,6 +151,10 @@ function ProtectedRoute({
   adminOnly?: boolean 
 }) {
   const { data: user, isLoading } = useUser();
+  const { data: demoStatus } = useQuery<DemoStatus>({
+    queryKey: ["/api/demo/status"],
+    staleTime: 30 * 1000,
+  });
 
   if (isLoading) return <FullPageLoader />;
 
@@ -162,7 +177,7 @@ function ProtectedRoute({
     return <Redirect to="/pending-verification" />;
   }
 
-  if (!user.emailVerified && (user.email || user.phone) && window.location.pathname !== '/verify-email') {
+  if (!user.emailVerified && (user.email || user.phone) && window.location.pathname !== '/verify-email' && !demoStatus?.inDemo) {
     return <Redirect to="/verify-email" />;
   }
 
@@ -210,6 +225,7 @@ function Router() {
 
   return (
     <Suspense fallback={<FullPageLoader />}>
+      <PageRefresher />
       <Switch>
         <Route path="/" component={HowItWorksPage} />
         <Route path="/about" component={AboutPage} />

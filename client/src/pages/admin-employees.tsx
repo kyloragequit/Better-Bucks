@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import * as XLSX from "xlsx";
 import { usePublicDemo } from "@/hooks/use-demo";
 import { Link, useLocation } from "wouter";
@@ -33,7 +34,7 @@ export default function AdminEmployeesPage() {
   const { getRoleLabel } = useRoleLabels();
   const isPrimeAdmin = currentUser?.role === "prime_admin";
   const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [deptFilter, setDeptFilter] = usePersistedState<string>("bb_filter_emp_deptId", "all");
 
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],

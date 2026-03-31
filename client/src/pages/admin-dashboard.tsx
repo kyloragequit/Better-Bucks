@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -270,8 +271,8 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, admins, onSaved }: {
 }
 
 export default function AdminDashboardPage() {
-  const [selectedAdminId, setSelectedAdminId] = useState<string>("all");
-  const [selectedDeptId, setSelectedDeptId] = useState<string>("all");
+  const [selectedAdminId, setSelectedAdminId] = usePersistedState<string>("bb_filter_adminId", "all");
+  const [selectedDeptId, setSelectedDeptId] = usePersistedState<string>("bb_filter_deptId", "all");
   const [creditPeriod, setCreditPeriod] = useState<"week" | "month" | "year">("week");
   const [debitPeriod, setDebitPeriod] = useState<"week" | "month" | "year">("week");
   const [orderPeriod, setOrderPeriod] = useState<"week" | "month" | "year">("week");

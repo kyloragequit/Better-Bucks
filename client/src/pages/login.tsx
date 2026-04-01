@@ -68,10 +68,11 @@ export default function LoginPage() {
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="employee" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                <span className="hidden sm:inline">Employee</span>
+                <span>Employee</span>
               </TabsTrigger>
               <TabsTrigger value="admin" className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
+                <span className="sm:hidden">Admin</span>
                 <span className="hidden sm:inline">Administrator</span>
               </TabsTrigger>
             </TabsList>

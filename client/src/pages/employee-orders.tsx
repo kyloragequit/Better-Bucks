@@ -101,49 +101,71 @@ export default function EmployeeOrdersPage() {
             <Package className="h-5 w-5" /> Your Orders
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Bucks</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(!orders || orders.length === 0) && (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    No orders yet. Browse the store and submit your first order!
-                  </TableCell>
-                </TableRow>
-              )}
-              {orders?.map((order) => (
-                <TableRow key={order.id} data-testid={`row-order-${order.id}`}>
-                  <TableCell className="text-muted-foreground">
-                    {format(new Date(order.createdAt), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell className="font-medium max-w-[200px] truncate">{order.description}</TableCell>
-                  <TableCell className="font-bold tabular-nums text-primary">
-                    {order.pointsCost.toLocaleString()} bcks
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {order.convertedValue || "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-${order.id}`}>
-                      {order.status}
-                    </Badge>
-                    {order.adminNotes && (
-                      <p className="text-xs text-muted-foreground mt-1">{order.adminNotes}</p>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="px-0 sm:px-6">
+          {(!orders || orders.length === 0) ? (
+            <div className="h-24 flex items-center justify-center text-muted-foreground px-4">
+              No orders yet. Browse the store and submit your first order!
+            </div>
+          ) : (
+            <>
+              {/* Mobile card layout */}
+              <div className="sm:hidden space-y-3 px-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="border rounded-lg p-3 space-y-1" data-testid={`row-order-${order.id}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{order.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(order.createdAt), "MMM d, yyyy")}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold tabular-nums text-primary text-sm">{order.pointsCost.toLocaleString()} bcks</p>
+                        <Badge variant={statusVariant(order.status)} className="capitalize text-xs mt-0.5" data-testid={`badge-status-${order.id}`}>{order.status}</Badge>
+                      </div>
+                    </div>
+                    {order.adminNotes && <p className="text-xs text-muted-foreground">{order.adminNotes}</p>}
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Bucks</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id} data-testid={`row-order-desktop-${order.id}`}>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                          {format(new Date(order.createdAt), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell className="font-medium max-w-[200px] truncate">{order.description}</TableCell>
+                        <TableCell className="font-bold tabular-nums text-primary">
+                          {order.pointsCost.toLocaleString()} bcks
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {order.convertedValue || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-desktop-${order.id}`}>
+                            {order.status}
+                          </Badge>
+                          {order.adminNotes && (
+                            <p className="text-xs text-muted-foreground mt-1">{order.adminNotes}</p>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </EmployeeLayout>

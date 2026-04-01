@@ -227,46 +227,69 @@ export default function EmployeeDashboard() {
             <History className="h-5 w-5" /> Recent Activity
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {userDetails.transactions.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                    No transactions yet.
-                  </TableCell>
-                </TableRow>
-              )}
-              {userDetails.transactions
-                .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                .slice(0, 10) // Show only last 10
-                .map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell className="text-muted-foreground w-[200px]">
-                    {format(new Date(tx.createdAt), "MMM d, yyyy h:mm a")}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{tx.reason}</span>
-                      <Badge variant="secondary" className="text-xs font-normal">
-                        {tx.amount > 0 ? "Credit" : "Debit"}
-                      </Badge>
+        <CardContent className="px-0 sm:px-6">
+          {userDetails.transactions.length === 0 ? (
+            <div className="h-24 flex items-center justify-center text-muted-foreground px-4">
+              No transactions yet.
+            </div>
+          ) : (
+            <>
+              {/* Mobile card layout */}
+              <div className="sm:hidden space-y-2 px-4">
+                {userDetails.transactions
+                  .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .slice(0, 10)
+                  .map((tx) => (
+                  <div key={tx.id} className="flex items-center justify-between gap-3 py-3 border-b last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{tx.reason}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {format(new Date(tx.createdAt), "MMM d, h:mm a")}
+                      </p>
                     </div>
-                  </TableCell>
-                  <TableCell className={`text-right font-bold tabular-nums ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
-                    {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    <span className={`font-bold tabular-nums text-sm shrink-0 ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
+                      {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {userDetails.transactions
+                      .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .slice(0, 10)
+                      .map((tx) => (
+                      <TableRow key={tx.id}>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                          {format(new Date(tx.createdAt), "MMM d, yyyy h:mm a")}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{tx.reason}</span>
+                            <Badge variant="secondary" className="text-xs font-normal">
+                              {tx.amount > 0 ? "Credit" : "Debit"}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className={`text-right font-bold tabular-nums ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
+                          {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </EmployeeLayout>

@@ -139,3 +139,14 @@ Preferred communication style: Simple, everyday language.
 - Twilio (for SMS phone verification)
 - nodemailer (for email verification)
 - multer (for file uploads)
+
+## Mobile UX
+
+All data tables have responsive mobile card layouts:
+- **Admin employees** (`md` breakpoint): Tappable cards with name, role badge, username, department, balance, and chevron. Desktop table hidden below 768px.
+- **Admin orders** (`sm` breakpoint): Compact order cards with employee name, description, bucks, status badge, and action buttons. Both pending and all-orders sections.
+- **Employee orders** (`sm` breakpoint): Order cards with description, date, bucks, status badge, and admin notes.
+- **Employee dashboard transactions** (`sm` breakpoint): Compact card layout with date, description, and amount.
+- **Admin dashboard**: Period selector tabs (Week/Month/Year) show icon-only on mobile with `aria-label` for accessibility.
+- **Employee store catalogue**: Purchase button shows icon-only on mobile with `sr-only` accessible label.
+- Pattern: `{breakpoint}:hidden` for mobile cards, `hidden {breakpoint}:block` for desktop tables.

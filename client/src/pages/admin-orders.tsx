@@ -78,52 +78,83 @@ export default function AdminOrdersPage() {
               </p>
             </div>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Bucks</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendingOrders.map((order) => (
-                  <TableRow key={order.id} data-testid={`row-pending-order-${order.id}`}>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(order.createdAt), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
-                    <TableCell className="font-bold tabular-nums text-primary">
-                      {order.pointsCost.toLocaleString()} bcks
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {order.convertedValue || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
-                        <Eye className="mr-1 h-4 w-4" />
-                        {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
-                        {order.itemUrl ? " Link" : ""}
+          <CardContent className="px-0 sm:px-6">
+            {/* Mobile card layout */}
+            <div className="sm:hidden space-y-3 px-4">
+              {pendingOrders.map((order) => (
+                <div key={order.id} className="border rounded-lg p-3 space-y-2" data-testid={`row-pending-order-${order.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm">{order.user?.fullName || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{order.description}</p>
+                    </div>
+                    <p className="font-bold tabular-nums text-primary text-sm shrink-0">{order.pointsCost.toLocaleString()} bcks</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
+                        <Eye className="mr-1 h-3 w-3" />View
                       </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {isPrime && !isPublicDemo && (
-                        <div className="flex justify-end gap-2">
-                          <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                          <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                        </div>
-                      )}
-                    </TableCell>
+                    </div>
+                    {isPrime && !isPublicDemo && (
+                      <div className="flex gap-1.5">
+                        <OrderActionButton orderId={order.id} action="approved" label="Approve" />
+                        <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Bucks</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pendingOrders.map((order) => (
+                    <TableRow key={order.id} data-testid={`row-pending-order-desktop-${order.id}`}>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {format(new Date(order.createdAt), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
+                      <TableCell className="font-bold tabular-nums text-primary">
+                        {order.pointsCost.toLocaleString()} bcks
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {order.convertedValue || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-desktop-${order.id}`}>
+                          <Eye className="mr-1 h-4 w-4" />
+                          {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
+                          {order.itemUrl ? " Link" : ""}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isPrime && !isPublicDemo && (
+                          <div className="flex justify-end gap-2">
+                            <OrderActionButton orderId={order.id} action="approved" label="Approve" />
+                            <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -134,68 +165,106 @@ export default function AdminOrdersPage() {
             <Package className="h-5 w-5" /> All Orders
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Employee</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Bucks</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(!orders || orders.length === 0) && (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                    No orders yet.
-                  </TableCell>
-                </TableRow>
-              )}
-              {orders?.map((order) => (
-                <TableRow key={order.id} data-testid={`row-order-${order.id}`}>
-                  <TableCell className="text-muted-foreground">
-                    {format(new Date(order.createdAt), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
-                  <TableCell className="font-bold tabular-nums text-primary">
-                    {order.pointsCost.toLocaleString()} bcks
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {order.convertedValue || "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-${order.id}`}>
-                      {order.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-${order.id}`}>
-                      <Eye className="mr-1 h-4 w-4" />
-                      {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
-                      {order.itemUrl ? " Link" : ""}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isPrime && !isPublicDemo && order.status === "pending" && (
-                      <div className="flex justify-end gap-2">
-                        <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                        <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+        <CardContent className="px-0 sm:px-6">
+          {(!orders || orders.length === 0) ? (
+            <div className="h-24 flex items-center justify-center text-muted-foreground px-4">No orders yet.</div>
+          ) : (
+            <>
+              {/* Mobile card layout */}
+              <div className="sm:hidden space-y-3 px-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="border rounded-lg p-3 space-y-2" data-testid={`row-order-${order.id}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">{order.user?.fullName || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground truncate">{order.description}</p>
                       </div>
-                    )}
-                    {isPrime && !isPublicDemo && order.status === "approved" && (
-                      <OrderActionButton orderId={order.id} action="completed" label="Complete" />
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold tabular-nums text-primary text-sm">{order.pointsCost.toLocaleString()} bcks</p>
+                        <Badge variant={statusVariant(order.status)} className="capitalize text-xs mt-0.5" data-testid={`badge-status-${order.id}`}>{order.status}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-${order.id}`}>
+                          <Eye className="mr-1 h-3 w-3" />View
+                        </Button>
+                      </div>
+                      <div className="flex gap-1.5">
+                        {isPrime && !isPublicDemo && order.status === "pending" && (
+                          <>
+                            <OrderActionButton orderId={order.id} action="approved" label="Approve" />
+                            <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+                          </>
+                        )}
+                        {isPrime && !isPublicDemo && order.status === "approved" && (
+                          <OrderActionButton orderId={order.id} action="completed" label="Complete" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Bucks</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id} data-testid={`row-order-desktop-${order.id}`}>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                          {format(new Date(order.createdAt), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
+                        <TableCell className="font-bold tabular-nums text-primary">
+                          {order.pointsCost.toLocaleString()} bcks
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {order.convertedValue || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-desktop-${order.id}`}>
+                            {order.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-desktop-${order.id}`}>
+                            <Eye className="mr-1 h-4 w-4" />
+                            {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
+                            {order.itemUrl ? " Link" : ""}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {isPrime && !isPublicDemo && order.status === "pending" && (
+                            <div className="flex justify-end gap-2">
+                              <OrderActionButton orderId={order.id} action="approved" label="Approve" />
+                              <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+                            </div>
+                          )}
+                          {isPrime && !isPublicDemo && order.status === "approved" && (
+                            <OrderActionButton orderId={order.id} action="completed" label="Complete" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -113,73 +113,102 @@ export default function AdminEmployeesPage() {
 
       {isLoading ? (
         <Loader />
-      ) : (
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead>Employee Name</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                    No employees found
-                  </TableCell>
-                </TableRow>
-              )}
-              {filteredUsers?.map((user) => (
-                <TableRow key={user.id} className="group hover:bg-muted/20 transition-colors">
-                  <TableCell className="font-medium">{user.fullName}</TableCell>
-                  <TableCell>
-                    <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                      {user.username}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
-                  <TableCell>
-                    {isPrimeAdmin ? (
-                      <Select
-                        value={user.departmentId?.toString() || "none"}
-                        onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}
-                      >
-                        <SelectTrigger className="h-8 w-[140px] text-xs" data-testid={`select-dept-${user.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {departments?.map(d => (
-                            <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {user.departmentId ? deptMap.get(user.departmentId) || "—" : "—"}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-primary tabular-nums">
-                    {user.balance.toLocaleString()} bcks
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/admin/employees/${user.id}`}>
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        Details <ChevronRight className="ml-1 h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      ) : filteredUsers?.length === 0 ? (
+        <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">
+          No employees found
         </div>
+      ) : (
+        <>
+          {/* Mobile card layout */}
+          <div className="md:hidden space-y-2">
+            {filteredUsers?.map((user) => (
+              <Link key={user.id} href={`/admin/employees/${user.id}`}>
+                <div className="bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 active:bg-muted/30 transition-colors" data-testid={`card-employee-${user.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm truncate">{user.fullName}</p>
+                      <Badge variant="outline" className="text-xs shrink-0">{getRoleLabel(user.role)}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-mono text-xs text-muted-foreground">{user.username}</span>
+                      {user.departmentId && deptMap.get(user.departmentId) && (
+                        <>
+                          <span className="text-muted-foreground/40">·</span>
+                          <span className="text-xs text-muted-foreground truncate">{deptMap.get(user.departmentId)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-primary tabular-nums text-sm">{user.balance.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">bcks</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </Link>
+            ))}
+          </div>
+          {/* Desktop table layout */}
+          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead>Employee Name</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers?.map((user) => (
+                  <TableRow key={user.id} className="group hover:bg-muted/20 transition-colors">
+                    <TableCell className="font-medium">{user.fullName}</TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                        {user.username}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
+                    <TableCell>
+                      {isPrimeAdmin ? (
+                        <Select
+                          value={user.departmentId?.toString() || "none"}
+                          onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}
+                        >
+                          <SelectTrigger className="h-8 w-[140px] text-xs" data-testid={`select-dept-${user.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {departments?.map(d => (
+                              <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {user.departmentId ? deptMap.get(user.departmentId) || "—" : "—"}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-primary tabular-nums">
+                      {user.balance.toLocaleString()} bcks
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/admin/employees/${user.id}`}>
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          Details <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       {isPrimeAdmin && <PendingAccountsList />}
@@ -234,7 +263,42 @@ function PendingAccountsList() {
         Pending Accounts
         <Badge className="ml-1 bg-amber-100 text-amber-700 border border-amber-200 text-xs font-semibold">{pending.length}</Badge>
       </h2>
-      <div className="bg-card rounded-xl border border-amber-200/60 shadow-sm overflow-hidden">
+      {/* Mobile card layout for pending */}
+      <div className="md:hidden space-y-2">
+        {pending.map(u => {
+          const selectedRole = roleSelections[u.id] ?? u.role ?? "employee";
+          return (
+            <div key={u.id} className="bg-card rounded-xl border border-amber-200/60 shadow-sm p-4 space-y-3" data-testid={`row-pending-${u.id}`}>
+              <div>
+                <p className="font-medium text-sm" data-testid={`text-pending-name-${u.id}`}>{u.fullName}</p>
+                <p className="font-mono text-xs text-muted-foreground">{u.username}</p>
+                {(u.email || u.phone) && <p className="text-xs text-muted-foreground mt-0.5">{u.email || u.phone}</p>}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <Select value={selectedRole} onValueChange={(v) => setRoleSelections(prev => ({ ...prev, [u.id]: v }))}>
+                  <SelectTrigger className="w-32 h-8 text-xs" data-testid={`select-role-${u.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">{getRoleLabel("employee")}</SelectItem>
+                    <SelectItem value="admin">{getRoleLabel("admin")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs" onClick={() => approveMutation.mutate({ id: u.id, role: selectedRole })} disabled={approveMutation.isPending || rejectMutation.isPending} data-testid={`button-approve-${u.id}`}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />Approve
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive text-xs" onClick={() => rejectMutation.mutate(u.id)} disabled={approveMutation.isPending || rejectMutation.isPending} data-testid={`button-reject-${u.id}`}>
+                    <XCircle className="h-3.5 w-3.5 mr-1" />Reject
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Desktop table layout for pending */}
+      <div className="hidden md:block bg-card rounded-xl border border-amber-200/60 shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-amber-50/50">
             <TableRow>
@@ -249,18 +313,15 @@ function PendingAccountsList() {
             {pending.map(u => {
               const selectedRole = roleSelections[u.id] ?? u.role ?? "employee";
               return (
-                <TableRow key={u.id} data-testid={`row-pending-${u.id}`}>
-                  <TableCell className="font-medium" data-testid={`text-pending-name-${u.id}`}>{u.fullName}</TableCell>
+                <TableRow key={u.id} data-testid={`row-pending-desktop-${u.id}`}>
+                  <TableCell className="font-medium" data-testid={`text-pending-name-desktop-${u.id}`}>{u.fullName}</TableCell>
                   <TableCell className="text-muted-foreground font-mono text-sm">{u.username}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {u.email || u.phone || <span className="italic">No contact</span>}
                   </TableCell>
                   <TableCell>
-                    <Select
-                      value={selectedRole}
-                      onValueChange={(v) => setRoleSelections(prev => ({ ...prev, [u.id]: v }))}
-                    >
-                      <SelectTrigger className="w-36 h-8 text-xs" data-testid={`select-role-${u.id}`}>
+                    <Select value={selectedRole} onValueChange={(v) => setRoleSelections(prev => ({ ...prev, [u.id]: v }))}>
+                      <SelectTrigger className="w-36 h-8 text-xs" data-testid={`select-role-desktop-${u.id}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -271,26 +332,11 @@ function PendingAccountsList() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white text-xs"
-                        onClick={() => approveMutation.mutate({ id: u.id, role: selectedRole })}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        data-testid={`button-approve-${u.id}`}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                        Approve
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs" onClick={() => approveMutation.mutate({ id: u.id, role: selectedRole })} disabled={approveMutation.isPending || rejectMutation.isPending} data-testid={`button-approve-desktop-${u.id}`}>
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />Approve
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive text-xs"
-                        onClick={() => rejectMutation.mutate(u.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        data-testid={`button-reject-${u.id}`}
-                      >
-                        <XCircle className="h-3.5 w-3.5 mr-1" />
-                        Reject
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive text-xs" onClick={() => rejectMutation.mutate(u.id)} disabled={approveMutation.isPending || rejectMutation.isPending} data-testid={`button-reject-desktop-${u.id}`}>
+                        <XCircle className="h-3.5 w-3.5 mr-1" />Reject
                       </Button>
                     </div>
                   </TableCell>

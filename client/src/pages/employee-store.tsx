@@ -241,12 +241,12 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
   return (
     <>
       <div
-        className="flex items-center gap-3 px-4 py-3 border rounded-lg bg-card hover:bg-accent/30 transition-colors"
+        className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 border rounded-lg bg-card hover:bg-accent/30 transition-colors"
         data-testid={`row-catalogue-item-${item.id}`}
       >
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm" data-testid={`text-catalogue-item-name-${item.id}`}>{item.name}</p>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
             <Badge variant="secondary" className="font-bold text-primary bg-primary/10 text-xs" data-testid={`text-catalogue-item-price-${item.id}`}>
               {item.price.toLocaleString()} Bucks
             </Badge>
@@ -291,8 +291,9 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
           data-testid={`button-catalogue-purchase-${item.id}`}
           className="shrink-0"
         >
-          <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
-          Purchase
+          <ShoppingBag className="h-3.5 w-3.5 sm:mr-1.5" />
+          <span className="hidden sm:inline">Purchase</span>
+          <span className="sr-only sm:hidden">Purchase</span>
         </Button>
       </div>
 

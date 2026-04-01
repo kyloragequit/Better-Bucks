@@ -122,6 +122,18 @@ export const api = {
         200: z.object({ credited: z.number() }),
       },
     },
+    bulkDebit: {
+      method: 'POST' as const,
+      path: '/api/users/bulk-debit',
+      input: z.object({
+        userIds: z.array(z.number().int()).min(1),
+        amount: z.number().int().positive(),
+        reason: z.string().min(1),
+      }),
+      responses: {
+        200: z.object({ debited: z.number() }),
+      },
+    },
     updateRole: {
       method: 'POST' as const,
       path: '/api/users/:id/role',

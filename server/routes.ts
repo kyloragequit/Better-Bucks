@@ -1187,6 +1187,40 @@ export async function registerRoutes(
     res.json({ credited });
   });
 
+  app.post(api.users.bulkDebit.path, async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { userIds, amount, reason } = api.users.bulkDebit.input.parse(req.body);
+
+    const allOrgUsers = await storage.getUsersByOrganization(user.organizationId!);
+    const targetUserMap = new Map(allOrgUsers.map(u => [u.id, u]));
+
+    let debited = 0;
+    for (const targetId of userIds) {
+      const targetUser = targetUserMap.get(targetId);
+      if (!targetUser) continue;
+      if (targetUser.id === user.id) continue;
+      if (user.role === "admin" && targetUser.departmentId !== user.departmentId) continue;
+
+      const deductAmount = Math.min(amount, Math.max(0, targetUser.balance));
+      if (deductAmount === 0) continue;
+
+      await storage.updateUserBalance(targetId, -deductAmount);
+      await storage.createTransaction({
+        userId: targetId,
+        amount: -deductAmount,
+        reason,
+        performedBy: user.id,
+      });
+      debited++;
+    }
+
+    res.json({ debited });
+  });
+
   // ── Bulk import: start background job ────────────────────────────────────
   app.post("/api/users/bulk-import", async (req, res) => {
     const user = req.user as User | undefined;

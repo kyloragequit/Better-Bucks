@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
@@ -77,6 +77,7 @@ export default function AdminEmployeesPage() {
           {!isPublicDemo && (
             <>
               <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
+              <BulkDebitDialog users={users ?? []} departments={departments ?? []} />
               {isPrimeAdmin && <InviteUserDialog departments={departments ?? []} />}
               <CreateEmployeeDialog />
             </>
@@ -763,6 +764,210 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
             data-testid="button-bulk-submit"
           >
             {bulkCreditMutation.isPending ? "Crediting..." : `Credit ${selectedIds.size > 0 ? selectedIds.size : ""} Employee${selectedIds.size !== 1 ? "s" : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkDebitDialog({ users, departments }: { users: User[]; departments: Department[] }) {
+  const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [deptQuickSelect, setDeptQuickSelect] = useState<string>("none");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: currentUser } = useUser();
+  const debitableUsers = users.filter(u => u.role !== "prime_admin" && u.id !== currentUser?.id && u.balance > 0);
+
+  const bulkDebitMutation = useMutation({
+    mutationFn: async ({ userIds, amount, reason }: { userIds: number[]; amount: number; reason: string }) => {
+      const res = await apiRequest("POST", "/api/users/bulk-debit", { userIds, amount, reason });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to debit employees");
+      }
+      return await res.json();
+    },
+    onSuccess: (data: { debited: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats/points"] });
+      toast({ title: "Bucks Debited", description: `Successfully debited ${data.debited} employee${data.debited !== 1 ? "s" : ""}.` });
+      setOpen(false);
+      setSelectedIds(new Set());
+      setAmount("");
+      setReason("");
+      setDeptQuickSelect("none");
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const toggleUser = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === debitableUsers.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(debitableUsers.map(u => u.id)));
+    }
+  };
+
+  const selectDepartment = (deptId: string) => {
+    setDeptQuickSelect(deptId);
+    if (deptId === "none") {
+      setSelectedIds(new Set());
+      return;
+    }
+    const deptUsers = debitableUsers.filter(u => u.departmentId?.toString() === deptId);
+    setSelectedIds(new Set(deptUsers.map(u => u.id)));
+  };
+
+  const parsedAmount = parseInt(amount) || 0;
+
+  const handleSubmit = () => {
+    if (selectedIds.size === 0) {
+      toast({ title: "No employees selected", description: "Select at least one employee to debit.", variant: "destructive" });
+      return;
+    }
+    if (parsedAmount <= 0) {
+      toast({ title: "Invalid amount", description: "Enter a positive Bucks amount.", variant: "destructive" });
+      return;
+    }
+    if (!reason.trim()) {
+      toast({ title: "Reason required", description: "Please enter a reason for the debit.", variant: "destructive" });
+      return;
+    }
+    bulkDebitMutation.mutate({ userIds: Array.from(selectedIds), amount: parsedAmount, reason: reason.trim() });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => {
+      setOpen(o);
+      if (!o) { setSelectedIds(new Set()); setAmount(""); setReason(""); setDeptQuickSelect("none"); }
+    }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" data-testid="button-bulk-debit">
+          <TrendingDown className="mr-2 h-4 w-4" /> Bulk Debit
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Bulk Debit Bucks</DialogTitle>
+          <DialogDescription>Remove the same amount of Bucks from multiple employees at once. Employees without sufficient balance are skipped.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Bucks Per Employee</Label>
+              <Input
+                type="number"
+                min={1}
+                placeholder="e.g. 50"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                data-testid="input-bulk-debit-amount"
+              />
+            </div>
+            {departments.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Quick-Select Department</Label>
+                <Select value={deptQuickSelect} onValueChange={selectDepartment}>
+                  <SelectTrigger data-testid="select-bulk-debit-dept">
+                    <SelectValue placeholder="Choose department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {departments.map(d => (
+                      <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Reason</Label>
+            <Textarea
+              placeholder="e.g. Policy violation correction"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="resize-none"
+              rows={2}
+              data-testid="input-bulk-debit-reason"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Select Employees</Label>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={toggleAll}
+                data-testid="button-bulk-debit-select-all"
+              >
+                {selectedIds.size === debitableUsers.length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <ScrollArea className="h-[220px] rounded-md border">
+              <div className="p-2 space-y-1">
+                {debitableUsers.length === 0 && (
+                  <p className="text-center text-sm text-muted-foreground py-8">No employees with a balance available</p>
+                )}
+                {debitableUsers.map(u => (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    data-testid={`bulk-debit-row-${u.id}`}
+                  >
+                    <Checkbox
+                      checked={selectedIds.has(u.id)}
+                      onCheckedChange={() => toggleUser(u.id)}
+                      data-testid={`bulk-debit-check-${u.id}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{u.fullName}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{u.username}</p>
+                    </div>
+                    <span className="text-xs font-bold text-primary tabular-nums">{u.balance.toLocaleString()} bcks</span>
+                  </label>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {selectedIds.size > 0 && parsedAmount > 0 && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                <span className="font-semibold text-foreground">{selectedIds.size}</span> employee{selectedIds.size !== 1 ? "s" : ""} × <span className="font-semibold text-foreground">{parsedAmount.toLocaleString()} bcks</span>
+              </span>
+              <span className="font-bold tabular-nums text-destructive">{(parsedAmount * selectedIds.size).toLocaleString()} bcks total removed</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="mt-2">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            variant="destructive"
+            onClick={handleSubmit}
+            disabled={bulkDebitMutation.isPending || selectedIds.size === 0 || parsedAmount <= 0 || !reason.trim()}
+            data-testid="button-bulk-debit-submit"
+          >
+            {bulkDebitMutation.isPending ? "Debiting..." : `Debit ${selectedIds.size > 0 ? selectedIds.size : ""} Employee${selectedIds.size !== 1 ? "s" : ""}`}
           </Button>
         </DialogFooter>
       </DialogContent>

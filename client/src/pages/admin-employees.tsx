@@ -177,7 +177,7 @@ export default function AdminEmployeesPage() {
                           value={user.departmentId?.toString() || "none"}
                           onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}
                         >
-                          <SelectTrigger className="h-8 w-[140px] text-xs" data-testid={`select-dept-${user.id}`}>
+                          <SelectTrigger className="min-h-8 w-auto min-w-[120px] max-w-[180px] text-xs" data-testid={`select-dept-${user.id}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -276,7 +276,7 @@ function PendingAccountsList() {
               </div>
               <div className="flex items-center justify-between gap-2">
                 <Select value={selectedRole} onValueChange={(v) => setRoleSelections(prev => ({ ...prev, [u.id]: v }))}>
-                  <SelectTrigger className="w-32 h-8 text-xs" data-testid={`select-role-${u.id}`}>
+                  <SelectTrigger className="w-auto min-w-28 min-h-8 text-xs" data-testid={`select-role-${u.id}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -321,7 +321,7 @@ function PendingAccountsList() {
                   </TableCell>
                   <TableCell>
                     <Select value={selectedRole} onValueChange={(v) => setRoleSelections(prev => ({ ...prev, [u.id]: v }))}>
-                      <SelectTrigger className="w-36 h-8 text-xs" data-testid={`select-role-desktop-${u.id}`}>
+                      <SelectTrigger className="w-auto min-w-32 min-h-8 text-xs" data-testid={`select-role-desktop-${u.id}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

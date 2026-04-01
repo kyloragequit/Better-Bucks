@@ -93,7 +93,7 @@ export default function AdminOrdersPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
+                      <Button variant="ghost" size="sm" className="min-h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
                         <Eye className="mr-1 h-3 w-3" />View
                       </Button>
                     </div>
@@ -187,7 +187,7 @@ export default function AdminOrdersPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-${order.id}`}>
+                        <Button variant="ghost" size="sm" className="min-h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-${order.id}`}>
                           <Eye className="mr-1 h-3 w-3" />View
                         </Button>
                       </div>
@@ -380,14 +380,14 @@ function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; o
                   min={1}
                   value={newBucks}
                   onChange={(e) => setNewBucks(e.target.value)}
-                  className="h-7 w-28 text-sm"
+                  className="min-h-7 w-auto min-w-20 text-sm"
                   autoFocus
                   data-testid="input-adjust-bucks"
                 />
-                <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSaveBucks} disabled={adjustBucksMutation.isPending} data-testid="button-save-bucks">
+                <Button size="sm" className="min-h-7 px-2 text-xs" onClick={handleSaveBucks} disabled={adjustBucksMutation.isPending} data-testid="button-save-bucks">
                   {adjustBucksMutation.isPending ? "Saving..." : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setEditingBucks(false); setNewBucks(order.pointsCost.toString()); }}>
+                <Button size="sm" variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => { setEditingBucks(false); setNewBucks(order.pointsCost.toString()); }}>
                   Cancel
                 </Button>
               </div>

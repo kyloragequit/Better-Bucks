@@ -429,7 +429,7 @@ export default function AdminDashboardPage() {
                     Bucks Credited
                   </CardTitle>
                   <Tabs value={creditPeriod} onValueChange={(v) => setCreditPeriod(v as "week" | "month" | "year")}>
-                    <TabsList className="h-8">
+                    <TabsList className="min-h-8 h-auto flex-wrap">
                       <TabsTrigger value="week" className="text-xs px-2 py-1" data-testid="tab-credit-week" aria-label="Week"><Calendar className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Week</span></TabsTrigger>
                       <TabsTrigger value="month" className="text-xs px-2 py-1" data-testid="tab-credit-month" aria-label="Month"><CalendarDays className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Month</span></TabsTrigger>
                       <TabsTrigger value="year" className="text-xs px-2 py-1" data-testid="tab-credit-year" aria-label="Year"><CalendarRange className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Year</span></TabsTrigger>
@@ -459,7 +459,7 @@ export default function AdminDashboardPage() {
                     Bucks Spent
                   </CardTitle>
                   <Tabs value={debitPeriod} onValueChange={(v) => setDebitPeriod(v as "week" | "month" | "year")}>
-                    <TabsList className="h-8">
+                    <TabsList className="min-h-8 h-auto flex-wrap">
                       <TabsTrigger value="week" className="text-xs px-2 py-1" data-testid="tab-debit-week" aria-label="Week"><Calendar className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Week</span></TabsTrigger>
                       <TabsTrigger value="month" className="text-xs px-2 py-1" data-testid="tab-debit-month" aria-label="Month"><CalendarDays className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Month</span></TabsTrigger>
                       <TabsTrigger value="year" className="text-xs px-2 py-1" data-testid="tab-debit-year" aria-label="Year"><CalendarRange className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Year</span></TabsTrigger>
@@ -492,7 +492,7 @@ export default function AdminDashboardPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   {leaderboardMode === "admins" && (
                     <Tabs value={adminMetric} onValueChange={v => setAdminMetric(v as "given" | "balance")}>
-                      <TabsList className="h-8">
+                      <TabsList className="min-h-8 h-auto">
                         <TabsTrigger value="given" className="text-xs px-3" data-testid="tab-admin-given">Given</TabsTrigger>
                         <TabsTrigger value="balance" className="text-xs px-3" data-testid="tab-admin-balance">Balance</TabsTrigger>
                       </TabsList>
@@ -501,13 +501,13 @@ export default function AdminDashboardPage() {
                   {leaderboardMode === "employees" && (
                     <>
                       <Tabs value={empMetric} onValueChange={v => setEmpMetric(v as "balance" | "spent")}>
-                        <TabsList className="h-8">
+                        <TabsList className="min-h-8 h-auto">
                           <TabsTrigger value="balance" className="text-xs px-3" data-testid="tab-emp-balance">Balance</TabsTrigger>
                           <TabsTrigger value="spent" className="text-xs px-3" data-testid="tab-emp-spent">Spent</TabsTrigger>
                         </TabsList>
                       </Tabs>
                       <Tabs value={showDollars ? "dollars" : "bucks"} onValueChange={v => setShowDollars(v === "dollars")}>
-                        <TabsList className="h-8">
+                        <TabsList className="min-h-8 h-auto">
                           <TabsTrigger value="bucks" className="text-xs px-3" data-testid="tab-unit-bucks">Bucks</TabsTrigger>
                           <TabsTrigger value="dollars" className="text-xs px-3" data-testid="tab-unit-dollars">Dollars</TabsTrigger>
                         </TabsList>
@@ -515,7 +515,7 @@ export default function AdminDashboardPage() {
                     </>
                   )}
                   <Tabs value={leaderboardMode} onValueChange={v => { setLeaderboardMode(v as "admins" | "employees"); setShowDollars(false); }}>
-                    <TabsList className="h-8">
+                    <TabsList className="min-h-8 h-auto">
                       <TabsTrigger value="admins" className="text-xs px-3" data-testid="tab-leaderboard-admins">
                         <Settings className="h-3 w-3 mr-1" /> Admins
                       </TabsTrigger>
@@ -529,7 +529,7 @@ export default function AdminDashboardPage() {
               {(departments ?? []).length > 0 && (
                 <div className="flex items-center gap-2">
                   <Select value={leaderboardDeptId} onValueChange={setLeaderboardDeptId}>
-                    <SelectTrigger className="w-48 h-8 text-xs" data-testid="select-leaderboard-dept">
+                    <SelectTrigger className="w-auto min-w-40 min-h-8 text-xs" data-testid="select-leaderboard-dept">
                       <SelectValue placeholder="All departments" />
                     </SelectTrigger>
                     <SelectContent>
@@ -568,7 +568,7 @@ export default function AdminDashboardPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 mt-8">
             <h2 className="text-xl font-display font-bold text-foreground">Order Tracking</h2>
             <Tabs value={orderPeriod} onValueChange={(v) => setOrderPeriod(v as "week" | "month" | "year")}>
-              <TabsList className="h-8">
+              <TabsList className="min-h-8 h-auto flex-wrap">
                 <TabsTrigger value="week" className="text-xs px-2 py-1" data-testid="tab-orders-week" aria-label="Week"><Calendar className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Week</span></TabsTrigger>
                 <TabsTrigger value="month" className="text-xs px-2 py-1" data-testid="tab-orders-month" aria-label="Month"><CalendarDays className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Month</span></TabsTrigger>
                 <TabsTrigger value="year" className="text-xs px-2 py-1" data-testid="tab-orders-year" aria-label="Year"><CalendarRange className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Year</span></TabsTrigger>

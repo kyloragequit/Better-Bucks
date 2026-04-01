@@ -113,7 +113,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <ImpersonationBanner />
       <DemoBanner />
       <header className="sticky top-0 z-[999] w-full border-b border-white/10 bg-primary">
-        <div className="container flex h-16 items-center justify-between gap-4 px-4">
+        <div className="container flex min-h-16 items-center justify-between gap-4 px-4 py-2">
           <Link href="/admin/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity no-underline">
             <AppLogo size="sm" linkTo="/admin/dashboard" />
             <span className="hidden sm:inline">Better Bucks</span>
@@ -134,7 +134,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   onValueChange={(val) => setLocation(val)}
                 >
                   <SelectTrigger
-                    className="w-56 bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-white/30 focus:ring-offset-0 [&>svg]:text-white/70"
+                    className="w-auto min-w-48 max-w-64 bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-white/30 focus:ring-offset-0 [&>svg]:text-white/70"
                     data-testid="select-admin-nav"
                   >
                     <SelectValue>
@@ -148,7 +148,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       )}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="w-56">
+                  <SelectContent className="w-auto min-w-48">
                     {allItems.map((item) => {
                       const Icon = item.icon;
                       return (

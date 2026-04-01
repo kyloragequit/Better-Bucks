@@ -38,7 +38,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
       <DemoBanner />
       <header className="border-b border-white/10 bg-primary sticky top-0 z-[999]">
-        <div className="container max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <div className="container max-w-5xl mx-auto px-4 min-h-16 flex items-center justify-between gap-4 py-2">
           <Link href="/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity">
             <AppLogo size="sm" linkTo="/dashboard" />
             <span className="hidden sm:inline">Better Bucks</span>

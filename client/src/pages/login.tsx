@@ -1,31 +1,27 @@
 import { useState, useEffect } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
-import { useRegisterAdmin } from "@/hooks/use-auth";
 import { PageSEO } from "@/components/page-seo";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, User, LogIn, UserPlus, Building2, ArrowLeft, HelpCircle, Mail, Phone, Eye, EyeOff, ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Lock, User, LogIn, Building2, ArrowLeft, Eye, EyeOff, ShieldCheck, KeyRound } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { PasskeySetupPrompt } from "@/components/passkey-manager";
+import { Link } from "wouter";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
 
   const params = new URLSearchParams(window.location.search);
   const urlOrgCode = params.get("orgCode") || "";
-  const urlTab = params.get("tab") || "employee";
-  const urlMode = params.get("mode") || "";
 
-  // Clear any stale "remember me" opt-in from previous app versions
   useEffect(() => {
     localStorage.removeItem("bb_remember_opted_in");
   }, []);
@@ -34,7 +30,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
       <PageSEO
         title="Log In – Better Bucks Employee Incentive Platform"
-        description="Access your Better Bucks portal. Purpose-built reward program management for logistics, warehousing, and manufacturing operations — eliminating manual incentive tracking and spreadsheet reward systems."
+        description="Access your Better Bucks portal. Purpose-built reward program management for logistics, warehousing, and manufacturing operations."
         canonicalPath="/login"
         keywords="Better Bucks login, employee incentive platform login, reward program management login"
         noindex
@@ -60,50 +56,25 @@ export default function LoginPage() {
             </div>
             <CardTitle className="text-2xl font-bold font-display">Better Bucks</CardTitle>
             <CardDescription>
-              Sign in or create an account to access your rewards portal
+              Sign in to access your rewards portal
             </CardDescription>
           </CardHeader>
 
-          <Tabs defaultValue={urlTab} className="w-full px-4">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="employee" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span>Employee</span>
-              </TabsTrigger>
-              <TabsTrigger value="admin" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <span className="sm:hidden">Admin</span>
-                <span className="hidden sm:inline">Administrator</span>
-              </TabsTrigger>
-            </TabsList>
+          <CardContent className="pb-2">
+            <UnifiedLoginForm defaultOrgCode={urlOrgCode} />
+          </CardContent>
 
-            <TabsContent value="employee" className="space-y-4 pb-4">
-              <EmployeeTabs defaultMode={urlMode === "create" ? "register" : "login"} defaultOrgCode={urlOrgCode} />
-            </TabsContent>
-
-            <TabsContent value="admin" className="space-y-4 pb-4">
-              <AdminTabs />
-            </TabsContent>
-          </Tabs>
-
-          <div className="px-4 pb-4">
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white/80 px-2 text-muted-foreground">or</span>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full mt-2"
-              onClick={() => setLocation("/setup")}
-              data-testid="button-first-time"
-            >
-              <HelpCircle className="mr-2 h-4 w-4" />
-              First time login? (Organization Setup)
-            </Button>
+          <div className="px-6 pb-6 pt-2 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <Link
+                href="/signup"
+                className="text-primary font-medium hover:underline underline-offset-2"
+                data-testid="link-signup"
+              >
+                Sign up today
+              </Link>
+            </p>
           </div>
         </Card>
       </div>
@@ -303,10 +274,6 @@ function usePasskeySignIn() {
   return { signInWithPasskey, isPending };
 }
 
-function EmployeeTabs({ defaultMode = "login", defaultOrgCode = "" }: { defaultMode?: "login" | "register"; defaultOrgCode?: string }) {
-  return <EmployeeAccessForm defaultSiteId="" />;
-}
-
 function PasskeySignInButton() {
   const { signInWithPasskey, isPending } = usePasskeySignIn();
   return (
@@ -334,48 +301,71 @@ function PasskeySignInButton() {
   );
 }
 
-function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) {
-  const [siteId, setSiteId] = useState(defaultSiteId);
+function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) {
+  const [siteId, setSiteId] = useState(defaultOrgCode);
   const [username, setUsername] = useState("");
-  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showSiteId, setShowSiteId] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [allowPasswordCreation, setAllowPasswordCreation] = useState(true);
-  const [step, setStep] = useState<"credentials" | "register">("credentials");
   const [isPending, setIsPending] = useState(false);
+  const [step, setStep] = useState<"login" | "register">("login");
+  const [fullName, setFullName] = useState("");
+  const [allowPasswordCreation, setAllowPasswordCreation] = useState(true);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { submitLogin, isPending: adminPending, captchaChallenge, setCaptchaChallenge } = useLoginFlow();
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
 
-  const handleCredentialsSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!siteId.trim() || !username.trim()) return;
-    setIsPending(true);
-    try {
-      const res = await fetch("/api/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId: siteId.trim().toLowerCase(), username: username.trim() }),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: "Sign In Failed", description: data.message || "Something went wrong", variant: "destructive" });
-        return;
+    if (!username.trim()) return;
+
+    const hasSiteId = siteId.trim().length > 0;
+
+    if (hasSiteId) {
+      setIsPending(true);
+      try {
+        const res = await fetch("/api/join", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ siteId: siteId.trim().toLowerCase(), username: username.trim() }),
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast({ title: "Sign In Failed", description: data.message || "Something went wrong", variant: "destructive" });
+          return;
+        }
+        if (data.needsRegistration) {
+          setAllowPasswordCreation(data.allowPasswordCreation ?? true);
+          setStep("register");
+          return;
+        }
+        queryClient.setQueryData(["/api/user"], data);
+        toast({ title: "Welcome back!", description: `Signed in as ${data.fullName}` });
+        redirectAfterLogin(data.role, setLocation);
+      } finally {
+        setIsPending(false);
       }
-      if (data.needsRegistration) {
-        setAllowPasswordCreation(data.allowPasswordCreation ?? true);
-        setStep("register");
-        return;
-      }
-      queryClient.setQueryData(["/api/user"], data);
-      toast({ title: "Welcome back!", description: `Signed in as ${data.fullName}` });
-      redirectAfterLogin(data.role, setLocation);
-    } finally {
-      setIsPending(false);
+    } else {
+      await submitLogin({ username, password });
+    }
+  };
+
+  const handleCaptchaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!captchaChallenge) return;
+    const result = await submitLogin({
+      username,
+      password,
+      captchaToken: captchaChallenge.token,
+      captchaAnswer,
+    });
+    if (result.captchaRequired) {
+      setCaptchaAnswer("");
     }
   };
 
@@ -402,16 +392,29 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Registration Failed", description: data.message || "Something went wrong", variant: "destructive" });
+        toast({ title: "Sign In Failed", description: data.message || "Something went wrong", variant: "destructive" });
         return;
       }
       queryClient.setQueryData(["/api/user"], data);
-      toast({ title: "Account created!", description: `Welcome, ${data.fullName}!` });
+      toast({ title: "Welcome!", description: `Signed in as ${data.fullName}` });
       redirectAfterLogin(data.role, setLocation);
     } finally {
       setIsPending(false);
     }
   };
+
+  if (captchaChallenge) {
+    return (
+      <CaptchaStep
+        challenge={captchaChallenge}
+        answer={captchaAnswer}
+        onAnswerChange={setCaptchaAnswer}
+        onSubmit={handleCaptchaSubmit}
+        onBack={() => { setCaptchaChallenge(null); setCaptchaAnswer(""); }}
+        isPending={adminPending}
+      />
+    );
+  }
 
   if (step === "register") {
     return (
@@ -421,11 +424,11 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
           <p className="font-mono font-semibold">{username}</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="emp-fullname">Your Full Name</Label>
+          <Label htmlFor="fullname">Your Full Name</Label>
           <div className="relative">
-            <UserPlus className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              id="emp-fullname"
+              id="fullname"
               placeholder="First Last"
               className="pl-9"
               value={fullName}
@@ -440,10 +443,10 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
         {allowPasswordCreation && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="emp-reg-password">Password <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label htmlFor="reg-password">Password <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <div className="relative">
                 <Input
-                  id="emp-reg-password"
+                  id="reg-password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Create a password"
                   className="pr-9"
@@ -459,10 +462,10 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
             </div>
             {password && (
               <div className="space-y-2">
-                <Label htmlFor="emp-reg-confirm-password">Confirm Password</Label>
+                <Label htmlFor="reg-confirm-password">Confirm Password</Label>
                 <div className="relative">
                   <Input
-                    id="emp-reg-confirm-password"
+                    id="reg-confirm-password"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm your password"
                     className="pr-9"
@@ -486,29 +489,33 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
           disabled={isPending || !fullName.trim()}
           data-testid="button-emp-register"
         >
-          {isPending ? <><SpinningLogo className="mr-2 h-4 w-4" />Creating...</> : <><UserPlus className="mr-2 h-4 w-4" />Create Account & Sign In</>}
+          {isPending ? <><SpinningLogo className="mr-2 h-4 w-4" />Setting up...</> : <><LogIn className="mr-2 h-4 w-4" />Complete Sign In</>}
         </Button>
-        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={() => { setStep("credentials"); setFullName(""); setPassword(""); setConfirmPassword(""); }} data-testid="button-emp-back">
+        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={() => { setStep("login"); setFullName(""); setPassword(""); setConfirmPassword(""); }} data-testid="button-emp-back">
           <ArrowLeft className="mr-2 h-4 w-4" />Back
         </Button>
       </form>
     );
   }
 
+  const isLoading = isPending || adminPending;
+
   return (
-    <form onSubmit={handleCredentialsSubmit} className="space-y-4" autoComplete="off">
+    <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
       <div className="space-y-2">
-        <Label htmlFor="emp-site-id">Site ID / Password</Label>
+        <Label htmlFor="site-id">
+          Site ID
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground">(employees only)</span>
+        </Label>
         <div className="relative">
           <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id="emp-site-id"
+            id="site-id"
             type={showSiteId ? "text" : "password"}
-            placeholder="••••••••••"
+            placeholder="Your workplace Site ID"
             className="pl-9 pr-9"
             value={siteId}
             onChange={(e) => setSiteId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-            required
             autoComplete="off"
             data-testid="input-emp-site-id"
           />
@@ -516,15 +523,15 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
             {showSiteId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
-        <p className="text-xs text-muted-foreground">Ask your manager for your workplace Site ID.</p>
       </div>
+
       <div className="space-y-2">
-        <Label htmlFor="emp-username">Employee Code / Username</Label>
+        <Label htmlFor="username">Username</Label>
         <div className="relative">
           <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id="emp-username"
-            placeholder="e.g. john.smith or EMP-001"
+            id="username"
+            placeholder="Username or employee code"
             className="pl-9"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -534,106 +541,18 @@ function EmployeeAccessForm({ defaultSiteId = "" }: { defaultSiteId?: string }) 
           />
         </div>
       </div>
-      <Button
-        type="submit"
-        className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
-        disabled={isPending}
-        data-testid="button-employee-login"
-      >
-        {isPending ? <><SpinningLogo className="mr-2 h-4 w-4" />Signing In...</> : <><LogIn className="mr-2 h-4 w-4" />Sign In</>}
-      </Button>
-      <PasskeySignInButton />
-    </form>
-  );
-}
 
-function AdminTabs() {
-  const [adminTab, setAdminTab] = useState<"login" | "register">("login");
-
-  return (
-    <Tabs value={adminTab} onValueChange={(val) => setAdminTab(val as "login" | "register")} className="space-y-4">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="login">Login</TabsTrigger>
-        <TabsTrigger value="register">Create Account</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="login" className="space-y-0">
-        <AdminLoginForm />
-      </TabsContent>
-
-      <TabsContent value="register" className="space-y-0">
-        <AdminRegisterForm />
-      </TabsContent>
-    </Tabs>
-  );
-}
-
-function AdminLoginForm() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [captchaAnswer, setCaptchaAnswer] = useState("");
-  const [, setLocation] = useLocation();
-  const { submitLogin, isPending, captchaChallenge, setCaptchaChallenge } = useLoginFlow();
-
-  const handleCredentialsSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await submitLogin({ username, password });
-  };
-
-  const handleCaptchaSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!captchaChallenge) return;
-    const result = await submitLogin({
-      username,
-      password,
-      captchaToken: captchaChallenge.token,
-      captchaAnswer,
-    });
-    if (result.captchaRequired) {
-      setCaptchaAnswer("");
-    }
-  };
-
-  if (captchaChallenge) {
-    return (
-      <CaptchaStep
-        challenge={captchaChallenge}
-        answer={captchaAnswer}
-        onAnswerChange={setCaptchaAnswer}
-        onSubmit={handleCaptchaSubmit}
-        onBack={() => { setCaptchaChallenge(null); setCaptchaAnswer(""); }}
-        isPending={isPending}
-      />
-    );
-  }
-
-  return (
-    <form onSubmit={handleCredentialsSubmit} className="space-y-4" autoComplete="off">
-      <div className="space-y-2">
-        <Label htmlFor="admin-username">Username</Label>
-        <div className="relative">
-          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="admin-username"
-            placeholder="admin"
-            className="pl-9"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoComplete="off"
-            data-testid="input-admin-username"
-          />
-        </div>
-      </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="admin-password">Password</Label>
+          <Label htmlFor="password">
+            Password
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">(administrators)</span>
+          </Label>
           <button
             type="button"
             className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
             onClick={() => setLocation("/forgot-password")}
-            data-testid="link-admin-forgot-password"
+            data-testid="link-forgot-password"
           >
             Forgot password?
           </button>
@@ -641,12 +560,12 @@ function AdminLoginForm() {
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            id="admin-password"
+            id="password"
             type={showPassword ? "text" : "password"}
+            placeholder="Your password"
             className="pl-9 pr-9"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
             autoComplete="off"
             data-testid="input-admin-password"
           />
@@ -654,242 +573,27 @@ function AdminLoginForm() {
             type="button"
             className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setShowPassword(!showPassword)}
-            data-testid="button-toggle-admin-password"
+            data-testid="button-toggle-password"
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>
+
       <Button
         type="submit"
         className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
-        disabled={isPending}
-        data-testid="button-admin-login"
+        disabled={isLoading || !username.trim()}
+        data-testid="button-employee-login"
       >
-        {isPending ? (
-          <>
-            <SpinningLogo className="mr-2 h-4 w-4" />
-            Authenticating...
-          </>
+        {isLoading ? (
+          <><SpinningLogo className="mr-2 h-4 w-4" />Signing In...</>
         ) : (
-          <>
-            <LogIn className="mr-2 h-4 w-4" />
-            Sign In
-          </>
+          <><LogIn className="mr-2 h-4 w-4" />Sign In</>
         )}
       </Button>
+
       <PasskeySignInButton />
-    </form>
-  );
-}
-
-function AdminRegisterForm() {
-  const [orgCode, setOrgCode] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [registered, setRegistered] = useState(false);
-  const { mutate: register, isPending } = useRegisterAdmin();
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-    if (password.length < 6) {
-      alert("Password must be at least 6 characters");
-      return;
-    }
-    register({
-      fullName, username, password,
-      email: contactMethod === "email" ? email : "",
-      phone: contactMethod === "phone" ? phone : "",
-      orgCode: orgCode.toUpperCase()
-    } as any, {
-      onSuccess: () => {
-        setRegistered(true);
-      }
-    });
-  };
-
-  if (registered) {
-    return (
-      <div className="text-center py-6 space-y-3">
-        <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-          <UserPlus className="h-6 w-6 text-green-600" />
-        </div>
-        <h3 className="font-bold text-lg">Account Created!</h3>
-        <p className="text-sm text-muted-foreground">
-          Your account has been submitted and is waiting for the organization to approve it. You'll be able to log in once approved.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="reg-org-code">Organization Code</Label>
-        <div className="relative">
-          <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="reg-org-code"
-            placeholder="e.g. A1B2C3D4"
-            className="pl-9 uppercase font-mono tracking-widest"
-            value={orgCode}
-            onChange={(e) => setOrgCode(e.target.value.toUpperCase())}
-            required
-            data-testid="input-register-orgcode"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="full-name">Full Name</Label>
-        <Input
-          id="full-name"
-          placeholder="John Doe"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-          data-testid="input-admin-fullname"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>Verification Method</Label>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={contactMethod === "email" ? "default" : "outline"}
-            size="sm"
-            className="flex-1"
-            onClick={() => setContactMethod("email")}
-            data-testid="button-admin-reg-method-email"
-          >
-            <Mail className="mr-1 h-3 w-3" /> Email
-          </Button>
-          <Button
-            type="button"
-            variant={contactMethod === "phone" ? "default" : "outline"}
-            size="sm"
-            className="flex-1"
-            onClick={() => setContactMethod("phone")}
-            data-testid="button-admin-reg-method-phone"
-          >
-            <Phone className="mr-1 h-3 w-3" /> Phone
-          </Button>
-        </div>
-        {contactMethod === "email" ? (
-          <Input
-            id="admin-reg-email"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            data-testid="input-admin-register-email"
-          />
-        ) : (
-          <Input
-            id="admin-reg-phone"
-            type="tel"
-            placeholder="+1 (555) 123-4567"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-            data-testid="input-admin-register-phone"
-          />
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="admin-reg-username">Username</Label>
-        <div className="relative">
-          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="admin-reg-username"
-            placeholder="Choose a username"
-            className="pl-9"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            minLength={3}
-            required
-            data-testid="input-admin-register-username"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="admin-reg-password">Password</Label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="admin-reg-password"
-            type={showPassword ? "text" : "password"}
-            className="pl-9 pr-9"
-            placeholder="At least 6 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
-            required
-            data-testid="input-admin-register-password"
-          />
-          <button
-            type="button"
-            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setShowPassword(!showPassword)}
-            data-testid="button-toggle-admin-reg-password"
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="admin-reg-confirm-password">Confirm Password</Label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="admin-reg-confirm-password"
-            type={showConfirmPassword ? "text" : "password"}
-            className="pl-9 pr-9"
-            placeholder="Confirm your password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            data-testid="input-admin-register-confirm-password"
-          />
-          <button
-            type="button"
-            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            data-testid="button-toggle-admin-reg-confirm-password"
-          >
-            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-      <Button
-        type="submit"
-        className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
-        disabled={isPending}
-        data-testid="button-admin-register"
-      >
-        {isPending ? (
-          <>
-            <SpinningLogo className="mr-2 h-4 w-4" />
-            Creating Account...
-          </>
-        ) : (
-          <>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Create Account
-          </>
-        )}
-      </Button>
     </form>
   );
 }

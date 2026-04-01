@@ -106,6 +106,11 @@ Preferred communication style: Simple, everyday language.
 - Email includes company, contact email, plan tier (labeled "FOUNDER PRICING"), monthly rate, employee limit, referral code info (if any), and submission timestamp
 - GOKU11 promo code bypasses Stripe entirely and creates/activates an org immediately
 
+### Security Hardening
+- **HTML Escaping**: All user-controlled data interpolated into email HTML templates is sanitized via `escapeHtml()` to prevent XSS/injection (organization names, usernames, referral codes, contact info, store item names, etc.)
+- **PII Masking**: Console log statements use `maskEmail()` and `maskPhone()` helpers to redact sensitive data; verification/reset codes are never logged
+- **Dependency Patches**: nodemailer updated to 8.0.4 (SMTP injection fix)
+
 ## External Dependencies
 
 ### Database

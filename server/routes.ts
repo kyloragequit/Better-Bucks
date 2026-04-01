@@ -37,6 +37,25 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
   };
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return "***";
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
+function maskPhone(phone: string): string {
+  return phone.slice(0, -4).replace(/\d/g, "*") + phone.slice(-4);
+}
+
 // ── Background bulk-import job store ─────────────────────────────────────────
 type ImportJobRow = { fullName: string; username: string; role?: string; email?: string; password?: string; departmentName?: string };
 type ImportJobResult = { row: number; username: string; fullName: string; success: boolean; error?: string };
@@ -66,7 +85,7 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   if (!smtpUser || !smtpPass) {
-    const msg = `SMTP not configured — SMTP_USER / SMTP_PASS env vars are missing. Cannot send "${subject}" to ${to}.`;
+    const msg = `SMTP not configured — SMTP_USER / SMTP_PASS env vars are missing. Cannot send "${subject}" to ${maskEmail(typeof to === "string" ? to : String(to))}.`;
     console.error(`[Email] ${msg}`);
     throw new Error(msg);
   }
@@ -87,9 +106,9 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
       html,
       ...(text ? { text } : {}),
     });
-    console.log(`[Email] Sent "${subject}" to ${to}`);
+    console.log(`[Email] Sent "${subject}" to ${maskEmail(to)}`);
   } catch (err: any) {
-    console.error(`[Email] Failed to send "${subject}" to ${to}:`, err?.message ?? err);
+    console.error(`[Email] Failed to send "${subject}" to ${maskEmail(to)}:`, err?.message ?? err);
     throw err;
   }
 }
@@ -127,12 +146,12 @@ async function notifyAllPrimeAdmins(organizationId: number, subject: string, det
 
 async function notifyAdmin(to: string, subject: string, details: Record<string, string>): Promise<void> {
   const rows = Object.entries(details)
-    .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#666;font-weight:500;white-space:nowrap">${k}</td><td style="padding:4px 8px;">${v || "—"}</td></tr>`)
+    .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#666;font-weight:500;white-space:nowrap">${escapeHtml(k)}</td><td style="padding:4px 8px;">${escapeHtml(v || "—")}</td></tr>`)
     .join("");
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
       ${emailLogoHeader}
-      <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">${subject}</h3>
+      <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">${escapeHtml(subject)}</h3>
       <table style="border-collapse:collapse;width:100%;background:#F8FAFC;border-radius:8px;overflow:hidden;">
         ${rows}
       </table>
@@ -154,7 +173,7 @@ async function sendVerificationEmail(email: string, code: string, fullName: stri
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
           ${emailLogoHeader}
-          <p>Hi ${fullName},</p>
+          <p>Hi ${escapeHtml(fullName)},</p>
           <p>Your verification code is:</p>
           <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #162A4A;">${code}</div>
           <p style="margin-top: 16px; color: #666;">Enter this code in the app to verify your email address.</p>
@@ -162,7 +181,7 @@ async function sendVerificationEmail(email: string, code: string, fullName: stri
       `,
     });
   } catch (err) {
-    console.error(`[Email Verification] Failed to send to ${email}:`, err);
+    console.error(`[Email Verification] Failed to send to ${maskEmail(email)}:`, err);
   }
 }
 
@@ -181,7 +200,7 @@ async function sendVerificationSMS(phone: string, code: string): Promise<void> {
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = process.env.TWILIO_PHONE_NUMBER;
     if (!accountSid || !authToken || !fromNumber) {
-      console.log(`[SMS Verification] Twilio not configured. Code for ${phone}: ${code}`);
+      console.log(`[SMS Verification] Twilio not configured. Code for ${maskPhone(phone)}: [REDACTED]`);
       return;
     }
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
@@ -202,9 +221,9 @@ async function sendVerificationSMS(phone: string, code: string): Promise<void> {
       console.error(`[SMS Verification] Twilio error:`, errData);
       return;
     }
-    console.log(`[SMS Verification] Sent to ${phone}`);
+    console.log(`[SMS Verification] Sent to ${maskPhone(phone)}`);
   } catch (err) {
-    console.error(`[SMS Verification] Failed to send to ${phone}:`, err);
+    console.error(`[SMS Verification] Failed to send to ${maskPhone(phone)}:`, err);
   }
 }
 
@@ -317,8 +336,8 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
   const txRows = weekTx.slice(0, 50).map(({ t, u }) => `
     <tr style="border-bottom:1px solid #F1F5F9;">
       <td style="padding:8px 12px;font-size:13px;color:#374151;">${t.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
-      <td style="padding:8px 12px;font-size:13px;color:#374151;">${u?.fullName || "—"}</td>
-      <td style="padding:8px 12px;font-size:13px;color:#6B7280;max-width:260px;">${t.reason}</td>
+      <td style="padding:8px 12px;font-size:13px;color:#374151;">${escapeHtml(u?.fullName || "—")}</td>
+      <td style="padding:8px 12px;font-size:13px;color:#6B7280;max-width:260px;">${escapeHtml(t.reason)}</td>
       <td style="padding:8px 12px;font-size:13px;font-weight:600;text-align:right;color:${t.amount >= 0 ? "#4E9F3D" : "#ef4444"};">${t.amount >= 0 ? "+" : ""}${t.amount.toLocaleString()}</td>
     </tr>`).join("");
 
@@ -337,7 +356,7 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
 
   <!-- Org name -->
   <div style="padding:20px 32px 0;">
-    <p style="margin:0;font-size:15px;color:#6B7280;">Organization: <strong style="color:#162A4A;">${orgName}</strong></p>
+    <p style="margin:0;font-size:15px;color:#6B7280;">Organization: <strong style="color:#162A4A;">${escapeHtml(orgName)}</strong></p>
   </div>
 
   <!-- Stats grid -->
@@ -398,22 +417,22 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
   ${itemName && weekItemTx.length > 0 ? `
   <!-- Custom Item transactions -->
   <div style="padding:0 32px 24px;">
-    <h3 style="margin:0 0 12px;font-size:13px;font-weight:700;color:#162A4A;text-transform:uppercase;letter-spacing:0.5px;">${itemName} Activity This Week</h3>
+    <h3 style="margin:0 0 12px;font-size:13px;font-weight:700;color:#162A4A;text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(itemName)} Activity This Week</h3>
     <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;">
       <thead>
         <tr style="background:#F8FAFC;">
           <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Date</th>
           <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Employee</th>
           <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:left;font-weight:600;">Reason</th>
-          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:right;font-weight:600;">${itemName}</th>
+          <th style="padding:8px 12px;font-size:12px;color:#9CA3AF;text-align:right;font-weight:600;">${escapeHtml(itemName)}</th>
         </tr>
       </thead>
       <tbody>
         ${weekItemTx.slice(0, 50).map(tx => `
           <tr style="border-bottom:1px solid #F1F5F9;">
             <td style="padding:8px 12px;font-size:13px;color:#374151;">${tx.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
-            <td style="padding:8px 12px;font-size:13px;color:#374151;">${tx.user.fullName}</td>
-            <td style="padding:8px 12px;font-size:13px;color:#6B7280;">${tx.reason || "—"}</td>
+            <td style="padding:8px 12px;font-size:13px;color:#374151;">${escapeHtml(tx.user.fullName)}</td>
+            <td style="padding:8px 12px;font-size:13px;color:#6B7280;">${escapeHtml(tx.reason || "—")}</td>
             <td style="padding:8px 12px;font-size:13px;font-weight:600;text-align:right;color:${tx.amount >= 0 ? "#4E9F3D" : "#ef4444"};">${tx.amount >= 0 ? "+" : ""}${tx.amount}</td>
           </tr>`).join("")}
       </tbody>
@@ -441,7 +460,7 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
       html,
     })
   ));
-  console.log(`[WeeklyReport] Sent report to ${recipientList.length} recipient(s) for org ${orgName}: ${recipientList.join(", ")}`);
+  console.log(`[WeeklyReport] Sent report to ${recipientList.length} recipient(s) for org ${orgName}`);
 }
 
 async function getOrgReportEmails(orgId: number, reportRecipientIds: string | null | undefined): Promise<string[]> {
@@ -613,7 +632,7 @@ export async function registerRoutes(
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
               ${emailLogoHeader}
-              <p>Hi ${user.fullName},</p>
+              <p>Hi ${escapeHtml(user.fullName)},</p>
               <p>We received a request to reset your password. Your reset code is:</p>
               <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #162A4A;">${code}</div>
               <p style="margin-top: 16px; color: #666;">This code expires in 1 hour. If you did not request a password reset, please ignore this email.</p>
@@ -645,7 +664,7 @@ export async function registerRoutes(
           console.error("[Password Reset] SMS failed:", err);
         }
       } else {
-        console.log(`[Password Reset] Twilio not configured. Code for ${user.phone}: ${code}`);
+        console.log(`[Password Reset] Twilio not configured. Code for ${maskPhone(user.phone || "")}: [REDACTED]`);
       }
     }
 
@@ -746,7 +765,7 @@ export async function registerRoutes(
         "Status": "Awaiting your approval",
         "Action": "Log in to Better Bucks → Employees → Pending Accounts to approve or reject.",
       });
-      console.log(`New admin registration: ${user.username} for org ${org.name} (pending)`);
+      console.log(`New admin registration for org ${org.name} (pending)`);
       res.status(201).json({ ...user, message: "Admin registration submitted. Awaiting verification." });
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -825,7 +844,7 @@ export async function registerRoutes(
         "Status": "Awaiting your approval",
         "Action": "Log in to Better Bucks → Employees → Pending Accounts to approve or reject.",
       });
-      console.log(`New employee registration: ${user.username} for org ${org.name} (pending approval)`);
+      console.log(`New employee registration for org ${org.name} (pending approval)`);
       res.status(201).json({ ...user, message: "Employee registration submitted. Awaiting admin approval." });
     } catch (e) {
       if (e instanceof z.ZodError) {
@@ -1309,7 +1328,7 @@ export async function registerRoutes(
             <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;padding:24px;">
               ${emailLogoHeader}
               <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">Employee Import ${statusLabel}</h3>
-              <p style="color:#555;font-size:14px;">Hi ${job.initiatorName},</p>
+              <p style="color:#555;font-size:14px;">Hi ${escapeHtml(job.initiatorName)},</p>
               <p style="color:#555;font-size:14px;">Your employee spreadsheet import has finished processing.</p>
               <table style="border-collapse:collapse;width:100%;background:#F8FAFC;border-radius:8px;overflow:hidden;margin:16px 0;">
                 <tr><td style="padding:8px 12px;color:#666;font-weight:500;">Status</td><td style="padding:8px 12px;">${statusLabel}</td></tr>
@@ -2096,9 +2115,9 @@ export async function registerRoutes(
 
     const modeLabel = mode === "stripe" ? "💳 NEW STRIPE SUBSCRIPTION" : mode === "promo" ? "🎟️ PROMO CODE SIGNUP (GOKU11)" : "⭐ FOUNDER PRICING REQUEST";
     const referralRow = validatedReferral
-      ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${validatedReferral.code} — +${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""}</td></tr>`
+      ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${escapeHtml(validatedReferral.code)} — +${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""}</td></tr>`
       : referralCode && referralCode.trim()
-        ? `<tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Referral Code</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb;color:#dc2626">${referralCode.trim()} (invalid)</td></tr>`
+        ? `<tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Referral Code</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb;color:#dc2626">${escapeHtml(referralCode.trim())} (invalid)</td></tr>`
         : "";
     const referralText = validatedReferral
       ? `\nReferral Code: ${validatedReferral.code} ✅ (+${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""})`
@@ -2114,12 +2133,12 @@ export async function registerRoutes(
 </div>
 <div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
   <table style="border-collapse:collapse;width:100%">
-    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb;width:38%">Company</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${organizationName}</td></tr>
-    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Contact Email</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb"><a href="mailto:${email}" style="color:#162A4A">${email}</a></td></tr>
-    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Plan</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb"><strong>${config.name}</strong></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb;width:38%">Company</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${escapeHtml(organizationName)}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Contact Email</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb"><a href="mailto:${escapeHtml(email)}" style="color:#162A4A">${escapeHtml(email)}</a></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Plan</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb"><strong>${escapeHtml(config.name)}</strong></td></tr>
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Monthly Rate</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${planPrices[tier]}</td></tr>
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Employee Limit</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees} employees`}</td></tr>
-    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Org Code</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-family:monospace;font-weight:700">${orgCode}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Org Code</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-family:monospace;font-weight:700">${escapeHtml(orgCode)}</td></tr>
     ${referralRow}
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Submitted</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</td></tr>
   </table>
@@ -2163,9 +2182,9 @@ export async function registerRoutes(
         }
 
         const referralRow = validatedReferral
-          ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${validatedReferral.code} — +${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""}</td></tr>`
+          ? `<tr><td style="padding:8px 12px;font-weight:600;color:#fff;background:#1d6a2e;border:1px solid #166534">🎁 Referral Code</td><td style="padding:8px 12px;background:#dcfce7;border:1px solid #166534;font-weight:700;color:#166534">${escapeHtml(validatedReferral.code)} — +${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""}</td></tr>`
           : referralCode && referralCode.trim()
-            ? `<tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Referral Code</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb;color:#dc2626">${referralCode.trim()} (invalid)</td></tr>`
+            ? `<tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Referral Code</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb;color:#dc2626">${escapeHtml(referralCode.trim())} (invalid)</td></tr>`
             : "";
         const referralText = validatedReferral
           ? `\nReferral Code: ${validatedReferral.code} ✅ (+${validatedReferral.extraMonths} free month${validatedReferral.extraMonths > 1 ? "s" : ""})`
@@ -2182,9 +2201,9 @@ export async function registerRoutes(
 </div>
 <div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
   <table style="border-collapse:collapse;width:100%">
-    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb;width:38%">Company</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${organizationName}</td></tr>
-    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Contact Email</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb"><a href="mailto:${email}" style="color:#162A4A">${email}</a></td></tr>
-    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Pricing Level</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb"><strong>FOUNDER PRICING – ${config.name}</strong></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb;width:38%">Company</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${escapeHtml(organizationName)}</td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Contact Email</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb"><a href="mailto:${escapeHtml(email)}" style="color:#162A4A">${escapeHtml(email)}</a></td></tr>
+    <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Pricing Level</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb"><strong>FOUNDER PRICING – ${escapeHtml(config.name)}</strong></td></tr>
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb">Monthly Rate</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${planPrices[tier]} (locked in forever)</td></tr>
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Employee Limit</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees} employees`}</td></tr>
     ${referralRow}
@@ -2218,7 +2237,7 @@ export async function registerRoutes(
           subject: "🚨 Better Bucks: 45 Companies Signed Up – 5 Founder Spots Left!",
           html: `<p>Hi Miles,</p>
 <p>The <strong>45th company</strong> just signed up for Better Bucks — only <strong>5 founder pricing spots remain</strong>.</p>
-<p><strong>Company:</strong> ${organizationName}<br/><strong>Tier:</strong> ${config.name}<br/><strong>Org Code:</strong> ${orgCode}</p>
+<p><strong>Company:</strong> ${escapeHtml(organizationName)}<br/><strong>Tier:</strong> ${escapeHtml(config.name)}<br/><strong>Org Code:</strong> ${escapeHtml(orgCode)}</p>
 <p>Consider promoting the scarcity to drive conversions.</p>
 <p>— Better Bucks System</p>`,
           text: `45 companies have signed up. Only 5 founder pricing spots remain. Latest signup: ${organizationName} (${config.name}, code: ${orgCode}).`,
@@ -2905,11 +2924,11 @@ export async function registerRoutes(
           text: `New Information Request\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\nEmployee Incentive Needs:\n${data.needs}`,
           html: `
             <h2>New Information Request</h2>
-            <p><strong>Name:</strong> ${data.name}</p>
-            <p><strong>Email:</strong> ${data.email}</p>
-            <p><strong>Phone:</strong> ${data.phone}</p>
+            <p><strong>Name:</strong> ${escapeHtml(data.name)}</p>
+            <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(data.phone)}</p>
             <h3>Employee Incentive Needs:</h3>
-            <p>${data.needs.replace(/\n/g, "<br>")}</p>
+            <p>${escapeHtml(data.needs).replace(/\n/g, "<br>")}</p>
           `,
         });
       } catch (err) {
@@ -4883,8 +4902,8 @@ export async function registerRoutes(
           <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
             ${emailLogoHeader}
             <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">You're invited!</h3>
-            <p>Hi ${data.fullName},</p>
-            <p><strong>${user.fullName}</strong> has invited you to join <strong>${org?.name || "their organization"}</strong> on Better Bucks — an employee incentive platform for tracking and rewarding great work.</p>
+            <p>Hi ${escapeHtml(data.fullName)},</p>
+            <p><strong>${escapeHtml(user.fullName)}</strong> has invited you to join <strong>${escapeHtml(org?.name || "their organization")}</strong> on Better Bucks — an employee incentive platform for tracking and rewarding great work.</p>
             <p>Click the button below to create your account. This invitation expires in 7 days.</p>
             <div style="text-align:center;margin:32px 0;">
               <a href="${inviteUrl}" style="background:#4E9F3D;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;">Accept Invitation</a>

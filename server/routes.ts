@@ -296,9 +296,10 @@ async function generateMonthlyReport(orgId: number, year: number, month: number)
         .where(and(inArray(orders.userId, userIds), gte(orders.createdAt, from), lte(orders.createdAt, to)))
     : [];
 
-  const [categoryStats, budgetUsed] = await Promise.all([
+  const [categoryStats, budgetUsed, orgDepts] = await Promise.all([
     storage.getCategoryStats(orgId, from, to),
     storage.getMonthlyBudgetUsed(orgId, year, month),
+    storage.getDepartmentsByOrganization(orgId),
   ]);
 
   const totalAwarded = allTxRows.filter(r => r.t.amount > 0).reduce((s, r) => s + r.t.amount, 0);
@@ -307,9 +308,11 @@ async function generateMonthlyReport(orgId: number, year: number, month: number)
 
   const topEmployees: { userId: number; name: string; received: number }[] = [];
   const empMap: Record<number, number> = {};
+  const activeEmployeeIds = new Set<number>();
   for (const { t, u } of allTxRows) {
     if (t.amount > 0 && u) {
       empMap[t.userId] = (empMap[t.userId] || 0) + t.amount;
+      activeEmployeeIds.add(t.userId);
     }
   }
   for (const [uid, bucks] of Object.entries(empMap)) {
@@ -317,6 +320,18 @@ async function generateMonthlyReport(orgId: number, year: number, month: number)
     if (u) topEmployees.push({ userId: parseInt(uid), name: u.fullName, received: bucks });
   }
   topEmployees.sort((a, b) => b.received - a.received);
+
+  // Department breakdown: credits and debits per department
+  const deptStatMap: Record<string, { deptId: number | null; deptName: string | null; credited: number; debited: number }> = {};
+  for (const { t, u } of allTxRows) {
+    const deptId = u?.departmentId ?? null;
+    const deptName = deptId ? (orgDepts.find(d => d.id === deptId)?.name ?? "Unknown") : "No Department";
+    const key = String(deptId ?? "none");
+    if (!deptStatMap[key]) deptStatMap[key] = { deptId, deptName, credited: 0, debited: 0 };
+    if (t.amount > 0) deptStatMap[key].credited += t.amount;
+    else deptStatMap[key].debited += Math.abs(t.amount);
+  }
+  const departmentStats = Object.values(deptStatMap).sort((a, b) => b.credited - a.credited);
 
   const reportData = {
     orgName: org?.name ?? "",
@@ -328,7 +343,9 @@ async function generateMonthlyReport(orgId: number, year: number, month: number)
     budgetUsed,
     monthlyBudgetBucks: org?.monthlyBudgetBucks ?? 0,
     categoryStats,
+    departmentStats,
     topEmployees: topEmployees.slice(0, 10),
+    activeEmployees: activeEmployeeIds.size,
     txCount: allTxRows.length,
   };
 

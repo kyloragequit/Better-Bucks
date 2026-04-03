@@ -7,12 +7,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, RefreshCw, Calendar, BarChart2, Users, ShoppingCart, Tag } from "lucide-react";
+import { FileText, Download, RefreshCw, Calendar, BarChart2, Users, ShoppingCart, Tag, Building2 } from "lucide-react";
 import { SpinningLogo } from "@/components/spinning-logo";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 type CategoryStat = { categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number };
+type DeptStat = { deptId: number | null; deptName: string | null; credited: number; debited: number };
 type ReportData = {
   orgName: string;
   year: number;
@@ -23,7 +24,9 @@ type ReportData = {
   budgetUsed: number;
   monthlyBudgetBucks: number;
   categoryStats: CategoryStat[];
+  departmentStats: DeptStat[];
   topEmployees: { userId: number; name: string; received: number }[];
+  activeEmployees: number;
   txCount: number;
 };
 type MonthlyReport = {
@@ -39,6 +42,7 @@ function ReportCard({ report, onPrint }: { report: MonthlyReport; onPrint: (r: M
   const data = report.reportData;
   const budgetPct = data.monthlyBudgetBucks > 0 ? Math.round((data.budgetUsed / data.monthlyBudgetBucks) * 100) : null;
   const totalCatBucks = data.categoryStats.reduce((s, c) => s + c.totalBucks, 0);
+  const deptStats: DeptStat[] = data.departmentStats ?? [];
 
   return (
     <Card className="border shadow-sm" data-testid={`card-report-${report.year}-${report.month}`}>
@@ -76,8 +80,8 @@ function ReportCard({ report, onPrint }: { report: MonthlyReport; onPrint: (r: M
             <p className="text-xs text-muted-foreground mt-0.5">Bucks Spent</p>
           </div>
           <div className="p-3 bg-blue-50 rounded-lg text-center">
-            <p className="text-xl font-bold text-blue-700">{data.txCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Transactions</p>
+            <p className="text-xl font-bold text-blue-700">{data.activeEmployees ?? 0}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Active Employees</p>
           </div>
           <div className="p-3 bg-indigo-50 rounded-lg text-center">
             <p className="text-xl font-bold text-indigo-700">{data.totalOrders}</p>
@@ -94,6 +98,24 @@ function ReportCard({ report, onPrint }: { report: MonthlyReport; onPrint: (r: M
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div className={`h-full rounded-full ${budgetPct >= 90 ? "bg-red-500" : budgetPct >= 70 ? "bg-amber-500" : "bg-green-500"}`} style={{ width: `${Math.min(budgetPct, 100)}%` }} />
+            </div>
+          </div>
+        )}
+
+        {/* Department breakdown */}
+        {deptStats.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1"><Building2 className="h-3 w-3" /> Bucks by Department</p>
+            <div className="space-y-1.5">
+              {deptStats.slice(0, 6).map((d, i) => (
+                <div key={d.deptId ?? i} className="flex items-center justify-between text-xs gap-2">
+                  <span className="text-muted-foreground truncate">{d.deptName ?? "No Department"}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-green-700 font-medium">+{d.credited.toLocaleString()}</span>
+                    {d.debited > 0 && <span className="text-red-600 font-medium">−{d.debited.toLocaleString()}</span>}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -150,6 +172,7 @@ function PrintableReport({ report, onClose }: { report: MonthlyReport; onClose: 
   const data = report.reportData;
   const budgetPct = data.monthlyBudgetBucks > 0 ? Math.round((data.budgetUsed / data.monthlyBudgetBucks) * 100) : null;
   const totalCatBucks = data.categoryStats.reduce((s, c) => s + c.totalBucks, 0);
+  const deptStats: DeptStat[] = data.departmentStats ?? [];
 
   return (
     <div className="fixed inset-0 z-50 bg-white overflow-auto print:block" id="printable-report">
@@ -188,8 +211,8 @@ function PrintableReport({ report, onClose }: { report: MonthlyReport; onClose: 
             <p className="text-2xl font-bold text-red-700">{data.totalSpent.toLocaleString()}</p>
           </div>
           <div className="border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground">Total Transactions</p>
-            <p className="text-2xl font-bold">{data.txCount}</p>
+            <p className="text-sm text-muted-foreground">Active Employees</p>
+            <p className="text-2xl font-bold">{data.activeEmployees ?? 0}</p>
           </div>
           <div className="border rounded-lg p-4">
             <p className="text-sm text-muted-foreground">Store Orders</p>
@@ -209,6 +232,27 @@ function PrintableReport({ report, onClose }: { report: MonthlyReport; onClose: 
               <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${budgetPct >= 90 ? "bg-red-500" : budgetPct >= 70 ? "bg-amber-500" : "bg-green-500"}`} style={{ width: `${Math.min(budgetPct, 100)}%` }} />
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Department breakdown */}
+        {deptStats.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-base font-semibold mb-3 flex items-center gap-2"><Building2 className="h-4 w-4" /> Bucks by Department</h2>
+            <div className="border rounded-lg divide-y">
+              <div className="grid grid-cols-4 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/40">
+                <span className="col-span-2">Department</span>
+                <span className="text-right text-green-700">Credited</span>
+                <span className="text-right text-red-600">Debited</span>
+              </div>
+              {deptStats.map((d, i) => (
+                <div key={d.deptId ?? i} className="grid grid-cols-4 items-center px-4 py-3 text-sm">
+                  <span className="col-span-2 font-medium">{d.deptName ?? "No Department"}</span>
+                  <span className="text-right text-green-700 font-semibold">+{d.credited.toLocaleString()}</span>
+                  <span className="text-right text-red-600 font-semibold">{d.debited > 0 ? `−${d.debited.toLocaleString()}` : "—"}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}

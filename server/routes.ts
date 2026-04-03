@@ -3078,7 +3078,71 @@ export async function registerRoutes(
     }
   });
 
-  // Request for Information (RFI) - public endpoint
+  app.post("/api/affiliate-signup", async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1, "Name is required"),
+        email: z.string().email("Valid email is required"),
+        phone: z.string().min(1, "Phone number is required"),
+        webpage: z.string().url("A valid URL is required for your webpage/social media"),
+        additionalInfo: z.string().optional().default(""),
+      });
+
+      const data = schema.parse(req.body);
+      const dateStr = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+      const subject = `[AFFILIATE APPLICATION] ${data.name} — ${dateStr}`;
+
+      try {
+        await sendEmail({
+          to: ADMIN_NOTIFY_EMAIL,
+          subject,
+          text: `BETTER BUCKS — AFFILIATE PROGRAM APPLICATION\n\nNew affiliate application received on ${dateStr}.\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nWebpage / Social Media: ${data.webpage}\n\nAdditional Info:\n${data.additionalInfo || "(none provided)"}`,
+          html: `
+            ${emailLogoHeader}
+            <div style="font-family:Inter,system-ui,sans-serif;max-width:600px;margin:0 auto;padding:0 24px 32px;">
+              <div style="background:#162A4A;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+                <p style="color:#4E9F3D;font-size:13px;font-weight:700;letter-spacing:2px;margin:0 0 8px;text-transform:uppercase;">Affiliate Program</p>
+                <h1 style="color:white;font-size:24px;font-weight:800;margin:0;">New Affiliate Application</h1>
+                <p style="color:#94a3b8;margin:8px 0 0;font-size:14px;">Received ${dateStr}</p>
+              </div>
+
+              <div style="background:#f8fafc;border-radius:12px;padding:24px;margin-bottom:16px;border:1px solid #e2e8f0;">
+                <h2 style="font-size:16px;font-weight:700;color:#162A4A;margin:0 0 16px;">Applicant Details</h2>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr><td style="padding:8px 0;color:#64748b;font-size:14px;width:140px;">Name</td><td style="padding:8px 0;font-weight:600;color:#1e293b;font-size:14px;">${escapeHtml(data.name)}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b;font-size:14px;">Email</td><td style="padding:8px 0;font-weight:600;color:#1e293b;font-size:14px;"><a href="mailto:${escapeHtml(data.email)}" style="color:#4E9F3D;">${escapeHtml(data.email)}</a></td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b;font-size:14px;">Phone</td><td style="padding:8px 0;font-weight:600;color:#1e293b;font-size:14px;">${escapeHtml(data.phone)}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b;font-size:14px;">Platform</td><td style="padding:8px 0;font-weight:600;font-size:14px;"><a href="${escapeHtml(data.webpage)}" style="color:#4E9F3D;">${escapeHtml(data.webpage)}</a></td></tr>
+                </table>
+              </div>
+
+              ${data.additionalInfo ? `
+              <div style="background:#f8fafc;border-radius:12px;padding:24px;border:1px solid #e2e8f0;">
+                <h2 style="font-size:16px;font-weight:700;color:#162A4A;margin:0 0 12px;">Additional Information</h2>
+                <p style="color:#334155;font-size:14px;line-height:1.6;margin:0;">${escapeHtml(data.additionalInfo).replace(/\n/g, "<br>")}</p>
+              </div>
+              ` : ""}
+
+              <div style="margin-top:24px;padding:16px;background:#4E9F3D15;border-radius:10px;border:1px solid #4E9F3D30;text-align:center;">
+                <p style="color:#162A4A;font-size:13px;margin:0;">Reply directly to this email to contact the applicant at <strong>${escapeHtml(data.email)}</strong></p>
+              </div>
+            </div>
+          `,
+        });
+      } catch (err) {
+        console.error("[Affiliate] Email failed:", err);
+      }
+
+      res.json({ message: "Your application has been submitted! We'll be in touch within 1–2 business days." });
+    } catch (error: any) {
+      console.error("Affiliate signup error:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: error.errors[0]?.message || "Invalid input" });
+      }
+      res.status(500).json({ message: "Failed to submit application" });
+    }
+  });
+
   app.post("/api/info-request", async (req, res) => {
     try {
       const schema = z.object({

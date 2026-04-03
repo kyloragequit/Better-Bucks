@@ -55,6 +55,7 @@ const BlogPage = lazy(() => import("@/pages/blog"));
 const BlogPostPage = lazy(() => import("@/pages/blog-post"));
 const JoinPage = lazy(() => import("@/pages/join"));
 const InviteAcceptPage = lazy(() => import("@/pages/invite-accept"));
+const AffiliatePage = lazy(() => import("@/pages/affiliate"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function GoalNotificationModal() {
@@ -307,6 +308,7 @@ function Router() {
         <Route path="/pending-verification" component={PendingVerification} />
         <Route path="/change-password" component={ChangePasswordPage} />
         
+        <Route path="/affiliate" component={AffiliatePage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/blog/:slug" component={BlogPostPage} />
 

@@ -284,6 +284,9 @@ export default function HowItWorksPage() {
             <span className="text-lg font-bold text-gray-900">Better Bucks</span>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/affiliate")} data-testid="button-header-affiliate">
+              Affiliate Program
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setLocation("/blog")} data-testid="button-header-blog">
               <BookOpen className="mr-1.5 h-4 w-4" />
               Blog

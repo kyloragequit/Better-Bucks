@@ -97,6 +97,13 @@ const adminSteps: Step[] = [
     description: "This bar chart shows which administrators have awarded the most Bucks. Switch to Employees to see each employee's current balance or how much they've spent on completed orders.",
   },
   {
+    id: "analytics",
+    path: "/admin/dashboard",
+    selector: '[data-testid="card-analytics"]',
+    title: "Budget & Category Analytics",
+    description: "This card tracks your monthly budget usage with a live progress bar — green means you have headroom, amber means 70%+ used, red means 90%+. Below it, Rewards by Category shows a breakdown of how Bucks have been distributed across different recognition types this month.",
+  },
+  {
     id: "employees",
     path: "/admin/employees",
     selector: '[data-testid="input-search-employees"]',
@@ -149,7 +156,7 @@ const adminSteps: Step[] = [
     id: "done",
     path: "/admin/dashboard",
     title: "You're Ready to Go!",
-    description: "You've seen all the key features — Bucks management, Instant Transaction, team goals, custom item tokens, and settings. The best managers check in regularly, award Bucks generously, and keep goals active. Let's go!",
+    description: "You've seen all the key features — Bucks management, budget tracking, category analytics, Instant Transaction, team goals, custom item tokens, and settings. The best managers check in regularly, award Bucks generously, and keep goals active. Let's go!",
   },
 ];
 

@@ -8,7 +8,7 @@ import {
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
   ArrowRight, Heart, ExternalLink, Target, Timer, Hash, KeyRound,
-  ChevronDown, FileSpreadsheet, Upload, Download,
+  ChevronDown, FileSpreadsheet, Upload, Download, PieChart,
 } from "lucide-react";
 
 const NAVY = "#162A4A";
@@ -351,9 +351,66 @@ function buildSlides(role: string, name: string): Slide[] {
     },
   ];
 
+  const currentMonth = new Date().toLocaleString("default", { month: "long" });
+
   const adminSlides: Slide[] = [
     welcomeSlide,
     dashboardSlide,
+    {
+      id: "analytics",
+      title: "Budget & Category Analytics",
+      subtitle: "Track how your monthly budget is being used and see how Bucks are distributed across reward types.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5">
+                <PieChart className="h-4 w-4" /> {currentMonth} Analytics
+              </span>
+            </div>
+            <div className="p-3 bg-white space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Budget Progression</p>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-gray-600"><span className="font-bold text-gray-800">6,200</span> of 10,000 bucks used</span>
+                  <span className="font-bold text-green-600">62%</span>
+                </div>
+                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-green-500" style={{ width: "62%" }} />
+                </div>
+                <div className="flex justify-between mt-1 text-xs text-gray-400">
+                  <span>0</span><span>5,000</span><span>10,000</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Rewards by Category</p>
+                {[
+                  { name: "Safety", color: "#4E9F3D", pct: 42 },
+                  { name: "Performance", color: "#3B82F6", pct: 33 },
+                  { name: "Attendance", color: "#F59E0B", pct: 25 },
+                ].map(c => (
+                  <div key={c.name} className="mb-2">
+                    <div className="flex justify-between text-xs mb-0.5">
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full inline-block" style={{ background: c.color }} />
+                        {c.name}
+                      </span>
+                      <span className="font-semibold text-gray-700">{c.pct}%</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${c.pct}%`, background: c.color }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Tag each Bucks transaction with a category (Safety, Attendance, etc.) to see the breakdown here.
+          </p>
+        </div>
+      ),
+    },
     {
       id: "employees",
       title: "Manage Your Team",
@@ -556,6 +613,7 @@ function buildSlides(role: string, name: string): Slide[] {
           <div className="space-y-2 text-center max-w-xs w-full">
             {[
               { icon: LayoutDashboard, text: "Dashboard — Org-wide stats and charts" },
+              { icon: PieChart, text: "Analytics — Budget tracking & category breakdown" },
               { icon: Users, text: "Employees — Add, manage & award your team" },
               { icon: ShoppingCart, text: "Orders — Review and fulfill requests" },
               { icon: Zap, text: "Instant Transaction — Quick awards to team members" },

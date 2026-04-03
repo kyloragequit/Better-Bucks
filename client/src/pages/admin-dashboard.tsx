@@ -148,7 +148,9 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, admins, onSaved }: {
     onError: (e: Error) => toast({ title: "Allocation failed", description: e.message, variant: "destructive" }),
   });
 
-  const budgetDollars = monthlyBudgetBucks > 0 ? (monthlyBudgetBucks / (parseInt(bpd) || 100)).toFixed(2) : null;
+  const budgetNum = parseInt(budget) || 0;
+  const bpdNum = Math.max(1, parseInt(bpd) || 100);
+  const dollarEquiv = budgetNum > 0 ? (budgetNum / bpdNum).toFixed(2) : null;
 
   return (
     <Card className="border shadow-sm border-blue-200 mb-8">
@@ -161,62 +163,56 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, admins, onSaved }: {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Budget display */}
-        {monthlyBudgetBucks > 0 && (
-          <div className="flex flex-wrap gap-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <div className="flex items-center gap-3">
-              <Award className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Monthly Budget</p>
-                <p className="text-2xl font-bold text-blue-700">{monthlyBudgetBucks.toLocaleString()} <span className="text-sm font-medium">bucks</span></p>
+        {/* Inline-editable colorful budget box */}
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Monthly Budget */}
+            <div className="flex items-start gap-3">
+              <Award className="h-5 w-5 text-blue-600 mt-1.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-blue-600 mb-1.5">Monthly Budget</p>
+                <div className="flex items-baseline gap-1.5">
+                  <input
+                    type="number"
+                    min="0"
+                    value={budget}
+                    onChange={e => setBudget(e.target.value)}
+                    className="w-full text-2xl font-bold text-blue-700 bg-transparent border-0 border-b-2 border-blue-200 focus:border-blue-500 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    data-testid="input-monthly-budget"
+                    placeholder="10000"
+                  />
+                  <span className="text-sm font-medium text-blue-600 whitespace-nowrap">bucks</span>
+                </div>
+                {dollarEquiv && (
+                  <p className="text-xs text-blue-500 mt-1">≈ ${dollarEquiv} / month</p>
+                )}
               </div>
             </div>
-            {budgetDollars && (
-              <div className="flex items-center gap-3">
-                <BadgeDollarSign className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Dollar Equivalent</p>
-                  <p className="text-2xl font-bold text-green-700">${budgetDollars}</p>
+            {/* Conversion Rate */}
+            <div className="flex items-start gap-3">
+              <BadgeDollarSign className="h-5 w-5 text-green-600 mt-1.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-green-600 mb-1.5">Bucks per $1</p>
+                <div className="flex items-baseline gap-1.5">
+                  <input
+                    type="number"
+                    min="1"
+                    value={bpd}
+                    onChange={e => setBpd(e.target.value)}
+                    className="w-full text-2xl font-bold text-green-700 bg-transparent border-0 border-b-2 border-green-200 focus:border-green-500 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    data-testid="input-bucks-per-dollar"
+                    placeholder="100"
+                  />
+                  <span className="text-sm font-medium text-green-600 whitespace-nowrap">= $1</span>
                 </div>
+                <p className="text-xs text-green-500 mt-1">conversion rate</p>
               </div>
-            )}
+            </div>
           </div>
-        )}
-
-        {/* Settings */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="bucks-per-dollar" className="text-sm">Bucks per $1 (conversion rate)</Label>
-            <Input
-              id="bucks-per-dollar"
-              type="number"
-              min="1"
-              value={bpd}
-              onChange={e => setBpd(e.target.value)}
-              placeholder="100"
-              data-testid="input-bucks-per-dollar"
-            />
-            <p className="text-xs text-muted-foreground">e.g. 100 means 100 bucks = $1</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="monthly-budget" className="text-sm">Monthly budget (bucks)</Label>
-            <Input
-              id="monthly-budget"
-              type="number"
-              min="0"
-              value={budget}
-              onChange={e => setBudget(e.target.value)}
-              placeholder="10000"
-              data-testid="input-monthly-budget"
-            />
-            {parseInt(budget) > 0 && parseInt(bpd) > 0 && (
-              <p className="text-xs text-muted-foreground">≈ ${(parseInt(budget) / parseInt(bpd)).toFixed(2)} / month</p>
-            )}
-          </div>
+          <Button size="sm" onClick={() => saveSettings()} disabled={savingSettings} data-testid="button-save-budget-settings">
+            {savingSettings ? "Saving…" : "Save Changes"}
+          </Button>
         </div>
-        <Button size="sm" onClick={() => saveSettings()} disabled={savingSettings} data-testid="button-save-budget-settings">
-          {savingSettings ? "Saving…" : "Save Settings"}
-        </Button>
 
         {/* Allocation */}
         {regularAdmins.length > 0 && (
@@ -432,7 +428,7 @@ export default function AdminDashboardPage() {
 
           {/* Category Analytics Card — always visible for admin/prime_admin */}
           {(currentUser?.role === "admin" || currentUser?.role === "prime_admin") && (
-            <Card className="border shadow-sm border-purple-200 mb-8">
+            <Card className="border shadow-sm border-purple-200 mb-8" data-testid="card-analytics">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-semibold">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">

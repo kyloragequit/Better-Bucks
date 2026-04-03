@@ -27,7 +27,6 @@ const allowlist = [
   "stripe",
   "uuid",
   "ws",
-
   "zod",
   "zod-validation-error",
 ];

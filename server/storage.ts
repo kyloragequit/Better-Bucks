@@ -1069,7 +1069,7 @@ export class DatabaseStorage implements IStorage {
       .from(transactions)
       .leftJoin(transactionCategories, eq(transactions.categoryId, transactionCategories.id))
       .where(and(
-        sql`${transactions.userId} = ANY(${userIds})`,
+        inArray(transactions.userId, userIds),
         gte(transactions.createdAt, from),
         lte(transactions.createdAt, to),
         sql`${transactions.amount} > 0`

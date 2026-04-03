@@ -430,8 +430,8 @@ export default function AdminDashboardPage() {
             />
           )}
 
-          {/* Category Analytics Card */}
-          {categoryAnalytics && (categoryAnalytics.stats.length > 0 || categoryAnalytics.monthlyBudgetBucks > 0) && (
+          {/* Category Analytics Card — always visible for admin/prime_admin */}
+          {(currentUser?.role === "admin" || currentUser?.role === "prime_admin") && (
             <Card className="border shadow-sm border-purple-200 mb-8">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base font-semibold">
@@ -441,37 +441,77 @@ export default function AdminDashboardPage() {
                   {new Date().toLocaleString("default", { month: "long" })} Analytics
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Budget progress bar */}
-                {categoryAnalytics.monthlyBudgetBucks > 0 && (
-                  <div>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-sm font-medium text-muted-foreground">Budget Used</span>
-                      <span className="text-sm font-bold" data-testid="text-budget-used">
-                        {categoryAnalytics.budgetUsed.toLocaleString()} / {categoryAnalytics.monthlyBudgetBucks.toLocaleString()} bucks
-                        {" "}
-                        <span className={`${categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.9 ? "text-red-600" : categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.7 ? "text-amber-600" : "text-green-600"}`}>
-                          ({Math.round((categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks) * 100)}%)
-                        </span>
-                      </span>
-                    </div>
-                    <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.9 ? "bg-red-500" : categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.7 ? "bg-amber-500" : "bg-green-500"}`}
-                        style={{ width: `${Math.min(Math.round((categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks) * 100), 100)}%` }}
-                        data-testid="bar-budget-progress"
-                      />
-                    </div>
-                  </div>
-                )}
+              <CardContent className="space-y-5">
+                {/* Budget progress — always shown */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Budget Progression</p>
+                  {categoryAnalytics ? (
+                    categoryAnalytics.monthlyBudgetBucks > 0 ? (() => {
+                      const pct = Math.min(Math.round((categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks) * 100), 100);
+                      const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-green-500";
+                      const textColor = pct >= 90 ? "text-red-600" : pct >= 70 ? "text-amber-600" : "text-green-600";
+                      return (
+                        <div>
+                          <div className="flex justify-between items-baseline mb-2">
+                            <span className="text-sm text-muted-foreground">
+                              <span className="font-bold text-foreground">{categoryAnalytics.budgetUsed.toLocaleString()}</span> of {categoryAnalytics.monthlyBudgetBucks.toLocaleString()} bucks used
+                            </span>
+                            <span className={`text-sm font-bold ${textColor}`} data-testid="text-budget-used">
+                              {pct}%
+                            </span>
+                          </div>
+                          <div className="h-3 bg-muted rounded-full overflow-hidden" data-testid="bar-budget-progress">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${color}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
+                            <span>0</span>
+                            <span>{Math.round(categoryAnalytics.monthlyBudgetBucks / 2).toLocaleString()}</span>
+                            <span>{categoryAnalytics.monthlyBudgetBucks.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div className="flex flex-col gap-2">
+                        <div className="h-3 bg-muted rounded-full overflow-hidden" data-testid="bar-budget-progress">
+                          <div className="h-full rounded-full bg-muted-foreground/20" style={{ width: "0%" }} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          No monthly budget configured.{isPrime ? " Set one above to track usage here." : " Contact your Organization Owner to configure a budget."}
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="h-3 bg-muted rounded-full animate-pulse" />
+                  )}
+                </div>
 
-                {/* Category breakdown */}
-                {categoryAnalytics.stats.length > 0 && (() => {
-                  const total = categoryAnalytics.stats.reduce((s, c) => s + c.totalBucks, 0);
-                  return (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Bucks by Category</p>
-                      <div className="space-y-2.5">
+                {/* Category breakdown — always shown */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" /> Rewards by Category
+                  </p>
+                  {!categoryAnalytics ? (
+                    <div className="space-y-2.5">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-3 bg-muted rounded mb-1" />
+                          <div className="h-1.5 bg-muted rounded-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : categoryAnalytics.stats.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-5 text-center rounded-lg border border-dashed border-muted-foreground/20">
+                      <Tag className="h-6 w-6 text-muted-foreground/40 mb-2" />
+                      <p className="text-sm text-muted-foreground">No category data yet this month.</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">Tag transactions with categories to see the breakdown here.</p>
+                    </div>
+                  ) : (() => {
+                    const total = categoryAnalytics.stats.reduce((s, c) => s + c.totalBucks, 0);
+                    return (
+                      <div className="space-y-3">
                         {categoryAnalytics.stats.map((cat, i) => {
                           const pct = total > 0 ? Math.round((cat.totalBucks / total) * 100) : 0;
                           return (
@@ -481,18 +521,20 @@ export default function AdminDashboardPage() {
                                   <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.categoryColor ?? "#9CA3AF" }} />
                                   {cat.categoryName ?? "Uncategorized"}
                                 </span>
-                                <span className="text-sm font-semibold">{cat.totalBucks.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">({pct}%)</span></span>
+                                <span className="text-sm font-semibold">
+                                  {cat.totalBucks.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">({pct}%)</span>
+                                </span>
                               </div>
-                              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: cat.categoryColor ?? "#9CA3AF" }} />
+                              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: cat.categoryColor ?? "#9CA3AF" }} />
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
               </CardContent>
             </Card>
           )}

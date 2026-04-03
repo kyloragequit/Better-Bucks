@@ -1625,6 +1625,24 @@ export async function registerRoutes(
     if (data.departmentId !== undefined && !isPrime) {
       delete (data as any).departmentId;
     }
+
+    // If a new password is being set and the user is changing their own password
+    // (not a prime admin resetting someone else's), verify the current password first.
+    if (data.password) {
+      const isSelfChange = user.id === id;
+      if (isSelfChange) {
+        if (!data.currentPassword) {
+          return res.status(400).json({ message: "Current password is required to set a new password." });
+        }
+        const targetUser = await storage.getUser(id);
+        if (!targetUser) return res.status(404).send("User not found");
+        const match = await verifyPassword(data.currentPassword, targetUser.password);
+        if (!match) {
+          return res.status(401).json({ message: "Current password is incorrect." });
+        }
+      }
+    }
+
     const profileData: any = { username: data.username, password: data.password, email: data.email };
     if (isPrime && data.departmentId !== undefined) {
       profileData.departmentId = data.departmentId;

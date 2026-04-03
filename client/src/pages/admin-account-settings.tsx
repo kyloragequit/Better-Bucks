@@ -31,6 +31,7 @@ export default function AdminAccountSettingsPage() {
   const [, navigate] = useLocation();
 
   const [displayName, setDisplayName] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -54,11 +55,13 @@ export default function AdminAccountSettingsPage() {
   const passwordMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("PATCH", `/api/users/${user!.id}/profile`, {
+        currentPassword,
         password: newPassword,
       });
     },
     onSuccess: () => {
       toast({ title: "Password updated", description: "Your password has been changed successfully." });
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
@@ -108,6 +111,10 @@ export default function AdminAccountSettingsPage() {
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword) {
+      toast({ title: "Required", description: "Please enter your current password.", variant: "destructive" });
+      return;
+    }
     if (newPassword.length < 6) {
       toast({ title: "Too short", description: "Password must be at least 6 characters.", variant: "destructive" });
       return;
@@ -218,6 +225,18 @@ export default function AdminAccountSettingsPage() {
           <CardContent>
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  autoComplete="current-password"
+                  data-testid="input-current-password"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="new-password">New Password</Label>
                 <Input
                   id="new-password"
@@ -225,23 +244,25 @@ export default function AdminAccountSettingsPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
+                  autoComplete="new-password"
                   data-testid="input-new-password"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Label htmlFor="confirm-password">Confirm New Password</Label>
                 <Input
                   id="confirm-password"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
+                  autoComplete="new-password"
                   data-testid="input-confirm-password"
                 />
               </div>
               <Button
                 type="submit"
-                disabled={passwordMutation.isPending || !newPassword || !confirmPassword}
+                disabled={passwordMutation.isPending || !currentPassword || !newPassword || !confirmPassword}
                 className="w-full"
                 data-testid="button-change-password"
               >

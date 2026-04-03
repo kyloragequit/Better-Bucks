@@ -1043,6 +1043,45 @@ export default function DeveloperDashboardPage() {
               </Card>
             </div>
 
+            {/* ── Demo Account quick-access ─────────────────── */}
+            {(() => {
+              const demoOrg = organizations?.find(o => o.code === "VIEWDEMO");
+              if (!demoOrg) return null;
+              return (
+                <Card className="mb-8 border-blue-200 bg-blue-50/40">
+                  <CardContent className="pt-5 pb-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-md bg-blue-100">
+                          <Play className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-blue-900">Self-Guided Demo Account</p>
+                          <p className="text-xs text-blue-600/80 mt-0.5">
+                            Code: <span className="font-mono font-semibold">VIEWDEMO</span>
+                            {" · "}{demoOrg.totalUsers} users
+                            {demoOrg.primeAdmin && <> · Owner: <span className="font-medium">{demoOrg.primeAdmin.username}</span></>}
+                          </p>
+                        </div>
+                      </div>
+                      {demoOrg.primeAdmin && (
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => impersonateMutation.mutate(demoOrg.primeAdmin!.id)}
+                          disabled={impersonateMutation.isPending}
+                          data-testid="button-enter-demo"
+                        >
+                          <LogIn className="mr-1.5 h-3.5 w-3.5" />
+                          Enter Demo
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {organizations?.some(o => o.status === "paused") && (
               <Card className="mb-8 border-amber-300 bg-amber-50/50">
                 <CardHeader className="pb-3">

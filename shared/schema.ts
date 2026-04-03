@@ -1,5 +1,5 @@
 
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -67,12 +67,30 @@ export const users = pgTable("users", {
   customItemBalance: integer("custom_item_balance").default(0).notNull(),
 });
 
+export const transactionCategories = pgTable("transaction_categories", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  name: text("name").notNull(),
+  color: text("color").default("#4E9F3D").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const monthlyReports = pgTable("monthly_reports", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(),
+  reportData: jsonb("report_data").notNull(),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+});
+
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   amount: integer("amount").notNull(), // Positive for credit, negative for debit
   reason: text("reason").notNull(),
   performedBy: integer("performed_by"),
+  categoryId: integer("category_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -408,3 +426,11 @@ export const invitations = pgTable("invitations", {
 export const insertInvitationSchema = createInsertSchema(invitations).omit({ id: true, createdAt: true });
 export type Invitation = typeof invitations.$inferSelect;
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
+
+export const insertTransactionCategorySchema = createInsertSchema(transactionCategories).omit({ id: true, createdAt: true });
+export type TransactionCategory = typeof transactionCategories.$inferSelect;
+export type InsertTransactionCategory = z.infer<typeof insertTransactionCategorySchema>;
+
+export const insertMonthlyReportSchema = createInsertSchema(monthlyReports).omit({ id: true, generatedAt: true });
+export type MonthlyReport = typeof monthlyReports.$inferSelect;
+export type InsertMonthlyReport = z.infer<typeof insertMonthlyReportSchema>;

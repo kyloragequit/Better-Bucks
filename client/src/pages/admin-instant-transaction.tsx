@@ -11,8 +11,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Camera, QrCode, Search, ArrowLeft, Plus, Minus, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { User } from "@shared/schema";
+import type { User, TransactionCategory } from "@shared/schema";
+import { useUser } from "@/hooks/use-auth";
 
 type ScannedUser = {
   id: number;
@@ -27,6 +29,7 @@ export default function AdminInstantTransactionPage() {
   const isPublicDemo = usePublicDemo();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: currentUser } = useUser();
   const [mode, setMode] = useState<"scan" | "manual" | "transaction">("scan");
   const [scannedUser, setScannedUser] = useState<ScannedUser | null>(null);
   const [manualCode, setManualCode] = useState("");
@@ -35,6 +38,7 @@ export default function AdminInstantTransactionPage() {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [txType, setTxType] = useState<"credit" | "debit">("credit");
+  const [categoryId, setCategoryId] = useState<string>("");
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,6 +46,11 @@ export default function AdminInstantTransactionPage() {
   const manualInputRef = useRef<HTMLInputElement>(null);
 
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
+
+  const { data: categories } = useQuery<TransactionCategory[]>({
+    queryKey: [`/api/organizations/${currentUser?.organizationId}/categories`],
+    enabled: !!currentUser?.organizationId,
+  });
 
   const suggestions = manualCode.trim().length >= 1
     ? (allUsers ?? []).filter(u =>
@@ -78,10 +87,11 @@ export default function AdminInstantTransactionPage() {
   });
 
   const transactionMutation = useMutation({
-    mutationFn: async (data: { userId: number; amount: number; reason: string }) => {
+    mutationFn: async (data: { userId: number; amount: number; reason: string; categoryId?: number }) => {
       const res = await apiRequest("POST", `/api/users/${data.userId}/balance`, {
         amount: data.amount,
         reason: data.reason,
+        ...(data.categoryId ? { categoryId: data.categoryId } : {}),
       });
       return await res.json();
     },
@@ -92,6 +102,7 @@ export default function AdminInstantTransactionPage() {
       setScannedUser(null);
       setAmount("");
       setReason("");
+      setCategoryId("");
       setMode("scan");
     },
     onError: (e: Error) => {
@@ -176,6 +187,7 @@ export default function AdminInstantTransactionPage() {
       userId: scannedUser.id,
       amount: signedAmount,
       reason: reason || (txType === "credit" ? "Instant credit" : "Instant debit"),
+      categoryId: (txType === "credit" && categoryId && categoryId !== "none") ? parseInt(categoryId) : undefined,
     });
   };
 
@@ -183,6 +195,7 @@ export default function AdminInstantTransactionPage() {
     setScannedUser(null);
     setAmount("");
     setReason("");
+    setCategoryId("");
     setTxType("credit");
     setMode("scan");
   };
@@ -267,6 +280,27 @@ export default function AdminInstantTransactionPage() {
                     data-testid="input-tx-reason"
                   />
                 </div>
+                {txType === "credit" && categories && categories.length > 0 && (
+                  <div className="space-y-1">
+                    <Label htmlFor="tx-category">Category (optional)</Label>
+                    <Select value={categoryId} onValueChange={setCategoryId}>
+                      <SelectTrigger id="tx-category" data-testid="select-tx-category">
+                        <SelectValue placeholder="No category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No category</SelectItem>
+                        {categories.map(cat => (
+                          <SelectItem key={cat.id} value={String(cat.id)}>
+                            <span className="flex items-center gap-2">
+                              <span className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                              {cat.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button
                   className="w-full"
                   onClick={handleSubmitTransaction}

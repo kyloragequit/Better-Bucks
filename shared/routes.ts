@@ -104,6 +104,7 @@ export const api = {
       input: z.object({
         amount: z.number().int(),
         reason: z.string().min(1),
+        categoryId: z.number().int().optional(),
       }),
       responses: {
         200: z.custom<typeof users.$inferSelect>(),

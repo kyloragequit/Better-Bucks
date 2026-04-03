@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen, Users, Settings, Wallet, BadgeDollarSign, Award } from "lucide-react";
+import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen, Users, Settings, Wallet, BadgeDollarSign, Award, Tag, PieChart } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useUser } from "@/hooks/use-auth";
 import { PasskeyFirstTimePrompt } from "@/components/passkey-manager";
@@ -33,6 +33,9 @@ type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedD
 type AdminLeaderboardEntry = { id: number; name: string; bucks: number; balance: number };
 type EmployeeEntry = { id: number; name: string; balance: number; spent: number };
 type BudgetSettings = { bucksPerDollar: number; monthlyBudgetBucks: number };
+
+type CategoryStat = { categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number };
+type CategoryAnalytics = { stats: CategoryStat[]; budgetUsed: number; monthlyBudgetBucks: number; year: number; month: number };
 
 const SHORT_NAME_MAX = 14;
 function shortName(name: string) {
@@ -327,6 +330,17 @@ export default function AdminDashboardPage() {
     enabled: isPrime,
   });
 
+  const now = new Date();
+  const { data: categoryAnalytics } = useQuery<CategoryAnalytics>({
+    queryKey: [`/api/organizations/${currentUser?.organizationId}/analytics/categories`, now.getFullYear(), now.getMonth() + 1],
+    queryFn: async () => {
+      const res = await fetch(`/api/organizations/${currentUser?.organizationId}/analytics/categories?year=${now.getFullYear()}&month=${now.getMonth() + 1}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!currentUser?.organizationId && (currentUser?.role === "admin" || currentUser?.role === "prime_admin"),
+  });
+
   const { data: leaderboard, isLoading: leaderboardLoading } = useQuery<AdminLeaderboardEntry[] | EmployeeEntry[]>({
     queryKey: ["/api/stats/leaderboard", leaderboardMode, leaderboardDeptId],
     queryFn: async () => {
@@ -414,6 +428,73 @@ export default function AdminDashboardPage() {
               admins={admins ?? []}
               onSaved={() => refetchBudget()}
             />
+          )}
+
+          {/* Category Analytics Card */}
+          {categoryAnalytics && (categoryAnalytics.stats.length > 0 || categoryAnalytics.monthlyBudgetBucks > 0) && (
+            <Card className="border shadow-sm border-purple-200 mb-8">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                    <PieChart className="h-4 w-4" />
+                  </div>
+                  {new Date().toLocaleString("default", { month: "long" })} Analytics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Budget progress bar */}
+                {categoryAnalytics.monthlyBudgetBucks > 0 && (
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-sm font-medium text-muted-foreground">Budget Used</span>
+                      <span className="text-sm font-bold" data-testid="text-budget-used">
+                        {categoryAnalytics.budgetUsed.toLocaleString()} / {categoryAnalytics.monthlyBudgetBucks.toLocaleString()} bucks
+                        {" "}
+                        <span className={`${categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.9 ? "text-red-600" : categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.7 ? "text-amber-600" : "text-green-600"}`}>
+                          ({Math.round((categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks) * 100)}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.9 ? "bg-red-500" : categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks >= 0.7 ? "bg-amber-500" : "bg-green-500"}`}
+                        style={{ width: `${Math.min(Math.round((categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks) * 100), 100)}%` }}
+                        data-testid="bar-budget-progress"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Category breakdown */}
+                {categoryAnalytics.stats.length > 0 && (() => {
+                  const total = categoryAnalytics.stats.reduce((s, c) => s + c.totalBucks, 0);
+                  return (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Bucks by Category</p>
+                      <div className="space-y-2.5">
+                        {categoryAnalytics.stats.map((cat, i) => {
+                          const pct = total > 0 ? Math.round((cat.totalBucks / total) * 100) : 0;
+                          return (
+                            <div key={cat.categoryId ?? `uncategorized-${i}`} data-testid={`category-stat-${cat.categoryId ?? "none"}`}>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="flex items-center gap-1.5 text-sm">
+                                  <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.categoryColor ?? "#9CA3AF" }} />
+                                  {cat.categoryName ?? "Uncategorized"}
+                                </span>
+                                <span className="text-sm font-semibold">{cat.totalBucks.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">({pct}%)</span></span>
+                              </div>
+                              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: cat.categoryColor ?? "#9CA3AF" }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
           )}
 
           {/* Bucks Credited / Debited summary stats */}

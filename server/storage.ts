@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, invitations, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, invitations, transactionCategories, monthlyReports, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -149,6 +149,18 @@ export interface IStorage {
   getInvitationByToken(token: string): Promise<Invitation | undefined>;
   acceptInvitation(id: number): Promise<Invitation>;
   revokeInvitation(id: number): Promise<void>;
+
+  getCategoriesByOrg(orgId: number): Promise<TransactionCategory[]>;
+  createCategory(data: InsertTransactionCategory): Promise<TransactionCategory>;
+  deleteCategory(id: number, orgId: number): Promise<void>;
+  updateCategory(id: number, orgId: number, data: { name?: string; color?: string }): Promise<TransactionCategory>;
+
+  getCategoryStats(orgId: number, from: Date, to: Date): Promise<{ categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number }[]>;
+  getMonthlyBudgetUsed(orgId: number, year: number, month: number): Promise<number>;
+
+  createMonthlyReport(data: InsertMonthlyReport): Promise<MonthlyReport>;
+  getMonthlyReportsByOrg(orgId: number): Promise<MonthlyReport[]>;
+  getMonthlyReport(orgId: number, year: number, month: number): Promise<MonthlyReport | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1022,6 +1034,93 @@ export class DatabaseStorage implements IStorage {
 
   async revokeInvitation(id: number): Promise<void> {
     await db.delete(invitations).where(eq(invitations.id, id));
+  }
+
+  async getCategoriesByOrg(orgId: number): Promise<TransactionCategory[]> {
+    return db.select().from(transactionCategories).where(eq(transactionCategories.orgId, orgId)).orderBy(transactionCategories.name);
+  }
+
+  async createCategory(data: InsertTransactionCategory): Promise<TransactionCategory> {
+    const [cat] = await db.insert(transactionCategories).values(data).returning();
+    return cat;
+  }
+
+  async deleteCategory(id: number, orgId: number): Promise<void> {
+    await db.delete(transactionCategories).where(and(eq(transactionCategories.id, id), eq(transactionCategories.orgId, orgId)));
+  }
+
+  async updateCategory(id: number, orgId: number, data: { name?: string; color?: string }): Promise<TransactionCategory> {
+    const [cat] = await db.update(transactionCategories).set(data).where(and(eq(transactionCategories.id, id), eq(transactionCategories.orgId, orgId))).returning();
+    return cat;
+  }
+
+  async getCategoryStats(orgId: number, from: Date, to: Date): Promise<{ categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number }[]> {
+    const orgUsers = await db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
+    const userIds = orgUsers.map(u => u.id);
+    if (userIds.length === 0) return [];
+
+    const rows = await db
+      .select({
+        categoryId: transactions.categoryId,
+        categoryName: transactionCategories.name,
+        categoryColor: transactionCategories.color,
+        totalBucks: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 THEN ${transactions.amount} ELSE 0 END), 0)::int`,
+      })
+      .from(transactions)
+      .leftJoin(transactionCategories, eq(transactions.categoryId, transactionCategories.id))
+      .where(and(
+        sql`${transactions.userId} = ANY(${userIds})`,
+        gte(transactions.createdAt, from),
+        lte(transactions.createdAt, to),
+        sql`${transactions.amount} > 0`
+      ))
+      .groupBy(transactions.categoryId, transactionCategories.name, transactionCategories.color);
+
+    return rows.map(r => ({
+      categoryId: r.categoryId,
+      categoryName: r.categoryName,
+      categoryColor: r.categoryColor,
+      totalBucks: Number(r.totalBucks),
+    }));
+  }
+
+  async getMonthlyBudgetUsed(orgId: number, year: number, month: number): Promise<number> {
+    const from = new Date(year, month - 1, 1);
+    const to = new Date(year, month, 0, 23, 59, 59, 999);
+    const orgUsers = await db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
+    const userIds = orgUsers.map(u => u.id);
+    if (userIds.length === 0) return 0;
+
+    const [row] = await db
+      .select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)::int` })
+      .from(transactions)
+      .where(and(
+        sql`${transactions.userId} = ANY(${userIds})`,
+        gte(transactions.createdAt, from),
+        lte(transactions.createdAt, to),
+        sql`${transactions.amount} > 0`,
+        sql`${transactions.performedBy} IS NOT NULL`
+      ));
+    return Number(row?.total ?? 0);
+  }
+
+  async createMonthlyReport(data: InsertMonthlyReport): Promise<MonthlyReport> {
+    const existing = await this.getMonthlyReport(data.orgId, data.year, data.month);
+    if (existing) {
+      const [updated] = await db.update(monthlyReports).set({ reportData: data.reportData, generatedAt: new Date() }).where(eq(monthlyReports.id, existing.id)).returning();
+      return updated;
+    }
+    const [report] = await db.insert(monthlyReports).values(data).returning();
+    return report;
+  }
+
+  async getMonthlyReportsByOrg(orgId: number): Promise<MonthlyReport[]> {
+    return db.select().from(monthlyReports).where(eq(monthlyReports.orgId, orgId)).orderBy(desc(monthlyReports.year), desc(monthlyReports.month));
+  }
+
+  async getMonthlyReport(orgId: number, year: number, month: number): Promise<MonthlyReport | undefined> {
+    const [report] = await db.select().from(monthlyReports).where(and(eq(monthlyReports.orgId, orgId), eq(monthlyReports.year, year), eq(monthlyReports.month, month)));
+    return report;
   }
 }
 

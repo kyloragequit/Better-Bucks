@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Organization, ShopWebsite, Department } from "@shared/schema";
+import type { Organization, ShopWebsite, Department, TransactionCategory } from "@shared/schema";
 
 type OrgWithFree = Organization & { isFree: boolean; employeeCount: number };
 import {
@@ -816,6 +816,7 @@ export default function AdminSettingsPage() {
                 )}
               </CardContent>
             </Card>
+            <CategoryManagementCard />
             <WeeklyReportCard />
           </>
         ) : (
@@ -1442,6 +1443,188 @@ function ShopWebsitesSection() {
             ))}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const PRESET_COLORS = [
+  "#4E9F3D", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444",
+  "#06B6D4", "#EC4899", "#F97316", "#10B981", "#6366F1",
+  "#14B8A6", "#64748B",
+];
+
+function CategoryManagementCard() {
+  const { data: user } = useUser();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editColor, setEditColor] = useState("");
+
+  const { data: categories, isLoading } = useQuery<TransactionCategory[]>({
+    queryKey: [`/api/organizations/${user?.organizationId}/categories`],
+    enabled: !!user?.organizationId,
+  });
+
+  const { mutate: addCategory, isPending: adding } = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/organizations/${user?.organizationId}/categories`, { name: newName.trim(), color: newColor }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/categories`] });
+      setNewName("");
+      toast({ title: "Category added" });
+    },
+    onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
+  const { mutate: updateCategory, isPending: updating } = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/organizations/${user?.organizationId}/categories/${id}`, { name: editName.trim(), color: editColor }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/categories`] });
+      setEditingId(null);
+      toast({ title: "Category updated" });
+    },
+    onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
+  const { mutate: deleteCategory } = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/organizations/${user?.organizationId}/categories/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${user?.organizationId}/categories`] });
+      toast({ title: "Category deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Card data-testid="card-categories">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Tag className="h-5 w-5" />
+          Reward Categories
+        </CardTitle>
+        <CardDescription>
+          Tag buck transactions by category to track what you're rewarding. Categories appear in analytics and reports.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Existing categories */}
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Loading categories…</div>
+        ) : categories && categories.length > 0 ? (
+          <div className="space-y-2">
+            {categories.map(cat => (
+              <div key={cat.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
+                {editingId === cat.id ? (
+                  <>
+                    <div className="flex items-center gap-2 flex-1 flex-wrap">
+                      <Input
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        className="h-8 max-w-[160px]"
+                        data-testid={`input-edit-category-name-${cat.id}`}
+                      />
+                      <div className="flex gap-1 flex-wrap">
+                        {PRESET_COLORS.map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`h-5 w-5 rounded-full border-2 transition-transform ${editColor === c ? "border-foreground scale-110" : "border-transparent"}`}
+                            style={{ backgroundColor: c }}
+                            onClick={() => setEditColor(c)}
+                            data-testid={`color-edit-${c.slice(1)}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" onClick={() => updateCategory(cat.id)} disabled={updating || !editName.trim()} data-testid={`button-save-category-${cat.id}`}>Save</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} data-testid={`button-cancel-edit-category-${cat.id}`}>Cancel</Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                    <span className="text-sm font-medium flex-1" data-testid={`text-category-name-${cat.id}`}>{cat.name}</span>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => { setEditingId(cat.id); setEditName(cat.name); setEditColor(cat.color); }}
+                        data-testid={`button-edit-category-${cat.id}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" data-testid={`button-delete-category-${cat.id}`}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete "{cat.name}"?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This category will be removed. Existing transactions tagged with it won't be affected, but the category will no longer appear in analytics or the transaction form.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteCategory(cat.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" data-testid={`button-confirm-delete-category-${cat.id}`}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground rounded-lg border border-dashed p-4 text-center">
+            No categories yet. Add your first category below.
+          </div>
+        )}
+
+        {/* Add new category */}
+        <div className="space-y-3 border-t pt-4">
+          <p className="text-sm font-medium">Add a Category</p>
+          <div className="flex gap-2 items-center flex-wrap">
+            <Input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Category name (e.g. Safety)"
+              className="flex-1 min-w-[160px]"
+              onKeyDown={e => e.key === "Enter" && newName.trim() && addCategory()}
+              data-testid="input-new-category-name"
+            />
+          </div>
+          <div className="flex gap-2 items-center flex-wrap">
+            <span className="text-sm text-muted-foreground">Color:</span>
+            {PRESET_COLORS.map(c => (
+              <button
+                key={c}
+                type="button"
+                className={`h-6 w-6 rounded-full border-2 transition-transform ${newColor === c ? "border-foreground scale-110" : "border-transparent hover:border-muted-foreground/40"}`}
+                style={{ backgroundColor: c }}
+                onClick={() => setNewColor(c)}
+                data-testid={`color-new-${c.slice(1)}`}
+              />
+            ))}
+          </div>
+          <Button
+            size="sm"
+            onClick={() => addCategory()}
+            disabled={adding || !newName.trim()}
+            data-testid="button-add-category"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {adding ? "Adding…" : "Add Category"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

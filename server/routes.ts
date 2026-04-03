@@ -278,6 +278,63 @@ async function seedBlogPosts() {
   });
 }
 
+// ── Monthly Report Generator ─────────────────────────────────────────────────
+async function generateMonthlyReport(orgId: number, year: number, month: number) {
+  const from = new Date(year, month - 1, 1);
+  const to = new Date(year, month, 0, 23, 59, 59, 999);
+  const org = await storage.getOrganization(orgId);
+  const orgUsers = await storage.getUsersByOrganization(orgId);
+  const userIds = orgUsers.map(u => u.id);
+
+  const allTxRows = userIds.length > 0
+    ? await db.select({ t: transactions, u: users }).from(transactions).leftJoin(users, eq(transactions.userId, users.id))
+        .where(and(inArray(transactions.userId, userIds), gte(transactions.createdAt, from), lte(transactions.createdAt, to)))
+    : [];
+
+  const monthOrders = userIds.length > 0
+    ? await db.select({ o: orders, u: users }).from(orders).leftJoin(users, eq(orders.userId, users.id))
+        .where(and(inArray(orders.userId, userIds), gte(orders.createdAt, from), lte(orders.createdAt, to)))
+    : [];
+
+  const [categoryStats, budgetUsed] = await Promise.all([
+    storage.getCategoryStats(orgId, from, to),
+    storage.getMonthlyBudgetUsed(orgId, year, month),
+  ]);
+
+  const totalAwarded = allTxRows.filter(r => r.t.amount > 0).reduce((s, r) => s + r.t.amount, 0);
+  const totalSpent = allTxRows.filter(r => r.t.amount < 0).reduce((s, r) => s + Math.abs(r.t.amount), 0);
+  const totalOrders = monthOrders.length;
+
+  const topEmployees: { userId: number; name: string; received: number }[] = [];
+  const empMap: Record<number, number> = {};
+  for (const { t, u } of allTxRows) {
+    if (t.amount > 0 && u) {
+      empMap[t.userId] = (empMap[t.userId] || 0) + t.amount;
+    }
+  }
+  for (const [uid, bucks] of Object.entries(empMap)) {
+    const u = orgUsers.find(x => x.id === parseInt(uid));
+    if (u) topEmployees.push({ userId: parseInt(uid), name: u.fullName, received: bucks });
+  }
+  topEmployees.sort((a, b) => b.received - a.received);
+
+  const reportData = {
+    orgName: org?.name ?? "",
+    year,
+    month,
+    totalAwarded,
+    totalSpent,
+    totalOrders,
+    budgetUsed,
+    monthlyBudgetBucks: org?.monthlyBudgetBucks ?? 0,
+    categoryStats,
+    topEmployees: topEmployees.slice(0, 10),
+    txCount: allTxRows.length,
+  };
+
+  return storage.createMonthlyReport({ orgId, year, month, reportData });
+}
+
 // ── Weekly Report ─────────────────────────────────────────────────────────────
 async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients: string | string[]): Promise<void> {
   const recipientList = Array.isArray(recipients) ? recipients : [recipients];
@@ -306,6 +363,11 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
     .where(and(inArray(transactions.userId, userIds), gte(transactions.createdAt, weekStart), lte(transactions.createdAt, weekEnd)));
 
   const weekTx = allTxRows;
+
+  // Category breakdown for the week
+  const weekCategoryStats = await storage.getCategoryStats(orgId, weekStart, weekEnd);
+  const monthlyBudgetUsed = await storage.getMonthlyBudgetUsed(orgId, now.getFullYear(), now.getMonth() + 1);
+  const monthlyBudget = org?.monthlyBudgetBucks ?? 0;
 
   const weekItemTx = itemName ? await storage.getCustomItemTransactionsByOrg(orgId, weekStart) : [];
   const weekOrders = await db
@@ -395,6 +457,46 @@ async function sendWeeklyReportForOrg(orgId: number, orgName: string, recipients
       </table>
     </div>
   </div>
+
+  <!-- Monthly Budget Progress -->
+  ${monthlyBudget > 0 ? `
+  <div style="padding:0 32px 20px;">
+    <div style="background:#F8FAFC;border-radius:8px;padding:16px;">
+      <h3 style="margin:0 0 10px;font-size:13px;font-weight:700;color:#162A4A;text-transform:uppercase;letter-spacing:0.5px;">Monthly Budget Progress</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:13px;color:#6B7280;">${monthlyBudgetUsed.toLocaleString()} / ${monthlyBudget.toLocaleString()} Bucks used</span>
+        <span style="font-size:13px;font-weight:700;color:${monthlyBudgetUsed / monthlyBudget >= 0.9 ? "#ef4444" : monthlyBudgetUsed / monthlyBudget >= 0.7 ? "#f59e0b" : "#4E9F3D"};">${Math.round((monthlyBudgetUsed / monthlyBudget) * 100)}%</span>
+      </div>
+      <div style="background:#E2E8F0;border-radius:99px;height:8px;overflow:hidden;">
+        <div style="background:${monthlyBudgetUsed / monthlyBudget >= 0.9 ? "#ef4444" : monthlyBudgetUsed / monthlyBudget >= 0.7 ? "#f59e0b" : "#4E9F3D"};height:8px;border-radius:99px;width:${Math.min(Math.round((monthlyBudgetUsed / monthlyBudget) * 100), 100)}%;"></div>
+      </div>
+    </div>
+  </div>` : ""}
+
+  <!-- Category Breakdown -->
+  ${weekCategoryStats.length > 0 ? (() => {
+    const totalCatBucks = weekCategoryStats.reduce((s, c) => s + c.totalBucks, 0);
+    return `
+  <div style="padding:0 32px 20px;">
+    <div style="background:#F8FAFC;border-radius:8px;padding:16px;">
+      <h3 style="margin:0 0 12px;font-size:13px;font-weight:700;color:#162A4A;text-transform:uppercase;letter-spacing:0.5px;">Bucks by Category This Week</h3>
+      ${weekCategoryStats.slice(0, 6).map(c => {
+        const pct = totalCatBucks > 0 ? Math.round((c.totalBucks / totalCatBucks) * 100) : 0;
+        const name = c.categoryName ?? "Uncategorized";
+        const color = c.categoryColor ?? "#9CA3AF";
+        return `<div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+            <span style="font-size:12px;color:#374151;">${escapeHtml(name)}</span>
+            <span style="font-size:12px;font-weight:600;color:#374151;">${c.totalBucks.toLocaleString()} (${pct}%)</span>
+          </div>
+          <div style="background:#E2E8F0;border-radius:99px;height:6px;overflow:hidden;">
+            <div style="background:${color};height:6px;border-radius:99px;width:${pct}%;"></div>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+  })() : ""}
 
   <!-- Transaction list -->
   ${weekTx.length > 0 ? `
@@ -1417,7 +1519,7 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
-    const { amount, reason } = api.users.updateBalance.input.parse(req.body);
+    const { amount, reason, categoryId } = api.users.updateBalance.input.parse(req.body);
 
     const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).send("User not found");
@@ -1460,6 +1562,7 @@ export async function registerRoutes(
       amount,
       reason,
       performedBy: user.id,
+      categoryId: (amount > 0 && categoryId) ? categoryId : null,
     });
 
     res.json(updatedUser);
@@ -4631,6 +4734,30 @@ export async function registerRoutes(
     sendAllWeeklyReports().catch(err => console.error("[WeeklyReport] Error:", err));
   });
 
+  // ── Monthly Report Auto-Generate (1st of each month at 2:00 AM UTC, covers prev month) ──
+  cron.schedule("0 2 1 * *", async () => {
+    console.log("[MonthlyReport] Cron triggered — generating monthly reports for previous month...");
+    const now = new Date();
+    const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    try {
+      const allOrgs = await storage.getAllOrganizations();
+      let generated = 0;
+      for (const org of allOrgs) {
+        if (org.status !== "active") continue;
+        try {
+          await generateMonthlyReport(org.id, prevYear, prevMonth);
+          generated++;
+        } catch (err) {
+          console.error(`[MonthlyReport] Failed for org ${org.name} (${org.id}):`, err);
+        }
+      }
+      console.log(`[MonthlyReport] Generated reports for ${generated} orgs (${prevYear}-${prevMonth.toString().padStart(2, "0")})`);
+    } catch (err) {
+      console.error("[MonthlyReport] Cron error:", err);
+    }
+  });
+
   // ── Custom Items ────────────────────────────────────────────────────────────
 
   // Get custom item config for the org (name + current user's balance)
@@ -5044,6 +5171,93 @@ export async function registerRoutes(
     });
 
     res.json(newUser);
+  });
+
+  // ── CATEGORY ROUTES ─────────────────────────────────────────────────────────
+  app.get("/api/organizations/:id/categories", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (user.organizationId !== orgId) return res.status(403).send("Forbidden");
+    const categories = await storage.getCategoriesByOrg(orgId);
+    res.json(categories);
+  });
+
+  app.post("/api/organizations/:id/categories", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (user.organizationId !== orgId) return res.status(403).send("Forbidden");
+    const schema = z.object({ name: z.string().min(1).max(50), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+    const category = await storage.createCategory({ orgId, name: parsed.data.name, color: parsed.data.color });
+    res.json(category);
+  });
+
+  app.patch("/api/organizations/:id/categories/:catId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (user.organizationId !== orgId) return res.status(403).send("Forbidden");
+    const catId = parseInt(req.params.catId);
+    const schema = z.object({ name: z.string().min(1).max(50).optional(), color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+    const category = await storage.updateCategory(catId, orgId, parsed.data);
+    res.json(category);
+  });
+
+  app.delete("/api/organizations/:id/categories/:catId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (user.organizationId !== orgId) return res.status(403).send("Forbidden");
+    const catId = parseInt(req.params.catId);
+    await storage.deleteCategory(catId, orgId);
+    res.json({ success: true });
+  });
+
+  // ── ANALYTICS ROUTES ─────────────────────────────────────────────────────────
+  app.get("/api/organizations/:id/analytics/categories", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (user.organizationId !== orgId) return res.status(403).send("Forbidden");
+    const now = new Date();
+    const year = parseInt(req.query.year as string) || now.getFullYear();
+    const month = parseInt(req.query.month as string) || (now.getMonth() + 1);
+    const from = new Date(year, month - 1, 1);
+    const to = new Date(year, month, 0, 23, 59, 59, 999);
+    const [stats, budgetUsed] = await Promise.all([
+      storage.getCategoryStats(orgId, from, to),
+      storage.getMonthlyBudgetUsed(orgId, year, month),
+    ]);
+    const org = await storage.getOrganization(orgId);
+    res.json({ stats, budgetUsed, monthlyBudgetBucks: org?.monthlyBudgetBucks ?? 0, year, month });
+  });
+
+  // ── MONTHLY REPORTS ROUTES ───────────────────────────────────────────────────
+  app.get("/api/organizations/:id/reports", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (user.organizationId !== orgId) return res.status(403).send("Forbidden");
+    const reports = await storage.getMonthlyReportsByOrg(orgId);
+    res.json(reports);
+  });
+
+  app.post("/api/organizations/:id/reports/generate", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (user.organizationId !== orgId) return res.status(403).send("Forbidden");
+    const schema = z.object({ year: z.number().int().min(2020).max(2100), month: z.number().int().min(1).max(12) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid period" });
+    const { year, month } = parsed.data;
+    const report = await generateMonthlyReport(orgId, year, month);
+    res.json(report);
   });
 
   return httpServer;

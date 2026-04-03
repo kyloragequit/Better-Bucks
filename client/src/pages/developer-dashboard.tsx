@@ -216,8 +216,8 @@ export default function DeveloperDashboardPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (orgId: number) => {
-      const res = await apiRequest("DELETE", `/api/developer/organizations/${orgId}`);
+    mutationFn: async ({ orgId, orgName }: { orgId: number; orgName: string }) => {
+      const res = await apiRequest("DELETE", `/api/developer/organizations/${orgId}?confirm=${encodeURIComponent(orgName)}`);
       return res.json();
     },
     onSuccess: () => {
@@ -1361,7 +1361,7 @@ export default function DeveloperDashboardPage() {
                                     variant="destructive"
                                     onClick={() => {
                                       if (confirm(`Delete "${org.name}"? It will be hidden from the dashboard but data is preserved for auditing.`)) {
-                                        deleteMutation.mutate(org.id);
+                                        deleteMutation.mutate({ orgId: org.id, orgName: org.name });
                                       }
                                     }}
                                     disabled={deleteMutation.isPending}

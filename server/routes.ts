@@ -5096,7 +5096,49 @@ export async function registerRoutes(
             <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">You're invited!</h3>
             <p>Hi ${escapeHtml(data.fullName)},</p>
             <p><strong>${escapeHtml(user.fullName)}</strong> has invited you to join <strong>${escapeHtml(org?.name || "their organization")}</strong> on Better Bucks — an employee incentive platform for tracking and rewarding great work.</p>
-            <p>Click the button below to create your account. This invitation expires in 7 days.</p>
+
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:24px 0;">
+              <p style="margin:0 0 14px 0;font-weight:700;font-size:15px;color:#111;">How to get started:</p>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr style="vertical-align:top;">
+                  <td style="width:32px;padding-bottom:12px;">
+                    <span style="display:inline-block;background:#4E9F3D;color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px;font-weight:700;">1</span>
+                  </td>
+                  <td style="padding-bottom:12px;padding-left:8px;">
+                    <strong>Accept this invitation</strong><br>
+                    <span style="color:#6b7280;font-size:13px;">Click the button below to be taken to the sign-up page. This link expires in 7 days.</span>
+                  </td>
+                </tr>
+                <tr style="vertical-align:top;">
+                  <td style="width:32px;padding-bottom:12px;">
+                    <span style="display:inline-block;background:#4E9F3D;color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px;font-weight:700;">2</span>
+                  </td>
+                  <td style="padding-bottom:12px;padding-left:8px;">
+                    <strong>Create your username &amp; password</strong><br>
+                    <span style="color:#6b7280;font-size:13px;">Choose a username you'll remember and set a secure password. You can also add your email or phone number for account recovery.</span>
+                  </td>
+                </tr>
+                <tr style="vertical-align:top;">
+                  <td style="width:32px;padding-bottom:12px;">
+                    <span style="display:inline-block;background:#4E9F3D;color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px;font-weight:700;">3</span>
+                  </td>
+                  <td style="padding-bottom:12px;padding-left:8px;">
+                    <strong>Log in to your dashboard</strong><br>
+                    <span style="color:#6b7280;font-size:13px;">Once registered, sign in to see your Bucks balance, transaction history, and any active goals or surveys from your team.</span>
+                  </td>
+                </tr>
+                <tr style="vertical-align:top;">
+                  <td style="width:32px;">
+                    <span style="display:inline-block;background:#4E9F3D;color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px;font-weight:700;">4</span>
+                  </td>
+                  <td style="padding-left:8px;">
+                    <strong>Earn &amp; redeem Bucks</strong><br>
+                    <span style="color:#6b7280;font-size:13px;">Your manager will award you Bucks for great work. Browse the store to spend them on rewards and prizes.</span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
             <div style="text-align:center;margin:32px 0;">
               <a href="${inviteUrl}" style="background:#4E9F3D;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;">Accept Invitation</a>
             </div>

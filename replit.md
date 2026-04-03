@@ -8,6 +8,19 @@ Better Bucks is a multi-tenant, full-stack employee incentive and rewards manage
 
 Preferred communication style: Simple, everyday language.
 
+## Hard Rules (Never Violate)
+
+- **NEVER delete organizations** without an explicit, direct instruction from the user in the current conversation. This is a strict rule — no cleanup scripts, no "dev org" assumptions, no bulk removals without confirmation.
+- Both delete endpoints (`POST /api/organizations/delete` and `DELETE /api/developer/organizations/:id`) now require the caller to supply the organization's exact name as a confirmation token, providing a code-level safety guardrail against accidental deletion.
+- **Production data is sacred.** Always confirm with the user before any destructive operation (delete, bulk wipe, status change to "deleted") on production records.
+
+## Key Organizations
+
+| Org | ID (dev) | ID (prod) | Code | Notes |
+|-----|----------|-----------|------|-------|
+| Demo / VIEWDEMO | 38 | 11 | VIEWDEMO | site_id=viewdemo, prime user=demo_prime |
+| DHL Lacombe | 11 (dev) | 13 (prod) | FEF55758 | ~100+ employees, no site_id set in prod (employees use org code or QR scan) |
+
 ## System Architecture
 
 ### Frontend

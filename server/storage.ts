@@ -407,8 +407,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrganizationBySiteId(siteId: string): Promise<Organization | undefined> {
-    const [org] = await db.select().from(organizations).where(eq(organizations.siteId, siteId.toLowerCase()));
-    return org;
+    const lower = siteId.toLowerCase();
+    // First try the dedicated site_id field, then fall back to the org code
+    const [byId] = await db.select().from(organizations).where(eq(organizations.siteId, lower));
+    if (byId) return byId;
+    const [byCode] = await db.select().from(organizations).where(eq(sql`lower(${organizations.code})`, lower));
+    return byCode;
   }
 
   async setOrganizationSiteId(id: number, siteId: string | null): Promise<Organization> {

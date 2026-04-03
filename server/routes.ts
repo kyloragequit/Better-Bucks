@@ -2843,6 +2843,12 @@ export async function registerRoutes(
     const org = await storage.getOrganization(user.organizationId);
     if (!org) return res.status(404).json({ message: "Organization not found" });
 
+    // Require the user to explicitly confirm by typing the org name
+    const { confirmOrgName } = req.body;
+    if (!confirmOrgName || confirmOrgName.trim().toLowerCase() !== org.name.trim().toLowerCase()) {
+      return res.status(400).json({ message: `To confirm deletion, please type the organization name exactly: "${org.name}"` });
+    }
+
     const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
     if (!isFree) {
       return res.status(400).json({ message: "Only free or promo organizations can be deleted. Please cancel your subscription first." });
@@ -3138,6 +3144,15 @@ export async function registerRoutes(
     try {
       const org = await storage.getOrganization(orgId);
       if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      // Require explicit confirmation matching the org name — safety guardrail
+      const confirmName = (req.query.confirm as string) || (req.body?.confirmOrgName as string);
+      if (!confirmName || confirmName.trim().toLowerCase() !== org.name.trim().toLowerCase()) {
+        return res.status(400).json({
+          message: `Organization deletion requires explicit confirmation. Pass confirm="${org.name}" in the request.`,
+          orgName: org.name,
+        });
+      }
 
       await storage.updateOrganizationStatus(orgId, "deleted");
       res.json({ success: true });

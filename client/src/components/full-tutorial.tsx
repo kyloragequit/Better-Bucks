@@ -389,8 +389,19 @@ export function FullTutorialOverlay() {
   };
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
+  const isActive = !forceHide && showFullTutorial && !!user && isOnAppPage && !!user?.termsAcceptedAt;
 
-  if (forceHide || !showFullTutorial || !user || !isOnAppPage || !user.termsAcceptedAt) return null;
+  // Lock body scroll while the overlay is visible; always restore on exit or unmount
+  useEffect(() => {
+    if (isActive) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isActive]);
+
+  if (!isActive) return null;
 
   return createPortal(
     <>

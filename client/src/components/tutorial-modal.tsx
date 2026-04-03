@@ -762,13 +762,24 @@ export function TutorialModal() {
   const [forceHide, setForceHide] = useState(false);
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
+  const isActive = !forceHide && (showChoice || shouldShow) && !!user && isOnAppPage && user?.role !== "developer" && !!user?.termsAcceptedAt;
+
+  // Lock body scroll while the modal is visible; always restore on exit or unmount
+  useEffect(() => {
+    if (isActive) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isActive]);
 
   const handleSkip = () => {
     setForceHide(true);
     skipTutorial();
   };
 
-  if (forceHide || (!showChoice && !shouldShow) || !user || !isOnAppPage || user.role === "developer" || !user.termsAcceptedAt) return null;
+  if (!isActive) return null;
 
   // Show tutorial type choice screen
   if (showChoice) {

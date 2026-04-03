@@ -701,10 +701,16 @@ export function TutorialModal() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [shopDone, setShopDone] = useState(false);
   const [shopBalance] = useState(850);
+  const [forceHide, setForceHide] = useState(false);
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
 
-  if ((!showChoice && !shouldShow) || !user || !isOnAppPage || user.role === "developer" || !user.termsAcceptedAt) return null;
+  const handleSkip = () => {
+    setForceHide(true);
+    skipTutorial();
+  };
+
+  if (forceHide || (!showChoice && !shouldShow) || !user || !isOnAppPage || user.role === "developer" || !user.termsAcceptedAt) return null;
 
   // Show tutorial type choice screen
   if (showChoice) {
@@ -717,7 +723,7 @@ export function TutorialModal() {
               <span className="text-white font-bold text-sm">Welcome to Better Bucks!</span>
             </div>
             <button
-              onClick={() => skipTutorial()}
+              onClick={handleSkip}
               className="text-white/50 hover:text-white transition-colors"
               data-testid="button-tutorial-choice-skip"
               title="Skip for now"
@@ -807,7 +813,7 @@ export function TutorialModal() {
             </span>
           </div>
           <button
-            onClick={skipTutorial}
+            onClick={handleSkip}
             className="text-white/50 hover:text-white transition-colors"
             data-testid="button-tutorial-skip"
             title="Skip tutorial"

@@ -317,11 +317,14 @@ export function FullTutorialOverlay() {
   const [location, setLocation] = useLocation();
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
+  const [forceHide, setForceHide] = useState(false);
   const locating = useRef(false);
 
   const role = user?.role ?? "employee";
   const steps = useMemo(() => getSteps(role), [role]);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
+
+  const homePath = role === "employee" ? "/dashboard" : "/admin/dashboard";
 
   const findElement = useCallback(() => {
     if (!step?.selector) { setRect(null); return; }
@@ -364,6 +367,7 @@ export function FullTutorialOverlay() {
       setStepIndex(s => s + 1);
     } else {
       await completeTutorial();
+      setLocation(homePath);
     }
   };
 
@@ -371,13 +375,15 @@ export function FullTutorialOverlay() {
     if (stepIndex > 0) setStepIndex(s => s - 1);
   };
 
-  const handleSkip = async () => {
-    await skipTutorial();
+  const handleSkip = () => {
+    setForceHide(true);
+    setLocation(homePath);
+    skipTutorial();
   };
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
 
-  if (!showFullTutorial || !user || !isOnAppPage || !user.termsAcceptedAt) return null;
+  if (forceHide || !showFullTutorial || !user || !isOnAppPage || !user.termsAcceptedAt) return null;
 
   return createPortal(
     <>

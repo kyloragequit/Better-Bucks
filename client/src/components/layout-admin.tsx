@@ -122,7 +122,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <nav className="hidden md:block">
             {(() => {
               const allItems = [
-                ...navItems,
+                ...navItems.filter(item => item.href !== "/admin/instant-transaction"),
                 ...(user?.role === "admin" || user?.role === "prime_admin"
                   ? [{ href: "/admin/account-settings", label: "My Profile", icon: Settings }]
                   : []),

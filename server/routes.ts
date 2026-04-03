@@ -1,6 +1,6 @@
 
 import type { Express, Request, Response, NextFunction } from "express";
-import { seedDemoOrg } from "./seedDemo";
+import { seedDemoOrg, createSessionDemoOrg, deleteSessionDemoOrg, cleanupStaleDemoOrgs } from "./seedDemo";
 import type { Server } from "http";
 import { setupAuth, hashPassword, verifyPassword, isCaptchaRequired, verifyTurnstileToken } from "./auth";
 import {
@@ -621,32 +621,17 @@ export async function registerRoutes(
   // Setup Auth first
   setupAuth(app);
 
-  // ── Public demo read-only guard ──────────────────────────────────────────
-  // For public demo sessions, block all writes so the shared demo org stays
-  // in its base state. Demo-switching and logout paths are allowed through.
-  // Tutorial endpoints must pass through so the overlay only appears once per session,
-  // not repeatedly. The demo login resets tutorialCompleted=false so it fires fresh
-  // for each new visitor.
-  const DEMO_WRITE_ALLOWLIST = ["/api/demo/", "/api/logout", "/api/users/complete-tutorial", "/api/users/reset-tutorial"];
-  app.use((req, _res, next) => {
-    const isPublicDemo = (req.session as any)?.isPublicDemo === true;
-    if (
-      isPublicDemo &&
-      ["POST", "PATCH", "PUT", "DELETE"].includes(req.method) &&
-      !DEMO_WRITE_ALLOWLIST.some((p) => req.path.startsWith(p))
-    ) {
-      // Return a generic success so the UI doesn't error, but nothing is saved
-      _res.status(200).json({ ok: true });
-      return;
-    }
-    next();
-  });
+  // ── Public demo: each session gets its own isolated org (no shared state) ──
+  // Writes are now fully allowed for demo users — their org is deleted on exit.
 
   // Seed default blog posts if none exist (handles fresh production databases)
   await seedBlogPosts();
 
   // Seed demo org after startup so health checks are never blocked
   setTimeout(() => seedDemoOrg(), 5000);
+
+  // Every hour, clean up stale temp demo orgs whose sessions expired without an explicit exit
+  setInterval(() => cleanupStaleDemoOrgs(), 60 * 60 * 1000).unref();
 
   // robots.txt
   app.get("/robots.txt", (_req, res) => {
@@ -3472,30 +3457,19 @@ export async function registerRoutes(
 
   // ==================== FULL SERVICE VIEW MODE ROUTES ====================
 
-  // Public demo auto-login — no auth required
+  // Public demo auto-login — creates a fresh isolated org per session
   app.post("/api/demo/public-login", async (req, res) => {
     try {
-      // Self-heal: if the 5s startup delay hasn't passed, seed on demand
-      let demoOrg = await storage.getOrganizationByCode("VIEWDEMO");
-      if (!demoOrg) {
-        await seedDemoOrg();
-        demoOrg = await storage.getOrganizationByCode("VIEWDEMO");
-      }
-      if (!demoOrg) return res.status(503).json({ message: "Demo is starting up, please try again in a moment." });
-      const orgUsers = await storage.getUsersByOrganization(demoOrg.id);
-      const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
-      if (!primeAdmin) return res.status(500).json({ message: "Demo not configured" });
-      // Pre-accept terms only if not already set (avoids unnecessary write on repeat logins)
-      if (!primeAdmin.termsAcceptedAt) {
-        await db.update(users).set({ termsAcceptedAt: new Date() }).where(eq(users.organizationId, demoOrg.id));
-      }
-      // Reset tutorial so the full interactive tour fires on every new visit
-      await db.update(users).set({ tutorialCompleted: false }).where(eq(users.id, primeAdmin.id));
+      // Each visitor gets their own copy of the demo data so their changes
+      // don't affect other sessions and are cleaned up on exit / session expiry.
+      const { orgId, primeAdmin } = await createSessionDemoOrg();
+
       req.login(primeAdmin, (err) => {
         if (err) return res.status(500).json({ message: "Login failed" });
         (req.session as any).demoOriginalUserId = primeAdmin.id;
         (req.session as any).isPublicDemo = true;
-        // Expire demo sessions after 2 hours so they don't accumulate in the DB
+        (req.session as any).demoTempOrgId = orgId;
+        // Expire demo sessions after 2 hours so abandoned orgs get cleaned up by the scheduled job
         req.session.cookie.maxAge = 2 * 60 * 60 * 1000;
         req.session.save((saveErr) => {
           if (saveErr) return res.status(500).json({ message: "Session save failed" });
@@ -3595,13 +3569,20 @@ export async function registerRoutes(
   app.post("/api/demo/exit", async (req, res) => {
     const isPublicDemo = (req.session as any)?.isPublicDemo === true;
 
-    // Public demo visitors have no "real" account to return to — just log out completely
+    // Public demo visitors have no "real" account to return to — log out and clean up their temp org
     if (isPublicDemo) {
+      const demoTempOrgId = (req.session as any).demoTempOrgId as number | undefined;
       req.logout((err) => {
         if (err) return res.status(500).json({ message: "Failed to exit demo" });
         req.session.destroy((destroyErr) => {
           if (destroyErr) console.error("Demo session destroy error:", destroyErr);
           res.json({ success: true });
+          // Delete temp org in background after response is sent
+          if (demoTempOrgId) {
+            deleteSessionDemoOrg(demoTempOrgId).catch(e =>
+              console.error("[demo exit] Failed to delete temp org:", e)
+            );
+          }
         });
       });
       return;
@@ -4693,7 +4674,6 @@ export async function registerRoutes(
   app.post("/api/admin/surveys", asyncHandler(async (req, res) => {
     const user = req.user as any;
     if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
-    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: surveys are read-only." });
     const { title, description, status, questions } = req.body;
     if (!title) return res.status(400).json({ message: "Title is required" });
     const survey = await storage.createSurvey(
@@ -4712,7 +4692,6 @@ export async function registerRoutes(
   app.patch("/api/admin/surveys/:id/status", asyncHandler(async (req, res) => {
     const user = req.user as any;
     if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
-    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: surveys are read-only." });
     const survey = await storage.getSurvey(Number(req.params.id));
     if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
     const updated = await storage.updateSurveyStatus(survey.id, req.body.status);
@@ -4723,7 +4702,6 @@ export async function registerRoutes(
   app.delete("/api/admin/surveys/:id", asyncHandler(async (req, res) => {
     const user = req.user as any;
     if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
-    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: surveys are read-only." });
     const survey = await storage.getSurvey(Number(req.params.id));
     if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
     await storage.deleteSurvey(survey.id);
@@ -4747,7 +4725,6 @@ export async function registerRoutes(
   app.post("/api/surveys/:id/respond", asyncHandler(async (req, res) => {
     const user = req.user as any;
     if (!user) return res.status(401).json({ message: "Unauthorized" });
-    if ((req as any).isPublicDemo) return res.status(403).json({ message: "Demo mode: survey submissions are disabled." });
     const survey = await storage.getSurvey(Number(req.params.id));
     if (!survey || survey.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
     if (survey.status !== "active") return res.status(400).json({ message: "Survey is not active" });

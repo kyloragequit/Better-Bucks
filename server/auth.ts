@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { storage } from "./storage";
 import { pool } from "./db";
 import { User } from "@shared/schema";
+import { deleteSessionDemoOrg } from "./seedDemo";
 
 export const BCRYPT_ROUNDS = 12;
 
@@ -175,6 +176,8 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
+    const isPublicDemo = (req.session as any)?.isPublicDemo === true;
+    const demoTempOrgId = (req.session as any)?.demoTempOrgId as number | undefined;
     req.logout((err) => {
       if (err) return next(err);
       req.session.destroy((destroyErr) => {
@@ -186,6 +189,12 @@ export function setupAuth(app: Express) {
           path: "/",
         });
         res.sendStatus(200);
+        // Clean up temp demo org after response is sent (public demo sessions only)
+        if (isPublicDemo && demoTempOrgId) {
+          deleteSessionDemoOrg(demoTempOrgId).catch(e =>
+            console.error("[logout] Failed to delete temp demo org:", e)
+          );
+        }
       });
     });
   });

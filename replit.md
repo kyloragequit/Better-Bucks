@@ -18,7 +18,7 @@ Preferred communication style: Simple, everyday language.
 
 | Org | ID (dev) | ID (prod) | Code | Notes |
 |-----|----------|-----------|------|-------|
-| Demo / VIEWDEMO | 38 | 11 | VIEWDEMO | site_id=viewdemo, prime user=demo_prime |
+| Demo / VIEWDEMO | 38 | 11 | VIEWDEMO | Reference org (kept for legacy). Public demo now creates a fresh `TMPDEMO_*` org per session that is deleted on exit. |
 | DHL Lacombe | 11 (dev) | 13 (prod) | FEF55758 | ~100+ employees, no site_id set in prod (employees use org code or QR scan) |
 
 ## System Architecture

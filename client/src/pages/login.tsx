@@ -20,11 +20,7 @@ export default function LoginPage() {
   const [, setLocation] = useLocation();
 
   const params = new URLSearchParams(window.location.search);
-  const urlOrgCode = params.get("orgCode") || "";
-
-  useEffect(() => {
-    localStorage.removeItem("bb_remember_opted_in");
-  }, []);
+  const urlOrgCode = params.get("orgCode") || localStorage.getItem("bb_last_site_id") || "";
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
@@ -344,6 +340,8 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
           setStep("register");
           return;
         }
+        // Persist the site ID so employees don't have to re-enter it next time
+        localStorage.setItem("bb_last_site_id", siteId.trim().toLowerCase());
         queryClient.setQueryData(["/api/user"], data);
         toast({ title: "Welcome back!", description: `Signed in as ${data.fullName}` });
         redirectAfterLogin(data.role, setLocation);
@@ -395,6 +393,8 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
         toast({ title: "Sign In Failed", description: data.message || "Something went wrong", variant: "destructive" });
         return;
       }
+      // Persist site ID for returning visits
+      localStorage.setItem("bb_last_site_id", siteId.trim().toLowerCase());
       queryClient.setQueryData(["/api/user"], data);
       toast({ title: "Welcome!", description: `Signed in as ${data.fullName}` });
       redirectAfterLogin(data.role, setLocation);
@@ -503,10 +503,22 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
       <div className="space-y-2">
-        <Label htmlFor="site-id">
-          Site ID
-          <span className="ml-1.5 text-xs font-normal text-muted-foreground">(employees only)</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="site-id">
+            Site ID
+            <span className="ml-1.5 text-xs font-normal text-muted-foreground">(employees only)</span>
+          </Label>
+          {siteId.trim() && (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+              onClick={() => { setSiteId(""); localStorage.removeItem("bb_last_site_id"); }}
+              data-testid="button-clear-site-id"
+            >
+              Not your workplace?
+            </button>
+          )}
+        </div>
         <div className="relative">
           <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
@@ -523,6 +535,9 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
             {showSiteId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+        {siteId.trim() && (
+          <p className="text-xs text-muted-foreground">Enter your employee username below — no password needed.</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -542,43 +557,45 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
         </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">
-            Password
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">(administrators)</span>
-          </Label>
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
-            onClick={() => setLocation("/forgot-password")}
-            data-testid="link-forgot-password"
-          >
-            Forgot password?
-          </button>
+      {!siteId.trim() && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">
+              Password
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground">(administrators)</span>
+            </Label>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+              onClick={() => setLocation("/forgot-password")}
+              data-testid="link-forgot-password"
+            >
+              Forgot password?
+            </button>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Your password"
+              className="pl-9 pr-9"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="off"
+              data-testid="input-admin-password"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setShowPassword(!showPassword)}
+              data-testid="button-toggle-password"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
-        <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Your password"
-            className="pl-9 pr-9"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="off"
-            data-testid="input-admin-password"
-          />
-          <button
-            type="button"
-            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setShowPassword(!showPassword)}
-            data-testid="button-toggle-password"
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
+      )}
 
       <Button
         type="submit"

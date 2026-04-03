@@ -95,7 +95,7 @@ Preferred communication style: Simple, everyday language.
   - Request body size capped at 50kb to prevent oversized payload attacks
   - Zod validation on all API routes
   - Error handler strips internal details from 500 responses in production
-  - CAPTCHA (HMAC-SHA256 signed math challenge) every 5th successful login
+  - **CAPTCHA**: Cloudflare Turnstile on every 5th successful admin login. Uses test keys by default (always pass). For production, set `TURNSTILE_SECRET_KEY` (backend) and `VITE_TURNSTILE_SITE_KEY` (frontend) env vars — get keys at dash.cloudflare.com (free). Shared widget in `client/src/components/turnstile-captcha.tsx`.
   - `trust proxy` set so rate limiters use real client IP behind Replit's reverse proxy
 - **SEO**: Per-page SEO with `PageSEO` component, `robots.txt`, and `sitemap.xml`.
 

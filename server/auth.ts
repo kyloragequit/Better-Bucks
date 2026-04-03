@@ -23,39 +23,27 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
   return plain === stored;
 }
 
-function getCaptchaSecret(): string {
-  return process.env.SESSION_SECRET || "super secret session key";
-}
-
-export function generateCaptchaChallenge(): { question: string; token: string } {
-  const num1 = Math.floor(Math.random() * 20) + 1;
-  const num2 = Math.floor(Math.random() * 20) + 1;
-  const answer = num1 + num2;
-  const expiresAt = Date.now() + 5 * 60 * 1000;
-  const payload = Buffer.from(JSON.stringify({ answer, expiresAt })).toString("base64url");
-  const sig = crypto.createHmac("sha256", getCaptchaSecret()).update(`${answer}:${expiresAt}`).digest("hex");
-  return {
-    question: `What is ${num1} + ${num2}?`,
-    token: `${payload}.${sig}`,
-  };
-}
-
-export function verifyCaptchaToken(token: string, userAnswer: string): boolean {
-  try {
-    const [payloadB64, sig] = token.split(".");
-    if (!payloadB64 || !sig) return false;
-    const { answer, expiresAt } = JSON.parse(Buffer.from(payloadB64, "base64url").toString());
-    if (Date.now() > expiresAt) return false;
-    const expected = crypto.createHmac("sha256", getCaptchaSecret()).update(`${answer}:${expiresAt}`).digest("hex");
-    if (!crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) return false;
-    return parseInt(userAnswer, 10) === answer;
-  } catch {
-    return false;
-  }
-}
-
 export function isCaptchaRequired(successfulLoginCount: number): boolean {
   return (successfulLoginCount + 1) % 5 === 0;
+}
+
+export async function verifyTurnstileToken(token: string, remoteIp?: string): Promise<boolean> {
+  // Cloudflare test secret always returns success — swap for real key via TURNSTILE_SECRET_KEY env var
+  const secret = process.env.TURNSTILE_SECRET_KEY || "1x0000000000000000000000000000000AA";
+  try {
+    const body: Record<string, string> = { secret, response: token };
+    if (remoteIp) body.remoteip = remoteIp;
+    const resp = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json() as { success: boolean };
+    return data.success === true;
+  } catch (e) {
+    console.error("Turnstile verification error:", e);
+    return false;
+  }
 }
 
 export function setupAuth(app: Express) {
@@ -144,7 +132,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    const { captchaToken, captchaAnswer } = req.body;
+    const { turnstileToken } = req.body;
 
     passport.authenticate("local", async (err: any, user: User, info: any) => {
       if (err) return next(err);
@@ -165,23 +153,13 @@ export function setupAuth(app: Express) {
       const count = user.successfulLoginCount ?? 0;
 
       if (isCaptchaRequired(count)) {
-        if (!captchaToken || !captchaAnswer) {
-          const challenge = generateCaptchaChallenge();
-          return res.status(200).json({
-            captchaRequired: true,
-            question: challenge.question,
-            token: challenge.token,
-          });
+        if (!turnstileToken) {
+          return res.status(200).json({ captchaRequired: true });
         }
-
-        if (!verifyCaptchaToken(captchaToken, captchaAnswer)) {
-          const challenge = generateCaptchaChallenge();
-          return res.status(200).json({
-            captchaRequired: true,
-            question: challenge.question,
-            token: challenge.token,
-            error: "Incorrect answer. Please try again.",
-          });
+        const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() || req.socket.remoteAddress;
+        const valid = await verifyTurnstileToken(turnstileToken, ip);
+        if (!valid) {
+          return res.status(200).json({ captchaRequired: true, error: "CAPTCHA verification failed. Please try again." });
         }
       }
 

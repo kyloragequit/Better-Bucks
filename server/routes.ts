@@ -2,7 +2,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { seedDemoOrg } from "./seedDemo";
 import type { Server } from "http";
-import { setupAuth, hashPassword, verifyPassword, generateCaptchaChallenge, verifyCaptchaToken, isCaptchaRequired } from "./auth";
+import { setupAuth, hashPassword, verifyPassword, isCaptchaRequired, verifyTurnstileToken } from "./auth";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -3023,11 +3023,10 @@ export async function registerRoutes(
 
   app.post("/api/developer-login", async (req, res) => {
     try {
-      const { username, password, captchaToken, captchaAnswer } = z.object({
+      const { username, password, turnstileToken } = z.object({
         username: z.string(),
         password: z.string(),
-        captchaToken: z.string().optional(),
-        captchaAnswer: z.string().optional(),
+        turnstileToken: z.string().optional(),
       }).parse(req.body);
 
       const user = await storage.getUserByUsername(username);
@@ -3043,13 +3042,13 @@ export async function registerRoutes(
       // CAPTCHA check every 5 successful logins
       const count = user.successfulLoginCount ?? 0;
       if (isCaptchaRequired(count)) {
-        if (!captchaToken || !captchaAnswer) {
-          const challenge = generateCaptchaChallenge();
-          return res.status(200).json({ captchaRequired: true, question: challenge.question, token: challenge.token });
+        if (!turnstileToken) {
+          return res.status(200).json({ captchaRequired: true });
         }
-        if (!verifyCaptchaToken(captchaToken, captchaAnswer)) {
-          const challenge = generateCaptchaChallenge();
-          return res.status(200).json({ captchaRequired: true, question: challenge.question, token: challenge.token, error: "Incorrect answer. Please try again." });
+        const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() || req.socket.remoteAddress;
+        const valid = await verifyTurnstileToken(turnstileToken, ip);
+        if (!valid) {
+          return res.status(200).json({ captchaRequired: true, error: "CAPTCHA verification failed. Please try again." });
         }
       }
 

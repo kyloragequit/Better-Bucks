@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { AppLogo } from "@/components/app-logo";
 import { Code2, ArrowLeft } from "lucide-react";
+import { TurnstileStep } from "@/components/turnstile-captcha";
 
 export default function DeveloperLoginPage() {
   const [, setLocation] = useLocation();
@@ -17,38 +18,67 @@ export default function DeveloperLoginPage() {
   const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [captchaRequired, setCaptchaRequired] = useState<{ error?: string } | null>(null);
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: { username: string; password: string }) => {
+  async function doLogin(turnstileToken?: string) {
+    setIsPending(true);
+    try {
       const res = await fetch("/api/developer-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ username, password, turnstileToken }),
         credentials: "include",
       });
+      const data = await res.json();
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Login failed");
+        toast({ title: "Login Failed", description: data.message || "Login failed", variant: "destructive" });
+        return;
       }
-      return res.json();
-    },
-    onSuccess: (user) => {
+      if (data.captchaRequired) {
+        setCaptchaRequired({ error: data.error });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      if (user.mustChangePassword) {
+      if (data.mustChangePassword) {
         setLocation("/change-password");
       } else {
         setLocation("/developer/dashboard");
       }
-    },
-    onError: (error: Error) => {
-      toast({ title: "Login Failed", description: error.message, variant: "destructive" });
-    },
-  });
+    } finally {
+      setIsPending(false);
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate({ username, password });
+    doLogin();
   };
+
+  if (captchaRequired !== null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4 bg-gray-950 relative">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center space-y-4">
+            <div className="mx-auto mb-2"><AppLogo size="lg" /></div>
+            <h1 className="text-3xl font-bold text-white">Developer Portal</h1>
+          </div>
+          <Card className="bg-gray-900 border-gray-800">
+            <CardContent className="pt-6">
+              <TurnstileStep
+                error={captchaRequired.error}
+                onSubmit={(token) => doLogin(token)}
+                onBack={() => setCaptchaRequired(null)}
+                isPending={isPending}
+                dark
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <SiteFooter dark absolute />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-gray-950 relative">
@@ -103,10 +133,10 @@ export default function DeveloperLoginPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={loginMutation.isPending}
+                disabled={isPending}
                 data-testid="button-dev-login"
               >
-                {loginMutation.isPending ? <SpinningLogo className="mr-2 h-4 w-4" /> : <Code2 className="mr-2 h-4 w-4" />}
+                {isPending ? <SpinningLogo className="mr-2 h-4 w-4" /> : <Code2 className="mr-2 h-4 w-4" />}
                 Sign In
               </Button>
             </form>

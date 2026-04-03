@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { PageSEO } from "@/components/page-seo";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, User, LogIn, Building2, ArrowLeft, Eye, EyeOff, ShieldCheck, KeyRound } from "lucide-react";
+import { Lock, User, LogIn, Building2, Eye, EyeOff, KeyRound, ArrowLeft } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { PasskeySetupPrompt } from "@/components/passkey-manager";
 import { Link } from "wouter";
+import { TurnstileWidget, TurnstileStep } from "@/components/turnstile-captcha";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -80,101 +81,7 @@ export default function LoginPage() {
   );
 }
 
-type CaptchaChallenge = {
-  question: string;
-  token: string;
-  error?: string;
-};
-
-function CaptchaStep({
-  challenge,
-  answer,
-  onAnswerChange,
-  onSubmit,
-  onBack,
-  isPending,
-}: {
-  challenge: CaptchaChallenge;
-  answer: string;
-  onAnswerChange: (v: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  onBack: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="flex flex-col items-center gap-3 py-2">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-          <ShieldCheck className="h-6 w-6 text-primary" />
-        </div>
-        <div className="text-center space-y-1">
-          <p className="font-semibold text-sm">Security Check</p>
-          <p className="text-xs text-muted-foreground">
-            Please answer this question to continue
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center">
-        <p className="text-lg font-semibold" data-testid="text-captcha-question">
-          {challenge.question}
-        </p>
-      </div>
-
-      {challenge.error && (
-        <p className="text-sm text-destructive text-center" data-testid="text-captcha-error">
-          {challenge.error}
-        </p>
-      )}
-
-      <div className="space-y-2">
-        <Label htmlFor="captcha-answer">Your Answer</Label>
-        <Input
-          id="captcha-answer"
-          type="number"
-          placeholder="Enter the answer"
-          value={answer}
-          onChange={(e) => onAnswerChange(e.target.value)}
-          required
-          autoFocus
-          data-testid="input-captcha-answer"
-        />
-      </div>
-
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1"
-          onClick={onBack}
-          disabled={isPending}
-          data-testid="button-captcha-back"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <Button
-          type="submit"
-          className="flex-1 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
-          disabled={isPending || !answer}
-          data-testid="button-captcha-submit"
-        >
-          {isPending ? (
-            <>
-              <SpinningLogo className="mr-2 h-4 w-4" />
-              Verifying...
-            </>
-          ) : (
-            <>
-              <LogIn className="mr-2 h-4 w-4" />
-              Continue
-            </>
-          )}
-        </Button>
-      </div>
-    </form>
-  );
-}
+type CaptchaState = { error?: string };
 
 function redirectAfterLogin(role: string, setLocation: (path: string) => void) {
   if (role === "admin" || role === "prime_admin") setLocation("/admin/dashboard");
@@ -186,13 +93,12 @@ function useLoginFlow() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isPending, setIsPending] = useState(false);
-  const [captchaChallenge, setCaptchaChallenge] = useState<CaptchaChallenge | null>(null);
+  const [captchaState, setCaptchaState] = useState<CaptchaState | null>(null);
 
   async function submitLogin(payload: {
     username: string;
     password: string;
-    captchaToken?: string;
-    captchaAnswer?: string;
+    turnstileToken?: string;
   }): Promise<{ captchaRequired: boolean }> {
     setIsPending(true);
     try {
@@ -212,13 +118,13 @@ function useLoginFlow() {
       }
 
       if (data.captchaRequired) {
-        setCaptchaChallenge({ question: data.question, token: data.token, error: data.error });
+        setCaptchaState({ error: data.error });
         return { captchaRequired: true };
       }
 
       queryClient.setQueryData(["/api/user"], data);
       toast({ title: "Welcome back!", description: `Logged in as ${data.fullName}` });
-      setCaptchaChallenge(null);
+      setCaptchaState(null);
       redirectAfterLogin(data.role, setLocation);
       return { captchaRequired: false };
     } finally {
@@ -226,7 +132,7 @@ function useLoginFlow() {
     }
   }
 
-  return { submitLogin, isPending, captchaChallenge, setCaptchaChallenge };
+  return { submitLogin, isPending, captchaState, setCaptchaState };
 }
 
 function usePasskeySignIn() {
@@ -312,8 +218,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const { submitLogin, isPending: adminPending, captchaChallenge, setCaptchaChallenge } = useLoginFlow();
-  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const { submitLogin, isPending: adminPending, captchaState, setCaptchaState } = useLoginFlow();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -353,18 +258,8 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
     }
   };
 
-  const handleCaptchaSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!captchaChallenge) return;
-    const result = await submitLogin({
-      username,
-      password,
-      captchaToken: captchaChallenge.token,
-      captchaAnswer,
-    });
-    if (result.captchaRequired) {
-      setCaptchaAnswer("");
-    }
+  const handleCaptchaSubmit = async (turnstileToken: string) => {
+    await submitLogin({ username, password, turnstileToken });
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -403,14 +298,12 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
     }
   };
 
-  if (captchaChallenge) {
+  if (captchaState !== null) {
     return (
-      <CaptchaStep
-        challenge={captchaChallenge}
-        answer={captchaAnswer}
-        onAnswerChange={setCaptchaAnswer}
+      <TurnstileStep
+        error={captchaState.error}
         onSubmit={handleCaptchaSubmit}
-        onBack={() => { setCaptchaChallenge(null); setCaptchaAnswer(""); }}
+        onBack={() => setCaptchaState(null)}
         isPending={adminPending}
       />
     );

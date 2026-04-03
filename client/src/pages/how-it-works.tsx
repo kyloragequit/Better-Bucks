@@ -379,15 +379,15 @@ export default function HowItWorksPage() {
 
       {/* ─── SECTION 3: Reward → Redeem → Budget (3-tab) ─────────── */}
       <div className="relative sm:h-[175vh]">
-        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-10 sm:py-8" style={{ background: "#F0F4F8", zIndex: 30 }}>
+        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-8 sm:py-4" style={{ background: "#F0F4F8", zIndex: 30 }}>
           <div
             ref={s3.ref}
             className="w-full max-w-4xl mx-auto px-4"
             style={{ opacity: s3.inView ? 1 : 0, transform: s3.inView ? "translateY(0)" : "translateY(40px)", transition: "opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s" }}
           >
             {/* Headline */}
-            <div className="text-center mb-5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3 text-xs font-bold tracking-wide uppercase" style={{ background: `${BUCKS_COLOR}15`, color: BUCKS_COLOR }}>
+            <div className="text-center mb-3">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-2 text-xs font-bold tracking-wide uppercase" style={{ background: `${BUCKS_COLOR}15`, color: BUCKS_COLOR }}>
                 <Zap className="h-3 w-3" />
                 Reward in seconds, not hours
               </div>
@@ -405,7 +405,7 @@ export default function HowItWorksPage() {
             </div>
 
             {/* Tab navigation */}
-            <div className="flex gap-1 p-1 rounded-xl mb-4 max-w-xs mx-auto" style={{ background: "#dde4ed" }}>
+            <div className="flex gap-1 p-1 rounded-xl mb-3 max-w-xs mx-auto" style={{ background: "#dde4ed" }}>
               {[
                 { icon: Zap, label: "Reward" },
                 { icon: ShoppingBag, label: "Redeem" },
@@ -429,7 +429,7 @@ export default function HowItWorksPage() {
             </div>
 
             {/* 3-Tab panel */}
-            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff", height: 460 }}>
+            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff", height: "clamp(230px, calc(100vh - 340px), 460px)" }}>
 
               {/* ── TAB 0: REWARD ─────────────────────────────────── */}
               <div
@@ -849,14 +849,14 @@ export default function HowItWorksPage() {
 
       {/* ─── SECTION 3B: Survey Tutorial ──────────────────────────── */}
       <div className="relative sm:h-[140vh]">
-        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-8 sm:py-10" style={{ background: "#fff", zIndex: 35 }}>
+        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-6 sm:py-4" style={{ background: "#fff", zIndex: 35 }}>
           <div
             ref={sSurvey.ref}
             className="w-full max-w-4xl mx-auto px-4"
             style={{ opacity: sSurvey.inView ? 1 : 0, transform: sSurvey.inView ? "translateY(0)" : "translateY(40px)", transition: "opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s" }}
           >
             {/* Headline */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-4">
               <h2
                 className="font-display font-black leading-tight"
                 style={{ fontSize: "clamp(1.5rem, 3vw, 2.4rem)", color: NAVY }}
@@ -871,7 +871,7 @@ export default function HowItWorksPage() {
             </div>
 
             {/* Sliding panel container */}
-            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-gray-100" style={{ background: "#fff", height: 520 }}>
+            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-gray-100" style={{ background: "#fff", height: "clamp(260px, calc(100vh - 260px), 520px)" }}>
 
               {/* ── Employee form view ───────────────────────────────── */}
               <div

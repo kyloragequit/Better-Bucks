@@ -19,18 +19,16 @@ import {
   Coins,
   Star,
   CheckCircle2,
-  Package,
   Truck,
   Send,
   X,
   Sparkles,
   ClipboardList,
-  BadgeCheck,
-  ExternalLink,
   BookOpen,
   Play,
   BarChart2,
   Users,
+  Zap,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -142,17 +140,23 @@ export default function HowItWorksPage() {
   const handleBackToShop = () => {
     setOrderMode(false);
     setOrderStep(0);
-    setAdminMode(false);
-    setAdminApproved(false);
   };
 
-  const [adminMode, setAdminMode] = useState(false);
-  const [adminApproved, setAdminApproved] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [rewardStep, setRewardStep] = useState(0);
+  const [rewardEmployee, setRewardEmployee] = useState<string | null>(null);
+  const [rewardAmount, setRewardAmount] = useState(100);
+  const [rewardReason, setRewardReason] = useState<string | null>(null);
 
-  const handleShowAdmin = () => setAdminMode(true);
+  const handleRewardSend = () => {
+    setRewardStep(2);
+  };
 
-  const handleApprove = () => {
-    setAdminApproved(true);
+  const handleRewardReset = () => {
+    setRewardStep(0);
+    setRewardEmployee(null);
+    setRewardReason(null);
+    setRewardAmount(100);
   };
 
   const [demoOpen, setDemoOpen] = useState(false);
@@ -199,10 +203,10 @@ export default function HowItWorksPage() {
   return (
     <div className="relative">
       <PageSEO
-        title="How It Works – Stop Manual Incentive Tracking for Shift-Based Teams | Better Bucks"
-        description="Replace your spreadsheet reward system in minutes. Managers get full performance visibility — hourly employees earn Bucks for safety compliance, attendance, and KPIs, solving employee engagement issues and reducing time-consuming admin tasks."
+        title="Reward Employees Faster — Stop Manual Incentive Tracking | Better Bucks"
+        description="Better Bucks lets managers reward employees instantly — one tap to give Bucks, a curated store for redemption, and budget tracking built in. Replace spreadsheets and recognize performance in seconds, not hours."
         canonicalPath="/"
-        keywords="how employee incentive software works, replace spreadsheet reward system, employee engagement solution, safety compliance rewards, performance visibility tool, reward program management demo, frontline worker incentives, automated incentive tracking"
+        keywords="how employee incentive software works, replace spreadsheet reward system, employee engagement solution, safety compliance rewards, performance visibility tool, reward program management demo, frontline worker incentives, automated incentive tracking, reward employees faster, instant employee recognition"
         jsonLd={[
           {
             "@type": "Organization",
@@ -218,7 +222,7 @@ export default function HowItWorksPage() {
               "caption": "Better Bucks"
             },
             "image": { "@id": "https://betterbucks.net/#logo" },
-            "description": "Better Bucks is employee incentive software for logistics, warehousing, and manufacturing. Replace spreadsheets with a Bucks-based reward platform.",
+            "description": "Better Bucks is employee incentive software for logistics, warehousing, and manufacturing. Reward employees instantly with Bucks — replace spreadsheets with a platform that lets you recognize performance in seconds.",
             "email": "miles.chase@betterbucks.net",
             "sameAs": ["https://www.instagram.com/better_bucks"]
           },
@@ -232,6 +236,14 @@ export default function HowItWorksPage() {
           {
             "@type": "FAQPage",
             "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How fast can I reward an employee with Better Bucks?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Managers can give Bucks to any employee in under 10 seconds — just select the employee, choose an amount, pick a reason, and tap Send. The employee's balance updates instantly. No approvals, no paperwork, no delays."
+                }
+              },
               {
                 "@type": "Question",
                 "name": "How does Better Bucks replace a manual spreadsheet reward system?",
@@ -250,10 +262,10 @@ export default function HowItWorksPage() {
               },
               {
                 "@type": "Question",
-                "name": "How does Better Bucks improve safety compliance motivation?",
+                "name": "How does Better Bucks help managers track their incentive budget?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Admins can award Bucks specifically for safety compliance milestones. When employees connect safe behavior to real, tangible rewards they can choose, motivation to follow procedures increases across logistics, warehousing, and manufacturing teams."
+                  "text": "The admin dashboard shows a full budget overview — total Bucks allocated, how many have been awarded, and a breakdown by category (safety, attendance, performance). Managers save hours of manual tracking every month with full audit history."
                 }
               }
             ]
@@ -336,7 +348,7 @@ export default function HowItWorksPage() {
             style={{ opacity: s2.inView ? 1 : 0, transform: s2.inView ? "scale(1)" : "scale(0.92)", transition: "opacity 0.8s ease, transform 0.8s ease" }}
           >
             <h2 className="font-display font-black leading-tight tracking-tight" style={{ fontSize: "clamp(2.5rem, 8vw, 6rem)", color: NAVY }} data-testid="text-parallax-answer">
-              Reward what's important.
+              Reward what's Important — Faster.
             </h2>
             <p className="mt-6 text-xl text-gray-600 max-w-lg leading-relaxed">
               A simple platform that helps managers recognize performance, encourage{" "}
@@ -365,41 +377,232 @@ export default function HowItWorksPage() {
         </section>
       </div>
 
-      {/* ─── SECTION 3: Shop + Order Flow (merged) ────────────────── */}
-      <div className="relative sm:h-[140vh]">
-        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-8 sm:py-10" style={{ background: "#F0F4F8", zIndex: 30 }}>
+      {/* ─── SECTION 3: Reward → Redeem → Budget (3-tab) ─────────── */}
+      <div className="relative sm:h-[175vh]">
+        <section className="sm:sticky sm:top-0 sm:h-screen flex flex-col items-center justify-center overflow-y-auto sm:overflow-hidden py-10 sm:py-8" style={{ background: "#F0F4F8", zIndex: 30 }}>
           <div
             ref={s3.ref}
             className="w-full max-w-4xl mx-auto px-4"
             style={{ opacity: s3.inView ? 1 : 0, transform: s3.inView ? "translateY(0)" : "translateY(40px)", transition: "opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s" }}
           >
-            {/* Headline — always visible */}
-            <div className="text-center mb-6">
+            {/* Headline */}
+            <div className="text-center mb-5">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3 text-xs font-bold tracking-wide uppercase" style={{ background: `${BUCKS_COLOR}15`, color: BUCKS_COLOR }}>
+                <Zap className="h-3 w-3" />
+                Reward in seconds, not hours
+              </div>
               <h2
                 className="font-display font-black leading-tight"
                 style={{ fontSize: "clamp(1.5rem, 3vw, 2.4rem)", color: NAVY }}
                 data-testid="text-shop-headline"
               >
-                You curate the shop and easily{" "}
-                <span style={{ color: BUCKS_COLOR }}>reward employees with what they want.</span>
+                Streamline your incentive program —{" "}
+                <span style={{ color: BUCKS_COLOR }}>from reward to redemption.</span>
               </h2>
-              <p className="mt-2 text-gray-500 text-sm max-w-lg mx-auto">
-                Build your company store in minutes — employees spend what they've earned, no guesswork.
+              <p className="mt-2 text-gray-500 text-sm max-w-xl mx-auto">
+                Recognize performance instantly, give employees a store they'll love, and keep your budget on track — all in one platform.
               </p>
             </div>
 
-            {/* Sliding panel container — fixed height so both views keep the same box size */}
-            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff", height: 520 }}>
+            {/* Tab navigation */}
+            <div className="flex gap-1 p-1 rounded-xl mb-4 max-w-xs mx-auto" style={{ background: "#dde4ed" }}>
+              {[
+                { icon: Zap, label: "Reward" },
+                { icon: ShoppingBag, label: "Redeem" },
+                { icon: BarChart2, label: "Budget" },
+              ].map(({ icon: Icon, label }, i) => (
+                <button
+                  key={label}
+                  onClick={() => setActiveTab(i)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all duration-200"
+                  style={{
+                    background: activeTab === i ? "white" : "transparent",
+                    color: activeTab === i ? NAVY : "#64748b",
+                    boxShadow: activeTab === i ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                  }}
+                  data-testid={`tab-${label.toLowerCase()}`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
 
-              {/* ── Shop view ─────────────────────────────────────── */}
+            {/* 3-Tab panel */}
+            <div className="relative overflow-hidden rounded-2xl shadow-2xl border border-white/60" style={{ background: "#fff", height: 460 }}>
+
+              {/* ── TAB 0: REWARD ─────────────────────────────────── */}
               <div
                 className="absolute inset-0 w-full overflow-y-auto"
                 style={{
-                  opacity: (orderMode || adminMode) ? 0 : 1,
-                  transform: orderMode ? "translateX(-48px)" : "translateX(0)",
-                  transition: "opacity 0.4s ease, transform 0.4s ease",
-                  pointerEvents: (orderMode || adminMode) ? "none" : "auto",
-                  zIndex: (!orderMode && !adminMode) ? 2 : 1,
+                  opacity: activeTab === 0 ? 1 : 0,
+                  transition: "opacity 0.3s ease",
+                  pointerEvents: activeTab === 0 ? "auto" : "none",
+                  zIndex: activeTab === 0 ? 2 : 1,
+                }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-2.5 shrink-0" style={{ background: NAVY }}>
+                  <div className="flex items-center gap-2">
+                    <AppLogo size="sm" />
+                    <div>
+                      <p className="text-white font-bold text-xs leading-tight">Better Bucks Admin</p>
+                      <p className="text-white/50 text-xs">Acme Corp</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: `${BUCKS_COLOR}40`, color: "white" }}>
+                    <Zap className="h-3 w-3" />
+                    <span>Quick Reward</span>
+                  </div>
+                </div>
+
+                <div className="p-4 flex flex-col gap-3">
+
+                  {/* Step 0: Employee list */}
+                  {rewardStep === 0 && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-3.5 w-3.5" style={{ color: NAVY }} />
+                        <p className="font-bold text-xs" style={{ color: NAVY }}>Select an employee to reward</p>
+                      </div>
+                      {[
+                        { name: "James L.", dept: "Warehouse · 847 Bucks", initials: "JL" },
+                        { name: "Sarah K.", dept: "Logistics · 1,240 Bucks", initials: "SK" },
+                        { name: "Mike T.", dept: "Operations · 512 Bucks", initials: "MT" },
+                      ].map((emp) => (
+                        <div
+                          key={emp.name}
+                          className="flex items-center justify-between rounded-xl border px-4 py-3 cursor-pointer transition-all hover:shadow-sm"
+                          style={{ background: "#F8FAFC", borderColor: "#e2e8f0" }}
+                          onClick={() => { setRewardEmployee(emp.name); setRewardStep(1); }}
+                          data-testid={`card-employee-${emp.initials.toLowerCase()}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0" style={{ background: NAVY }}>
+                              {emp.initials}
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm" style={{ color: NAVY }}>{emp.name}</p>
+                              <p className="text-xs text-gray-400">{emp.dept}</p>
+                            </div>
+                          </div>
+                          <button
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90"
+                            style={{ background: BUCKS_COLOR }}
+                          >
+                            <Coins className="h-3 w-3" />
+                            Give Bucks
+                          </button>
+                        </div>
+                      ))}
+                      <p className="text-center text-xs text-gray-400 mt-1">Tap any employee to reward them instantly</p>
+                    </>
+                  )}
+
+                  {/* Step 1: Give form */}
+                  {rewardStep === 1 && (
+                    <>
+                      <button onClick={() => { setRewardStep(0); setRewardEmployee(null); setRewardReason(null); }} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">
+                        <ArrowLeft className="h-3.5 w-3.5" /> Back
+                      </button>
+                      <div className="rounded-xl border px-4 py-3 flex items-center gap-3" style={{ background: "#F8FAFC", borderColor: "#e2e8f0" }}>
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0" style={{ background: NAVY }}>
+                          {rewardEmployee?.split(" ").map(w => w[0]).join("")}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm" style={{ color: NAVY }}>{rewardEmployee}</p>
+                          <p className="text-xs text-gray-400">Rewarding now</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: NAVY }}>Amount</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[50, 100, 150, 200].map(amt => (
+                            <button
+                              key={amt}
+                              onClick={() => setRewardAmount(amt)}
+                              className="py-2 rounded-lg text-xs font-bold border-2 transition-all"
+                              style={{
+                                borderColor: rewardAmount === amt ? BUCKS_COLOR : "#e2e8f0",
+                                background: rewardAmount === amt ? `${BUCKS_COLOR}12` : "#F8FAFC",
+                                color: rewardAmount === amt ? BUCKS_COLOR : "#64748b",
+                              }}
+                              data-testid={`button-amount-${amt}`}
+                            >
+                              {amt}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 text-center">{rewardAmount} Bucks selected</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: NAVY }}>Reason</p>
+                        <div className="flex flex-wrap gap-2">
+                          {["Attendance", "Safety", "Productivity", "Initiative", "Teamwork"].map(r => (
+                            <button
+                              key={r}
+                              onClick={() => setRewardReason(r)}
+                              className="px-3 py-1 rounded-full text-xs font-semibold border-2 transition-all"
+                              style={{
+                                borderColor: rewardReason === r ? BUCKS_COLOR : "#e2e8f0",
+                                background: rewardReason === r ? `${BUCKS_COLOR}12` : "#F8FAFC",
+                                color: rewardReason === r ? BUCKS_COLOR : "#64748b",
+                              }}
+                              data-testid={`chip-reason-${r.toLowerCase()}`}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleRewardSend}
+                        disabled={!rewardReason}
+                        className="w-full py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ background: BUCKS_COLOR }}
+                        data-testid="button-send-bucks"
+                      >
+                        <Zap className="h-4 w-4" />
+                        Send {rewardAmount} Bucks Instantly
+                      </button>
+                    </>
+                  )}
+
+                  {/* Step 2: Sent! */}
+                  {rewardStep === 2 && (
+                    <div className="flex flex-col items-center justify-center gap-3 py-6 text-center" style={{ animation: "fadeUp 0.5s ease forwards" }}>
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}18` }}>
+                        <CheckCircle2 className="h-8 w-8" style={{ color: BUCKS_COLOR }} />
+                      </div>
+                      <p className="font-black text-xl" style={{ color: NAVY }}>{rewardAmount} Bucks Sent!</p>
+                      <p className="text-sm text-gray-500">{rewardEmployee} rewarded for <strong>{rewardReason}</strong></p>
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold" style={{ background: `${NAVY}08`, color: NAVY }}>
+                        <Zap className="h-3.5 w-3.5" style={{ color: BUCKS_COLOR }} />
+                        Delivered in under 3 seconds
+                      </div>
+                      <p className="text-xs text-gray-400">No paperwork. No spreadsheet. No delays.</p>
+                      <button
+                        onClick={handleRewardReset}
+                        className="mt-1 px-5 py-2 rounded-xl font-bold text-white text-sm transition-all hover:opacity-90"
+                        style={{ background: NAVY }}
+                        data-testid="button-reward-again"
+                      >
+                        Reward another employee
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
+              {/* ── TAB 1: REDEEM ─────────────────────────────────── */}
+              <div
+                className="absolute inset-0 w-full overflow-y-auto"
+                style={{
+                  opacity: activeTab === 1 ? 1 : 0,
+                  transition: "opacity 0.3s ease",
+                  pointerEvents: activeTab === 1 ? "auto" : "none",
+                  zIndex: activeTab === 1 ? 2 : 1,
                 }}
               >
                 {/* Mock app header */}
@@ -422,305 +625,220 @@ export default function HowItWorksPage() {
                     <ShoppingBag className="h-3.5 w-3.5" style={{ color: NAVY }} />
                     <h3 className="font-semibold text-xs" style={{ color: NAVY }}>Redeem Your Bucks</h3>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {products.map((p, i) => {
-                      const Icon = p.icon;
-                      return (
-                        <div
-                          key={p.name}
-                          className="rounded-lg border overflow-hidden flex flex-col cursor-pointer"
-                          style={{
-                            background: selectedProduct === i ? `${NAVY}08` : "#F8FAFC",
-                            border: selectedProduct === i ? `2px solid ${BUCKS_COLOR}` : "1px solid #f0f0f0",
-                            opacity: s3.inView ? 1 : 0,
-                            transform: s3.inView ? "translateY(0)" : "translateY(20px)",
-                            transition: `opacity 0.6s ease ${0.2 + i * 0.12}s, transform 0.6s ease ${0.2 + i * 0.12}s, border 0.15s, background 0.15s`,
-                          }}
-                          onClick={() => handleSelect(i)}
-                          data-testid={`card-product-${i}`}
-                        >
-                          <div className="flex justify-end px-1.5 pt-1.5">
-                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}22`, color: BUCKS_COLOR }}>{p.tag}</span>
-                          </div>
-                          <div className="flex justify-center py-1.5">
-                            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${NAVY}12` }}>
-                              <Icon className="h-4.5 w-4.5" style={{ color: NAVY, width: 18, height: 18 }} />
-                            </div>
-                          </div>
-                          <div className="px-2 pb-2 flex flex-col gap-1 flex-1">
-                            <p className="font-bold text-[10px] leading-tight" style={{ color: NAVY }}>{p.name}</p>
-                            <div className="flex gap-0.5">
-                              {Array.from({ length: 5 }).map((_, si) => (
-                                <Star key={si} className="h-2 w-2" style={{ fill: si < p.stars ? "#f59e0b" : "none", color: si < p.stars ? "#f59e0b" : "#d1d5db" }} />
-                              ))}
-                            </div>
-                            <span className="font-black text-[10px]" style={{ color: BUCKS_COLOR }} data-testid={`text-price-${i}`}>{p.price} Bucks</span>
-                            <button
-                              className="w-full py-1 rounded-md text-[10px] font-semibold"
-                              style={{ background: BUCKS_COLOR, color: "white" }}
-                              onClick={(e) => { e.stopPropagation(); handleSelect(i); }}
-                              data-testid={`button-redeem-${i}`}
+
+                  {!orderMode ? (
+                    <>
+                      <div className="grid grid-cols-3 gap-2">
+                        {products.map((p, i) => {
+                          const Icon = p.icon;
+                          return (
+                            <div
+                              key={p.name}
+                              className="rounded-lg border overflow-hidden flex flex-col cursor-pointer"
+                              style={{
+                                background: selectedProduct === i ? `${NAVY}08` : "#F8FAFC",
+                                border: selectedProduct === i ? `2px solid ${BUCKS_COLOR}` : "1px solid #f0f0f0",
+                              }}
+                              onClick={() => handleSelect(i)}
+                              data-testid={`card-product-${i}`}
                             >
-                              Select
-                            </button>
+                              <div className="flex justify-end px-1.5 pt-1.5">
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}22`, color: BUCKS_COLOR }}>{p.tag}</span>
+                              </div>
+                              <div className="flex justify-center py-1.5">
+                                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${NAVY}12` }}>
+                                  <Icon className="h-4.5 w-4.5" style={{ color: NAVY, width: 18, height: 18 }} />
+                                </div>
+                              </div>
+                              <div className="px-2 pb-2 flex flex-col gap-1 flex-1">
+                                <p className="font-bold text-[10px] leading-tight" style={{ color: NAVY }}>{p.name}</p>
+                                <div className="flex gap-0.5">
+                                  {Array.from({ length: 5 }).map((_, si) => (
+                                    <Star key={si} className="h-2 w-2" style={{ fill: si < p.stars ? "#f59e0b" : "none", color: si < p.stars ? "#f59e0b" : "#d1d5db" }} />
+                                  ))}
+                                </div>
+                                <span className="font-black text-[10px]" style={{ color: BUCKS_COLOR }} data-testid={`text-price-${i}`}>{p.price} Bucks</span>
+                                <button
+                                  className="w-full py-1 rounded-md text-[10px] font-semibold"
+                                  style={{ background: BUCKS_COLOR, color: "white" }}
+                                  onClick={(e) => { e.stopPropagation(); handleSelect(i); }}
+                                  data-testid={`button-redeem-${i}`}
+                                >
+                                  Select
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-center text-xs font-semibold mt-3" style={{ color: NAVY + "80" }}>Select any item to see how ordering works</p>
+                    </>
+                  ) : (
+                    <div className="flex flex-col gap-3 py-1">
+                      <button onClick={handleBackToShop} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors">
+                        <ArrowLeft className="h-3.5 w-3.5" /> Back to store
+                      </button>
+                      <div className="rounded-xl border border-gray-100 p-4 flex items-center gap-4" style={{ background: "#F8FAFC" }}>
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${NAVY}12` }}>
+                          <SelectedIcon className="h-6 w-6" style={{ color: NAVY }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm truncate" style={{ color: NAVY }}>{selectedP.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate">{selectedP.description}</p>
+                          <p className="font-black text-sm mt-0.5" style={{ color: BUCKS_COLOR }}>{selectedP.price} Bucks</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl border border-gray-100 p-3 flex flex-col" style={{ background: "#F8FAFC" }}>
+                          <span className="text-xs text-gray-400">Your Balance</span>
+                          <span className="font-bold text-sm" style={{ color: BUCKS_COLOR }}>850 Bucks</span>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 p-3 flex flex-col" style={{ background: "#F8FAFC" }}>
+                          <span className="text-xs text-gray-400">After Purchase</span>
+                          <span className="font-bold text-sm" style={{ color: NAVY }}>{850 - selectedP.price} Bucks</span>
+                        </div>
+                      </div>
+
+                      {orderStep < 2 ? (
+                        <button className="w-full py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2" style={{ background: BUCKS_COLOR }}>
+                          {orderStep === 0 ? (
+                            "Confirm Order"
+                          ) : (
+                            <>
+                              <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }} />
+                              Processing…
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="flex flex-col items-center gap-3 py-3 text-center" style={{ animation: "fadeUp 0.5s ease forwards" }}>
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}18` }}>
+                            <CheckCircle2 className="h-6 w-6" style={{ color: BUCKS_COLOR }} />
                           </div>
+                          <p className="font-black text-lg" style={{ color: NAVY }}>Order Placed!</p>
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${BUCKS_COLOR}18`, color: BUCKS_COLOR }}>
+                            <Truck className="h-3 w-3" />
+                            <span>Waiting for manager approval</span>
+                          </div>
+                          <button onClick={handleBackToShop} className="text-xs underline underline-offset-2 text-gray-400 hover:text-gray-600 transition-colors" data-testid="button-back-after-order">
+                            ← Browse more items
+                          </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <p className="text-center text-sm font-semibold mt-3" style={{ color: NAVY + "80" }}>Select any item to see how ordering works</p>
-                </div>
-              </div>
-
-              {/* ── Order flow view ────────────────────────────────── */}
-              <div
-                className="absolute inset-0 w-full overflow-y-auto"
-                style={{
-                  opacity: (orderMode && !adminMode) ? 1 : 0,
-                  transform: (orderMode && !adminMode) ? "translateX(0)" : "translateX(48px)",
-                  transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
-                  pointerEvents: (orderMode && !adminMode) ? "auto" : "none",
-                  zIndex: (orderMode && !adminMode) ? 2 : 1,
-                }}
-              >
-                {/* Order view header */}
-                <div className="flex items-center justify-between px-5 py-4" style={{ background: NAVY }}>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleBackToShop}
-                      className="text-white/60 hover:text-white transition-colors flex items-center gap-1 text-xs font-semibold"
-                      data-testid="button-back-to-shop"
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5" />
-                      Back
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <AppLogo size="sm" />
-                      <div>
-                        <p className="text-white font-bold text-sm leading-tight">My Order</p>
-                        <p className="text-white/50 text-xs">Acme Corp</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: `${BUCKS_COLOR}40`, color: "white" }}>
-                    <Coins className="h-3.5 w-3.5" />
-                    <span>{850 - selectedP.price} Bucks left</span>
-                  </div>
-                </div>
-
-                <div className="p-5 flex flex-col gap-4 min-h-[200px] sm:min-h-[260px]">
-                  {/* Step indicators */}
-                  <div className="flex items-center gap-2 justify-center">
-                    {["Select", "Confirm", "Ordered!"].map((label, i) => (
-                      <div key={label} className="flex items-center gap-1.5">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500"
-                          style={{ background: orderStep >= i ? BUCKS_COLOR : "#e5e7eb", color: orderStep >= i ? "white" : "#9ca3af" }}
-                        >
-                          {orderStep > i ? "✓" : i + 1}
-                        </div>
-                        <span className="text-xs" style={{ color: orderStep >= i ? NAVY : "#9ca3af" }}>{label}</span>
-                        {i < 2 && <div className="w-6 h-px" style={{ background: orderStep > i ? BUCKS_COLOR : "#e5e7eb" }} />}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Step 0: Confirm screen */}
-                  <div
-                    style={{
-                      opacity: orderStep === 0 ? 1 : 0,
-                      transform: orderStep === 0 ? "translateX(0)" : "translateX(-24px)",
-                      transition: "opacity 0.35s ease, transform 0.35s ease",
-                      position: orderStep === 0 ? "relative" : "absolute",
-                      pointerEvents: orderStep === 0 ? "auto" : "none",
-                      width: "100%",
-                    }}
-                    className="flex flex-col gap-3"
-                  >
-                    <div className="rounded-xl border border-gray-100 p-4 flex items-center gap-4" style={{ background: "#F8FAFC" }}>
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${NAVY}12` }}>
-                        <SelectedIcon className="h-6 w-6" style={{ color: NAVY }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate" style={{ color: NAVY }}>{selectedP.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 truncate">{selectedP.description}</p>
-                        <p className="font-black text-sm mt-0.5" style={{ color: BUCKS_COLOR }}>{selectedP.price} Bucks</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-gray-100 p-3 flex flex-col" style={{ background: "#F8FAFC" }}>
-                        <span className="text-xs text-gray-400">Your Balance</span>
-                        <span className="font-bold text-sm" style={{ color: BUCKS_COLOR }}>850 Bucks</span>
-                      </div>
-                      <div className="rounded-xl border border-gray-100 p-3 flex flex-col" style={{ background: "#F8FAFC" }}>
-                        <span className="text-xs text-gray-400">Remaining After</span>
-                        <span className="font-bold text-sm" style={{ color: NAVY }}>{850 - selectedP.price} Bucks</span>
-                      </div>
-                    </div>
-                    <button className="w-full py-2.5 rounded-xl font-bold text-white text-sm" style={{ background: BUCKS_COLOR, animation: "pulse 2s infinite" }}>
-                      Confirm Order
-                    </button>
-                  </div>
-
-                  {/* Step 1: Processing */}
-                  {orderStep === 1 && (
-                    <div className="flex flex-col items-center justify-center gap-3 py-6">
-                      <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: `${BUCKS_COLOR}33`, borderTopColor: BUCKS_COLOR }} />
-                      <p className="font-semibold text-sm" style={{ color: NAVY }}>Processing your order…</p>
-                    </div>
-                  )}
-
-                  {/* Step 2: Confirmed */}
-                  {orderStep === 2 && (
-                    <div className="flex flex-col items-center justify-center gap-3 text-center py-4" style={{ animation: "fadeUp 0.5s ease forwards" }}>
-                      <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}18` }}>
-                        <CheckCircle2 className="h-8 w-8" style={{ color: BUCKS_COLOR }} />
-                      </div>
-                      <p className="font-black text-xl" style={{ color: NAVY }}>Order Placed!</p>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <Package className="h-3.5 w-3.5" />
-                        <span>{selectedP.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${BUCKS_COLOR}18`, color: BUCKS_COLOR }}>
-                        <Truck className="h-3 w-3" />
-                        <span>Waiting for manager approval</span>
-                      </div>
-                      <button
-                        onClick={handleShowAdmin}
-                        className="mt-1 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
-                        style={{ background: NAVY }}
-                        data-testid="button-show-admin"
-                      >
-                        See how <span style={{ color: BUCKS_COLOR }}>you</span> approve it
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={handleBackToShop}
-                        className="text-xs underline underline-offset-2 text-gray-400 hover:text-gray-600 transition-colors"
-                        data-testid="button-back-after-order"
-                      >
-                        ← Browse more items
-                      </button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* ── Admin approval view ─────────────────────────────── */}
+              {/* ── TAB 2: BUDGET ─────────────────────────────────── */}
               <div
                 className="absolute inset-0 w-full overflow-y-auto"
                 style={{
-                  opacity: adminMode ? 1 : 0,
-                  transform: adminMode ? "translateX(0)" : "translateX(48px)",
-                  transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
-                  pointerEvents: adminMode ? "auto" : "none",
-                  zIndex: adminMode ? 2 : 1,
+                  opacity: activeTab === 2 ? 1 : 0,
+                  transition: "opacity 0.3s ease",
+                  pointerEvents: activeTab === 2 ? "auto" : "none",
+                  zIndex: activeTab === 2 ? 2 : 1,
                 }}
               >
-                {/* Admin header */}
-                <div className="flex items-center justify-between px-5 py-4" style={{ background: NAVY }}>
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-2.5" style={{ background: NAVY }}>
                   <div className="flex items-center gap-2">
                     <AppLogo size="sm" />
                     <div>
-                      <p className="text-white font-bold text-sm leading-tight">Admin Dashboard</p>
-                      <p className="text-white/50 text-xs">You — Manager · Acme Corp</p>
+                      <p className="text-white font-bold text-xs leading-tight">Better Bucks Admin</p>
+                      <p className="text-white/50 text-xs">Acme Corp · June 2025</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: "#ef444420", color: "#ef4444" }}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                    1 Pending
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: `${BUCKS_COLOR}40`, color: "white" }}>
+                    <BarChart2 className="h-3 w-3" />
+                    <span>Budget</span>
                   </div>
                 </div>
 
-                <div className="p-5 flex flex-col gap-4">
-                  {!adminApproved ? (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <ClipboardList className="h-4 w-4" style={{ color: NAVY }} />
-                        <p className="font-bold text-sm" style={{ color: NAVY }}>Pending Requests</p>
-                      </div>
-                      {/* Order card */}
-                      <div className="rounded-xl border-2 p-4 flex flex-col gap-3" style={{ borderColor: `${BUCKS_COLOR}40`, background: "#F8FAFC" }}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${NAVY}12` }}>
-                              <selectedP.icon className="h-5 w-5" style={{ color: NAVY }} />
-                            </div>
-                            <div>
-                              <p className="font-bold text-sm" style={{ color: NAVY }}>{selectedP.name}</p>
-                              <p className="text-xs text-gray-400">Requested by James L.</p>
-                            </div>
-                          </div>
-                          <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#d97706" }}>Pending</span>
-                        </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                          <span className="text-xs text-gray-400">Cost</span>
-                          <span className="font-black text-sm" style={{ color: BUCKS_COLOR }}>{selectedP.price} Bucks</span>
-                        </div>
-                        <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-[10px] leading-snug" style={{ background: `${NAVY}08`, color: NAVY + "99" }}>
-                          <ExternalLink className="h-3 w-3 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
-                          <span>You'll need to visit your <strong style={{ color: NAVY }}>store website</strong> to place the physical order for this employee.</span>
-                        </div>
-                        <button
-                          onClick={handleApprove}
-                          className="w-full py-2.5 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90"
-                          style={{ background: BUCKS_COLOR }}
-                          data-testid="button-approve-order"
-                        >
-                          <BadgeCheck className="h-4 w-4" />
-                          Approve &amp; Fulfill
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => setAdminMode(false)}
-                        className="text-xs underline underline-offset-2 text-gray-400 hover:text-gray-600 transition-colors text-center"
-                        data-testid="button-back-from-admin"
-                      >
-                        ← Back to order confirmation
-                      </button>
-                    </>
-                  ) : (
-                    <div className="flex flex-col gap-3 p-5" style={{ animation: "fadeUp 0.5s ease forwards" }}>
-                      {/* Success header */}
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: `${BUCKS_COLOR}18` }}>
-                          <BadgeCheck className="h-5 w-5" style={{ color: BUCKS_COLOR }} />
-                        </div>
-                        <div>
-                          <p className="font-black text-base leading-tight" style={{ color: NAVY }}>Order Approved!</p>
-                          <p className="text-xs text-gray-400">James L. has been notified</p>
-                        </div>
-                        <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold" style={{ background: `${NAVY}10`, color: NAVY }}>
-                          <Package className="h-3 w-3" />
-                          <span>Fulfilled</span>
-                        </div>
-                      </div>
-
-                      {/* Prominent store website callout */}
-                      <div className="rounded-xl border-2 p-4 flex flex-col gap-2" style={{ borderColor: BUCKS_COLOR, background: `${BUCKS_COLOR}0C` }}>
-                        <div className="flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 shrink-0" style={{ color: BUCKS_COLOR }} />
-                          <p className="font-bold text-sm" style={{ color: NAVY }}>One more step — visit your store website</p>
-                        </div>
-                        <p className="text-xs text-gray-600 leading-relaxed">
-                          The Bucks have been deducted and the employee notified — but you still need to <strong>go to your store website and place the physical order</strong> on their behalf. The item ships from there, not from Better Bucks.
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={handleBackToShop}
-                        className="w-full py-2 rounded-xl font-semibold text-sm border-2 transition-all hover:opacity-80"
-                        style={{ borderColor: `${NAVY}30`, color: NAVY, background: "transparent" }}
-                        data-testid="button-demo-restart"
-                      >
-                        ← Try the demo again
-                      </button>
+                <div className="p-4 flex flex-col gap-4">
+                  {/* Monthly overview */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-bold text-xs" style={{ color: NAVY }}>Monthly Budget Overview</p>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}18`, color: BUCKS_COLOR }}>On track</span>
                     </div>
-                  )}
+                    <div className="rounded-xl border border-gray-100 p-3 flex flex-col gap-2" style={{ background: "#F8FAFC" }}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-gray-400">Total Budget</p>
+                          <p className="font-black text-lg" style={{ color: NAVY }}>5,000 Bucks</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Remaining</p>
+                          <p className="font-black text-lg" style={{ color: BUCKS_COLOR }}>1,840 Bucks</p>
+                        </div>
+                      </div>
+                      <div className="w-full rounded-full h-3 overflow-hidden" style={{ background: "#e2e8f0" }}>
+                        <div className="h-full rounded-full" style={{ width: "63%", background: `linear-gradient(90deg, ${BUCKS_COLOR}, ${BUCKS_COLOR}bb)` }} />
+                      </div>
+                      <p className="text-xs text-gray-400 text-right">3,160 of 5,000 Bucks used (63%)</p>
+                    </div>
+                  </div>
+
+                  {/* By category */}
+                  <div>
+                    <p className="font-bold text-xs mb-2" style={{ color: NAVY }}>Rewards by Category</p>
+                    <div className="flex flex-col gap-2">
+                      {[
+                        { label: "Safety", pct: 40, bucks: 1264 },
+                        { label: "Attendance", pct: 25, bucks: 790 },
+                        { label: "Performance", pct: 35, bucks: 1106 },
+                      ].map(cat => (
+                        <div key={cat.label} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: "#F8FAFC" }}>
+                          <span className="text-xs font-semibold w-20 shrink-0" style={{ color: NAVY }}>{cat.label}</span>
+                          <div className="flex-1 rounded-full h-2 overflow-hidden" style={{ background: "#e2e8f0" }}>
+                            <div className="h-full rounded-full" style={{ width: `${cat.pct}%`, background: BUCKS_COLOR }} />
+                          </div>
+                          <span className="text-xs font-bold shrink-0" style={{ color: BUCKS_COLOR }}>{cat.pct}%</span>
+                          <span className="text-xs text-gray-400 shrink-0 w-14 text-right">{cat.bucks.toLocaleString()} B</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Impact stats */}
+                  <div>
+                    <p className="font-bold text-xs mb-2" style={{ color: NAVY }}>This Month's Impact</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: "8+ hrs", label: "Tracking time saved" },
+                        { value: "23", label: "Same-day rewards" },
+                        { value: "100%", label: "Auditable history" },
+                      ].map(stat => (
+                        <div key={stat.label} className="rounded-xl border border-gray-100 p-3 text-center" style={{ background: "#F8FAFC" }}>
+                          <p className="font-black text-base" style={{ color: BUCKS_COLOR }}>{stat.value}</p>
+                          <p className="text-[9px] text-gray-400 leading-tight mt-0.5">{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
             </div>
+
+            {/* Feature highlight strip */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-4">
+              {[
+                { icon: Zap, title: "Reward in seconds", desc: "One tap to give Bucks — no delays, no paperwork" },
+                { icon: ShoppingBag, title: "Employees choose", desc: "A curated store they'll actually want to shop" },
+                { icon: BarChart2, title: "Budget on autopilot", desc: "Full visibility into what you spend and why" },
+              ].map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="text-center p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.85)" }}>
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5" style={{ background: `${BUCKS_COLOR}18` }}>
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color: BUCKS_COLOR }} />
+                  </div>
+                  <p className="font-bold text-[10px] sm:text-xs" style={{ color: NAVY }}>{title}</p>
+                  <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 leading-tight hidden sm:block">{desc}</p>
+                </div>
+              ))}
+            </div>
+
           </div>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-gray-400">

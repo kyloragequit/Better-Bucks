@@ -205,7 +205,7 @@ export default function HowItWorksPage() {
       <PageSEO
         title="Reward Employees Faster — Stop Manual Incentive Tracking | Better Bucks"
         description="Better Bucks lets managers reward employees instantly — one tap to give Bucks, a curated store for redemption, and budget tracking built in. Replace spreadsheets and recognize performance in seconds, not hours."
-        canonicalPath="/"
+        canonicalPath="/how-it-works"
         keywords="how employee incentive software works, replace spreadsheet reward system, employee engagement solution, safety compliance rewards, performance visibility tool, reward program management demo, frontline worker incentives, automated incentive tracking, reward employees faster, instant employee recognition"
         jsonLd={[
           {

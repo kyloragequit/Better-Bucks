@@ -639,25 +639,21 @@ export async function registerRoutes(
       [
         "User-agent: *",
         "Allow: /",
-        // App/auth pages — not indexable content
+        // Authenticated app pages — not indexable content
         "Disallow: /api/",
-        "Disallow: /dashboard",
-        "Disallow: /store",
-        "Disallow: /orders",
-        "Disallow: /settings",
-        "Disallow: /admin",
+        "Disallow: /admin/",
+        "Disallow: /employee/",
+        "Disallow: /developer/",
+        "Disallow: /join/",
+        "Disallow: /invite/",
         "Disallow: /login",
-        "Disallow: /signup",
         "Disallow: /forgot-password",
         "Disallow: /reset-password",
         "Disallow: /change-password",
         "Disallow: /reactivate",
-        "Disallow: /setup",
+        "Disallow: /setup-prime",
         "Disallow: /verify-email",
         "Disallow: /pending-verification",
-        "Disallow: /developer",
-        // /how-it-works is canonical at / — block the duplicate
-        "Disallow: /how-it-works",
         "",
         "Sitemap: https://betterbucks.net/sitemap.xml",
       ].join("\n")
@@ -670,9 +666,11 @@ export async function registerRoutes(
     const today = new Date().toISOString().split("T")[0];
     const staticPages = [
       { loc: "/", priority: "1.0", changefreq: "weekly", lastmod: today },
+      { loc: "/how-it-works", priority: "0.9", changefreq: "monthly", lastmod: today },
+      { loc: "/signup", priority: "0.9", changefreq: "monthly", lastmod: today },
       { loc: "/about", priority: "0.8", changefreq: "monthly", lastmod: today },
-      { loc: "/blog", priority: "0.9", changefreq: "weekly", lastmod: today },
-      { loc: "/terms", priority: "0.3", changefreq: "yearly", lastmod: today },
+      { loc: "/affiliate", priority: "0.8", changefreq: "monthly", lastmod: today },
+      { loc: "/blog", priority: "0.7", changefreq: "weekly", lastmod: today },
     ];
 
     let blogUrls = "";

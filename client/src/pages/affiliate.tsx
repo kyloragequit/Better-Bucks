@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { PageSEO } from "@/components/page-seo";
 import { AppLogo } from "@/components/app-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,30 @@ export default function AffiliatePage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <PageSEO
+        title="Affiliate Program – Earn 25% Commission | Better Bucks"
+        description="Join the Better Bucks affiliate program and earn a 25% lifetime commission on every customer you refer. Share with your audience, get a unique referral link, and earn for as long as they stay subscribed."
+        canonicalPath="/affiliate"
+        keywords="Better Bucks affiliate program, employee incentive software affiliate, SaaS affiliate commission, 25% commission affiliate, workforce software referral program, recurring affiliate income, HR software affiliate"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Service",
+          "name": "Better Bucks Affiliate Program",
+          "description": "Earn a 25% lifetime commission on every Better Bucks subscription you refer. Free to join, no minimums.",
+          "provider": {
+            "@type": "Organization",
+            "name": "Better Bucks",
+            "url": "https://betterbucks.net"
+          },
+          "url": "https://betterbucks.net/affiliate",
+          "offers": {
+            "@type": "Offer",
+            "description": "25% commission on all referred subscriptions for the lifetime of the customer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        }}
+      />
       {/* Fixed header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">

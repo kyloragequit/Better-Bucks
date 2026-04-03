@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -125,7 +125,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               const allItems = [
                 ...navItems.filter(item => item.href !== "/admin/instant-transaction"),
                 ...(user?.role === "admin" || user?.role === "prime_admin"
-                  ? [{ href: "/admin/account-settings", label: "My Profile", icon: Settings }]
+                  ? [{ href: "/admin/account-settings", label: "My Profile", icon: User }]
                   : []),
               ];
               const activeItem = allItems.find(item => isActive(item.href));
@@ -249,7 +249,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         onClick={() => { setLocation("/admin/account-settings"); setMobileMenuOpen(false); }}
                         data-testid="mobile-link-account-settings"
                       >
-                        <Settings className="h-4 w-4" />
+                        <User className="h-4 w-4" />
                         My Profile
                       </button>
                     ) : (

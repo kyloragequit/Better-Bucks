@@ -141,6 +141,7 @@ function PageRefresher() {
 }
 
 type DemoStatus = { inDemo: boolean };
+type DevStatus = { impersonating: boolean };
 
 function ProtectedRoute({ 
   component: Component, 
@@ -152,6 +153,10 @@ function ProtectedRoute({
   const { data: user, isLoading } = useUser();
   const { data: demoStatus, isLoading: demoLoading } = useQuery<DemoStatus>({
     queryKey: ["/api/demo/status"],
+    staleTime: 30 * 1000,
+  });
+  const { data: devStatus } = useQuery<DevStatus>({
+    queryKey: ["/api/developer/status"],
     staleTime: 30 * 1000,
   });
 
@@ -178,7 +183,9 @@ function ProtectedRoute({
 
   if (!user.emailVerified && (user.email || user.phone) && window.location.pathname !== '/verify-email') {
     if (demoLoading) return <FullPageLoader />;
-    if (!demoStatus?.inDemo) return <Redirect to="/verify-email" />;
+    // Skip email verification when in a demo session or when a developer is entering an account
+    const bypassVerification = demoStatus?.inDemo || devStatus?.impersonating;
+    if (!bypassVerification) return <Redirect to="/verify-email" />;
   }
 
   if (user.mustChangePassword && window.location.pathname !== '/change-password') {

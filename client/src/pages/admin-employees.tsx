@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs/dist/exceljs.min.js";
 import { usePublicDemo } from "@/hooks/use-demo";
 import { Link, useLocation } from "wouter";
 import { useUsers, useCreateUser } from "@/hooks/use-users";
@@ -1235,68 +1235,76 @@ type ImportResult = {
   error?: string;
 };
 
-function downloadTemplate() {
-  const headers = [["Full Name", "Employee Code", "Role", "Department", "Email", "Password"]];
-  const examples = [
+async function downloadTemplate() {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Employees");
+  worksheet.columns = [
+    { width: 20 }, { width: 16 }, { width: 14 }, { width: 16 }, { width: 28 }, { width: 16 },
+  ];
+  worksheet.addRows([
+    ["Full Name", "Employee Code", "Role", "Department", "Email", "Password"],
     ["Jane Smith", "EMP-001", "employee", "Warehouse", "jane@example.com", ""],
     ["Bob Johnson", "EMP-002", "employee", "Logistics", "", ""],
     ["Alice Manager", "MGR-001", "admin", "Shipping", "alice@example.com", "TempPass1!"],
     ["Sam Director", "DIR-001", "prime_admin", "Operations", "sam@example.com", ""],
-  ];
-  const ws = XLSX.utils.aoa_to_sheet([...headers, ...examples]);
-  ws["!cols"] = [{ wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 28 }, { wch: 16 }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Employees");
-  XLSX.writeFile(wb, "better-bucks-employee-template.xlsx");
+  ]);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "better-bucks-employee-template.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-function parseSpreadsheet(file: File): Promise<ImportRow[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as string[][];
-        if (rows.length < 2) { resolve([]); return; }
-        const header = rows[0].map((h: string) => String(h).toLowerCase().trim());
-        const colIdx = (names: string[]) => {
-          for (const n of names) {
-            const i = header.indexOf(n);
-            if (i >= 0) return i;
-          }
-          return -1;
-        };
-        const fnCol = colIdx(["full name", "fullname", "name"]);
-        const unCol = colIdx(["employee code", "code", "username", "user code"]);
-        const roleCol = colIdx(["role"]);
-        const deptCol = colIdx(["department", "dept", "department name"]);
-        const emailCol = colIdx(["email"]);
-        const pwCol = colIdx(["password", "pass"]);
-        const result: ImportRow[] = [];
-        for (let i = 1; i < rows.length; i++) {
-          const r = rows[i];
-          const fullName = fnCol >= 0 ? String(r[fnCol] ?? "").trim() : "";
-          const username = unCol >= 0 ? String(r[unCol] ?? "").trim() : "";
-          if (!fullName && !username) continue;
-          result.push({
-            fullName,
-            username,
-            role: roleCol >= 0 ? String(r[roleCol] ?? "").trim() : "employee",
-            departmentName: deptCol >= 0 ? String(r[deptCol] ?? "").trim() : "",
-            email: emailCol >= 0 ? String(r[emailCol] ?? "").trim() : "",
-            password: pwCol >= 0 ? String(r[pwCol] ?? "").trim() : "",
-          });
-        }
-        resolve(result);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
+async function parseSpreadsheet(file: File): Promise<ImportRow[]> {
+  let rows: (string | number | boolean | Date | null)[][];
+  if (file.name.toLowerCase().endsWith(".csv")) {
+    const text = await file.text();
+    rows = text.split(/\r?\n/).filter(Boolean).map(line =>
+      line.split(",").map(cell => cell.replace(/^"|"$/g, "").trim())
+    );
+  } else {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    const worksheet = workbook.worksheets[0];
+    rows = [];
+    worksheet.eachRow((row) => {
+      rows.push((row.values as (string | number | boolean | Date | null)[]).slice(1));
+    });
+  }
+  if (rows.length < 2) return [];
+  const header = rows[0].map((h) => String(h ?? "").toLowerCase().trim());
+  const colIdx = (names: string[]) => {
+    for (const n of names) {
+      const i = header.indexOf(n);
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+  const fnCol = colIdx(["full name", "fullname", "name"]);
+  const unCol = colIdx(["employee code", "code", "username", "user code"]);
+  const roleCol = colIdx(["role"]);
+  const deptCol = colIdx(["department", "dept", "department name"]);
+  const emailCol = colIdx(["email"]);
+  const pwCol = colIdx(["password", "pass"]);
+  const result: ImportRow[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const fullName = fnCol >= 0 ? String(r[fnCol] ?? "").trim() : "";
+    const username = unCol >= 0 ? String(r[unCol] ?? "").trim() : "";
+    if (!fullName && !username) continue;
+    result.push({
+      fullName,
+      username,
+      role: roleCol >= 0 ? String(r[roleCol] ?? "").trim() : "employee",
+      departmentName: deptCol >= 0 ? String(r[deptCol] ?? "").trim() : "",
+      email: emailCol >= 0 ? String(r[emailCol] ?? "").trim() : "",
+      password: pwCol >= 0 ? String(r[pwCol] ?? "").trim() : "",
+    });
+  }
+  return result;
 }
 
 function BulkImportDialog({ departments, demoMode = false }: { departments: Department[]; demoMode?: boolean }) {

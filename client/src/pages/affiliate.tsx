@@ -180,11 +180,11 @@ export default function AffiliatePage() {
               See Your Earnings
             </Button>
           </div>
-          {/* Scroll cue */}
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-60 animate-bounce">
-            <span className="text-xs text-white uppercase tracking-widest">Scroll</span>
-            <div className="w-px h-8 bg-white/40" />
-          </div>
+        </div>
+        {/* Scroll cue — anchored to the hero section, not the content div */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-60 animate-bounce z-20 pointer-events-none">
+          <span className="text-xs text-white uppercase tracking-widest">Scroll</span>
+          <div className="w-px h-8 bg-white/40" />
         </div>
       </div>
 

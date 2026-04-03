@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
-import { Lock, Mail, Trash2, KeyRound } from "lucide-react";
+import { Lock, Mail, Trash2, KeyRound, User } from "lucide-react";
 import { useLocation } from "wouter";
 import { PasskeyManager } from "@/components/passkey-manager";
 import {
@@ -30,9 +30,26 @@ export default function EmployeeSettingsPage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
 
+  const [displayName, setDisplayName] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
+
+  const displayNameMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PATCH", `/api/users/${user!.id}/profile`, {
+        fullName: displayName,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Name updated", description: "Your display name has been changed." });
+      setDisplayName("");
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to update name.", variant: "destructive" });
+    },
+  });
 
   const passwordMutation = useMutation({
     mutationFn: async () => {
@@ -80,6 +97,15 @@ export default function EmployeeSettingsPage() {
     },
   });
 
+  const handleDisplayNameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displayName.trim()) {
+      toast({ title: "Required", description: "Please enter a display name.", variant: "destructive" });
+      return;
+    }
+    displayNameMutation.mutate();
+  };
+
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
@@ -105,7 +131,81 @@ export default function EmployeeSettingsPage() {
   return (
     <EmployeeLayout>
       <div className="max-w-lg mx-auto space-y-6">
-        <h1 className="text-2xl font-bold" data-testid="text-settings-title">Settings</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-settings-title">My Profile</h1>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <User className="h-5 w-5" />
+              Display Name
+            </CardTitle>
+            <CardDescription>
+              Currently: <span className="font-medium text-foreground">{user?.fullName}</span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleDisplayNameSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="display-name">New Display Name</Label>
+                <Input
+                  id="display-name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Enter your name"
+                  data-testid="input-display-name"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={displayNameMutation.isPending || !displayName.trim()}
+                className="w-full"
+                data-testid="button-update-display-name"
+              >
+                {displayNameMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
+                Update Name
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Mail className="h-5 w-5" />
+              {user?.email ? "Update Email" : "Add Email"}
+            </CardTitle>
+            <CardDescription>
+              {user?.email
+                ? `Current email: ${user.email}`
+                : "Add an email address to your account — lets you sign in with email too"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter email address"
+                  data-testid="input-email"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={emailMutation.isPending || !email}
+                className="w-full"
+                data-testid="button-update-email"
+              >
+                {emailMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
+                {user?.email ? "Update Email" : "Add Email"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -147,44 +247,6 @@ export default function EmployeeSettingsPage() {
               >
                 {passwordMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
                 Update Password
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Mail className="h-5 w-5" />
-              {user?.email ? "Update Email" : "Add Email"}
-            </CardTitle>
-            <CardDescription>
-              {user?.email
-                ? `Current email: ${user.email}`
-                : "Add an email address to your account"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  data-testid="input-email"
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={emailMutation.isPending || !email}
-                className="w-full"
-                data-testid="button-update-email"
-              >
-                {emailMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
-                {user?.email ? "Update Email" : "Add Email"}
               </Button>
             </form>
           </CardContent>

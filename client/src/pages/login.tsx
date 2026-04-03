@@ -434,12 +434,12 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
+        <Label htmlFor="username">{siteId.trim() ? "Username" : "Username or email"}</Label>
         <div className="relative">
           <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="username"
-            placeholder="Username or employee code"
+            placeholder={siteId.trim() ? "Username or employee code" : "Username or email address"}
             className="pl-9"
             value={username}
             onChange={(e) => setUsername(e.target.value)}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Menu, X, LayoutDashboard, ShoppingCart, Store, Settings, Home, ClipboardList } from "lucide-react";
+import { LogOut, Menu, X, LayoutDashboard, ShoppingCart, Store, User, Home, ClipboardList } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
@@ -31,7 +31,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
     ...(features?.storeEnabled !== false ? [{ href: "/store", label: "Store", icon: Store, testId: "link-store" }] : []),
     ...(features?.ordersEnabled !== false ? [{ href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" }] : []),
     { href: "/surveys", label: "Surveys", icon: ClipboardList, testId: "link-surveys" },
-    { href: "/settings", label: "Settings", icon: Settings, testId: "link-settings" },
+    { href: "/settings", label: "Profile", icon: User, testId: "link-settings" },
   ];
 
   return (

@@ -123,8 +123,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {(() => {
               const allItems = [
                 ...navItems,
-                ...(user?.role === "admin"
-                  ? [{ href: "/admin/account-settings", label: "Account Settings", icon: Settings }]
+                ...(user?.role === "admin" || user?.role === "prime_admin"
+                  ? [{ href: "/admin/account-settings", label: "My Profile", icon: Settings }]
                   : []),
               ];
               const activeItem = allItems.find(item => isActive(item.href));
@@ -240,7 +240,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         </button>
                       );
                     })}
-                    {user?.role === "admin" ? (
+                    {(user?.role === "admin" || user?.role === "prime_admin") ? (
                       <button
                         className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                           isActive("/admin/account-settings") ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
@@ -249,7 +249,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         data-testid="mobile-link-account-settings"
                       >
                         <Settings className="h-4 w-4" />
-                        Account Settings
+                        My Profile
                       </button>
                     ) : (
                       <a

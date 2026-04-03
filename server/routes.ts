@@ -1509,8 +1509,8 @@ export async function registerRoutes(
     if (isPrime && data.departmentId !== undefined) {
       profileData.departmentId = data.departmentId;
     }
-    // Only prime admins may update a user's display name
-    if (isPrime && data.fullName?.trim()) {
+    // Users can update their own display name; prime admins can update anyone's
+    if (data.fullName?.trim() && (isPrime || user.id === id)) {
       profileData.fullName = data.fullName.trim();
     }
     const updatedUser = await storage.updateUserProfile(id, profileData);

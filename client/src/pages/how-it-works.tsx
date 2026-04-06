@@ -29,6 +29,8 @@ import {
   BarChart2,
   Users,
   Zap,
+  Menu,
+  LogIn,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +64,7 @@ export default function HowItWorksPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const s1 = useInView(0.2);
   const s2 = useInView(0.2);
@@ -283,7 +286,8 @@ export default function HowItWorksPage() {
             <AppLogo size="sm" />
             <span className="text-lg font-bold text-gray-900">Better Bucks</span>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => setLocation("/affiliate")} data-testid="button-header-affiliate">
               Affiliate Program
             </Button>
@@ -292,11 +296,39 @@ export default function HowItWorksPage() {
               Blog
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setLocation("/login")} data-testid="button-header-login">
+              <LogIn className="mr-1.5 h-4 w-4" />
               Log In
             </Button>
             <Button size="sm" onClick={() => setLocation("/signup")} data-testid="button-header-signup" style={{ background: BUCKS_COLOR, color: "white" }}>
               Sign Up
             </Button>
+          </div>
+          {/* Mobile nav */}
+          <div className="sm:hidden flex items-center gap-2">
+            <Button size="sm" onClick={() => setLocation("/signup")} data-testid="button-header-signup-mobile" style={{ background: BUCKS_COLOR, color: "white" }}>
+              Sign Up
+            </Button>
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} data-testid="button-mobile-menu">
+                <Menu className="h-4 w-4" />
+              </Button>
+              {mobileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setLocation("/blog"); setMobileMenuOpen(false); }} data-testid="button-mobile-blog">
+                      <BookOpen className="h-4 w-4" /> Blog
+                    </button>
+                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setLocation("/affiliate"); setMobileMenuOpen(false); }} data-testid="button-mobile-affiliate">
+                      Affiliate Marketing
+                    </button>
+                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }} data-testid="button-mobile-login">
+                      <LogIn className="h-4 w-4" /> Log In
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, DollarSign, Users, TrendingUp, CheckCircle2, Send, Percent, Link } from "lucide-react";
+import { BookOpen, DollarSign, Users, TrendingUp, CheckCircle2, Send, Percent, Link, Menu, LogIn, Building2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +25,7 @@ export default function AffiliatePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const heroRef = useRef<HTMLDivElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [salesAmount, setSalesAmount] = useState(10000);
   const [submitting, setSubmitting] = useState(false);
@@ -110,7 +111,8 @@ export default function AffiliatePage() {
             <AppLogo size="sm" />
             <span className="text-lg font-bold text-gray-900">Better Bucks</span>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Desktop nav */}
+          <div className="hidden sm:flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => setLocation("/affiliate")} className="font-semibold" style={{ color: BUCKS_COLOR }} data-testid="button-header-affiliate">
               Affiliate Program
             </Button>
@@ -119,11 +121,39 @@ export default function AffiliatePage() {
               Blog
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setLocation("/login")} data-testid="button-header-login">
+              <LogIn className="mr-1.5 h-4 w-4" />
               Log In
             </Button>
             <Button size="sm" onClick={() => setLocation("/signup")} data-testid="button-header-signup" style={{ background: BUCKS_COLOR, color: "white" }}>
               Sign Up
             </Button>
+          </div>
+          {/* Mobile nav */}
+          <div className="sm:hidden flex items-center gap-2">
+            <Button size="sm" onClick={() => setLocation("/signup")} data-testid="button-header-signup-mobile" style={{ background: BUCKS_COLOR, color: "white" }}>
+              Sign Up
+            </Button>
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} data-testid="button-mobile-menu">
+                <Menu className="h-4 w-4" />
+              </Button>
+              {mobileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setLocation("/blog"); setMobileMenuOpen(false); }} data-testid="button-mobile-blog">
+                      <BookOpen className="h-4 w-4" /> Blog
+                    </button>
+                    <button className="w-full flex items-center gap-2 px-4 py-2.5 font-semibold text-sm hover:bg-gray-100" style={{ color: BUCKS_COLOR }} onClick={() => { setMobileMenuOpen(false); }} data-testid="button-mobile-affiliate">
+                      Affiliate Marketing
+                    </button>
+                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }} data-testid="button-mobile-login">
+                      <LogIn className="h-4 w-4" /> Log In
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

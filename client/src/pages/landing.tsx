@@ -267,54 +267,55 @@ export default function LandingPage() {
               Sign Up
             </Button>
           </div>
-          <div className="sm:hidden relative">
+          <div className="sm:hidden flex items-center gap-2">
             <Button
-              variant="outline"
               size="sm"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              data-testid="button-mobile-menu"
+              onClick={() => setLocation("/signup")}
+              data-testid="button-header-signup-mobile"
             >
-              <Menu className="h-4 w-4" />
+              <Building2 className="mr-1.5 h-4 w-4" />
+              Sign Up
             </Button>
-            {mobileMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-lg shadow-lg border py-1 z-50">
-                  <button
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => { setLocation("/about"); setMobileMenuOpen(false); }}
-                    data-testid="button-mobile-about"
-                  >
-                    <Info className="h-4 w-4" />
-                    About
-                  </button>
-                  <button
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => { setLocation("/blog"); setMobileMenuOpen(false); }}
-                    data-testid="button-mobile-blog"
-                  >
-                    <BookOpen className="h-4 w-4" />
-                    Blog
-                  </button>
-                  <button
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }}
-                    data-testid="button-mobile-login"
-                  >
-                    <LogIn className="h-4 w-4" />
-                    Log In
-                  </button>
-                  <button
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => { setLocation("/signup"); setMobileMenuOpen(false); }}
-                    data-testid="button-mobile-signup"
-                  >
-                    <Building2 className="h-4 w-4" />
-                    Sign Up
-                  </button>
-                </div>
-              </>
-            )}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                data-testid="button-mobile-menu"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              {mobileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                    <button
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => { setLocation("/blog"); setMobileMenuOpen(false); }}
+                      data-testid="button-mobile-blog"
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      Blog
+                    </button>
+                    <button
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => { setLocation("/affiliate"); setMobileMenuOpen(false); }}
+                      data-testid="button-mobile-affiliate"
+                    >
+                      Affiliate Marketing
+                    </button>
+                    <button
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }}
+                      data-testid="button-mobile-login"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Log In
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

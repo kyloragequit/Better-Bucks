@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, User, LogIn, Building2, Eye, EyeOff, KeyRound, ArrowLeft } from "lucide-react";
+import { Lock, User, LogIn, Eye, EyeOff, KeyRound, ArrowLeft } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
@@ -204,17 +204,18 @@ function PasskeySignInButton() {
 }
 
 function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) {
-  const [siteId, setSiteId] = useState(defaultOrgCode);
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showSiteId, setShowSiteId] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [credential, setCredential] = useState(defaultOrgCode);
+  const [showCredential, setShowCredential] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [step, setStep] = useState<"login" | "register">("login");
   const [fullName, setFullName] = useState("");
   const [allowPasswordCreation, setAllowPasswordCreation] = useState(true);
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+  const [resolvedSiteId, setResolvedSiteId] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -222,31 +223,43 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) return;
+    if (!username.trim() || !credential.trim()) return;
 
-    const hasSiteId = siteId.trim().length > 0;
+    const cred = credential.trim();
+    // A site ID only contains lowercase letters, numbers, and dashes
+    const looksLikeSiteId = /^[a-z0-9-]+$/.test(cred);
 
-    if (hasSiteId) {
+    if (looksLikeSiteId) {
       setIsPending(true);
       try {
         const res = await fetch("/api/join", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ siteId: siteId.trim().toLowerCase(), username: username.trim() }),
+          body: JSON.stringify({ siteId: cred.toLowerCase(), username: username.trim() }),
           credentials: "include",
         });
         const data = await res.json();
+
+        if (res.status === 404) {
+          // Not a valid site ID — treat the credential as a password instead
+          setIsPending(false);
+          await submitLogin({ username: username.trim(), password: cred });
+          return;
+        }
+
         if (!res.ok) {
           toast({ title: "Sign In Failed", description: data.message || "Something went wrong", variant: "destructive" });
           return;
         }
+
         if (data.needsRegistration) {
+          setResolvedSiteId(cred.toLowerCase());
           setAllowPasswordCreation(data.allowPasswordCreation ?? true);
           setStep("register");
           return;
         }
-        // Persist the site ID so employees don't have to re-enter it next time
-        localStorage.setItem("bb_last_site_id", siteId.trim().toLowerCase());
+
+        localStorage.setItem("bb_last_site_id", cred.toLowerCase());
         queryClient.setQueryData(["/api/user"], data);
         toast({ title: "Welcome back!", description: `Signed in as ${data.fullName}` });
         redirectAfterLogin(data.role, setLocation);
@@ -254,29 +267,30 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
         setIsPending(false);
       }
     } else {
-      await submitLogin({ username, password });
+      // Contains uppercase or special chars — must be a password
+      await submitLogin({ username: username.trim(), password: cred });
     }
   };
 
   const handleCaptchaSubmit = async (turnstileToken: string) => {
-    await submitLogin({ username, password, turnstileToken });
+    await submitLogin({ username: username.trim(), password: credential.trim(), turnstileToken });
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) return;
-    if (allowPasswordCreation && password && password !== confirmPassword) {
+    if (allowPasswordCreation && regPassword && regPassword !== regConfirmPassword) {
       toast({ title: "Passwords don't match", description: "Please make sure both password fields match.", variant: "destructive" });
       return;
     }
-    if (allowPasswordCreation && password && password.length < 6) {
+    if (allowPasswordCreation && regPassword && regPassword.length < 6) {
       toast({ title: "Password too short", description: "Password must be at least 6 characters.", variant: "destructive" });
       return;
     }
     setIsPending(true);
     try {
-      const body: Record<string, string> = { siteId: siteId.trim().toLowerCase(), username: username.trim(), fullName: fullName.trim() };
-      if (allowPasswordCreation && password.trim()) body.password = password.trim();
+      const body: Record<string, string> = { siteId: resolvedSiteId, username: username.trim(), fullName: fullName.trim() };
+      if (allowPasswordCreation && regPassword.trim()) body.password = regPassword.trim();
       const res = await fetch("/api/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -288,8 +302,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
         toast({ title: "Sign In Failed", description: data.message || "Something went wrong", variant: "destructive" });
         return;
       }
-      // Persist site ID for returning visits
-      localStorage.setItem("bb_last_site_id", siteId.trim().toLowerCase());
+      localStorage.setItem("bb_last_site_id", resolvedSiteId);
       queryClient.setQueryData(["/api/user"], data);
       toast({ title: "Welcome!", description: `Signed in as ${data.fullName}` });
       redirectAfterLogin(data.role, setLocation);
@@ -340,35 +353,35 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
               <div className="relative">
                 <Input
                   id="reg-password"
-                  type={showPassword ? "text" : "password"}
+                  type={showRegPassword ? "text" : "password"}
                   placeholder="Create a password"
                   className="pr-9"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
                   autoComplete="new-password"
                   data-testid="input-emp-reg-password"
                 />
-                <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowRegPassword(v => !v)} tabIndex={-1}>
+                  {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-            {password && (
+            {regPassword && (
               <div className="space-y-2">
                 <Label htmlFor="reg-confirm-password">Confirm Password</Label>
                 <div className="relative">
                   <Input
                     id="reg-confirm-password"
-                    type={showConfirmPassword ? "text" : "password"}
+                    type={showRegConfirmPassword ? "text" : "password"}
                     placeholder="Confirm your password"
                     className="pr-9"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    value={regConfirmPassword}
+                    onChange={(e) => setRegConfirmPassword(e.target.value)}
                     autoComplete="new-password"
                     data-testid="input-emp-reg-confirm-password"
                   />
-                  <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(v => !v)} tabIndex={-1}>
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowRegConfirmPassword(v => !v)} tabIndex={-1}>
+                    {showRegConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -384,7 +397,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
         >
           {isPending ? <><SpinningLogo className="mr-2 h-4 w-4" />Setting up...</> : <><LogIn className="mr-2 h-4 w-4" />Complete Sign In</>}
         </Button>
-        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={() => { setStep("login"); setFullName(""); setPassword(""); setConfirmPassword(""); }} data-testid="button-emp-back">
+        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={() => { setStep("login"); setFullName(""); setRegPassword(""); setRegConfirmPassword(""); }} data-testid="button-emp-back">
           <ArrowLeft className="mr-2 h-4 w-4" />Back
         </Button>
       </form>
@@ -396,50 +409,12 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="site-id">
-            Site ID
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">(employees only)</span>
-          </Label>
-          {siteId.trim() && (
-            <button
-              type="button"
-              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
-              onClick={() => { setSiteId(""); localStorage.removeItem("bb_last_site_id"); }}
-              data-testid="button-clear-site-id"
-            >
-              Not your workplace?
-            </button>
-          )}
-        </div>
-        <div className="relative">
-          <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="site-id"
-            type={showSiteId ? "text" : "password"}
-            placeholder="Your workplace Site ID"
-            className="pl-9 pr-9"
-            value={siteId}
-            onChange={(e) => setSiteId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-            autoComplete="off"
-            data-testid="input-emp-site-id"
-          />
-          <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowSiteId(v => !v)} tabIndex={-1} data-testid="button-toggle-site-id">
-            {showSiteId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        {siteId.trim() && (
-          <p className="text-xs text-muted-foreground">Enter your employee username below — no password needed.</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="username">{siteId.trim() ? "Username" : "Username or email"}</Label>
+        <Label htmlFor="username">Username or email</Label>
         <div className="relative">
           <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="username"
-            placeholder={siteId.trim() ? "Username or employee code" : "Username or email address"}
+            placeholder="Username, email, or employee code"
             className="pl-9"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -450,50 +425,46 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
         </div>
       </div>
 
-      {!siteId.trim() && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">
-              Password
-              <span className="ml-1.5 text-xs font-normal text-muted-foreground">(administrators)</span>
-            </Label>
-            <button
-              type="button"
-              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
-              onClick={() => setLocation("/forgot-password")}
-              data-testid="link-forgot-password"
-            >
-              Forgot password?
-            </button>
-          </div>
-          <div className="relative">
-            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Your password"
-              className="pl-9 pr-9"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="off"
-              data-testid="input-admin-password"
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setShowPassword(!showPassword)}
-              data-testid="button-toggle-password"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="credential">Password or Site ID</Label>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+            onClick={() => setLocation("/forgot-password")}
+            data-testid="link-forgot-password"
+          >
+            Forgot password?
+          </button>
         </div>
-      )}
+        <div className="relative">
+          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="credential"
+            type={showCredential ? "text" : "password"}
+            placeholder="Your password or workplace Site ID"
+            className="pl-9 pr-9"
+            value={credential}
+            onChange={(e) => setCredential(e.target.value)}
+            autoComplete="off"
+            data-testid="input-admin-password"
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowCredential(v => !v)}
+            tabIndex={-1}
+            data-testid="button-toggle-password"
+          >
+            {showCredential ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
 
       <Button
         type="submit"
         className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-300"
-        disabled={isLoading || !username.trim()}
+        disabled={isLoading || !username.trim() || !credential.trim()}
         data-testid="button-employee-login"
       >
         {isLoading ? (

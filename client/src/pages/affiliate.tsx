@@ -205,21 +205,21 @@ export default function AffiliatePage() {
             <Percent className="h-4 w-4" />
             25% Commission on Every Sale
           </div>
-          <h1 className="text-5xl sm:text-6xl font-extrabold text-white leading-tight max-w-3xl mb-6">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight max-w-3xl mb-4 sm:mb-6">
             Earn with the{" "}
             <span style={{ color: BUCKS_COLOR }}>Better Bucks</span>{" "}
             Affiliate Program
           </h1>
-          <p className="text-xl text-blue-100 max-w-2xl mb-8">
+          <p className="text-base sm:text-xl text-blue-100 max-w-2xl mb-6 sm:mb-8">
             Share Better Bucks with your audience and earn a{" "}
             <strong className="text-white">25% commission</strong> on every subscription
             that comes through your unique referral link — for the entire lifetime of the customer.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full sm:w-auto">
             <Button
               size="lg"
               onClick={() => document.getElementById("signup-form")?.scrollIntoView({ behavior: "smooth" })}
-              className="text-base px-8 py-6 font-bold shadow-xl"
+              className="w-full sm:w-auto text-base px-6 sm:px-8 py-4 sm:py-6 font-bold shadow-xl"
               style={{ background: BUCKS_COLOR, color: "white" }}
               data-testid="button-hero-apply"
             >
@@ -229,7 +229,7 @@ export default function AffiliatePage() {
               size="lg"
               variant="outline"
               onClick={() => document.getElementById("commission-slider")?.scrollIntoView({ behavior: "smooth" })}
-              className="text-base px-8 py-6 border-white/30 text-white hover:bg-white/10"
+              className="w-full sm:w-auto text-base px-6 sm:px-8 py-4 sm:py-6 border-white/30 text-white hover:bg-white/10"
               data-testid="button-hero-see-earnings"
             >
               See Your Earnings
@@ -244,8 +244,8 @@ export default function AffiliatePage() {
       </div>
 
       {/* ── BENEFIT BADGES ────────────────────────────────────────── */}
-      <div className="bg-white py-14 px-6">
-        <div className="max-w-5xl mx-auto grid sm:grid-cols-3 gap-8">
+      <div className="bg-white py-10 sm:py-14 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto grid sm:grid-cols-3 gap-5 sm:gap-8">
           {[
             { icon: DollarSign, title: "25% Commission", desc: "Earn a quarter of every sale you refer — one of the highest rates in the industry." },
             { icon: Users, title: "Lifetime Earnings", desc: "You earn commission for as long as customers you refer stay subscribed." },
@@ -263,24 +263,24 @@ export default function AffiliatePage() {
       </div>
 
       {/* ── COMMISSION SLIDER ─────────────────────────────────────── */}
-      <div id="commission-slider" className="py-20 px-6" style={{ background: "#f8fafc" }}>
+      <div id="commission-slider" className="py-12 sm:py-20 px-4 sm:px-6" style={{ background: "#f8fafc" }}>
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 sm:mb-12">
             <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: BUCKS_COLOR }}>The Math Is Simple</p>
-            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">How Much Could You Earn?</h2>
-            <p className="text-gray-500 text-lg">Drag the slider to see your potential monthly commission at 25%.</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 sm:mb-4">How Much Could You Earn?</h2>
+            <p className="text-gray-500 text-base sm:text-lg">Drag the slider to see your potential monthly commission at 25%.</p>
           </div>
 
           {/* Slider card */}
-          <div className="bg-white rounded-3xl shadow-xl p-10">
-            <div className="flex justify-between items-end mb-4">
+          <div className="bg-white rounded-3xl shadow-xl p-5 sm:p-10">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 mb-4">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Referred Monthly Sales</p>
-                <p className="text-4xl font-extrabold text-gray-900" data-testid="text-sales-amount">{formatCurrency(salesAmount)}</p>
+                <p className="text-3xl sm:text-4xl font-extrabold text-gray-900" data-testid="text-sales-amount">{formatCurrency(salesAmount)}</p>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right">
                 <p className="text-sm text-gray-400 mb-1">Your 25% Commission</p>
-                <p className="text-4xl font-extrabold" style={{ color: BUCKS_COLOR }} data-testid="text-commission-amount">{formatCurrency(commission)}</p>
+                <p className="text-3xl sm:text-4xl font-extrabold" style={{ color: BUCKS_COLOR }} data-testid="text-commission-amount">{formatCurrency(commission)}</p>
               </div>
             </div>
 
@@ -360,13 +360,13 @@ export default function AffiliatePage() {
       </div>
 
       {/* ── HOW IT WORKS ──────────────────────────────────────────── */}
-      <div className="py-20 px-6 bg-white">
+      <div className="py-12 sm:py-20 px-4 sm:px-6 bg-white">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8 sm:mb-14">
             <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: BUCKS_COLOR }}>Simple Process</p>
-            <h2 className="text-4xl font-extrabold text-gray-900">How the Affiliate Program Works</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">How the Affiliate Program Works</h2>
           </div>
-          <div className="grid sm:grid-cols-3 gap-10 relative">
+          <div className="grid sm:grid-cols-3 gap-8 sm:gap-10 relative">
             {[
               { step: "01", title: "Apply Below", desc: "Fill out the affiliate sign-up form with your contact details and your platform link." },
               { step: "02", title: "Get Your Code", desc: "Once approved, you'll receive a unique referral code and custom link to share." },
@@ -387,7 +387,7 @@ export default function AffiliatePage() {
       {/* ── SIGN-UP FORM ──────────────────────────────────────────── */}
       <div
         id="signup-form"
-        className="relative py-24 px-6 overflow-hidden"
+        className="relative py-14 sm:py-24 px-4 sm:px-6 overflow-hidden"
         style={{ background: NAVY }}
       >
         {/* Parallax background accent */}
@@ -408,8 +408,8 @@ export default function AffiliatePage() {
               <Send className="h-4 w-4" />
               Affiliate Application
             </div>
-            <h2 className="text-4xl font-extrabold text-white mb-4">Join the Program</h2>
-            <p className="text-blue-200 text-lg">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-3 sm:mb-4">Join the Program</h2>
+            <p className="text-blue-200 text-base sm:text-lg">
               Apply today and start earning 25% on every sale. We review applications within 1–2 business days.
             </p>
           </div>

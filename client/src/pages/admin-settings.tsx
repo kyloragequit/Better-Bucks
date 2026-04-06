@@ -60,17 +60,33 @@ export default function AdminSettingsPage() {
     enabled: user?.role === "prime_admin",
   });
 
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState<string | null>(null);
+
   const { mutate: cancelSubscription, isPending: isCancelling } = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/organizations/cancel-subscription");
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { cancelledImmediately?: boolean; cancelAt?: string; message?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
-      toast({
-        title: "Subscription Cancelled",
-        description: "Your organization's subscription has been cancelled.",
-      });
+      if (data.cancelledImmediately) {
+        toast({
+          title: "Subscription Cancelled",
+          description: "Your trial has ended. All team members have been removed from the platform.",
+        });
+      } else if (data.cancelAt) {
+        const dateStr = new Date(data.cancelAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+        setCancelAtPeriodEnd(dateStr);
+        toast({
+          title: "Cancellation Scheduled",
+          description: `Your subscription will end on ${dateStr}. You retain full access until then.`,
+        });
+      } else {
+        toast({
+          title: "Subscription Cancelled",
+          description: "Your organization's subscription has been cancelled.",
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -705,9 +721,21 @@ export default function AdminSettingsPage() {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Status</div>
-                        <div className="font-medium text-green-600">Active</div>
+                        <div className={`font-medium ${cancelAtPeriodEnd ? "text-amber-600" : "text-green-600"}`}>
+                          {cancelAtPeriodEnd ? "Cancelling" : "Active"}
+                        </div>
                       </div>
                     </div>
+
+                    {cancelAtPeriodEnd && (
+                      <div className="flex items-start gap-3 rounded-md bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                        <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-semibold">Cancellation Scheduled</div>
+                          <div className="mt-0.5 text-amber-700">Your subscription will end on <strong>{cancelAtPeriodEnd}</strong>. You and your team retain full access until then. No further charges will be made.</div>
+                        </div>
+                      </div>
+                    )}
 
                     {changingTier ? (
                       <div className="border-t pt-4 space-y-3">
@@ -766,8 +794,9 @@ export default function AdminSettingsPage() {
                               <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
                               <AlertDialogDescription asChild>
                                 <div className="space-y-2 text-sm text-muted-foreground">
-                                  <p>This will <strong>immediately stop your Stripe automatic payment</strong> and pause your organization. All team members will lose access to the platform.</p>
-                                  <p>Your organization data, employee accounts, and history are fully preserved. You can reactivate at any time from your organization settings.</p>
+                                  <p>If you are still in your <strong>free trial</strong>, your access will end immediately and no charge will be made.</p>
+                                  <p>If you have already been billed, your access will continue until the <strong>end of your current billing period</strong> — no further charges will be made after that.</p>
+                                  <p>Your organization data, employee accounts, and history are fully preserved. You can reactivate at any time.</p>
                                 </div>
                               </AlertDialogDescription>
                             </AlertDialogHeader>

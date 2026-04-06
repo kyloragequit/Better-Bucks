@@ -2874,9 +2874,29 @@ export async function registerRoutes(
     try {
       await ensureStripeReady();
       const stripe = await getStripeClient();
-      await stripe.subscriptions.cancel(org.stripeSubscriptionId);
-      await storage.updateOrganizationStatus(org.id, "paused");
-      res.json({ message: "Subscription cancelled successfully" });
+      const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId!);
+
+      if (sub.status === "trialing") {
+        // In trial — no payment has been made, cancel immediately
+        await stripe.subscriptions.cancel(org.stripeSubscriptionId!);
+        await storage.updateOrganizationStatus(org.id, "paused");
+        return res.json({
+          message: "Subscription cancelled. Your trial has ended and access has been removed.",
+          cancelledImmediately: true,
+        });
+      } else {
+        // Has made at least one payment — cancel at end of current billing period
+        const updated = await stripe.subscriptions.update(org.stripeSubscriptionId!, {
+          cancel_at_period_end: true,
+        });
+        // Keep org active — webhook will mark it inactive when period ends
+        const cancelAt = new Date(updated.current_period_end * 1000).toISOString();
+        return res.json({
+          message: "Your subscription is scheduled to cancel at the end of your billing period.",
+          cancelledImmediately: false,
+          cancelAt,
+        });
+      }
     } catch (error) {
       console.error("Error cancelling subscription:", error);
       res.status(500).json({ message: "Failed to cancel subscription" });
@@ -2941,6 +2961,11 @@ export async function registerRoutes(
         if (sub.status === "canceled") {
           await storage.updateOrganizationStatus(org.id, "inactive");
           return res.json({ status: "inactive", isPaused: true, orgName: org.name, isPrimeAdmin: user.role === "prime_admin" });
+        }
+        // Subscription is active but scheduled to cancel at period end
+        if (sub.cancel_at_period_end) {
+          const cancelAt = new Date(sub.current_period_end * 1000).toISOString();
+          return res.json({ status: "active", isPaused: false, orgName: org.name, isPrimeAdmin: user.role === "prime_admin", cancelAtPeriodEnd: true, cancelAt });
         }
       } catch (e) {
         console.error("Error checking subscription status:", e);
@@ -3365,6 +3390,34 @@ export async function registerRoutes(
       const org = await storage.getOrganization(orgId);
       if (!org) return res.status(404).json({ message: "Organization not found" });
 
+      // Sync pause/resume with Stripe when applicable
+      const hasRealStripeSubscription =
+        org.stripeSubscriptionId &&
+        org.stripeSubscriptionId !== "pending_checkout" &&
+        org.stripeCustomerId !== "free_membership" &&
+        !org.stripeCustomerId?.startsWith("promo_") &&
+        !org.stripeSubscriptionId?.startsWith("promo_");
+
+      if (hasRealStripeSubscription) {
+        try {
+          await ensureStripeReady();
+          const stripe = await getStripeClient();
+          if (status === "paused") {
+            // Pause billing collection in Stripe (keeps subscription alive but stops charging)
+            await stripe.subscriptions.update(org.stripeSubscriptionId!, {
+              pause_collection: { behavior: "mark_uncollectible" },
+            });
+          } else if (status === "active" && (org.status === "paused")) {
+            // Resume from a developer-initiated pause
+            await stripe.subscriptions.update(org.stripeSubscriptionId!, {
+              pause_collection: "",
+            } as any);
+          }
+        } catch (stripeErr) {
+          console.error("Stripe pause/resume error (non-fatal):", stripeErr);
+        }
+      }
+
       const updated = await storage.updateOrganizationStatus(orgId, status);
       res.json(updated);
     } catch (e) {
@@ -3391,7 +3444,23 @@ export async function registerRoutes(
       if (!isFree && !isPromo && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout") {
         await ensureStripeReady();
         const stripe = await getStripeClient();
-        await stripe.subscriptions.cancel(org.stripeSubscriptionId);
+        const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+
+        if (sub.status === "trialing") {
+          // In trial — cancel immediately, no charges have been made
+          await stripe.subscriptions.cancel(org.stripeSubscriptionId);
+          await storage.updateOrganizationStatus(orgId, "paused");
+          return res.json({ message: "Trial subscription cancelled immediately.", cancelledImmediately: true });
+        } else {
+          // Has made payments — schedule cancellation at period end
+          await stripe.subscriptions.update(org.stripeSubscriptionId, { cancel_at_period_end: true });
+          // Keep org active until the webhook fires at period end
+          return res.json({
+            message: "Subscription scheduled to cancel at end of billing period.",
+            cancelledImmediately: false,
+            cancelAt: new Date(sub.current_period_end * 1000).toISOString(),
+          });
+        }
       }
 
       await storage.updateOrganizationStatus(orgId, "paused");

@@ -2906,10 +2906,10 @@ export async function registerRoutes(
     res.json({ active: false });
   });
 
-  // Get organization info for authenticated prime admin
+  // Get organization info for authenticated org admins
   app.get("/api/organizations/my-org", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) {
@@ -3121,10 +3121,10 @@ export async function registerRoutes(
     res.json({ storeUrl: org?.storeUrl || "https://dscpromostore.com/" });
   });
 
-  // Cancel subscription (prime admin only)
+  // Cancel subscription (any org admin)
   app.post("/api/organizations/cancel-subscription", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) {
@@ -3184,7 +3184,7 @@ export async function registerRoutes(
   // Stripe billing portal (prime admin only)
   app.post("/api/organizations/billing-portal", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) {
@@ -3254,10 +3254,10 @@ export async function registerRoutes(
     res.json({ status: org.status, isPaused, orgName: org.name, isPrimeAdmin: user.role === "prime_admin" });
   });
 
-  // Delete organization (prime admin only, free/promo orgs)
+  // Delete organization (any org admin, free/promo orgs)
   app.post("/api/organizations/delete", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) {
@@ -3290,10 +3290,10 @@ export async function registerRoutes(
     }
   });
 
-  // Change subscription tier (prime admin only)
+  // Change subscription tier (any org admin)
   app.post("/api/organizations/change-tier", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) {

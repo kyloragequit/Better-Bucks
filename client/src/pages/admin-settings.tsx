@@ -57,7 +57,7 @@ export default function AdminSettingsPage() {
 
   const { data: org, isLoading } = useQuery<OrgWithFree>({
     queryKey: ["/api/organizations/my-org"],
-    enabled: user?.role === "prime_admin",
+    enabled: user?.role === "prime_admin" || user?.role === "admin",
   });
 
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState<string | null>(null);
@@ -115,9 +115,10 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const { mutate: deleteOrganization, isPending: isDeleting } = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/organizations/delete");
+    mutationFn: async (confirmOrgName: string) => {
+      const res = await apiRequest("POST", "/api/organizations/delete", { confirmOrgName });
       return await res.json();
     },
     onSuccess: () => {
@@ -235,11 +236,11 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (user?.role !== "prime_admin") {
+  if (user?.role !== "prime_admin" && user?.role !== "admin") {
     return (
       <AdminLayout>
         <div className="text-center py-12 text-muted-foreground">
-          Only the primary administrator can access settings.
+          Only administrators can access settings.
         </div>
       </AdminLayout>
     );
@@ -684,7 +685,7 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                     <div className="border-t pt-4">
-                      <AlertDialog>
+                      <AlertDialog onOpenChange={(open) => { if (!open) setDeleteConfirmName(""); }}>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" size="sm" data-testid="button-delete-org">
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -694,15 +695,24 @@ export default function AdminSettingsPage() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Organization?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete your organization, all employee accounts, transaction history, and orders. This action cannot be undone.
+                            <AlertDialogDescription asChild>
+                              <div className="space-y-3 text-sm text-muted-foreground">
+                                <p>This will permanently delete your organization, all employee accounts, transaction history, and orders. This action cannot be undone.</p>
+                                <p>Type <strong>{org.name}</strong> below to confirm:</p>
+                                <Input
+                                  value={deleteConfirmName}
+                                  onChange={(e) => setDeleteConfirmName(e.target.value)}
+                                  placeholder={org.name}
+                                  data-testid="input-confirm-org-name"
+                                />
+                              </div>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => deleteOrganization()}
-                              disabled={isDeleting}
+                              onClick={() => deleteOrganization(deleteConfirmName)}
+                              disabled={isDeleting || deleteConfirmName.trim().toLowerCase() !== org.name.trim().toLowerCase()}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               data-testid="button-confirm-delete-org"
                             >

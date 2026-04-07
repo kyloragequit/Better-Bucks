@@ -156,11 +156,17 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
   const [selectedAdmins, setSelectedAdmins] = useState<number[]>([]);
   const [bucksEach, setBucksEach] = useState("");
   const [showOverBudgetDialog, setShowOverBudgetDialog] = useState(false);
+  const [autoAllocAmounts, setAutoAllocAmounts] = useState<Record<number, number> | null>(null);
 
   const regularAdmins = admins.filter(a => a.role === "admin");
 
   const { data: adminCredits } = useQuery<AdminCreditsData>({
     queryKey: ["/api/org/admin-credits"],
+  });
+
+  type ManagerCounts = { counts: { adminId: number; adminName: string; employeeCount: number; percentage: number }[]; totalEmployees: number; unassigned: number; unassignedPercentage: number };
+  const { data: mgrCounts } = useQuery<ManagerCounts>({
+    queryKey: ["/api/org/manager-employee-counts"],
   });
 
   const { mutate: saveSettings, isPending: savingSettings } = useMutation({
@@ -178,6 +184,24 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
 
   const doAllocate = () => {
     allocate();
+  };
+
+  const { mutate: autoAllocMutate, isPending: allocatingAuto } = useMutation({
+    mutationFn: (amounts: Record<number, number>) => apiRequest("POST", "/api/org/allocate-budget-auto", { allocations: Object.entries(amounts).map(([id, amount]) => ({ adminId: Number(id), bucks: amount })) }),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/stats/leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org/admin-credits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org/manager-employee-counts"] });
+      toast({ title: "Auto allocation complete!", description: `${data.total.toLocaleString()} bucks distributed to ${data.allocated} admin${data.allocated !== 1 ? "s" : ""}.` });
+      setAutoAllocAmounts(null);
+      setSelectedAdmins([]);
+    },
+    onError: (e: Error) => toast({ title: "Auto allocation failed", description: e.message, variant: "destructive" }),
+  });
+
+  const handleAutoAllocateConfirm = () => {
+    if (autoAllocAmounts) autoAllocMutate(autoAllocAmounts);
   };
 
   const { mutate: allocate, isPending: allocating } = useMutation({
@@ -328,62 +352,162 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
             </div>
           )}
 
+          {/* Employee Distribution by Manager */}
+          {mgrCounts && mgrCounts.totalEmployees > 0 && regularAdmins.length > 0 && (
+            <div className="pt-3 border-t space-y-3">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Users className="h-4 w-4" /> Employee Distribution by Manager
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {mgrCounts.counts.map(c => (
+                  <div key={c.adminId} className="flex items-center justify-between p-2 rounded-lg bg-blue-50 border border-blue-100" data-testid={`mgr-pct-${c.adminId}`}>
+                    <span className="text-sm font-medium text-blue-800 truncate">{c.adminName}</span>
+                    <span className="text-sm font-bold text-blue-700 ml-2 whitespace-nowrap">
+                      {c.employeeCount} <span className="text-xs font-normal">({c.percentage}%)</span>
+                    </span>
+                  </div>
+                ))}
+                {mgrCounts.unassigned > 0 && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-200" data-testid="mgr-pct-unassigned">
+                    <span className="text-sm font-medium text-gray-600 truncate">Unassigned</span>
+                    <span className="text-sm font-bold text-gray-500 ml-2 whitespace-nowrap">
+                      {mgrCounts.unassigned} <span className="text-xs font-normal">({mgrCounts.unassignedPercentage}%)</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Allocation */}
           {regularAdmins.length > 0 && (
             <div className="pt-3 border-t space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4" /> Allocate Bucks to Administrators</p>
-                <button
-                  type="button"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() => setSelectedAdmins(selectedAdmins.length === regularAdmins.length ? [] : regularAdmins.map(a => a.id))}
-                  data-testid="button-admins-select-all"
-                >
-                  {selectedAdmins.length === regularAdmins.length ? "Deselect All" : "Select All"}
-                </button>
+                <div className="flex items-center gap-2">
+                  {mgrCounts && mgrCounts.totalEmployees > 0 && serverBudget > 0 && (
+                    <button
+                      type="button"
+                      className="text-xs text-blue-600 hover:underline font-medium"
+                      onClick={() => {
+                        const remaining = Math.max(0, serverBudget - currentCredited);
+                        if (remaining <= 0) {
+                          toast({ title: "Budget fully allocated", description: "The entire monthly budget has already been credited.", variant: "destructive" });
+                          return;
+                        }
+                        const assignedAdmins = mgrCounts.counts.filter(c => c.employeeCount > 0);
+                        if (assignedAdmins.length === 0) {
+                          toast({ title: "No employees assigned", description: "Assign employees to managers first on the Team page.", variant: "destructive" });
+                          return;
+                        }
+                        const assignedEmpCount = assignedAdmins.reduce((sum, c) => sum + c.employeeCount, 0);
+                        const autoAmounts: Record<number, number> = {};
+                        let totalUsed = 0;
+                        for (const c of assignedAdmins) {
+                          const share = Math.floor((c.employeeCount / assignedEmpCount) * remaining);
+                          autoAmounts[c.adminId] = share;
+                          totalUsed += share;
+                        }
+                        let remainder = remaining - totalUsed;
+                        const sorted = [...assignedAdmins].sort((a, b) => b.employeeCount - a.employeeCount);
+                        for (const c of sorted) {
+                          if (remainder <= 0) break;
+                          autoAmounts[c.adminId]++;
+                          remainder--;
+                        }
+                        setAutoAllocAmounts(autoAmounts);
+                        setSelectedAdmins(assignedAdmins.map(c => c.adminId));
+                        setBucksEach("");
+                      }}
+                      data-testid="button-auto-allocate"
+                    >
+                      Auto Allocate
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => { setSelectedAdmins(selectedAdmins.length === regularAdmins.length ? [] : regularAdmins.map(a => a.id)); setAutoAllocAmounts(null); }}
+                    data-testid="button-admins-select-all"
+                  >
+                    {selectedAdmins.length === regularAdmins.length ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {regularAdmins.map(a => (
-                  <label key={a.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-colors" data-testid={`checkbox-admin-${a.id}`}>
-                    <Checkbox
-                      checked={selectedAdmins.includes(a.id)}
-                      onCheckedChange={checked => setSelectedAdmins(prev => checked ? [...prev, a.id] : prev.filter(id => id !== a.id))}
+                {regularAdmins.map(a => {
+                  const autoAmt = autoAllocAmounts?.[a.id];
+                  return (
+                    <label key={a.id} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-colors" data-testid={`checkbox-admin-${a.id}`}>
+                      <Checkbox
+                        checked={selectedAdmins.includes(a.id)}
+                        onCheckedChange={checked => { setSelectedAdmins(prev => checked ? [...prev, a.id] : prev.filter(id => id !== a.id)); if (!checked && autoAllocAmounts) { const next = { ...autoAllocAmounts }; delete next[a.id]; setAutoAllocAmounts(Object.keys(next).length > 0 ? next : null); } }}
+                      />
+                      <span className="text-sm">{a.fullName}</span>
+                      {autoAmt != null && <span className="text-xs font-semibold text-blue-600 ml-auto">{autoAmt.toLocaleString()}</span>}
+                    </label>
+                  );
+                })}
+              </div>
+              {!autoAllocAmounts && (
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bucks-each" className="text-sm">Bucks to give each</Label>
+                    <Input
+                      id="bucks-each"
+                      type="number"
+                      min="1"
+                      value={bucksEach}
+                      onChange={e => setBucksEach(e.target.value)}
+                      placeholder="500"
+                      className="w-36"
+                      data-testid="input-bucks-each"
                     />
-                    <span className="text-sm">{a.fullName}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="bucks-each" className="text-sm">Bucks to give each</Label>
-                  <Input
-                    id="bucks-each"
-                    type="number"
-                    min="1"
-                    value={bucksEach}
-                    onChange={e => setBucksEach(e.target.value)}
-                    placeholder="500"
-                    className="w-36"
-                    data-testid="input-bucks-each"
-                  />
+                  </div>
+                  <Button
+                    onClick={handleAllocateClick}
+                    disabled={allocating || selectedAdmins.length === 0 || !bucksEach || parseInt(bucksEach) < 1}
+                    data-testid="button-allocate-budget"
+                    size="sm"
+                  >
+                    {allocating ? "Allocating…" : `Allocate to ${selectedAdmins.length} Admin${selectedAdmins.length !== 1 ? "s" : ""}`}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleAllocateClick}
-                  disabled={allocating || selectedAdmins.length === 0 || !bucksEach || parseInt(bucksEach) < 1}
-                  data-testid="button-allocate-budget"
-                  size="sm"
-                >
-                  {allocating ? "Allocating…" : `Allocate to ${selectedAdmins.length} Admin${selectedAdmins.length !== 1 ? "s" : ""}`}
-                </Button>
-              </div>
-              {allocationAmount > 0 && selectedAdmins.length > 0 && (
+              )}
+              {autoAllocAmounts && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground" data-testid="text-auto-alloc-summary">
+                    Auto-allocated <span className="font-semibold text-foreground">{Object.values(autoAllocAmounts).reduce((s, v) => s + v, 0).toLocaleString()} bucks</span> based on employee distribution
+                    {serverBpd > 0 && <span className="text-muted-foreground"> — ${(Object.values(autoAllocAmounts).reduce((s, v) => s + v, 0) / serverBpd).toFixed(2)}</span>}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleAutoAllocateConfirm}
+                      disabled={allocatingAuto}
+                      data-testid="button-confirm-auto-allocate"
+                      size="sm"
+                    >
+                      {allocatingAuto ? "Allocating…" : "Confirm Auto Allocation"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setAutoAllocAmounts(null); setSelectedAdmins([]); }}
+                      data-testid="button-cancel-auto-allocate"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {!autoAllocAmounts && allocationAmount > 0 && selectedAdmins.length > 0 && (
                 <p className="text-sm text-muted-foreground" data-testid="text-allocation-total">
                   Total: <span className="font-semibold text-foreground">{allocationAmount.toLocaleString()} bucks</span>
                   {" "}({(parseInt(bucksEach) || 0).toLocaleString()} × {selectedAdmins.length} admin{selectedAdmins.length !== 1 ? "s" : ""})
                   {serverBpd > 0 && <span className="text-muted-foreground"> — ${(allocationAmount / serverBpd).toFixed(2)}</span>}
                 </p>
               )}
-              {allocationAmount > 0 && wouldExceedBudget && (
+              {!autoAllocAmounts && allocationAmount > 0 && wouldExceedBudget && (
                 <p className="text-xs text-amber-600 flex items-center gap-1" data-testid="text-allocation-warning">
                   <AlertTriangle className="h-3 w-3" />
                   This allocation will put you {overBy.toLocaleString()} bucks over budget
@@ -432,6 +556,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
 export default function AdminDashboardPage() {
   const [selectedAdminId, setSelectedAdminId] = usePersistedState<string>("bb_filter_adminId", "all");
   const [selectedDeptId, setSelectedDeptId] = usePersistedState<string>("bb_filter_deptId", "all");
+  const [selectedMgrId, setSelectedMgrId] = usePersistedState<string>("bb_filter_mgrId", "all");
   const [creditPeriod, setCreditPeriod] = useState<"week" | "month" | "year">("week");
   const [debitPeriod, setDebitPeriod] = useState<"week" | "month" | "year">("week");
   const [orderPeriod, setOrderPeriod] = useState<"week" | "month" | "year">("week");
@@ -450,6 +575,7 @@ export default function AdminDashboardPage() {
     const params = new URLSearchParams();
     if (selectedAdminId !== "all") params.set("adminId", selectedAdminId);
     if (selectedDeptId !== "all") params.set("departmentId", selectedDeptId);
+    if (selectedMgrId !== "all") params.set("managerId", selectedMgrId);
     if (extra) Object.entries(extra).forEach(([k, v]) => params.set(k, v));
     const qs = params.toString();
     return qs ? `${base}?${qs}` : base;
@@ -464,7 +590,7 @@ export default function AdminDashboardPage() {
   });
 
   const { data: pointsStats, isLoading: statsLoading } = useQuery<{ week: number; month: number; year: number; weekDebited: number; monthDebited: number; yearDebited: number }>({
-    queryKey: ["/api/stats/points", { adminId: selectedAdminId, departmentId: selectedDeptId }],
+    queryKey: ["/api/stats/points", { adminId: selectedAdminId, departmentId: selectedDeptId, managerId: selectedMgrId }],
     queryFn: async () => {
       const res = await fetch(buildStatsUrl("/api/stats/points"), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch stats");
@@ -473,7 +599,7 @@ export default function AdminDashboardPage() {
   });
 
   const { data: orderStats, isLoading: orderStatsLoading } = useQuery<{ week: OrderPeriodStats; month: OrderPeriodStats; year: OrderPeriodStats }>({
-    queryKey: ["/api/stats/orders", { departmentId: selectedDeptId }],
+    queryKey: ["/api/stats/orders", { departmentId: selectedDeptId, managerId: selectedMgrId }],
     queryFn: async () => {
       const res = await fetch(buildStatsUrl("/api/stats/orders"), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch order stats");
@@ -567,6 +693,17 @@ export default function AdminDashboardPage() {
                 <SelectItem key={admin.id} value={String(admin.id)} data-testid={`option-admin-${admin.id}`}>
                   {admin.fullName} {admin.role === "prime_admin" ? "(Org User)" : ""}
                 </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedMgrId} onValueChange={setSelectedMgrId}>
+            <SelectTrigger className="w-full sm:w-56" data-testid="select-mgr-filter-dashboard">
+              <SelectValue placeholder="Filter by manager" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Managers</SelectItem>
+              {admins?.filter(a => a.role === "admin").map(a => (
+                <SelectItem key={a.id} value={String(a.id)}>{a.fullName}</SelectItem>
               ))}
             </SelectContent>
           </Select>

@@ -2173,6 +2173,10 @@ export async function registerRoutes(
     if (deptIdParam !== null) {
       orgUsers = orgUsers.filter(u => u.departmentId === deptIdParam);
     }
+    const mgrIdParam = req.query.managerId ? parseInt(req.query.managerId as string) : null;
+    if (mgrIdParam !== null) {
+      orgUsers = orgUsers.filter(u => u.managerId === mgrIdParam);
+    }
     const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
     const adminIds = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id);
 
@@ -2225,6 +2229,10 @@ export async function registerRoutes(
     const deptIdParam = req.query.departmentId ? parseInt(req.query.departmentId as string) : null;
     if (deptIdParam !== null) {
       orgUsers = orgUsers.filter(u => u.departmentId === deptIdParam);
+    }
+    const mgrIdParamO = req.query.managerId ? parseInt(req.query.managerId as string) : null;
+    if (mgrIdParamO !== null) {
+      orgUsers = orgUsers.filter(u => u.managerId === mgrIdParamO);
     }
     const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
 
@@ -3012,6 +3020,27 @@ export async function registerRoutes(
       await storage.createTransaction({ userId: adminId, amount: bucksEach, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
     }
     res.json({ allocated: validAdminIds.length, bucksEach, total: validAdminIds.length * bucksEach });
+  });
+
+  app.post("/api/org/allocate-budget-auto", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { allocations } = z.object({
+      allocations: z.array(z.object({ adminId: z.number().int(), bucks: z.number().int().min(0) })).min(1),
+    }).parse(req.body);
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const validAdminIds = new Set(orgUsers.filter(u => u.role === "admin").map(u => u.id));
+    let totalAllocated = 0;
+    let adminsAllocated = 0;
+    for (const { adminId, bucks } of allocations) {
+      if (!validAdminIds.has(adminId) || bucks <= 0) continue;
+      await storage.updateUserBalance(adminId, bucks);
+      await storage.createTransaction({ userId: adminId, amount: bucks, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
+      totalAllocated += bucks;
+      adminsAllocated++;
+    }
+    res.json({ allocated: adminsAllocated, total: totalAllocated });
   });
 
   // Leaderboard stats - admins by bucks given, or employees by balance/spent
@@ -4251,6 +4280,51 @@ export async function registerRoutes(
     const { departmentId } = z.object({ departmentId: z.number().int().nullable() }).parse(req.body);
     const updated = await storage.updateUserDepartment(id, departmentId);
     res.json(updated);
+  });
+
+  app.patch("/api/users/:id/manager", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    const target = await storage.getUser(id);
+    if (!target || target.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const { managerId } = z.object({ managerId: z.number().int().nullable() }).parse(req.body);
+    if (managerId !== null) {
+      const manager = await storage.getUser(managerId);
+      if (!manager || manager.organizationId !== user.organizationId || (manager.role !== "admin" && manager.role !== "prime_admin")) {
+        return res.status(400).json({ message: "Invalid manager" });
+      }
+    }
+    const updated = await storage.updateUserManager(id, managerId);
+    res.json(updated);
+  });
+
+  app.get("/api/org/manager-employee-counts", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    const allUsers = await storage.getUsersByOrganization(user.organizationId!);
+    const employees = allUsers.filter(u => u.role === "employee" && u.status === "approved");
+    const admins = allUsers.filter(u => u.role === "admin");
+    const totalEmployees = employees.length;
+    const counts: { adminId: number; adminName: string; employeeCount: number; percentage: number }[] = [];
+    for (const admin of admins) {
+      const count = employees.filter(e => e.managerId === admin.id).length;
+      counts.push({
+        adminId: admin.id,
+        adminName: admin.fullName,
+        employeeCount: count,
+        percentage: totalEmployees > 0 ? Math.round((count / totalEmployees) * 100) : 0,
+      });
+    }
+    const unassigned = employees.filter(e => !e.managerId || !admins.some(a => a.id === e.managerId)).length;
+    res.json({ counts, totalEmployees, unassigned, unassignedPercentage: totalEmployees > 0 ? Math.round((unassigned / totalEmployees) * 100) : 0 });
   });
 
   // ========== Tutorial ==========

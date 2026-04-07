@@ -48,6 +48,7 @@ Preferred communication style: Simple, everyday language.
 - **Monthly Reports + Documents Page**: Automated monthly JSONB reports with conversion rate, daily dollar spending chart (double line: awarded vs spent), department and category breakdowns, and an admin interface to view and generate them.
 - **Universal Passkey**: Org-level fallback PIN for employee login.
 - **Organization & Subscription**: Tiered Stripe subscriptions, organization code generation, and subscription management.
+- **Manager Assignment**: Prime admins can assign a manager (admin) to each employee. Manager filter available on Employees page and Dashboard. Budget panel shows employee distribution by manager with percentage breakdown. Auto-allocate distributes remaining budget proportionally based on each manager's employee count.
 - **Department Management**: Prime admins manage departments and user assignments; non-prime admins are department-isolated.
 - **Custom Role Labels**: Prime admins can customize display names for roles.
 - **Super User Transfer**: The prime_admin (Super User) can transfer their role to another approved org user via an atomic DB transaction. Only the Super User can cancel pending accounts and manage settings.

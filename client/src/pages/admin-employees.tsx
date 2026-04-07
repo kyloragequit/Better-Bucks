@@ -35,12 +35,18 @@ export default function AdminEmployeesPage() {
   const isPrimeAdmin = currentUser?.role === "prime_admin";
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = usePersistedState<string>("bb_filter_emp_deptId", "all");
+  const [mgrFilter, setMgrFilter] = usePersistedState<string>("bb_filter_emp_mgrId", "all");
 
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
   });
 
+  const { data: admins } = useQuery<{ id: number; fullName: string; role: string }[]>({
+    queryKey: ["/api/org/admins"],
+  });
+
   const deptMap = new Map(departments?.map(d => [d.id, d.name]) || []);
+  const adminMap = new Map(admins?.map(a => [a.id, a.fullName]) || []);
 
   const assignDeptMutation = useMutation({
     mutationFn: async ({ userId, departmentId }: { userId: number; departmentId: number | null }) => {
@@ -56,13 +62,31 @@ export default function AdminEmployeesPage() {
     },
   });
 
+  const assignMgrMutation = useMutation({
+    mutationFn: async ({ userId, managerId }: { userId: number; managerId: number | null }) => {
+      const res = await apiRequest("PATCH", `/api/users/${userId}/manager`, { managerId });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org/manager-employee-counts"] });
+      toast({ title: "Manager Updated" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
   const filteredUsers = users?.filter(user => {
     const matchesSearch = user.fullName.toLowerCase().includes(search.toLowerCase()) ||
       user.username.toLowerCase().includes(search.toLowerCase());
     const matchesDept = deptFilter === "all" || 
       (deptFilter === "none" && !user.departmentId) ||
       (user.departmentId?.toString() === deptFilter);
-    return matchesSearch && matchesDept;
+    const matchesMgr = mgrFilter === "all" ||
+      (mgrFilter === "none" && !user.managerId) ||
+      (user.managerId?.toString() === mgrFilter);
+    return matchesSearch && matchesDept && matchesMgr;
   });
 
   return (
@@ -109,6 +133,18 @@ export default function AdminEmployeesPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={mgrFilter} onValueChange={setMgrFilter}>
+            <SelectTrigger className="w-[200px]" data-testid="select-mgr-filter">
+              <SelectValue placeholder="All Managers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Managers</SelectItem>
+              <SelectItem value="none">No Manager</SelectItem>
+              {admins?.filter(a => a.role === "admin").map(a => (
+                <SelectItem key={a.id} value={a.id.toString()}>{a.fullName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -130,12 +166,18 @@ export default function AdminEmployeesPage() {
                       <p className="font-medium text-sm truncate">{user.fullName}</p>
                       <Badge variant="outline" className="text-xs shrink-0">{getRoleLabel(user.role)}</Badge>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="font-mono text-xs text-muted-foreground">{user.username}</span>
                       {user.departmentId && deptMap.get(user.departmentId) && (
                         <>
                           <span className="text-muted-foreground/40">·</span>
                           <span className="text-xs text-muted-foreground truncate">{deptMap.get(user.departmentId)}</span>
+                        </>
+                      )}
+                      {user.managerId && adminMap.get(user.managerId) && (
+                        <>
+                          <span className="text-muted-foreground/40">·</span>
+                          <span className="text-xs text-muted-foreground truncate">Mgr: {adminMap.get(user.managerId)}</span>
                         </>
                       )}
                     </div>
@@ -158,6 +200,7 @@ export default function AdminEmployeesPage() {
                   <TableHead>Code</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Department</TableHead>
+                  <TableHead>Manager</TableHead>
                   <TableHead className="text-right">Balance</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -191,6 +234,28 @@ export default function AdminEmployeesPage() {
                       ) : (
                         <span className="text-xs text-muted-foreground">
                           {user.departmentId ? deptMap.get(user.departmentId) || "—" : "—"}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isPrimeAdmin && user.role === "employee" ? (
+                        <Select
+                          value={user.managerId?.toString() || "none"}
+                          onValueChange={(val) => assignMgrMutation.mutate({ userId: user.id, managerId: val === "none" ? null : parseInt(val) })}
+                        >
+                          <SelectTrigger className="min-h-8 w-auto min-w-[120px] max-w-[180px] text-xs" data-testid={`select-mgr-${user.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {admins?.filter(a => a.role === "admin").map(a => (
+                              <SelectItem key={a.id} value={a.id.toString()}>{a.fullName}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {user.managerId ? adminMap.get(user.managerId) || "—" : "—"}
                         </span>
                       )}
                     </TableCell>

@@ -403,8 +403,8 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
 
   const empBalances = [700, 600, 650, 650, 950, 650, 800, 1000, 800, 800];
   const empValues = [
-    ...INV_NAMES.map((fullName, i) => ({ username: `${code}_inv_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_INV${i+1}`, organizationId: org.id, departmentId: invDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: empBalances[i] })),
-    ...OPS_NAMES.map((fullName, i) => ({ username: `${code}_ops_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_OPS${i+1}`, organizationId: org.id, departmentId: opsDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: empBalances[5 + i] })),
+    ...INV_NAMES.map((fullName, i) => ({ username: `${code}_inv_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_INV${i+1}`, organizationId: org.id, departmentId: invDept.id, managerId: invMgr.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: empBalances[i] })),
+    ...OPS_NAMES.map((fullName, i) => ({ username: `${code}_ops_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_OPS${i+1}`, organizationId: org.id, departmentId: opsDept.id, managerId: opsMgr.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: empBalances[5 + i] })),
   ];
   const createdEmps = await db.insert(users).values(empValues).returning();
   const emp = createdEmps;

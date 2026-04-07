@@ -75,6 +75,7 @@ export interface IStorage {
   updateDepartment(id: number, name: string): Promise<Department>;
   deleteDepartment(id: number): Promise<void>;
   updateUserDepartment(userId: number, departmentId: number | null): Promise<User>;
+  updateUserManager(userId: number, managerId: number | null): Promise<User>;
   updateOrganizationRoleLabels(id: number, adminLabel: string, employeeLabel: string): Promise<Organization>;
 
   getPageContent(): Promise<Record<string, string>>;
@@ -605,6 +606,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserDepartment(userId: number, departmentId: number | null): Promise<User> {
     const [updated] = await db.update(users).set({ departmentId }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async updateUserManager(userId: number, managerId: number | null): Promise<User> {
+    const [updated] = await db.update(users).set({ managerId }).where(eq(users.id, userId)).returning();
     return updated;
   }
 

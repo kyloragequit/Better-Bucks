@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
+import { usePublicDemo } from "@/hooks/use-demo";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,22 +12,27 @@ import { Mail, Phone, ShieldCheck, X } from "lucide-react";
 
 export function TwoFaPrompt() {
   const { data: user } = useUser();
+  const isPublicDemo = usePublicDemo();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [method, setMethod] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [dismissed, setDismissed] = useState(false);
 
   const shouldShow =
     !!user &&
+    !isPublicDemo &&
     !!user.termsAcceptedAt &&
     !user.email &&
     !user.phone &&
-    !user.twoFaPromptDismissed;
+    !user.twoFaPromptDismissed &&
+    !dismissed;
 
   const dismissMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/users/dismiss-2fa-prompt"),
     onSuccess: () => {
+      setDismissed(true);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
   });

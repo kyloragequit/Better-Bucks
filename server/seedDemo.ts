@@ -376,6 +376,7 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
     organizationId: org.id,
     emailVerified: true,
     tutorialCompleted: false,
+    twoFaPromptDismissed: true,
     termsAcceptedAt: new Date(),
     status: "approved",
     balance: 0,

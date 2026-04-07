@@ -1290,6 +1290,7 @@ type ImportRow = {
   departmentName: string;
   email: string;
   password: string;
+  managerName: string;
 };
 
 type ImportResult = {
@@ -1304,14 +1305,14 @@ async function downloadTemplate() {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Employees");
   worksheet.columns = [
-    { width: 20 }, { width: 16 }, { width: 14 }, { width: 16 }, { width: 28 }, { width: 16 },
+    { width: 20 }, { width: 16 }, { width: 14 }, { width: 16 }, { width: 28 }, { width: 16 }, { width: 20 },
   ];
   worksheet.addRows([
-    ["Full Name", "Employee Code", "Role", "Department", "Email", "Password"],
-    ["Jane Smith", "EMP-001", "employee", "Warehouse", "jane@example.com", ""],
-    ["Bob Johnson", "EMP-002", "employee", "Logistics", "", ""],
-    ["Alice Manager", "MGR-001", "admin", "Shipping", "alice@example.com", "TempPass1!"],
-    ["Sam Director", "DIR-001", "prime_admin", "Operations", "sam@example.com", ""],
+    ["Full Name", "Employee Code", "Role", "Department", "Email", "Password", "Manager"],
+    ["Jane Smith", "EMP-001", "employee", "Warehouse", "jane@example.com", "", "Alice Manager"],
+    ["Bob Johnson", "EMP-002", "employee", "Logistics", "", "", "Alice Manager"],
+    ["Alice Manager", "MGR-001", "admin", "Shipping", "alice@example.com", "TempPass1!", ""],
+    ["Sam Director", "DIR-001", "prime_admin", "Operations", "sam@example.com", "", ""],
   ]);
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -1354,6 +1355,7 @@ async function parseSpreadsheet(file: File): Promise<ImportRow[]> {
   const deptCol = colIdx(["department", "dept", "department name"]);
   const emailCol = colIdx(["email"]);
   const pwCol = colIdx(["password", "pass"]);
+  const mgrCol = colIdx(["manager", "manager name", "mgr"]);
   const result: ImportRow[] = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
@@ -1367,6 +1369,7 @@ async function parseSpreadsheet(file: File): Promise<ImportRow[]> {
       departmentName: deptCol >= 0 ? String(r[deptCol] ?? "").trim() : "",
       email: emailCol >= 0 ? String(r[emailCol] ?? "").trim() : "",
       password: pwCol >= 0 ? String(r[pwCol] ?? "").trim() : "",
+      managerName: mgrCol >= 0 ? String(r[mgrCol] ?? "").trim() : "",
     });
   }
   return result;
@@ -1385,6 +1388,10 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: admins } = useQuery<{ id: number; fullName: string; role: string }[]>({
+    queryKey: ["/api/org/admins"],
+  });
+  const adminNames = new Set(admins?.map(a => a.fullName) || []);
 
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -1583,20 +1590,22 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
               <div className="space-y-1.5">
                 <Label>Template Columns</Label>
                 <div className="rounded-lg border overflow-hidden text-xs">
-                  <div className="grid grid-cols-6 bg-muted/50 px-3 py-2 font-semibold text-muted-foreground">
+                  <div className="grid grid-cols-7 bg-muted/50 px-3 py-2 font-semibold text-muted-foreground">
                     <span>Full Name*</span>
                     <span>Emp. Code*</span>
                     <span>Role</span>
                     <span>Department</span>
                     <span>Email</span>
                     <span>Password</span>
+                    <span>Manager</span>
                   </div>
-                  <div className="grid grid-cols-6 px-3 py-2 text-muted-foreground border-t">
+                  <div className="grid grid-cols-7 px-3 py-2 text-muted-foreground border-t">
                     <span>Required</span>
                     <span>Required</span>
                     <span className="truncate">employee / admin / prime_admin</span>
                     <span>Optional</span>
                     <span>Required for admin/prime_admin</span>
+                    <span>Optional</span>
                     <span>Optional</span>
                   </div>
                 </div>
@@ -1643,6 +1652,7 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                           <TableHead>Code</TableHead>
                           <TableHead>Role</TableHead>
                           <TableHead>Dept</TableHead>
+                          <TableHead>Manager</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
@@ -1651,6 +1661,7 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                         {rows.map((r, i) => {
                           const errs = rowErrors[i];
                           const hasUnknownDept = r.departmentName && !deptNames.has(r.departmentName);
+                          const hasUnknownMgr = r.managerName && !adminNames.has(r.managerName);
                           const rl = r.role.toLowerCase();
                           return (
                             <TableRow key={i} className={errs.length > 0 ? "bg-destructive/5" : undefined}>
@@ -1670,6 +1681,11 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                                   ? <span className={hasUnknownDept ? "text-amber-600" : ""}>{r.departmentName}{hasUnknownDept ? " ⚠" : ""}</span>
                                   : "—"}
                               </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {r.managerName
+                                  ? <span className={hasUnknownMgr ? "text-amber-600" : ""}>{r.managerName}{hasUnknownMgr ? " ⚠" : ""}</span>
+                                  : "—"}
+                              </TableCell>
                               <TableCell className="text-xs text-muted-foreground">{r.email || "—"}</TableCell>
                               <TableCell>
                                 {errs.length > 0 && (
@@ -1684,6 +1700,9 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
                   </ScrollArea>
                   {rows.some(r => r.departmentName && !deptNames.has(r.departmentName)) && (
                     <p className="text-xs text-amber-600">⚠ Departments marked with ⚠ don't match any existing department and will be ignored.</p>
+                  )}
+                  {rows.some(r => r.managerName && !adminNames.has(r.managerName)) && (
+                    <p className="text-xs text-amber-600">⚠ Managers marked with ⚠ don't match any existing admin and will cause those rows to fail.</p>
                   )}
                 </div>
               )}

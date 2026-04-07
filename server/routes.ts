@@ -67,7 +67,7 @@ function maskPhone(phone: string): string {
 }
 
 // ── Background bulk-import job store ─────────────────────────────────────────
-type ImportJobRow = { fullName: string; username: string; role?: string; email?: string; password?: string; departmentName?: string };
+type ImportJobRow = { fullName: string; username: string; role?: string; email?: string; password?: string; departmentName?: string; managerName?: string };
 type ImportJobResult = { row: number; username: string; fullName: string; success: boolean; error?: string };
 type ImportJob = {
   id: string;
@@ -1405,6 +1405,9 @@ export async function registerRoutes(
         const org = await storage.getOrganization(job.orgId);
         const departments = await storage.getDepartmentsByOrganization(job.orgId);
         const deptMap = new Map(departments.map(d => [d.name.toLowerCase(), d.id]));
+        const orgUsers = await storage.getUsersByOrganization(job.orgId);
+        const adminUsers = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
+        const adminNameMap = new Map(adminUsers.map(a => [a.fullName.toLowerCase(), a.id]));
 
         for (let i = 0; i < rows.length; i++) {
           if (job.cancelRequested) { job.status = "cancelled"; break; }
@@ -1460,6 +1463,17 @@ export async function registerRoutes(
           }
 
           const deptId = row.departmentName ? (deptMap.get(row.departmentName.toLowerCase()) ?? null) : null;
+          const mgrName = row.managerName?.trim();
+          let managerId: number | null = null;
+          if (mgrName) {
+            const foundMgr = adminNameMap.get(mgrName.toLowerCase());
+            if (foundMgr) {
+              managerId = foundMgr;
+            } else {
+              job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: `Manager "${mgrName}" not found — must be an existing admin's full name` });
+              job.processed++; continue;
+            }
+          }
           const rawPassword = row.password?.trim();
           const userPassword = rawPassword && rawPassword.length >= 6
             ? await hashPassword(rawPassword)
@@ -1467,7 +1481,7 @@ export async function registerRoutes(
           const verificationCode = hasEmail ? Math.floor(100000 + Math.random() * 900000).toString() : null;
 
           try {
-            await storage.createUser({
+            const newUser = await storage.createUser({
               username: row.username.trim(),
               password: userPassword,
               lastPlainPassword: (rawPassword && rawPassword.length >= 6) ? rawPassword : null,
@@ -1483,8 +1497,14 @@ export async function registerRoutes(
               organizationId: job.orgId,
               departmentId: deptId,
             });
+            if (managerId) {
+              await storage.updateUserManager(newUser.id, managerId);
+            }
             if (hasEmail && verificationCode) {
               await sendVerificationCode(email, null, verificationCode, row.fullName.trim());
+            }
+            if (role === "admin" || role === "prime_admin") {
+              adminNameMap.set(row.fullName.trim().toLowerCase(), newUser.id);
             }
             job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: true });
             job.imported++;

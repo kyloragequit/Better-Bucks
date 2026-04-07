@@ -47,6 +47,9 @@ function shortName(name: string) {
 const ADMIN_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ef4444", "#f97316", "#ec4899", "#6366f1", "#14b8a6"];
 const EMP_COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#06b6d4", "#ef4444", "#f97316", "#ec4899", "#6366f1", "#14b8a6"];
 
+const BAR_MIN_WIDTH = 48;
+const SCROLL_THRESHOLD = 8;
+
 function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDollars }: {
   data: { name: string; value: number }[];
   valueKey: string;
@@ -60,46 +63,66 @@ function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDolla
     display: showDollars ? +(d.value / bucksPerDollar).toFixed(2) : d.value,
   }));
   const hasData = display.some(d => d.display > 0);
+  const needsScroll = display.length > SCROLL_THRESHOLD;
+  const chartWidth = needsScroll ? Math.max(display.length * BAR_MIN_WIDTH + 70, 400) : undefined;
+
+  const chart = (
+    <BarChart data={display} margin={{ top: 8, right: 16, left: 0, bottom: 32 }} width={chartWidth} height={288}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+      <XAxis
+        dataKey="name"
+        tick={{ fontSize: 11, fill: "#6b7280" }}
+        tickLine={false}
+        axisLine={false}
+        interval={0}
+        angle={-30}
+        textAnchor="end"
+        height={48}
+      />
+      <YAxis
+        tick={{ fontSize: 11, fill: "#6b7280" }}
+        tickLine={false}
+        axisLine={false}
+        width={52}
+        tickFormatter={v => showDollars ? `$${v}` : v.toLocaleString()}
+        allowDecimals={showDollars}
+      />
+      <Tooltip
+        contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
+        formatter={(value: number) => [
+          showDollars ? `$${value.toFixed(2)}` : `${value.toLocaleString()} ${unit}`,
+          showDollars ? "Dollar Value" : unit,
+        ]}
+      />
+      {hasData ? (
+        <Bar dataKey="display" radius={[4, 4, 0, 0]}>
+          {display.map((_, i) => (
+            <Cell key={i} fill={ADMIN_COLORS[i % ADMIN_COLORS.length]} />
+          ))}
+        </Bar>
+      ) : (
+        <Bar dataKey="display" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
+      )}
+    </BarChart>
+  );
+
+  if (needsScroll) {
+    return (
+      <div className="mt-2">
+        <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: "touch" }} data-testid="chart-scroll-container">
+          <div style={{ width: chartWidth, height: 288 }}>
+            {chart}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground text-center mt-1">Scroll to see all {display.length} entries</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-72 w-full mt-2">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={display} margin={{ top: 8, right: 16, left: 0, bottom: 32 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-          <XAxis
-            dataKey="name"
-            tick={{ fontSize: 11, fill: "#6b7280" }}
-            tickLine={false}
-            axisLine={false}
-            interval={0}
-            angle={-30}
-            textAnchor="end"
-            height={48}
-          />
-          <YAxis
-            tick={{ fontSize: 11, fill: "#6b7280" }}
-            tickLine={false}
-            axisLine={false}
-            width={52}
-            tickFormatter={v => showDollars ? `$${v}` : v.toLocaleString()}
-            allowDecimals={showDollars}
-          />
-          <Tooltip
-            contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
-            formatter={(value: number) => [
-              showDollars ? `$${value.toFixed(2)}` : `${value.toLocaleString()} ${unit}`,
-              showDollars ? "Dollar Value" : unit,
-            ]}
-          />
-          {hasData ? (
-            <Bar dataKey="display" radius={[4, 4, 0, 0]}>
-              {display.map((_, i) => (
-                <Cell key={i} fill={ADMIN_COLORS[i % ADMIN_COLORS.length]} />
-              ))}
-            </Bar>
-          ) : (
-            <Bar dataKey="display" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
-          )}
-        </BarChart>
+        {chart}
       </ResponsiveContainer>
     </div>
   );

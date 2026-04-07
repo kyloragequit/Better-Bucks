@@ -409,6 +409,14 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
   const createdEmps = await db.insert(users).values(empValues).returning();
   const emp = createdEmps;
 
+  const loggedInUserIds = [
+    primeAdmin.id, invMgr.id, opsMgr.id,
+    ...emp.slice(0, 8).map(e => e.id),
+  ];
+  await db.update(users)
+    .set({ successfulLoginCount: 3 })
+    .where(inArray(users.id, loggedInUserIds));
+
   const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
 
   type TxRow = { userId: number; amount: number; reason: string; categoryId: number | null; daysAgo: number };

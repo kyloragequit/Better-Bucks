@@ -1244,6 +1244,78 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/pending-admins", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(401).send("Unauthorized");
+    }
+    try {
+      const pendingAdmins = user.organizationId 
+        ? await storage.getPendingAdminsByOrganization(user.organizationId)
+        : await storage.getPendingAdmins();
+      res.json(sanitizeUsers(pendingAdmins));
+    } catch (error) {
+      console.error("Error fetching pending admins:", error);
+      res.status(500).send("Internal Server Error");
+    }
+  });
+
+  app.get("/api/users/pending", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+    const pending = orgUsers.filter(u => u.status === "pending");
+    res.json(pending);
+  });
+
+  app.get("/api/users/pending-accounts", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    if (!user.organizationId) return res.json([]);
+    try {
+      const [orgUsers, departments] = await Promise.all([
+        storage.getUsersByOrganization(user.organizationId),
+        storage.getDepartmentsByOrganization(user.organizationId),
+      ]);
+      const deptMap = new Map(departments.map(d => [d.id, d.name]));
+      const pending = orgUsers.filter(u => u.id !== user!.id && (u.status === "pending" || u.successfulLoginCount === 0));
+      const pendingIds = pending.map(u => u.id);
+
+      let txCountMap = new Map<number, number>();
+      if (pendingIds.length > 0) {
+        const txRows = await db
+          .select({ userId: transactions.userId, cnt: sql<number>`cast(count(*) as int)` })
+          .from(transactions)
+          .where(inArray(transactions.userId, pendingIds))
+          .groupBy(transactions.userId);
+        txRows.forEach(r => txCountMap.set(r.userId, r.cnt));
+      }
+
+      const accounts = pending.map(u => ({
+        id: u.id,
+        fullName: u.fullName,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+        balance: u.balance,
+        departmentId: u.departmentId,
+        departmentName: u.departmentId ? (deptMap.get(u.departmentId) ?? null) : null,
+        successfulLoginCount: u.successfulLoginCount,
+        transactionCount: txCountMap.get(u.id) ?? 0,
+        pendingType: u.status === "pending" ? "awaiting_approval" : "never_logged_in",
+      }));
+      res.json(accounts);
+    } catch (e) {
+      console.error("Error fetching pending accounts:", e);
+      res.status(500).json({ message: "Failed to fetch pending accounts" });
+    }
+  });
+
   app.get(api.users.get.path, async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
@@ -1765,82 +1837,6 @@ export async function registerRoutes(
     const fullUser = await storage.getUser(user.id);
     if (!fullUser) return res.status(404).json({ message: "User not found" });
     res.json({ password: fullUser.lastPlainPassword || null });
-  });
-
-  // Get pending admins (prime account only)
-  app.get("/api/users/pending-admins", async (req, res) => {
-    const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
-      return res.status(401).send("Unauthorized");
-    }
-    try {
-      const pendingAdmins = user.organizationId 
-        ? await storage.getPendingAdminsByOrganization(user.organizationId)
-        : await storage.getPendingAdmins();
-      res.json(sanitizeUsers(pendingAdmins));
-    } catch (error) {
-      console.error("Error fetching pending admins:", error);
-      res.status(500).send("Internal Server Error");
-    }
-  });
-
-  // List pending (awaiting approval) users for the org
-  app.get("/api/users/pending", async (req, res) => {
-    const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-    const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
-    const pending = orgUsers.filter(u => u.status === "pending");
-    res.json(pending);
-  });
-
-  // Pending Accounts: all users who are pending approval OR have never logged in
-  app.get("/api/users/pending-accounts", async (req, res) => {
-    const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-    if (!user.organizationId) return res.json([]);
-    try {
-      const [orgUsers, departments] = await Promise.all([
-        storage.getUsersByOrganization(user.organizationId),
-        storage.getDepartmentsByOrganization(user.organizationId),
-      ]);
-      const deptMap = new Map(departments.map(d => [d.id, d.name]));
-      const pending = orgUsers.filter(u => u.status === "pending" || u.successfulLoginCount === 0);
-      const pendingIds = pending.map(u => u.id);
-
-      // Batch-fetch transaction counts for all pending users
-      let txCountMap = new Map<number, number>();
-      if (pendingIds.length > 0) {
-        const txRows = await db
-          .select({ userId: transactions.userId, cnt: sql<number>`cast(count(*) as int)` })
-          .from(transactions)
-          .where(inArray(transactions.userId, pendingIds))
-          .groupBy(transactions.userId);
-        txRows.forEach(r => txCountMap.set(r.userId, r.cnt));
-      }
-
-      const accounts = pending.map(u => ({
-        id: u.id,
-        fullName: u.fullName,
-        username: u.username,
-        email: u.email,
-        role: u.role,
-        status: u.status,
-        balance: u.balance,
-        departmentId: u.departmentId,
-        departmentName: u.departmentId ? (deptMap.get(u.departmentId) ?? null) : null,
-        successfulLoginCount: u.successfulLoginCount,
-        transactionCount: txCountMap.get(u.id) ?? 0,
-        pendingType: u.status === "pending" ? "awaiting_approval" : "never_logged_in",
-      }));
-      res.json(accounts);
-    } catch (e) {
-      console.error("Error fetching pending accounts:", e);
-      res.status(500).json({ message: "Failed to fetch pending accounts" });
-    }
   });
 
   // Resend join email to a user (prime_admin only)

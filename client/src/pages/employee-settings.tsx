@@ -71,6 +71,18 @@ export default function EmployeeSettingsPage() {
     },
   });
 
+  const resetEmailMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/auth/forgot-password", { contact: user!.email });
+    },
+    onSuccess: () => {
+      toast({ title: "Reset code sent", description: `A password reset code has been sent to ${user!.email}. Check your inbox.` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send reset email. Please try again.", variant: "destructive" });
+    },
+  });
+
   const emailMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("PATCH", `/api/users/${user!.id}/profile`, {
@@ -270,6 +282,25 @@ export default function EmployeeSettingsPage() {
                 Update Password
               </Button>
             </form>
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground mb-2">Forgot your current password?</p>
+              {user?.email ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-reset-password-email"
+                  disabled={resetEmailMutation.isPending}
+                  onClick={() => resetEmailMutation.mutate()}
+                >
+                  {resetEmailMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                  Send Reset Code to {user.email}
+                </Button>
+              ) : (
+                <p className="text-xs text-muted-foreground" data-testid="text-no-email-reset">
+                  Add an email address to your account to enable password reset via email.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 

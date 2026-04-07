@@ -63,7 +63,7 @@ export default function AdminPendingPage() {
     },
   });
 
-  const { data: org } = useOrgQuery<OrgData>({
+  const { data: org } = useQuery<OrgData>({
     queryKey: ["/api/organizations/my-org"],
   });
 

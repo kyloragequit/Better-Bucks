@@ -36,6 +36,11 @@ export default function EmployeeDashboard() {
     enabled: !!authUser,
   });
 
+  const { data: budgetSettings } = useQuery<{ bucksPerDollar: number; monthlyBudgetBucks: number; budgetSetByName: string | null }>({
+    queryKey: ["/api/org/budget-settings"],
+    enabled: !!authUser,
+  });
+
   if (isLoading) return <EmployeeLayout><Loader /></EmployeeLayout>;
   if (!userDetails) return null;
 
@@ -182,6 +187,35 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Monthly Budget Display */}
+      {budgetSettings && budgetSettings.monthlyBudgetBucks > 0 && (
+        <Card className="shadow-sm border-blue-100 bg-blue-50/50 mb-8" data-testid="card-monthly-budget">
+          <CardContent className="py-4 px-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600 shrink-0">
+                  <Wallet className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Monthly Incentive Budget</p>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-2xl font-bold text-blue-700" data-testid="text-monthly-budget-amount">
+                      {budgetSettings.monthlyBudgetBucks.toLocaleString()}
+                    </span>
+                    <span className="text-sm text-blue-600">bucks / month</span>
+                  </div>
+                </div>
+              </div>
+              {budgetSettings.budgetSetByName && (
+                <p className="text-xs text-muted-foreground" data-testid="text-budget-set-by-employee">
+                  Set by <span className="font-medium text-foreground">{budgetSettings.budgetSetByName}</span>
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Email for Updates */}
       <EmailUpdateSection userId={userDetails.id} currentEmail={userDetails.email} />

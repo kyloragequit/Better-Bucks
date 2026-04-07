@@ -2823,10 +2823,14 @@ export async function registerRoutes(
   // Budget settings - get
   app.get("/api/org/budget-settings", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(401).send("Unauthorized");
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
     const org = await storage.getOrganization(user.organizationId);
-    res.json({ bucksPerDollar: org?.bucksPerDollar ?? 100, monthlyBudgetBucks: org?.monthlyBudgetBucks ?? 0 });
+    res.json({
+      bucksPerDollar: org?.bucksPerDollar ?? 100,
+      monthlyBudgetBucks: org?.monthlyBudgetBucks ?? 0,
+      budgetSetByName: org?.budgetSetByName ?? null,
+    });
   });
 
   // Budget settings - update (prime_admin only)
@@ -2838,8 +2842,8 @@ export async function registerRoutes(
       bucksPerDollar: z.number().int().min(1),
       monthlyBudgetBucks: z.number().int().min(0),
     }).parse(req.body);
-    const updated = await storage.updateOrganizationBudgetSettings(user.organizationId, bucksPerDollar, monthlyBudgetBucks);
-    res.json({ bucksPerDollar: updated.bucksPerDollar, monthlyBudgetBucks: updated.monthlyBudgetBucks });
+    const updated = await storage.updateOrganizationBudgetSettings(user.organizationId, bucksPerDollar, monthlyBudgetBucks, user.fullName);
+    res.json({ bucksPerDollar: updated.bucksPerDollar, monthlyBudgetBucks: updated.monthlyBudgetBucks, budgetSetByName: updated.budgetSetByName ?? null });
   });
 
   // Allocate monthly budget bucks to selected admins (prime_admin only)

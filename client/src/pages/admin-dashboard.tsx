@@ -32,7 +32,7 @@ type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedD
 
 type AdminLeaderboardEntry = { id: number; name: string; bucks: number; balance: number };
 type EmployeeEntry = { id: number; name: string; balance: number; spent: number };
-type BudgetSettings = { bucksPerDollar: number; monthlyBudgetBucks: number };
+type BudgetSettings = { bucksPerDollar: number; monthlyBudgetBucks: number; budgetSetByName: string | null };
 
 type CategoryStat = { categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number };
 type CategoryAnalytics = { stats: CategoryStat[]; budgetUsed: number; monthlyBudgetBucks: number; year: number; month: number };
@@ -105,9 +105,10 @@ function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDolla
   );
 }
 
-function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, admins, onSaved }: {
+function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admins, onSaved }: {
   bucksPerDollar: number;
   monthlyBudgetBucks: number;
+  budgetSetByName: string | null;
   admins: { id: number; fullName: string; role: string }[];
   onSaved: () => void;
 }) {
@@ -209,9 +210,16 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, admins, onSaved }: {
               </div>
             </div>
           </div>
-          <Button size="sm" onClick={() => saveSettings()} disabled={savingSettings} data-testid="button-save-budget-settings">
-            {savingSettings ? "Saving…" : "Save Changes"}
-          </Button>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <Button size="sm" onClick={() => saveSettings()} disabled={savingSettings} data-testid="button-save-budget-settings">
+              {savingSettings ? "Saving…" : "Save Changes"}
+            </Button>
+            {budgetSetByName && (
+              <p className="text-xs text-muted-foreground" data-testid="text-budget-set-by">
+                Last set by <span className="font-medium text-foreground">{budgetSetByName}</span>
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Allocation */}
@@ -321,9 +329,10 @@ export default function AdminDashboardPage() {
     },
   });
 
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "prime_admin";
   const { data: budgetSettings, refetch: refetchBudget } = useQuery<BudgetSettings>({
     queryKey: ["/api/org/budget-settings"],
-    enabled: isPrime,
+    enabled: isAdmin,
   });
 
   const now = new Date();
@@ -416,14 +425,41 @@ export default function AdminDashboardPage() {
         <Loader />
       ) : (
         <>
-          {/* Budget panel - prime admin only */}
+          {/* Budget panel - prime admin gets edit controls, regular admin gets read-only view */}
           {isPrime && budgetSettings && (
             <BudgetPanel
               bucksPerDollar={budgetSettings.bucksPerDollar}
               monthlyBudgetBucks={budgetSettings.monthlyBudgetBucks}
+              budgetSetByName={budgetSettings.budgetSetByName}
               admins={admins ?? []}
               onSaved={() => refetchBudget()}
             />
+          )}
+          {!isPrime && budgetSettings && budgetSettings.monthlyBudgetBucks > 0 && (
+            <Card className="border shadow-sm border-blue-200 mb-8">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                    <Wallet className="h-4 w-4" />
+                  </div>
+                  Monthly Incentive Budget
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="text-3xl font-bold text-blue-700">{budgetSettings.monthlyBudgetBucks.toLocaleString()}</span>
+                    <span className="text-sm font-medium text-blue-600">bucks / month</span>
+                    <span className="text-sm text-blue-500">≈ ${(budgetSettings.monthlyBudgetBucks / Math.max(1, budgetSettings.bucksPerDollar)).toFixed(2)}</span>
+                  </div>
+                  {budgetSettings.budgetSetByName && (
+                    <p className="text-xs text-muted-foreground mt-2" data-testid="text-budget-set-by-admin">
+                      Set by <span className="font-medium text-foreground">{budgetSettings.budgetSetByName}</span>
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Category Analytics Card — always visible for admin/prime_admin */}

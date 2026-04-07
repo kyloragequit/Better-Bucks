@@ -36,6 +36,7 @@ export default function AdminEmployeesPage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = usePersistedState<string>("bb_filter_emp_deptId", "all");
   const [mgrFilter, setMgrFilter] = usePersistedState<string>("bb_filter_emp_mgrId", "all");
+  const [roleFilter, setRoleFilter] = usePersistedState<string>("bb_filter_emp_role", "all");
 
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
@@ -86,7 +87,8 @@ export default function AdminEmployeesPage() {
     const matchesMgr = mgrFilter === "all" ||
       (mgrFilter === "none" && !user.managerId) ||
       (user.managerId?.toString() === mgrFilter);
-    return matchesSearch && matchesDept && matchesMgr;
+    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    return matchesSearch && matchesDept && matchesMgr && matchesRole;
   });
 
   return (
@@ -143,6 +145,17 @@ export default function AdminEmployeesPage() {
               {admins?.filter(a => a.role === "admin").map(a => (
                 <SelectItem key={a.id} value={a.id.toString()}>{a.fullName}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="w-[200px]" data-testid="select-role-filter">
+              <SelectValue placeholder="All Roles" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              <SelectItem value="employee">{getRoleLabel("employee")}</SelectItem>
+              <SelectItem value="admin">{getRoleLabel("admin")}</SelectItem>
+              <SelectItem value="prime_admin">{getRoleLabel("prime_admin")}</SelectItem>
             </SelectContent>
           </Select>
         </div>

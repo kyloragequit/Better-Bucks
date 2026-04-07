@@ -1,19 +1,24 @@
 import { useState, useMemo } from "react";
 import { useRoute, Link, useLocation } from "wouter";
-import { useUserDetails, useUpdateBalance, useUpdateRole, useUpdateProfile, useDeleteUser } from "@/hooks/use-users";
+import { useUserDetails, useUpdateBalance, useUpdateRole, useUpdateProfile, useDeleteUser, useUsers } from "@/hooks/use-users";
 import { useUser } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2 } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
+import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { useRoleLabels } from "@/hooks/use-role-labels";
@@ -275,6 +280,154 @@ function BucksActivityChart({ transactions }: { transactions: Transaction[] }) {
   );
 }
 
+function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminName: string }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [confirmEmployee, setConfirmEmployee] = useState<{ id: number; name: string; currentManager: string } | null>(null);
+  const { data: allUsers } = useUsers();
+  const { data: admins } = useQuery<{ id: number; fullName: string; role: string }[]>({
+    queryKey: ["/api/org/admins"],
+  });
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const adminMap = new Map(admins?.map(a => [a.id, a.fullName]) || []);
+  const employees = allUsers?.filter(u => u.role === "employee") || [];
+  const filtered = employees.filter(e =>
+    !search || e.fullName.toLowerCase().includes(search.toLowerCase()) || e.username.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ userId, managerId }: { userId: number; managerId: number | null }) => {
+      const res = await apiRequest("PATCH", `/api/users/${userId}/manager`, { managerId });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org/manager-employee-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", adminId] });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const handleToggle = (emp: typeof employees[0], checked: boolean) => {
+    if (checked && emp.managerId && emp.managerId !== adminId) {
+      const currentMgrName = adminMap.get(emp.managerId) || "another manager";
+      setConfirmEmployee({ id: emp.id, name: emp.fullName, currentManager: currentMgrName });
+    } else {
+      assignMutation.mutate({ userId: emp.id, managerId: checked ? adminId : null });
+    }
+  };
+
+  const handleConfirmReassign = () => {
+    if (confirmEmployee) {
+      assignMutation.mutate({ userId: confirmEmployee.id, managerId: adminId });
+      setConfirmEmployee(null);
+    }
+  };
+
+  const assignedCount = employees.filter(e => e.managerId === adminId).length;
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" data-testid="button-manage-employees">
+            <Users className="h-4 w-4 mr-2" /> Employees ({assignedCount})
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Employees for {adminName}</DialogTitle>
+            <DialogDescription>
+              Select which employees report to this manager. Checked employees are assigned to {adminName}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search employees..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9"
+              data-testid="input-search-manage-employees"
+            />
+          </div>
+          <ScrollArea className="max-h-[400px] pr-2">
+            <div className="space-y-1">
+              {filtered.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No employees found</p>
+              ) : (
+                filtered.map(emp => {
+                  const isAssigned = emp.managerId === adminId;
+                  const hasOtherManager = emp.managerId && emp.managerId !== adminId;
+                  const mgrName = emp.managerId ? adminMap.get(emp.managerId) : null;
+                  return (
+                    <label
+                      key={emp.id}
+                      className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${isAssigned ? "border-primary/30 bg-primary/5" : "border-transparent hover:bg-muted/50"}`}
+                      data-testid={`manage-emp-row-${emp.id}`}
+                    >
+                      <Checkbox
+                        checked={isAssigned}
+                        onCheckedChange={(checked) => handleToggle(emp, !!checked)}
+                        data-testid={`manage-emp-check-${emp.id}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{emp.fullName}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{emp.username}</p>
+                      </div>
+                      {mgrName && !isAssigned && (
+                        <Badge variant="outline" className="text-xs shrink-0 bg-amber-50 text-amber-700 border-amber-200" data-testid={`manage-emp-mgr-${emp.id}`}>
+                          Mgr: {mgrName}
+                        </Badge>
+                      )}
+                      {isAssigned && (
+                        <Badge variant="outline" className="text-xs shrink-0 bg-green-50 text-green-700 border-green-200">
+                          Assigned
+                        </Badge>
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <p className="text-xs text-muted-foreground mr-auto">
+              {assignedCount} employee{assignedCount !== 1 ? "s" : ""} assigned to {adminName}
+            </p>
+            <Button variant="outline" onClick={() => setOpen(false)} data-testid="button-close-manage-employees">Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!confirmEmployee} onOpenChange={(o) => { if (!o) setConfirmEmployee(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Reassign Employee
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to assign <span className="font-semibold text-foreground">{confirmEmployee?.name}</span> to {adminName}?
+              Their current manager is <span className="font-semibold text-foreground">{confirmEmployee?.currentManager}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-reassign">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmReassign} data-testid="button-confirm-reassign">
+              Reassign to {adminName}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 export default function AdminEmployeeDetailPage() {
   const [, params] = useRoute("/admin/employees/:id");
   const [, setLocation] = useLocation();
@@ -304,6 +457,7 @@ export default function AdminEmployeeDetailPage() {
             </Badge>
           </div>
           <div className="flex gap-2">
+            {isPrime && user.role === "admin" && <ManageEmployeesDialog adminId={user.id} adminName={user.fullName} />}
             {canEditProfile && <EditProfileDialog user={user} />}
             {canDelete && <DeleteUserDialog userId={user.id} fullName={user.fullName} onSuccess={() => setLocation("/admin/employees")} />}
           </div>

@@ -392,6 +392,19 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
   ];
   const createdEmps = await db.insert(users).values(empValues).returning();
 
+  const seedTs = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  for (const e of createdEmps) {
+    if (e.balance > 0) {
+      await db.insert(transactions).values({
+        userId: e.id,
+        amount: e.balance,
+        reason: "Performance bonus",
+        performedBy: primeAdmin.id,
+        createdAt: seedTs,
+      });
+    }
+  }
+
   const now = new Date();
   await db.insert(goals).values([
     { organizationId: org.id, title: "Complete all safety checks", type: "quantity", status: "active", bucksReward: 500, targetQuantity: 100, currentQuantity: 0, startDate: now, createdBy: primeAdmin.id },

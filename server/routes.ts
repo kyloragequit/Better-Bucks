@@ -5213,8 +5213,14 @@ export async function registerRoutes(
       if (currentBalance < amount) {
         return res.status(400).json({ message: `Insufficient item balance. You have ${currentBalance} available.` });
       }
-      // Deduct from admin
       await storage.updateUserCustomItemBalance(user.id, -amount);
+      await storage.createCustomItemTransaction({
+        orgId: user.organizationId,
+        userId: user.id,
+        amount: -amount,
+        reason: `Given to ${target.fullName}`,
+        performedBy: user.id,
+      });
     }
 
     await storage.updateUserCustomItemBalance(userId, amount);
@@ -5255,9 +5261,15 @@ export async function registerRoutes(
     }
 
     await storage.updateUserCustomItemBalance(userId, -amount);
-    // If admin is redeeming, return items to admin balance
     if (user.role === "admin") {
       await storage.updateUserCustomItemBalance(user.id, amount);
+      await storage.createCustomItemTransaction({
+        orgId: user.organizationId,
+        userId: user.id,
+        amount,
+        reason: `Redeemed from ${target.fullName}`,
+        performedBy: user.id,
+      });
     }
 
     await storage.createCustomItemTransaction({
@@ -5312,6 +5324,13 @@ export async function registerRoutes(
       await storage.updateUserCustomItemBalance(userId, amount);
       if (user.role === "admin") {
         await storage.updateUserCustomItemBalance(user.id, -amount);
+        await storage.createCustomItemTransaction({
+          orgId: user.organizationId,
+          userId: user.id,
+          amount: -amount,
+          reason: `Given to ${target.fullName}`,
+          performedBy: user.id,
+        });
       }
       await storage.createCustomItemTransaction({
         orgId: user.organizationId,

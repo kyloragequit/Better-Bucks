@@ -286,18 +286,25 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
   const [localChecked, setLocalChecked] = useState<Set<number> | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deptFilter, setDeptFilter] = useState("all");
   const { data: allUsers } = useUsers();
   const { data: admins } = useQuery<{ id: number; fullName: string; role: string }[]>({
     queryKey: ["/api/org/admins"],
+  });
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const adminMap = new Map(admins?.map(a => [a.id, a.fullName]) || []);
+  const deptMap = new Map(departments?.map(d => [d.id, d.name]) || []);
   const employees = allUsers?.filter(u => u.role === "employee") || [];
-  const filtered = employees.filter(e =>
-    !search || e.fullName.toLowerCase().includes(search.toLowerCase()) || e.username.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = employees.filter(e => {
+    const matchesSearch = !search || e.fullName.toLowerCase().includes(search.toLowerCase()) || e.username.toLowerCase().includes(search.toLowerCase());
+    const matchesDept = deptFilter === "all" || (deptFilter === "none" && !e.departmentId) || e.departmentId?.toString() === deptFilter;
+    return matchesSearch && matchesDept;
+  });
 
   const serverChecked = new Set(employees.filter(e => e.managerId === adminId).map(e => e.id));
   const checked = localChecked ?? serverChecked;
@@ -317,6 +324,7 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
       setLocalChecked(null);
       setShowConfirm(false);
       setSearch("");
+      setDeptFilter("all");
     }
   };
 
@@ -382,15 +390,29 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
               Select which employees report to this manager. Click Done to review and save your changes.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search employees..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9"
-              data-testid="input-search-manage-employees"
-            />
+          <div className="flex gap-2 mb-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search employees..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9"
+                data-testid="input-search-manage-employees"
+              />
+            </div>
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="w-[160px]" data-testid="select-dept-filter-manage">
+                <SelectValue placeholder="All Depts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                <SelectItem value="none">No Department</SelectItem>
+                {departments?.map(d => (
+                  <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <ScrollArea className="max-h-[400px] pr-2">
             <div className="space-y-1">
@@ -415,7 +437,12 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{emp.fullName}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{emp.username}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {emp.username}
+                          {emp.departmentId && deptMap.get(emp.departmentId) && (
+                            <span className="ml-1.5 text-muted-foreground/70">· {deptMap.get(emp.departmentId)}</span>
+                          )}
+                        </p>
                       </div>
                       {mgrName && !isChecked && (
                         <Badge variant="outline" className="text-xs shrink-0 bg-amber-50 text-amber-700 border-amber-200" data-testid={`manage-emp-mgr-${emp.id}`}>

@@ -333,6 +333,28 @@ async function generateMonthlyReport(orgId: number, year: number, month: number)
   }
   const departmentStats = Object.values(deptStatMap).sort((a, b) => b.credited - a.credited);
 
+  // Daily spending breakdown for chart
+  const dailySpending: { date: string; credited: number; debited: number }[] = [];
+  const dailyMap: Record<string, { credited: number; debited: number }> = {};
+  for (const { t } of allTxRows) {
+    const day = t.createdAt.toISOString().slice(0, 10);
+    if (!dailyMap[day]) dailyMap[day] = { credited: 0, debited: 0 };
+    if (t.amount > 0) dailyMap[day].credited += t.amount;
+    else dailyMap[day].debited += Math.abs(t.amount);
+  }
+  const cursor = new Date(from);
+  while (cursor <= to) {
+    const day = cursor.toISOString().slice(0, 10);
+    dailySpending.push({
+      date: day,
+      credited: dailyMap[day]?.credited ?? 0,
+      debited: dailyMap[day]?.debited ?? 0,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const conversionRate = org?.bucksPerDollar ?? 100;
+
   const reportData = {
     orgName: org?.name ?? "",
     year,
@@ -342,6 +364,8 @@ async function generateMonthlyReport(orgId: number, year: number, month: number)
     totalOrders,
     budgetUsed,
     monthlyBudgetBucks: org?.monthlyBudgetBucks ?? 0,
+    conversionRate,
+    dailySpending,
     categoryStats,
     departmentStats,
     topEmployees: topEmployees.slice(0, 10),
@@ -1842,6 +1866,40 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error approving user:", error);
       res.status(500).send("Internal Server Error");
+    }
+  });
+
+  // Transfer Super User (prime_admin) role to another org user
+  app.post("/api/organizations/transfer-super-user", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Only the current Super User can transfer this role." });
+    }
+    const parsed = z.object({ targetUserId: z.number().int() }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid request. Please select a valid user." });
+    }
+    const { targetUserId } = parsed.data;
+    if (targetUserId === user.id) {
+      return res.status(400).json({ message: "You already hold the Super User role." });
+    }
+    const target = await storage.getUser(targetUserId);
+    if (!target || target.organizationId !== user.organizationId) {
+      return res.status(404).json({ message: "User not found in your organization." });
+    }
+    if (target.status !== "approved") {
+      return res.status(400).json({ message: "Target user must be approved before receiving the Super User role." });
+    }
+    try {
+      // Atomic transfer: promote target and demote self in a single transaction
+      await db.transaction(async (tx) => {
+        await tx.update(users).set({ role: "prime_admin" }).where(eq(users.id, targetUserId));
+        await tx.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
+      });
+      res.json({ message: "Super User role transferred successfully." });
+    } catch (e) {
+      console.error("Super User transfer error:", e);
+      res.status(500).json({ message: "Transfer failed. No changes were made." });
     }
   });
 

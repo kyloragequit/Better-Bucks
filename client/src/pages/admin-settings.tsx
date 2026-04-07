@@ -661,6 +661,7 @@ export default function AdminSettingsPage() {
 
             <RoleLabelsSection org={org} />
             <DepartmentsSection />
+            <SuperUserTransferSection />
 
             <Card>
               <CardHeader>
@@ -857,6 +858,121 @@ export default function AdminSettingsPage() {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+function SuperUserTransferSection() {
+  const { data: user } = useUser();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+
+  type OrgUser = { id: number; fullName: string; username: string; role: string; status: string; email: string | null };
+  const { data: orgUsers = [] } = useQuery<OrgUser[]>({
+    queryKey: ["/api/users"],
+    enabled: !!user,
+  });
+
+  const eligibleUsers = orgUsers.filter(
+    (u) => u.id !== user?.id && u.status === "approved" && (u.role === "admin" || u.role === "employee")
+  );
+
+  const { mutate: transfer, isPending } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/organizations/transfer-super-user", {
+        targetUserId: parseInt(selectedUserId),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Super User Transferred", description: "You have been demoted to Admin. Please reload the page." });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setSelectedUserId("");
+      setTimeout(() => window.location.reload(), 1500);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Transfer Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5" />
+          Super User
+        </CardTitle>
+        <CardDescription>
+          The Super User is the only account that can remove pending accounts and manage organization settings.
+          You can transfer this role to another approved user.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg">
+          <UserCheck className="h-4 w-4 text-primary" />
+          <span className="text-sm">Current Super User: <strong>{user?.fullName}</strong></span>
+        </div>
+
+        {eligibleUsers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No other approved users to transfer the role to. Add and approve users first.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Transfer Super User to</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger data-testid="select-super-user-target">
+                  <SelectValue placeholder="Select a user…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleUsers.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.fullName} ({u.username}) — {u.role === "admin" ? "Admin" : "Employee"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={!selectedUserId || isPending}
+                  data-testid="button-transfer-super-user"
+                >
+                  <ArrowUpDown className="h-4 w-4 mr-2" />
+                  Transfer Super User Role
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Transfer Super User Role?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will make{" "}
+                    <strong>{eligibleUsers.find((u) => u.id === parseInt(selectedUserId))?.fullName}</strong>{" "}
+                    the new Super User and demote your account to a regular Admin.
+                    You will lose access to settings and account management. This cannot be undone by you.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => transfer()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    data-testid="button-confirm-transfer"
+                  >
+                    Yes, Transfer Role
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

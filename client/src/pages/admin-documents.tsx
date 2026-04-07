@@ -7,13 +7,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, RefreshCw, Calendar, BarChart2, Users, ShoppingCart, Tag, Building2 } from "lucide-react";
+import { FileText, Download, RefreshCw, Calendar, BarChart2, Users, ShoppingCart, Tag, Building2, DollarSign } from "lucide-react";
 import { SpinningLogo } from "@/components/spinning-logo";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 type CategoryStat = { categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number };
 type DeptStat = { deptId: number | null; deptName: string | null; credited: number; debited: number };
+type DailySpending = { date: string; credited: number; debited: number };
 type ReportData = {
   orgName: string;
   year: number;
@@ -23,6 +34,8 @@ type ReportData = {
   totalOrders: number;
   budgetUsed: number;
   monthlyBudgetBucks: number;
+  conversionRate?: number;
+  dailySpending?: DailySpending[];
   categoryStats: CategoryStat[];
   departmentStats: DeptStat[];
   topEmployees: { userId: number; name: string; received: number }[];
@@ -38,11 +51,50 @@ type MonthlyReport = {
   generatedAt: string;
 };
 
+function DailySpendingChart({ dailySpending, conversionRate }: { dailySpending: DailySpending[]; conversionRate: number }) {
+  const rate = conversionRate || 100;
+  const chartData = dailySpending
+    .filter(d => d.credited > 0 || d.debited > 0)
+    .map(d => ({
+      date: new Date(d.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      awarded: +(d.credited / rate).toFixed(2),
+      spent: +(d.debited / rate).toFixed(2),
+    }));
+  if (chartData.length === 0) return null;
+  return (
+    <div data-testid="chart-daily-spending">
+      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+        <DollarSign className="h-3 w-3" /> Daily Dollar Spending
+      </p>
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+          <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} tickFormatter={v => `$${v}`} />
+          <Tooltip
+            contentStyle={{
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "8px",
+              fontSize: "12px",
+            }}
+            formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name === "awarded" ? "Awarded" : "Spent"]}
+          />
+          <Legend wrapperStyle={{ fontSize: "11px" }} />
+          <Line type="monotone" dataKey="awarded" stroke="#16a34a" strokeWidth={2} dot={false} name="Awarded" />
+          <Line type="monotone" dataKey="spent" stroke="#dc2626" strokeWidth={2} dot={false} name="Spent" />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function ReportCard({ report, onPrint }: { report: MonthlyReport; onPrint: (r: MonthlyReport) => void }) {
   const data = report.reportData;
   const budgetPct = data.monthlyBudgetBucks > 0 ? Math.round((data.budgetUsed / data.monthlyBudgetBucks) * 100) : null;
   const totalCatBucks = data.categoryStats.reduce((s, c) => s + c.totalBucks, 0);
   const deptStats: DeptStat[] = data.departmentStats ?? [];
+  const rate = data.conversionRate ?? 100;
 
   return (
     <Card className="border shadow-sm" data-testid={`card-report-${report.year}-${report.month}`}>
@@ -69,15 +121,24 @@ function ReportCard({ report, onPrint }: { report: MonthlyReport; onPrint: (r: M
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Conversion rate */}
+        <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg text-sm">
+          <DollarSign className="h-4 w-4 text-primary" />
+          <span className="text-muted-foreground">Conversion Rate:</span>
+          <span className="font-semibold">{rate} bucks = $1.00</span>
+        </div>
+
         {/* Stats grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3 bg-green-50 rounded-lg text-center">
             <p className="text-xl font-bold text-green-700" data-testid={`text-report-awarded-${report.year}-${report.month}`}>{data.totalAwarded.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Bucks Awarded</p>
+            <p className="text-xs text-green-600 mt-0.5">${(data.totalAwarded / rate).toFixed(2)}</p>
           </div>
           <div className="p-3 bg-red-50 rounded-lg text-center">
             <p className="text-xl font-bold text-red-700">{data.totalSpent.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Bucks Spent</p>
+            <p className="text-xs text-red-600 mt-0.5">${(data.totalSpent / rate).toFixed(2)}</p>
           </div>
           <div className="p-3 bg-blue-50 rounded-lg text-center">
             <p className="text-xl font-bold text-blue-700">{data.activeEmployees ?? 0}</p>
@@ -88,6 +149,11 @@ function ReportCard({ report, onPrint }: { report: MonthlyReport; onPrint: (r: M
             <p className="text-xs text-muted-foreground mt-0.5">Store Orders</p>
           </div>
         </div>
+
+        {/* Daily spending chart */}
+        {data.dailySpending && data.dailySpending.length > 0 && (
+          <DailySpendingChart dailySpending={data.dailySpending} conversionRate={rate} />
+        )}
 
         {/* Budget progress */}
         {budgetPct !== null && (
@@ -173,6 +239,7 @@ function PrintableReport({ report, onClose }: { report: MonthlyReport; onClose: 
   const budgetPct = data.monthlyBudgetBucks > 0 ? Math.round((data.budgetUsed / data.monthlyBudgetBucks) * 100) : null;
   const totalCatBucks = data.categoryStats.reduce((s, c) => s + c.totalBucks, 0);
   const deptStats: DeptStat[] = data.departmentStats ?? [];
+  const rate = data.conversionRate ?? 100;
 
   return (
     <div className="fixed inset-0 z-50 bg-white overflow-auto print:block" id="printable-report">
@@ -195,6 +262,7 @@ function PrintableReport({ report, onClose }: { report: MonthlyReport; onClose: 
             <div className="text-right">
               <p className="text-xl font-bold">{MONTH_NAMES[report.month - 1]} {report.year}</p>
               <p className="text-sm text-muted-foreground">Generated {new Date(report.generatedAt).toLocaleDateString()}</p>
+              <p className="text-sm font-medium mt-1">Rate: {rate} bucks = $1.00</p>
             </div>
           </div>
         </div>
@@ -205,10 +273,12 @@ function PrintableReport({ report, onClose }: { report: MonthlyReport; onClose: 
           <div className="border rounded-lg p-4">
             <p className="text-sm text-muted-foreground">Bucks Awarded</p>
             <p className="text-2xl font-bold text-green-700">{data.totalAwarded.toLocaleString()}</p>
+            <p className="text-sm text-green-600">${(data.totalAwarded / rate).toFixed(2)}</p>
           </div>
           <div className="border rounded-lg p-4">
             <p className="text-sm text-muted-foreground">Bucks Spent (Store)</p>
             <p className="text-2xl font-bold text-red-700">{data.totalSpent.toLocaleString()}</p>
+            <p className="text-sm text-red-600">${(data.totalSpent / rate).toFixed(2)}</p>
           </div>
           <div className="border rounded-lg p-4">
             <p className="text-sm text-muted-foreground">Active Employees</p>
@@ -219,6 +289,16 @@ function PrintableReport({ report, onClose }: { report: MonthlyReport; onClose: 
             <p className="text-2xl font-bold">{data.totalOrders}</p>
           </div>
         </div>
+
+        {/* Daily spending chart (screen only, not in print) */}
+        {data.dailySpending && data.dailySpending.length > 0 && (
+          <div className="mb-6 print:hidden">
+            <h2 className="text-base font-semibold mb-3 flex items-center gap-2"><DollarSign className="h-4 w-4" /> Daily Dollar Spending</h2>
+            <div className="border rounded-lg p-4">
+              <DailySpendingChart dailySpending={data.dailySpending} conversionRate={rate} />
+            </div>
+          </div>
+        )}
 
         {/* Budget */}
         {budgetPct !== null && (

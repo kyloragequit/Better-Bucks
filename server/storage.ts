@@ -8,7 +8,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserBalance(userId: number, amount: number): Promise<User>;
-  updateUserRole(userId: number, role: "admin" | "employee"): Promise<User>;
+  updateUserRole(userId: number, role: "admin" | "employee" | "prime_admin"): Promise<User>;
   approveAdminUser(userId: number): Promise<User>;
   getPendingAdmins(): Promise<User[]>;
   getAllUsers(): Promise<User[]>;
@@ -192,7 +192,7 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
-  async updateUserRole(userId: number, role: "admin" | "employee"): Promise<User> {
+  async updateUserRole(userId: number, role: "admin" | "employee" | "prime_admin"): Promise<User> {
     const [updatedUser] = await db
       .update(users)
       .set({ role })

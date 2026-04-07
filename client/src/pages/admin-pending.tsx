@@ -242,8 +242,8 @@ export default function AdminPendingPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="overflow-x-auto [transform:rotateX(180deg)]">
+                  <Table className="[transform:rotateX(180deg)]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>

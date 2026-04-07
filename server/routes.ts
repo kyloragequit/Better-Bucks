@@ -1715,6 +1715,87 @@ export async function registerRoutes(
     res.json(pending);
   });
 
+  // Pending Accounts: all users who are pending approval OR have never logged in
+  app.get("/api/users/pending-accounts", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    if (!user.organizationId) return res.json([]);
+    try {
+      const [orgUsers, departments] = await Promise.all([
+        storage.getUsersByOrganization(user.organizationId),
+        storage.getDepartmentsByOrganization(user.organizationId),
+      ]);
+      const deptMap = new Map(departments.map(d => [d.id, d.name]));
+      const accounts = orgUsers
+        .filter(u => u.status === "pending" || u.successfulLoginCount === 0)
+        .map(u => ({
+          ...u,
+          departmentName: u.departmentId ? (deptMap.get(u.departmentId) ?? null) : null,
+          pendingType: u.status === "pending" ? "awaiting_approval" : "never_logged_in",
+        }));
+      res.json(accounts);
+    } catch (e) {
+      console.error("Error fetching pending accounts:", e);
+      res.status(500).json({ message: "Failed to fetch pending accounts" });
+    }
+  });
+
+  // Resend join email to a user (prime_admin only)
+  app.post("/api/users/:id/resend-join-email", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const target = await storage.getUser(id);
+      if (!target || target.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (!target.email) {
+        return res.status(400).json({ message: "This account has no email address on file. Please add an email in their profile before resending." });
+      }
+      const org = await storage.getOrganization(user.organizationId!);
+      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+      const loginIdentifier = org?.siteId || org?.code || "";
+      const roleLabel = target.role === "admin" || target.role === "prime_admin"
+        ? (org?.adminRoleLabel || "Admin")
+        : (org?.employeeRoleLabel || "Employee");
+
+      await sendEmail({
+        to: target.email,
+        subject: `[Better Bucks] Your account is ready — join ${org?.name || "your organization"}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+            ${emailLogoHeader}
+            <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">Your account is ready!</h3>
+            <p>Hi ${escapeHtml(target.fullName)},</p>
+            <p>Your <strong>${escapeHtml(roleLabel)}</strong> account for <strong>${escapeHtml(org?.name || "Better Bucks")}</strong> is set up and waiting for you. Here's how to sign in:</p>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:20px 0;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:110px;">Login Page</td><td style="padding:6px 0;"><a href="${appUrl}/login" style="color:#4E9F3D;font-weight:600;">${appUrl}/login</a></td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Site ID / Code</td><td style="padding:6px 0;font-weight:700;color:#111;font-family:monospace;font-size:15px;">${escapeHtml(loginIdentifier)}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Username</td><td style="padding:6px 0;font-weight:700;color:#111;font-family:monospace;font-size:15px;">${escapeHtml(target.username)}</td></tr>
+              </table>
+            </div>
+            <p style="color:#6b7280;font-size:13px;">If you haven't set a password yet, click "Forgot password" on the login page, or contact your administrator for help.</p>
+            <div style="text-align:center;margin:28px 0;">
+              <a href="${appUrl}/login" style="background:#4E9F3D;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">Sign In to Better Bucks</a>
+            </div>
+            <p style="color:#9ca3af;font-size:12px;text-align:center;">Sent by ${escapeHtml(user.fullName)} from ${escapeHtml(org?.name || "Better Bucks")}.</p>
+          </div>
+        `,
+      });
+      res.json({ message: "Join email sent successfully." });
+    } catch (e) {
+      console.error("Error resending join email:", e);
+      res.status(500).json({ message: "Failed to send email" });
+    }
+  });
+
   app.post("/api/users/:id/approve", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {

@@ -23,55 +23,55 @@ const employeeSteps: Step[] = [
     id: "welcome",
     path: "/dashboard",
     title: "Welcome to Better Bucks!",
-    description: "Better Bucks is your company's incentive program — you earn Bucks for great work and can spend them on rewards. This tour will walk you through every feature so you feel right at home.",
+    description: "Earn Bucks for great work and spend them on real rewards. Let's take a quick look around.",
   },
   {
     id: "balance",
     path: "/dashboard",
     selector: '[data-testid="card-balance"]',
     title: "Your Bucks Balance",
-    description: "This card shows your current Bucks balance. Administrators award Bucks to you for good performance, attendance, hitting goals, and more. The higher your balance, the more you can redeem!",
+    description: "Your current balance lives here. Admins award Bucks for performance, attendance, and more.",
   },
   {
     id: "goals",
     path: "/dashboard",
     selector: '[data-testid="section-goals"]',
     title: "Team Goals",
-    description: "Your team can set shared goals — like 30 accident-free days or hitting a production milestone. When the whole team achieves the goal, everyone earns a Bucks reward automatically.",
+    description: "Shared team goals — hit the target together and everyone earns a reward automatically.",
     optional: true,
   },
   {
     id: "qr",
     path: "/dashboard",
     selector: '[data-testid="qr-code-container"]',
-    title: "Your Personal QR Code",
-    description: "This is your unique employee ID. Your administrator can scan it to instantly pull up your account and award Bucks on the spot — no need to memorize usernames!",
+    title: "Your QR Code",
+    description: "Your admin scans this to pull up your account instantly. No usernames needed.",
   },
   {
     id: "store",
     path: "/store",
-    title: "The Better Bucks Store",
-    description: "This is where your Bucks turn into real rewards! Browse your company's catalog of items — products, gift cards, and more — and spend your hard-earned Bucks on something you want.",
+    title: "The Store",
+    description: "Browse and spend your Bucks on gift cards, products, and other rewards your company offers.",
   },
   {
     id: "store-balance",
     path: "/store",
     selector: '[data-testid="text-store-balance"]',
-    title: "Your Balance in the Store",
-    description: "Your current Bucks balance is always shown here so you know exactly what you can afford. Items you have enough Bucks for will show a purchase button right on the card.",
+    title: "Balance in the Store",
+    description: "Your balance is always shown here so you know what you can afford.",
   },
   {
     id: "orders",
     path: "/orders",
     selector: '[data-testid="text-orders-title"]',
     title: "Your Orders",
-    description: "Every reward request you submit lands here. Track its status — Pending means your administrator is reviewing it, and Completed means it's been fulfilled!",
+    description: "Track every reward you've requested. Pending = under review, Completed = fulfilled.",
   },
   {
     id: "done",
     path: "/dashboard",
     title: "You're All Set!",
-    description: "That's the full tour! You know how to check your balance, track team goals, browse the store, and manage your orders. Time to start earning — go show your team what you're made of!",
+    description: "That's everything! Check your balance, browse the store, and start earning.",
   },
 ];
 
@@ -79,84 +79,84 @@ const adminSteps: Step[] = [
   {
     id: "welcome",
     path: "/admin/dashboard",
-    title: "Welcome to Your Admin Dashboard",
-    description: "As an administrator, you recognize great work by awarding Bucks. You can manage your team, approve reward orders, set team goals, and track everything from here.",
+    title: "Your Admin Dashboard",
+    description: "Award Bucks, manage your team, approve orders, and track everything from here.",
   },
   {
     id: "stats",
     path: "/admin/dashboard",
     selector: '[data-testid="text-points-credit"]',
-    title: "Bucks Statistics",
-    description: "These stat cards show how many Bucks have been credited and spent by your team. Toggle between Week, Month, and Year to see how engagement is trending over time.",
+    title: "Bucks Stats",
+    description: "See Bucks credited and spent. Toggle Week / Month / Year to spot trends.",
   },
   {
     id: "leaderboard",
     path: "/admin/dashboard",
     selector: '[data-testid="tab-leaderboard-admins"]',
-    title: "Admin & Employee Leaderboard",
-    description: "This bar chart shows which administrators have awarded the most Bucks. Switch to Employees to see each employee's current balance or how much they've spent on completed orders.",
+    title: "Leaderboard",
+    description: "See which admins have awarded the most. Switch to Employees to view balances.",
   },
   {
     id: "analytics",
     path: "/admin/dashboard",
     selector: '[data-testid="card-analytics"]',
-    title: "Budget & Category Analytics",
-    description: "This card tracks your monthly budget usage with a live progress bar — green means you have headroom, amber means 70%+ used, red means 90%+. Below it, Rewards by Category shows a breakdown of how Bucks have been distributed across different recognition types this month.",
+    title: "Budget & Categories",
+    description: "Track monthly budget usage and see how Bucks are distributed across categories.",
   },
   {
     id: "employees",
     path: "/admin/employees",
     selector: '[data-testid="input-search-employees"]',
     title: "Employee Management",
-    description: "This is your team roster. Search by name, filter by department, and click any employee to view their full transaction history. You can also add new employees and adjust balances.",
+    description: "Your full team roster. Search, filter, and click any name for their history.",
   },
   {
     id: "bulk-credit",
     path: "/admin/employees",
     selector: '[data-testid="button-bulk-credit"]',
-    title: "Award Bucks in Bulk",
-    description: "Use this to award Bucks to multiple employees at once — perfect for shift bonuses, safety milestones, or weekly performance rewards. Select employees, enter an amount and reason, then send.",
+    title: "Bulk Award",
+    description: "Award Bucks to multiple employees at once — great for shift bonuses or milestones.",
   },
   {
     id: "bulk-import",
     path: "/admin/employees",
     selector: '[data-testid="button-bulk-import"]',
-    title: "Import Employees from Spreadsheet",
-    description: "Adding a lot of people at once? Use Import Spreadsheet to upload an Excel file (.xlsx) with your team's details. Download the template, fill it in with names and codes, then upload it — everyone is created in one shot.",
+    title: "Import Employees",
+    description: "Upload an Excel file to add many employees at once. Download the template to get started.",
   },
   {
     id: "orders",
     path: "/admin/orders",
-    title: "Order Management",
-    description: "All employee reward requests land here. Review what employees are asking for, check their Bucks balance, and mark orders as completed when the item has been fulfilled.",
+    title: "Orders",
+    description: "Review and fulfill employee reward requests from here.",
   },
   {
     id: "goals",
     path: "/admin/goals",
     selector: '[data-testid="input-goal-title"]',
     title: "Team Goals",
-    description: "Create shared goals for your entire team. Set a target, a Bucks reward, and an optional deadline. The system tracks progress automatically and distributes rewards when achieved.",
+    description: "Create shared goals with deadlines and automatic Bucks rewards on completion.",
     optional: true,
   },
   {
     id: "custom-items",
     path: "/admin/items",
-    title: "Custom (Non-Bucks) Items",
-    description: "Beyond Bucks, your org can run a second incentive system — things like Safety Stars, Raffle Tickets, or any token you define. Give and redeem custom items separately from Bucks using this page.",
+    title: "Custom Items",
+    description: "Run a second incentive track — Safety Stars, Raffle Tickets, or any token you define.",
     optional: true,
   },
   {
     id: "settings",
     path: "/admin/settings",
     selector: '[data-testid="text-settings-org-code"]',
-    title: "Organization Settings",
-    description: "Your organization's unique code is here — new employees use it when registering. You can also set a Universal Passkey so employees always have a fallback login PIN, customize role labels, and view subscription details.",
+    title: "Settings",
+    description: "Your org code, passkey, role labels, and subscription details are all here.",
   },
   {
     id: "done",
     path: "/admin/dashboard",
-    title: "You're Ready to Go!",
-    description: "You've seen all the key features — Bucks management, budget tracking, category analytics, Instant Transaction, team goals, custom item tokens, and settings. The best managers check in regularly, award Bucks generously, and keep goals active. Let's go!",
+    title: "You're Ready!",
+    description: "That covers everything. Award generously, keep goals active, and check in often!",
   },
 ];
 
@@ -164,8 +164,8 @@ const primeAdminExtraStep: Step = {
   id: "budget",
   path: "/admin/dashboard",
   selector: '[data-testid="input-bucks-per-dollar"]',
-  title: "Budget & Conversion Rate",
-  description: "As the Organization Owner, you can set how many Bucks equal one dollar, configure a monthly incentive budget, and allocate that budget directly to your administrators.",
+  title: "Budget & Conversion",
+  description: "Set how many Bucks equal a dollar, configure your monthly budget, and allocate to admins.",
 };
 
 function getSteps(role: string): Step[] {
@@ -177,7 +177,6 @@ function getSteps(role: string): Step[] {
 
 type Rect = { top: number; left: number; width: number; height: number };
 
-// 4-panel spotlight — only rendered when we have a real element to highlight
 function SpotlightOverlay({ rect, padding = 10 }: { rect: Rect; padding?: number }) {
   const { top, left, width, height } = rect;
   const p = padding;
@@ -225,10 +224,10 @@ function TooltipCard({
   onNext: () => void;
   onSkip: () => void;
 }) {
-  const TOOLTIP_W = 340;
+  const TOOLTIP_W = 320;
+  const TOOLTIP_H = 180;
   const PAD = 16;
 
-  // Get live viewport dimensions at render time
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
@@ -236,57 +235,57 @@ function TooltipCard({
   let left: number;
 
   if (!rect) {
-    // Centre in viewport for steps with no spotlight target
-    top = Math.max(PAD, vh / 2 - 130);
+    top = Math.max(PAD, vh / 2 - TOOLTIP_H / 2);
     left = Math.max(PAD, vw / 2 - TOOLTIP_W / 2);
   } else {
     const spaceBelow = vh - (rect.top + rect.height);
     const spaceAbove = rect.top;
-    if (spaceBelow >= 200) {
+    if (spaceBelow >= TOOLTIP_H + 20) {
       top = rect.top + rect.height + 16;
-    } else if (spaceAbove >= 200) {
-      top = rect.top - 200 - 16;
+    } else if (spaceAbove >= TOOLTIP_H + 20) {
+      top = rect.top - TOOLTIP_H - 16;
     } else {
-      top = Math.max(PAD, vh / 2 - 130);
+      top = Math.max(PAD, vh / 2 - TOOLTIP_H / 2);
     }
     left = rect.left + rect.width / 2 - TOOLTIP_W / 2;
-    // Clamp horizontally
     left = Math.min(Math.max(PAD, left), vw - TOOLTIP_W - PAD);
-    // Clamp vertically
-    top = Math.min(Math.max(PAD, top), vh - 260);
   }
+
+  top = Math.min(Math.max(PAD, top), vh - TOOLTIP_H - PAD);
 
   return (
     <div
       className="fixed flex flex-col rounded-2xl shadow-2xl overflow-hidden"
       style={{ top, left, width: TOOLTIP_W, zIndex: 10001, pointerEvents: "auto" }}
+      data-testid="tutorial-tooltip"
     >
-      <div className="flex items-center justify-between px-4 py-3" style={{ background: NAVY }}>
+      <div className="flex items-center justify-between px-4 py-2.5" style={{ background: NAVY }}>
         <div className="flex items-center gap-2">
           <AppLogo size="sm" />
-          <span className="text-white text-xs font-bold">Full Tour</span>
+          <span className="text-white text-xs font-bold">Tour</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-white/50 text-xs">{stepIndex + 1} / {totalSteps}</span>
-          <button onClick={onSkip} className="text-white/40 hover:text-white transition-colors" title="Exit tour">
+          <span className="text-white/50 text-xs">{stepIndex + 1}/{totalSteps}</span>
+          <button onClick={onSkip} className="text-white/40 hover:text-white transition-colors" title="Exit tour" data-testid="button-tutorial-close">
             <X className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="bg-white px-5 py-4">
-        <div className="flex items-start gap-2 mb-2">
+      <div className="bg-white px-4 py-3">
+        <div className="flex items-start gap-2 mb-1.5">
           <MapPin className="h-4 w-4 mt-0.5 shrink-0" style={{ color: GREEN }} />
           <h3 className="text-sm font-bold leading-snug" style={{ color: NAVY }}>{title}</h3>
         </div>
-        <p className="text-xs text-gray-600 leading-relaxed">{description}</p>
+        <p className="text-xs text-gray-600 leading-relaxed ml-6">{description}</p>
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-t">
         <button
           onClick={onPrev}
           disabled={isFirst}
           className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors"
+          data-testid="button-tutorial-prev"
         >
           <ChevronLeft className="h-3.5 w-3.5" /> Back
         </button>
@@ -296,7 +295,7 @@ function TooltipCard({
               key={i}
               className="rounded-full transition-all duration-300"
               style={{
-                width: i === stepIndex ? 16 : 5,
+                width: i === stepIndex ? 14 : 5,
                 height: 5,
                 background: i === stepIndex ? GREEN : i < stepIndex ? `${GREEN}60` : "#e5e7eb",
               }}
@@ -307,6 +306,7 @@ function TooltipCard({
           onClick={onNext}
           className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg text-white transition-colors"
           style={{ background: GREEN }}
+          data-testid="button-tutorial-next"
         >
           {isLast ? "Finish" : "Next"}
           {isLast ? <ArrowRight className="h-3.5 w-3.5 ml-0.5" /> : <ChevronRight className="h-3.5 w-3.5 ml-0.5" />}
@@ -391,7 +391,6 @@ export function FullTutorialOverlay() {
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
   const isActive = !forceHide && showFullTutorial && !!user && isOnAppPage && !!user?.termsAcceptedAt;
 
-  // Lock body scroll while the overlay is visible; always restore on exit or unmount
   useEffect(() => {
     if (isActive) {
       document.body.style.overflow = "hidden";
@@ -405,21 +404,25 @@ export function FullTutorialOverlay() {
 
   return createPortal(
     <>
-      {/* Persistent escape button — always visible no matter what */}
       <button
         onClick={handleSkip}
         className="fixed flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white shadow-lg transition-opacity hover:opacity-80"
         style={{ top: 12, right: 12, zIndex: 10002, background: NAVY, pointerEvents: "auto" }}
         title="Exit tour"
+        data-testid="button-exit-tour"
       >
         <X className="h-3 w-3" /> Exit Tour
       </button>
 
-      {/* Full dark overlay when no specific element is highlighted; spotlight when one is */}
+      <div
+        className="fixed inset-0"
+        style={{ zIndex: 9996, pointerEvents: "auto" }}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+      />
+
       {!rect && <div className="fixed inset-0 bg-black/65 pointer-events-none" style={{ zIndex: 9997 }} />}
       {rect && <SpotlightOverlay rect={rect} />}
 
-      {/* Tooltip / step card */}
       {step && (
         <TooltipCard
           rect={rect}

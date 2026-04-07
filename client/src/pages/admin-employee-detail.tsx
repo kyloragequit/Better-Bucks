@@ -283,7 +283,9 @@ function BucksActivityChart({ transactions }: { transactions: Transaction[] }) {
 function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminName: string }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [confirmEmployee, setConfirmEmployee] = useState<{ id: number; name: string; currentManager: string } | null>(null);
+  const [localChecked, setLocalChecked] = useState<Set<number> | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
   const { data: allUsers } = useUsers();
   const { data: admins } = useQuery<{ id: number; fullName: string; role: string }[]>({
     queryKey: ["/api/org/admins"],
@@ -297,42 +299,77 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
     !search || e.fullName.toLowerCase().includes(search.toLowerCase()) || e.username.toLowerCase().includes(search.toLowerCase())
   );
 
-  const assignMutation = useMutation({
-    mutationFn: async ({ userId, managerId }: { userId: number; managerId: number | null }) => {
-      const res = await apiRequest("PATCH", `/api/users/${userId}/manager`, { managerId });
-      return await res.json();
-    },
-    onSuccess: () => {
+  const serverChecked = new Set(employees.filter(e => e.managerId === adminId).map(e => e.id));
+  const checked = localChecked ?? serverChecked;
+
+  const added = [...checked].filter(id => !serverChecked.has(id));
+  const removed = [...serverChecked].filter(id => !checked.has(id));
+  const hasChanges = added.length > 0 || removed.length > 0;
+
+  const reassigned = added
+    .map(id => employees.find(e => e.id === id))
+    .filter(e => e && e.managerId && e.managerId !== adminId)
+    .map(e => ({ id: e!.id, name: e!.fullName, currentManager: adminMap.get(e!.managerId!) || "another manager" }));
+
+  const handleOpen = (o: boolean) => {
+    setOpen(o);
+    if (o) {
+      setLocalChecked(null);
+      setShowConfirm(false);
+      setSearch("");
+    }
+  };
+
+  const handleToggle = (empId: number, isChecked: boolean) => {
+    const next = new Set(checked);
+    if (isChecked) {
+      next.add(empId);
+    } else {
+      next.delete(empId);
+    }
+    setLocalChecked(next);
+  };
+
+  const handleDone = () => {
+    if (!hasChanges) {
+      setOpen(false);
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleGoBack = () => {
+    setShowConfirm(false);
+  };
+
+  const handleConfirmSave = async () => {
+    setSaving(true);
+    try {
+      for (const empId of added) {
+        await apiRequest("PATCH", `/api/users/${empId}/manager`, { managerId: adminId });
+      }
+      for (const empId of removed) {
+        await apiRequest("PATCH", `/api/users/${empId}/manager`, { managerId: null });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/org/manager-employee-counts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users", adminId] });
-    },
-    onError: (e: Error) => {
+      toast({ title: "Employees updated", description: `${added.length} assigned, ${removed.length} unassigned.` });
+      setShowConfirm(false);
+      setOpen(false);
+      setLocalChecked(null);
+    } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const handleToggle = (emp: typeof employees[0], checked: boolean) => {
-    if (checked && emp.managerId && emp.managerId !== adminId) {
-      const currentMgrName = adminMap.get(emp.managerId) || "another manager";
-      setConfirmEmployee({ id: emp.id, name: emp.fullName, currentManager: currentMgrName });
-    } else {
-      assignMutation.mutate({ userId: emp.id, managerId: checked ? adminId : null });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleConfirmReassign = () => {
-    if (confirmEmployee) {
-      assignMutation.mutate({ userId: confirmEmployee.id, managerId: adminId });
-      setConfirmEmployee(null);
-    }
-  };
-
-  const assignedCount = employees.filter(e => e.managerId === adminId).length;
+  const assignedCount = serverChecked.size;
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpen}>
         <DialogTrigger asChild>
           <Button variant="outline" size="sm" data-testid="button-manage-employees">
             <Users className="h-4 w-4 mr-2" /> Employees ({assignedCount})
@@ -342,7 +379,7 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
           <DialogHeader>
             <DialogTitle>Manage Employees for {adminName}</DialogTitle>
             <DialogDescription>
-              Select which employees report to this manager. Checked employees are assigned to {adminName}.
+              Select which employees report to this manager. Click Done to review and save your changes.
             </DialogDescription>
           </DialogHeader>
           <div className="relative mb-3">
@@ -361,32 +398,38 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
                 <p className="text-sm text-muted-foreground text-center py-4">No employees found</p>
               ) : (
                 filtered.map(emp => {
-                  const isAssigned = emp.managerId === adminId;
-                  const hasOtherManager = emp.managerId && emp.managerId !== adminId;
+                  const isChecked = checked.has(emp.id);
                   const mgrName = emp.managerId ? adminMap.get(emp.managerId) : null;
+                  const isOriginal = serverChecked.has(emp.id);
+                  const wasChanged = isChecked !== isOriginal;
                   return (
                     <label
                       key={emp.id}
-                      className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${isAssigned ? "border-primary/30 bg-primary/5" : "border-transparent hover:bg-muted/50"}`}
+                      className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${isChecked ? "border-primary/30 bg-primary/5" : "border-transparent hover:bg-muted/50"} ${wasChanged ? "ring-1 ring-blue-300" : ""}`}
                       data-testid={`manage-emp-row-${emp.id}`}
                     >
                       <Checkbox
-                        checked={isAssigned}
-                        onCheckedChange={(checked) => handleToggle(emp, !!checked)}
+                        checked={isChecked}
+                        onCheckedChange={(c) => handleToggle(emp.id, !!c)}
                         data-testid={`manage-emp-check-${emp.id}`}
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{emp.fullName}</p>
                         <p className="text-xs text-muted-foreground font-mono">{emp.username}</p>
                       </div>
-                      {mgrName && !isAssigned && (
+                      {mgrName && !isChecked && (
                         <Badge variant="outline" className="text-xs shrink-0 bg-amber-50 text-amber-700 border-amber-200" data-testid={`manage-emp-mgr-${emp.id}`}>
                           Mgr: {mgrName}
                         </Badge>
                       )}
-                      {isAssigned && (
+                      {isChecked && !wasChanged && (
                         <Badge variant="outline" className="text-xs shrink-0 bg-green-50 text-green-700 border-green-200">
                           Assigned
+                        </Badge>
+                      )}
+                      {wasChanged && (
+                        <Badge variant="outline" className={`text-xs shrink-0 ${isChecked ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+                          {isChecked ? "Adding" : "Removing"}
                         </Badge>
                       )}
                     </label>
@@ -397,29 +440,60 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
           </ScrollArea>
           <DialogFooter>
             <p className="text-xs text-muted-foreground mr-auto">
-              {assignedCount} employee{assignedCount !== 1 ? "s" : ""} assigned to {adminName}
+              {checked.size} employee{checked.size !== 1 ? "s" : ""} selected
+              {hasChanges && <span className="text-blue-600 ml-1">({added.length} to add, {removed.length} to remove)</span>}
             </p>
-            <Button variant="outline" onClick={() => setOpen(false)} data-testid="button-close-manage-employees">Done</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} data-testid="button-cancel-manage-employees">Cancel</Button>
+            <Button onClick={handleDone} data-testid="button-done-manage-employees">Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!confirmEmployee} onOpenChange={(o) => { if (!o) setConfirmEmployee(null); }}>
+      <AlertDialog open={showConfirm} onOpenChange={(o) => { if (!o) setShowConfirm(false); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Reassign Employee
+              Confirm Changes
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to assign <span className="font-semibold text-foreground">{confirmEmployee?.name}</span> to {adminName}?
-              Their current manager is <span className="font-semibold text-foreground">{confirmEmployee?.currentManager}</span>.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {added.length > 0 && (
+                  <div>
+                    <p className="font-medium text-foreground text-sm mb-1">Assigning to {adminName}:</p>
+                    <ul className="list-disc pl-5 space-y-0.5">
+                      {added.map(id => {
+                        const emp = employees.find(e => e.id === id);
+                        const r = reassigned.find(r => r.id === id);
+                        return (
+                          <li key={id} className="text-sm">
+                            <span className="font-medium">{emp?.fullName}</span>
+                            {r && <span className="text-amber-600"> (currently managed by {r.currentManager})</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {removed.length > 0 && (
+                  <div>
+                    <p className="font-medium text-foreground text-sm mb-1">Removing from {adminName}:</p>
+                    <ul className="list-disc pl-5 space-y-0.5">
+                      {removed.map(id => {
+                        const emp = employees.find(e => e.id === id);
+                        return <li key={id} className="text-sm"><span className="font-medium">{emp?.fullName}</span></li>;
+                      })}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-sm">Are you sure you want to apply these changes?</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-reassign">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmReassign} data-testid="button-confirm-reassign">
-              Reassign to {adminName}
+            <AlertDialogCancel onClick={handleGoBack} data-testid="button-go-back">Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSave} disabled={saving} data-testid="button-confirm-changes">
+              {saving ? "Saving…" : "Confirm Changes"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

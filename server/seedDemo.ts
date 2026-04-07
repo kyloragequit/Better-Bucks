@@ -348,6 +348,8 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
   const code = `TMPDEMO_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   const hashedPw = await hashPassword(DEMO_PASSWORD);
 
+  const BUDGET = 10000;
+
   const [org] = await db.insert(organizations).values({
     name: "Better Bucks Demo",
     code,
@@ -358,7 +360,7 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
     storeEnabled: true,
     manualOrdersEnabled: true,
     bucksPerDollar: 2,
-    monthlyBudgetBucks: 0,
+    monthlyBudgetBucks: BUDGET,
     adminRoleLabel: "Manager",
     employeeRoleLabel: "Team Member",
     storeUrl: "https://www.amazon.com/",
@@ -382,29 +384,116 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
     balance: 0,
   }).returning();
 
-  await db.insert(users).values([
-    { username: `${code}_inv_mgr`, password: hashedPw, role: "admin", fullName: "Inventory Manager", barcode: `${code}_INVMGR`, organizationId: org.id, departmentId: invDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved", balance: 0 },
-    { username: `${code}_ops_mgr`, password: hashedPw, role: "admin", fullName: "Operations Manager", barcode: `${code}_OPSMGR`, organizationId: org.id, departmentId: opsDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved", balance: 0 },
-  ]);
+  const createdAdmins = await db.insert(users).values([
+    { username: `${code}_inv_mgr`, password: hashedPw, role: "admin" as const, fullName: "Inventory Manager", barcode: `${code}_INVMGR`, organizationId: org.id, departmentId: invDept.id, emailVerified: true, twoFaPromptDismissed: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: 4000 },
+    { username: `${code}_ops_mgr`, password: hashedPw, role: "admin" as const, fullName: "Operations Manager", barcode: `${code}_OPSMGR`, organizationId: org.id, departmentId: opsDept.id, emailVerified: true, twoFaPromptDismissed: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: 3500 },
+  ]).returning();
 
+  const invMgr = createdAdmins[0];
+  const opsMgr = createdAdmins[1];
+
+  const categories = await db.insert(transactionCategories).values([
+    { orgId: org.id, name: "Safety & Compliance", color: "#22c55e" },
+    { orgId: org.id, name: "Performance", color: "#3b82f6" },
+    { orgId: org.id, name: "Team Spirit", color: "#f59e0b" },
+  ]).returning();
+  const catSafety = categories[0].id;
+  const catPerf = categories[1].id;
+  const catSpirit = categories[2].id;
+
+  const empBalances = [700, 600, 650, 650, 950, 650, 800, 1000, 800, 800];
   const empValues = [
-    ...INV_NAMES.map((fullName, i) => ({ username: `${code}_inv_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_INV${i+1}`, organizationId: org.id, departmentId: invDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: [450,150,600,350,750][i] })),
-    ...OPS_NAMES.map((fullName, i) => ({ username: `${code}_ops_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_OPS${i+1}`, organizationId: org.id, departmentId: opsDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: [300,500,200,650,425][i] })),
+    ...INV_NAMES.map((fullName, i) => ({ username: `${code}_inv_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_INV${i+1}`, organizationId: org.id, departmentId: invDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: empBalances[i] })),
+    ...OPS_NAMES.map((fullName, i) => ({ username: `${code}_ops_${String(i+1).padStart(2,"0")}`, password: hashedPw, role: "employee" as const, fullName, barcode: `${code}_OPS${i+1}`, organizationId: org.id, departmentId: opsDept.id, emailVerified: true, termsAcceptedAt: new Date(), status: "approved" as const, balance: empBalances[5 + i] })),
   ];
   const createdEmps = await db.insert(users).values(empValues).returning();
+  const emp = createdEmps;
 
-  const seedTs = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  for (const e of createdEmps) {
-    if (e.balance > 0) {
-      await db.insert(transactions).values({
-        userId: e.id,
-        amount: e.balance,
-        reason: "Performance bonus",
-        performedBy: primeAdmin.id,
-        createdAt: seedTs,
-      });
-    }
+  const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+
+  type TxRow = { userId: number; amount: number; reason: string; categoryId: number | null; daysAgo: number };
+  const txData: TxRow[] = [
+    { userId: emp[0].id, amount: 300, reason: "Safety inspection completion bonus", categoryId: catSafety, daysAgo: 85 },
+    { userId: emp[1].id, amount: 200, reason: "Forklift certification achievement", categoryId: catSafety, daysAgo: 83 },
+    { userId: emp[2].id, amount: 400, reason: "Quarterly review – exceeds expectations", categoryId: catPerf, daysAgo: 80 },
+    { userId: emp[3].id, amount: 250, reason: "Warehouse reorganization project", categoryId: catPerf, daysAgo: 78 },
+    { userId: emp[4].id, amount: 350, reason: "Perfect attendance – January", categoryId: catPerf, daysAgo: 75 },
+    { userId: emp[5].id, amount: 200, reason: "Loading dock safety compliance", categoryId: catSafety, daysAgo: 82 },
+    { userId: emp[6].id, amount: 300, reason: "Shipping accuracy streak", categoryId: catPerf, daysAgo: 79 },
+    { userId: emp[7].id, amount: 150, reason: "Emergency drill participation", categoryId: catSafety, daysAgo: 76 },
+    { userId: emp[8].id, amount: 250, reason: "Route optimization suggestion", categoryId: catPerf, daysAgo: 73 },
+    { userId: emp[9].id, amount: 200, reason: "Holiday shift volunteer", categoryId: catSpirit, daysAgo: 88 },
+    { userId: emp[0].id, amount: 150, reason: "Team training mentorship", categoryId: catSpirit, daysAgo: 70 },
+    { userId: emp[7].id, amount: 200, reason: "Process improvement award", categoryId: catPerf, daysAgo: 65 },
+    { userId: emp[9].id, amount: 150, reason: "Peer recognition – helping new hires", categoryId: catSpirit, daysAgo: 62 },
+    { userId: emp[0].id, amount: 200, reason: "PPE compliance check – perfect score", categoryId: catSafety, daysAgo: 55 },
+    { userId: emp[1].id, amount: 250, reason: "Inventory accuracy improvement", categoryId: catPerf, daysAgo: 53 },
+    { userId: emp[2].id, amount: 300, reason: "Team spirit award – potluck organizer", categoryId: catSpirit, daysAgo: 50 },
+    { userId: emp[3].id, amount: 200, reason: "Safety suggestion implemented", categoryId: catSafety, daysAgo: 48 },
+    { userId: emp[4].id, amount: 300, reason: "Top performer – February", categoryId: catPerf, daysAgo: 45 },
+    { userId: emp[5].id, amount: 250, reason: "Cross-training completion", categoryId: catPerf, daysAgo: 52 },
+    { userId: emp[6].id, amount: 200, reason: "Customer feedback excellence", categoryId: catPerf, daysAgo: 49 },
+    { userId: emp[7].id, amount: 300, reason: "Team building event organizer", categoryId: catSpirit, daysAgo: 46 },
+    { userId: emp[8].id, amount: 200, reason: "On-time delivery streak – 30 days", categoryId: catPerf, daysAgo: 43 },
+    { userId: emp[9].id, amount: 250, reason: "Mentor of the month", categoryId: catSpirit, daysAgo: 40 },
+    { userId: emp[6].id, amount: 150, reason: "Workplace cleanliness champion", categoryId: catSpirit, daysAgo: 35 },
+    { userId: emp[8].id, amount: 150, reason: "Safety report documentation", categoryId: catSafety, daysAgo: 33 },
+    { userId: emp[0].id, amount: 150, reason: "Hazmat handling refresher", categoryId: catSafety, daysAgo: 25 },
+    { userId: emp[1].id, amount: 100, reason: "Team spirit – birthday celebrations", categoryId: catSpirit, daysAgo: 22 },
+    { userId: emp[2].id, amount: 200, reason: "Perfect attendance – March", categoryId: catPerf, daysAgo: 20 },
+    { userId: emp[3].id, amount: 250, reason: "Warehouse efficiency award", categoryId: catPerf, daysAgo: 18 },
+    { userId: emp[4].id, amount: 300, reason: "Safety champion of the month", categoryId: catSafety, daysAgo: 15 },
+    { userId: emp[5].id, amount: 200, reason: "Shift coverage appreciation", categoryId: catSpirit, daysAgo: 12 },
+    { userId: emp[6].id, amount: 250, reason: "Order fulfillment record", categoryId: catPerf, daysAgo: 10 },
+    { userId: emp[7].id, amount: 200, reason: "First aid certification renewal", categoryId: catSafety, daysAgo: 8 },
+    { userId: emp[8].id, amount: 300, reason: "Quarter-end push excellence", categoryId: catPerf, daysAgo: 5 },
+    { userId: emp[9].id, amount: 200, reason: "Team morale contributor", categoryId: catSpirit, daysAgo: 3 },
+    { userId: emp[4].id, amount: 200, reason: "Helping hand award", categoryId: catSpirit, daysAgo: 2 },
+    { userId: emp[5].id, amount: 150, reason: "Fire extinguisher training", categoryId: catSafety, daysAgo: 1 },
+    { userId: emp[1].id, amount: 150, reason: "Inventory cycle count accuracy", categoryId: catPerf, daysAgo: 15 },
+    { userId: emp[3].id, amount: 100, reason: "Safety meeting participation", categoryId: catSafety, daysAgo: 10 },
+    { userId: emp[7].id, amount: 150, reason: "Charity drive volunteer", categoryId: catSpirit, daysAgo: 3 },
+    { userId: emp[9].id, amount: 150, reason: "Weekend overtime appreciation", categoryId: catPerf, daysAgo: 6 },
+  ];
+
+  for (const tx of txData) {
+    await db.insert(transactions).values({
+      userId: tx.userId,
+      amount: tx.amount,
+      reason: tx.reason,
+      categoryId: tx.categoryId,
+      performedBy: primeAdmin.id,
+      createdAt: d(tx.daysAgo),
+    });
   }
+
+  type OrderStatus = "pending" | "approved" | "completed";
+  const orderData: Array<{ userId: number; pointsCost: number; description: string; status: OrderStatus; convertedValue: string; adminNotes: string | null; daysAgo: number }> = [
+    { userId: emp[2].id, pointsCost: 100, description: "Amazon Gift Card $50", status: "completed", convertedValue: "$50.00 on Amazon", adminNotes: "Sent via email", daysAgo: 72 },
+    { userId: emp[5].id, pointsCost: 150, description: "Nike Gift Card – $50", status: "completed", convertedValue: "$50.00 on Nike", adminNotes: "Delivered in person", daysAgo: 68 },
+    { userId: emp[1].id, pointsCost: 100, description: "Starbucks Gift Card – $20", status: "completed", convertedValue: "$20.00 at Starbucks", adminNotes: "Picked up at front desk", daysAgo: 47 },
+    { userId: emp[3].id, pointsCost: 150, description: "Wireless Bluetooth Earbuds", status: "completed", convertedValue: "$75.00 on Amazon", adminNotes: "Shipped via UPS", daysAgo: 42 },
+    { userId: emp[4].id, pointsCost: 200, description: "Walmart Gift Card – $50", status: "completed", convertedValue: "$50.00 at Walmart", adminNotes: "Handed to employee", daysAgo: 38 },
+    { userId: emp[9].id, pointsCost: 150, description: "Premium Insulated Tumbler", status: "completed", convertedValue: "$75.00 on Amazon", adminNotes: "Delivered to locker", daysAgo: 14 },
+    { userId: emp[2].id, pointsCost: 150, description: "Company Logo T-Shirt", status: "approved", convertedValue: "$62.50 on Amazon", adminNotes: "Ordering this week", daysAgo: 12 },
+    { userId: emp[6].id, pointsCost: 100, description: "$25 Amazon Gift Card", status: "approved", convertedValue: "$25.00 on Amazon", adminNotes: "Processing", daysAgo: 5 },
+    { userId: emp[0].id, pointsCost: 100, description: "Chipotle Gift Card – $15", status: "pending", convertedValue: "$15.00 at Chipotle", adminNotes: null, daysAgo: 7 },
+    { userId: emp[8].id, pointsCost: 100, description: "Starbucks Gift Card – $20", status: "pending", convertedValue: "$20.00 at Starbucks", adminNotes: null, daysAgo: 4 },
+  ];
+
+  for (const o of orderData) {
+    const ts = d(o.daysAgo);
+    await db.insert(orders).values({ userId: o.userId, pointsCost: o.pointsCost, description: o.description, photoUrls: [], status: o.status, convertedValue: o.convertedValue, adminNotes: o.adminNotes, createdAt: ts, updatedAt: ts });
+    await db.insert(transactions).values({ userId: o.userId, amount: -o.pointsCost, reason: `Store order: ${o.description}`, performedBy: primeAdmin.id, createdAt: ts });
+  }
+
+  const today = new Date();
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const allocationDay = new Date(currentMonthStart.getTime() + 2 * 24 * 60 * 60 * 1000);
+  await db.insert(transactions).values([
+    { userId: invMgr.id, amount: 4000, reason: "Monthly budget allocation from prime admin", performedBy: primeAdmin.id, createdAt: allocationDay },
+    { userId: opsMgr.id, amount: 3500, reason: "Monthly budget allocation from prime admin", performedBy: primeAdmin.id, createdAt: allocationDay },
+  ]);
 
   const now = new Date();
   await db.insert(goals).values([
@@ -425,35 +514,6 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
     { organizationId: org.id, name: "Walmart Gift Card – $50", price: 500, url: "https://www.walmart.com/", imageUrl: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400" },
     { organizationId: org.id, name: "Apple AirPods (3rd Gen)", price: 900, url: "https://www.apple.com/airpods/", imageUrl: "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=400" },
   ]);
-
-  type OrderStatus = "pending" | "approved" | "completed";
-  const emp = createdEmps;
-  const orderData: Array<{ userId: number; pointsCost: number; description: string; status: OrderStatus; convertedValue: string; adminNotes: string | null; daysAgo: number }> = [
-    { userId: emp[0].id, pointsCost: 150, description: "Wireless Bluetooth Headphones", status: "pending", convertedValue: "$75.00 on Amazon", adminNotes: null, daysAgo: 2 },
-    { userId: emp[2].id, pointsCost: 100, description: "Amazon Gift Card $50", status: "pending", convertedValue: "$50.00 on Amazon", adminNotes: null, daysAgo: 1 },
-    { userId: emp[4].id, pointsCost: 200, description: "Nike Running Shoes – Size 10", status: "pending", convertedValue: "$100.00 on Amazon", adminNotes: null, daysAgo: 0 },
-    { userId: emp[6].id, pointsCost: 100, description: "Starbucks Gift Card $50", status: "pending", convertedValue: "$50.00 in store", adminNotes: null, daysAgo: 0 },
-    { userId: emp[1].id, pointsCost: 100, description: "Apple AirPods Gen 3", status: "approved", convertedValue: "$50.00 on Amazon", adminNotes: "Approved – ordering this week", daysAgo: 6 },
-    { userId: emp[7].id, pointsCost: 250, description: "Yeti Rambler 30 oz Tumbler", status: "approved", convertedValue: "$125.00 on Amazon", adminNotes: "In cart – will ship by Friday", daysAgo: 4 },
-    { userId: emp[3].id, pointsCost: 200, description: "Amazon Gift Card $100", status: "completed", convertedValue: "$100.00 on Amazon", adminNotes: "Sent via email", daysAgo: 14 },
-    { userId: emp[9].id, pointsCost: 150, description: "Lululemon Gift Card", status: "completed", convertedValue: "$75.00 in store", adminNotes: "Delivered in person", daysAgo: 10 },
-    { userId: emp[5].id, pointsCost: 350, description: "iPad Mini – 64GB", status: "completed", convertedValue: "$175.00 on Amazon", adminNotes: "Shipped via UPS", daysAgo: 20 },
-    { userId: emp[8].id, pointsCost: 100, description: "Movie Night Bundle – Streaming Gift Card", status: "completed", convertedValue: "$50.00 on Amazon", adminNotes: "Handed off by shift manager", daysAgo: 8 },
-  ];
-  for (const o of orderData) {
-    const ts = new Date(Date.now() - o.daysAgo * 24 * 60 * 60 * 1000);
-    await db.insert(orders).values({ userId: o.userId, pointsCost: o.pointsCost, description: o.description, photoUrls: [], status: o.status, convertedValue: o.convertedValue, adminNotes: o.adminNotes, createdAt: ts, updatedAt: ts });
-    await db.insert(transactions).values({ userId: o.userId, amount: -o.pointsCost, reason: `Store order: ${o.description}`, performedBy: primeAdmin.id, createdAt: ts });
-  }
-  const creditRecords = [
-    { idx: 0, amount: 500, reason: "Perfect attendance – March" },
-    { idx: 1, amount: 350, reason: "Safety compliance bonus" },
-    { idx: 5, amount: 500, reason: "Process improvement award" },
-    { idx: 6, amount: 350, reason: "On-time delivery streak" },
-  ];
-  for (const c of creditRecords) {
-    await db.insert(transactions).values({ userId: emp[c.idx].id, amount: c.amount, reason: c.reason, performedBy: primeAdmin.id, createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) });
-  }
 
   const [demoSurvey] = await db.insert(surveys).values({
     organizationId: org.id, createdBy: primeAdmin.id, title: "Team Feedback – Q1 2026",

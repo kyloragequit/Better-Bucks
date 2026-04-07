@@ -3010,8 +3010,7 @@ export async function registerRoutes(
       inArray(transactions.userId, adminIds),
       gte(transactions.createdAt, monthStart),
       lte(transactions.createdAt, monthEnd),
-      sql`${transactions.amount} > 0`,
-      sql`${transactions.reason} = 'Monthly budget allocation from prime admin'`
+      sql`${transactions.amount} > 0`
     )).groupBy(transactions.userId);
     const byAdmin: Record<number, number> = {};
     let totalCredited = 0;

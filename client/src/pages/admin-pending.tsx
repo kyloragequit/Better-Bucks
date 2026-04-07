@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +26,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, Loader, Mail, Trash2, Search, Clock, UserCheck, Filter } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader,
+  Mail,
+  Trash2,
+  Search,
+  Clock,
+  UserCheck,
+  Filter,
+  ChevronRight,
+  Wallet,
+  History,
+  AlertTriangle,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -36,9 +50,11 @@ type PendingAccount = {
   email: string | null;
   role: "employee" | "admin" | "prime_admin" | "developer";
   status: "pending" | "approved";
+  balance: number;
   departmentId: number | null;
   departmentName: string | null;
   successfulLoginCount: number;
+  transactionCount: number;
   pendingType: "awaiting_approval" | "never_logged_in";
 };
 
@@ -53,6 +69,7 @@ export default function AdminPendingPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: accounts = [], isLoading } = useQuery<PendingAccount[]>({
     queryKey: ["/api/users/pending-accounts"],
@@ -93,12 +110,12 @@ export default function AdminPendingPage() {
   const { mutate: cancelAccount, isPending: isCancelling } = useMutation({
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/users/${id}/reject`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) throw new Error("Failed to cancel account");
+      if (!res.ok) throw new Error("Failed to remove account");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/pending-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/pending-admins"] });
-      toast({ title: "Account Removed", description: "The pending account has been deleted." });
+      toast({ title: "Account Removed", description: "The account has been deleted." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -130,7 +147,12 @@ export default function AdminPendingPage() {
       (deptFilter === "none" && !a.departmentId) ||
       String(a.departmentId) === deptFilter;
 
-    return matchesSearch && matchesRole && matchesDept;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "awaiting" && a.pendingType === "awaiting_approval") ||
+      (statusFilter === "never_logged_in" && a.pendingType === "never_logged_in");
+
+    return matchesSearch && matchesRole && matchesDept && matchesStatus;
   });
 
   return (
@@ -138,7 +160,7 @@ export default function AdminPendingPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-display font-bold text-foreground">Pending Accounts</h1>
         <p className="text-muted-foreground mt-1">
-          Accounts that have been created but not yet logged in — approve, resend join instructions, or remove them.
+          Accounts awaiting approval or that have never logged in. Click a name to view their full balance history.
         </p>
       </div>
 
@@ -149,19 +171,29 @@ export default function AdminPendingPage() {
       ) : (
         <>
           {/* Filter bar */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-5">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 mb-5 flex-wrap">
+            <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Search by name, username or email…"
+                placeholder="Search name, username or email…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"
                 data-testid="input-pending-search"
               />
             </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48" data-testid="select-pending-status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="awaiting">Awaiting Approval</SelectItem>
+                <SelectItem value="never_logged_in">Never Logged In</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-full sm:w-44" data-testid="select-pending-role">
+              <SelectTrigger className="w-full sm:w-40" data-testid="select-pending-role">
                 <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Account Type" />
               </SelectTrigger>
@@ -172,7 +204,7 @@ export default function AdminPendingPage() {
               </SelectContent>
             </Select>
             <Select value={deptFilter} onValueChange={setDeptFilter}>
-              <SelectTrigger className="w-full sm:w-48" data-testid="select-pending-dept">
+              <SelectTrigger className="w-full sm:w-44" data-testid="select-pending-dept">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
@@ -201,7 +233,7 @@ export default function AdminPendingPage() {
             </Card>
           ) : (
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle>
                   Pending Accounts
                   <span className="ml-2 text-sm font-normal text-muted-foreground">
@@ -216,9 +248,8 @@ export default function AdminPendingPage() {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Username</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Department</TableHead>
+                        <TableHead>Type / Dept</TableHead>
+                        <TableHead>Balance</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -226,42 +257,76 @@ export default function AdminPendingPage() {
                     <TableBody>
                       {filtered.map(acct => (
                         <TableRow key={acct.id} data-testid={`row-pending-account-${acct.id}`}>
-                          <TableCell className="font-medium">{acct.fullName}</TableCell>
+                          {/* Name — links to full account detail view */}
+                          <TableCell>
+                            <Link
+                              href={`/admin/employees/${acct.id}`}
+                              className="font-medium text-foreground hover:text-primary hover:underline flex items-center gap-1 group"
+                              data-testid={`link-account-name-${acct.id}`}
+                            >
+                              {acct.fullName}
+                              <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </Link>
+                            {acct.email ? (
+                              <p className="text-xs text-muted-foreground mt-0.5">{acct.email}</p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground/60 italic mt-0.5">No email</p>
+                            )}
+                          </TableCell>
+
                           <TableCell>
                             <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
                               {acct.username}
                             </span>
                           </TableCell>
+
                           <TableCell>
-                            {acct.email ? (
-                              <span className="text-sm text-muted-foreground">{acct.email}</span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">No email</span>
-                            )}
+                            <div className="flex flex-col gap-1">
+                              <Badge variant={acct.role === "employee" ? "secondary" : "default"} className="w-fit">
+                                {getRoleLabel(acct.role)}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {acct.departmentName || <span className="italic">No dept</span>}
+                              </span>
+                            </div>
                           </TableCell>
+
+                          {/* Balance + transaction history indicator */}
                           <TableCell>
-                            <Badge variant={acct.role === "employee" ? "secondary" : "default"}>
-                              {getRoleLabel(acct.role)}
-                            </Badge>
+                            <div className="flex flex-col gap-0.5">
+                              <span
+                                className={`font-semibold tabular-nums text-sm ${acct.balance > 0 ? "text-primary" : "text-muted-foreground"}`}
+                                data-testid={`text-balance-${acct.id}`}
+                              >
+                                {acct.balance.toLocaleString()} bcks
+                              </span>
+                              {acct.transactionCount > 0 && (
+                                <Link
+                                  href={`/admin/employees/${acct.id}`}
+                                  className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                                  data-testid={`link-tx-count-${acct.id}`}
+                                >
+                                  <History className="h-3 w-3" />
+                                  {acct.transactionCount} change{acct.transactionCount !== 1 ? "s" : ""}
+                                </Link>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-muted-foreground">
-                              {acct.departmentName || <span className="italic">None</span>}
-                            </span>
-                          </TableCell>
+
                           <TableCell>
                             {acct.pendingType === "awaiting_approval" ? (
-                              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 gap-1">
+                              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 gap-1 whitespace-nowrap">
                                 <Clock className="h-3 w-3" />
                                 Awaiting Approval
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 gap-1">
+                              <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 gap-1 whitespace-nowrap">
                                 <UserCheck className="h-3 w-3" />
                                 Never Logged In
                               </Badge>
                             )}
                           </TableCell>
+
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button
@@ -273,40 +338,14 @@ export default function AdminPendingPage() {
                                 data-testid={`button-resend-email-${acct.id}`}
                               >
                                 <Mail className="h-4 w-4 mr-1.5" />
-                                Resend Email
+                                Resend
                               </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                                    disabled={isCancelling}
-                                    data-testid={`button-cancel-account-${acct.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-1.5" />
-                                    Remove
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Remove Account?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will permanently delete <strong>{acct.fullName}</strong>'s account. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Keep Account</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => cancelAccount(acct.id)}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      data-testid={`button-confirm-cancel-${acct.id}`}
-                                    >
-                                      Yes, Remove Account
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+
+                              <RemoveAccountDialog
+                                acct={acct}
+                                isCancelling={isCancelling}
+                                onConfirm={() => cancelAccount(acct.id)}
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -320,5 +359,85 @@ export default function AdminPendingPage() {
         </>
       )}
     </AdminLayout>
+  );
+}
+
+function RemoveAccountDialog({
+  acct,
+  isCancelling,
+  onConfirm,
+}: {
+  acct: PendingAccount;
+  isCancelling: boolean;
+  onConfirm: () => void;
+}) {
+  const hasHistory = acct.transactionCount > 0 || acct.balance > 0;
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+          disabled={isCancelling}
+          data-testid={`button-cancel-account-${acct.id}`}
+        >
+          <Trash2 className="h-4 w-4 mr-1.5" />
+          Remove
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-red-100">
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+          </div>
+          <AlertDialogTitle className="text-center">Remove Account?</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3 text-center">
+              <p>
+                This will permanently delete <strong>{acct.fullName}</strong>'s account.
+              </p>
+
+              {hasHistory && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left space-y-2">
+                  <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+                    <Wallet className="h-4 w-4" /> This account has balance history
+                  </p>
+                  <div className="text-sm text-amber-700 space-y-1">
+                    {acct.balance > 0 && (
+                      <p>• Current balance: <strong>{acct.balance.toLocaleString()} bucks</strong></p>
+                    )}
+                    {acct.transactionCount > 0 && (
+                      <p>
+                        • <strong>{acct.transactionCount} balance change{acct.transactionCount !== 1 ? "s" : ""}</strong> on record
+                        {" "}— including reasons and dates
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-xs text-amber-600">
+                    Review the full history before removing by clicking the account name.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-sm text-muted-foreground">
+                This action cannot be undone.
+              </p>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex gap-2 sm:justify-center">
+          <AlertDialogCancel>Keep Account</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            data-testid={`button-confirm-cancel-${acct.id}`}
+          >
+            Yes, Remove Account
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

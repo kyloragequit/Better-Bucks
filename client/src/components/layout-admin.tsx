@@ -103,7 +103,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/items", label: "Items", icon: Package },
     { href: "/admin/documents", label: "Documents", icon: FileText },
     ...(user?.role === "prime_admin" ? [
-      { href: "/admin/pending", label: "Pending Approvals", icon: ClipboardCheck },
+      { href: "/admin/pending", label: "Pending Accounts", icon: ClipboardCheck },
       { href: "/admin/store", label: "Store", icon: ShoppingBag },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ] : []),

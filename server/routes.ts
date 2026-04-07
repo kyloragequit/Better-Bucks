@@ -1728,13 +1728,34 @@ export async function registerRoutes(
         storage.getDepartmentsByOrganization(user.organizationId),
       ]);
       const deptMap = new Map(departments.map(d => [d.id, d.name]));
-      const accounts = orgUsers
-        .filter(u => u.status === "pending" || u.successfulLoginCount === 0)
-        .map(u => ({
-          ...u,
-          departmentName: u.departmentId ? (deptMap.get(u.departmentId) ?? null) : null,
-          pendingType: u.status === "pending" ? "awaiting_approval" : "never_logged_in",
-        }));
+      const pending = orgUsers.filter(u => u.status === "pending" || u.successfulLoginCount === 0);
+      const pendingIds = pending.map(u => u.id);
+
+      // Batch-fetch transaction counts for all pending users
+      let txCountMap = new Map<number, number>();
+      if (pendingIds.length > 0) {
+        const txRows = await db
+          .select({ userId: transactions.userId, cnt: sql<number>`cast(count(*) as int)` })
+          .from(transactions)
+          .where(inArray(transactions.userId, pendingIds))
+          .groupBy(transactions.userId);
+        txRows.forEach(r => txCountMap.set(r.userId, r.cnt));
+      }
+
+      const accounts = pending.map(u => ({
+        id: u.id,
+        fullName: u.fullName,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+        balance: u.balance,
+        departmentId: u.departmentId,
+        departmentName: u.departmentId ? (deptMap.get(u.departmentId) ?? null) : null,
+        successfulLoginCount: u.successfulLoginCount,
+        transactionCount: txCountMap.get(u.id) ?? 0,
+        pendingType: u.status === "pending" ? "awaiting_approval" : "never_logged_in",
+      }));
       res.json(accounts);
     } catch (e) {
       console.error("Error fetching pending accounts:", e);

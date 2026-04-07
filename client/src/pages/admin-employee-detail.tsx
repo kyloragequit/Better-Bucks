@@ -475,7 +475,7 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
           </DialogFooter>
 
           <AlertDialog open={showConfirm} onOpenChange={(o) => { if (!o) setShowConfirm(false); }}>
-            <AlertDialogContent className="z-[100]">
+            <AlertDialogContent className="z-[1003]">
               <AlertDialogHeader>
                 <AlertDialogTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-amber-500" />

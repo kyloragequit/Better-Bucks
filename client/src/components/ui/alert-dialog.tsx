@@ -32,7 +32,7 @@ const AlertDialogContent = React.forwardRef<
   const hasCustomZ = className?.includes("z-[");
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay className={hasCustomZ ? "z-[99]" : undefined} />
+      <AlertDialogOverlay className={hasCustomZ ? "z-[1002]" : undefined} />
       <AlertDialogPrimitive.Content
         ref={ref}
         className={cn(

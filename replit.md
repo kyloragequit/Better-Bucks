@@ -45,7 +45,7 @@ Preferred communication style: Simple, everyday language.
 - **Custom Items**: A secondary, non-Bucks incentive token system configurable by prime admins.
 - **Catalogue Maker**: Admin-defined shorthand codes for instant Bucks transactions.
 - **Transaction Categories + Analytics**: Prime admins define color-coded transaction categories for analytics.
-- **Monthly Reports + Documents Page**: Automated monthly JSONB reports with conversion rate, daily dollar spending chart (double line: awarded vs spent), department and category breakdowns, and an admin interface to view and generate them.
+- **Monthly Reports + Documents Page**: Automated monthly JSONB reports with conversion rate, daily dollar spending chart (double line: awarded vs spent), department and category breakdowns, and an admin interface to view and generate them. PDF download uses html2canvas + jsPDF to generate real PDF files (no browser print dialog).
 - **Universal Passkey**: Org-level fallback PIN for employee login.
 - **Organization & Subscription**: Tiered Stripe subscriptions, organization code generation, and subscription management.
 - **Manager Assignment**: Prime admins can assign a manager (admin) to each employee. Manager filter available on Employees page and Dashboard. Budget panel shows employee distribution by manager with percentage breakdown. Auto-allocate distributes remaining budget proportionally based on each manager's employee count.

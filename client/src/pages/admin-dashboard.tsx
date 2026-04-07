@@ -376,6 +376,13 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                   {allocating ? "Allocating…" : `Allocate to ${selectedAdmins.length} Admin${selectedAdmins.length !== 1 ? "s" : ""}`}
                 </Button>
               </div>
+              {allocationAmount > 0 && selectedAdmins.length > 0 && (
+                <p className="text-sm text-muted-foreground" data-testid="text-allocation-total">
+                  Total: <span className="font-semibold text-foreground">{allocationAmount.toLocaleString()} bucks</span>
+                  {" "}({(parseInt(bucksEach) || 0).toLocaleString()} × {selectedAdmins.length} admin{selectedAdmins.length !== 1 ? "s" : ""})
+                  {serverBpd > 0 && <span className="text-muted-foreground"> — ${(allocationAmount / serverBpd).toFixed(2)}</span>}
+                </p>
+              )}
               {allocationAmount > 0 && wouldExceedBudget && (
                 <p className="text-xs text-amber-600 flex items-center gap-1" data-testid="text-allocation-warning">
                   <AlertTriangle className="h-3 w-3" />

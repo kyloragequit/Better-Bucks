@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { useUserDetails, useUpdateBalance, useUpdateRole, useUpdateProfile, useDeleteUser } from "@/hooks/use-users";
 import { useUser } from "@/hooks/use-auth";
@@ -12,12 +12,268 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2 } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { QRCodeSVG } from "qrcode.react";
-import { format } from "date-fns";
+import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { useRoleLabels } from "@/hooks/use-role-labels";
 import type { Department } from "@shared/schema";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
+
+type RangeKey = "week" | "month" | "year" | "all" | "custom";
+
+type Transaction = {
+  id: number;
+  amount: number;
+  reason: string;
+  createdAt: string;
+};
+
+function buildChartData(
+  transactions: Transaction[],
+  rangeKey: RangeKey,
+  customFrom: string,
+  customTo: string
+) {
+  const now = new Date();
+  let from: Date;
+  let to: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  let bucketFn: (d: Date) => string;
+  let labelFn: (key: string) => string;
+
+  if (rangeKey === "week") {
+    from = subDays(startOfDay(now), 6);
+    bucketFn = (d) => format(d, "yyyy-MM-dd");
+    labelFn = (k) => format(new Date(k + "T12:00:00"), "EEE M/d");
+  } else if (rangeKey === "month") {
+    from = subDays(startOfDay(now), 29);
+    bucketFn = (d) => format(d, "yyyy-MM-dd");
+    labelFn = (k) => format(new Date(k + "T12:00:00"), "M/d");
+  } else if (rangeKey === "year") {
+    from = subMonths(startOfDay(now), 11);
+    from = new Date(from.getFullYear(), from.getMonth(), 1);
+    bucketFn = (d) => format(d, "yyyy-MM");
+    labelFn = (k) => format(new Date(k + "-15"), "MMM yyyy");
+  } else if (rangeKey === "custom") {
+    from = customFrom ? startOfDay(new Date(customFrom + "T00:00:00")) : subDays(startOfDay(now), 29);
+    to = customTo ? new Date(customTo + "T23:59:59") : to;
+    const diffDays = Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 60) {
+      bucketFn = (d) => format(d, "yyyy-MM-dd");
+      labelFn = (k) => format(new Date(k + "T12:00:00"), "M/d");
+    } else {
+      bucketFn = (d) => format(d, "yyyy-MM");
+      labelFn = (k) => format(new Date(k + "-15"), "MMM yyyy");
+    }
+  } else {
+    // all time
+    const sorted = [...transactions].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    if (sorted.length === 0) return [];
+    from = startOfDay(new Date(sorted[0].createdAt));
+    const diffDays = Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 60) {
+      bucketFn = (d) => format(d, "yyyy-MM-dd");
+      labelFn = (k) => format(new Date(k + "T12:00:00"), "M/d");
+    } else {
+      bucketFn = (d) => format(d, "yyyy-MM");
+      labelFn = (k) => format(new Date(k + "-15"), "MMM yyyy");
+    }
+  }
+
+  // Filter transactions in range
+  const inRange = transactions.filter((tx) => {
+    const d = new Date(tx.createdAt);
+    return d >= from && d <= to;
+  });
+
+  // Aggregate into buckets
+  const map: Record<string, { credited: number; debited: number }> = {};
+  for (const tx of inRange) {
+    const key = bucketFn(new Date(tx.createdAt));
+    if (!map[key]) map[key] = { credited: 0, debited: 0 };
+    if (tx.amount > 0) map[key].credited += tx.amount;
+    else map[key].debited += Math.abs(tx.amount);
+  }
+
+  // Build all bucket keys in range
+  const allKeys: string[] = [];
+  const cursor = new Date(from);
+  const isMonthly = bucketFn(cursor) !== format(cursor, "yyyy-MM-dd");
+
+  if (isMonthly || (rangeKey !== "week" && rangeKey !== "month" && rangeKey !== "custom")) {
+    // We'll detect from map keys if monthly
+  }
+
+  // Detect mode from a sample
+  const sampleKey = bucketFn(from);
+  const isMonth = sampleKey.length === 7; // "yyyy-MM"
+
+  if (isMonth) {
+    let cur = new Date(from.getFullYear(), from.getMonth(), 1);
+    const end = new Date(to.getFullYear(), to.getMonth(), 1);
+    while (cur <= end) {
+      allKeys.push(format(cur, "yyyy-MM"));
+      cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    }
+  } else {
+    let cur = startOfDay(new Date(from));
+    while (cur <= to) {
+      allKeys.push(format(cur, "yyyy-MM-dd"));
+      cur = new Date(cur.getTime() + 24 * 60 * 60 * 1000);
+    }
+  }
+
+  return allKeys.map((key) => ({
+    label: labelFn(key),
+    credited: map[key]?.credited ?? 0,
+    debited: map[key]?.debited ?? 0,
+  }));
+}
+
+function BucksActivityChart({ transactions }: { transactions: Transaction[] }) {
+  const [range, setRange] = useState<RangeKey>("month");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  const data = useMemo(
+    () => buildChartData(transactions, range, customFrom, customTo),
+    [transactions, range, customFrom, customTo]
+  );
+
+  const hasData = data.some((d) => d.credited > 0 || d.debited > 0);
+
+  const ranges: { key: RangeKey; label: string }[] = [
+    { key: "week", label: "Week" },
+    { key: "month", label: "Month" },
+    { key: "year", label: "Year" },
+    { key: "all", label: "All Time" },
+    { key: "custom", label: "Custom" },
+  ];
+
+  return (
+    <Card className="shadow-md border-primary/10">
+      <CardHeader className="pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-xl font-bold">Bucks Activity</CardTitle>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {ranges.map((r) => (
+              <Button
+                key={r.key}
+                size="sm"
+                variant={range === r.key ? "default" : "outline"}
+                className="h-7 px-3 text-xs"
+                onClick={() => setRange(r.key)}
+                data-testid={`button-range-${r.key}`}
+              >
+                {r.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        {range === "custom" && (
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+              <Input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="h-7 text-xs w-36"
+                data-testid="input-custom-from"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+              <Input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="h-7 text-xs w-36"
+                data-testid="input-custom-to"
+              />
+            </div>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className="pt-4">
+        {!hasData ? (
+          <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+            No activity in this period.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => v === 0 ? "0" : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)}
+                width={42}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: "hsl(var(--foreground))",
+                }}
+                formatter={(value: number, name: string) => [
+                  `${value.toLocaleString()} bcks`,
+                  name === "credited" ? "Credited" : "Debited",
+                ]}
+                labelStyle={{ color: "hsl(var(--muted-foreground))", marginBottom: 4 }}
+              />
+              <Legend
+                formatter={(value) => (
+                  <span style={{ fontSize: 12, color: "hsl(var(--foreground))" }}>
+                    {value === "credited" ? "Credited" : "Debited"}
+                  </span>
+                )}
+              />
+              <Line
+                type="monotone"
+                dataKey="credited"
+                stroke="#16a34a"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, fill: "#16a34a" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="debited"
+                stroke="#dc2626"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, fill: "#dc2626" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminEmployeeDetailPage() {
   const [, params] = useRoute("/admin/employees/:id");
@@ -90,7 +346,11 @@ export default function AdminEmployeeDetailPage() {
           </CardContent>
         </Card>
       </div>
-      {/* ... rest of the file ... */}
+
+      {/* Bucks Activity Chart */}
+      <div className="mb-8">
+        <BucksActivityChart transactions={user.transactions ?? []} />
+      </div>
 
       <div className="space-y-4">
         <div className="flex items-center gap-2">

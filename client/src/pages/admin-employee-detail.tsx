@@ -473,58 +473,59 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
             <Button variant="outline" onClick={() => setOpen(false)} data-testid="button-cancel-manage-employees">Cancel</Button>
             <Button onClick={handleDone} data-testid="button-done-manage-employees">Done</Button>
           </DialogFooter>
+
+          <AlertDialog open={showConfirm} onOpenChange={(o) => { if (!o) setShowConfirm(false); }}>
+            <AlertDialogContent className="z-[100]">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Confirm Changes
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3">
+                    {added.length > 0 && (
+                      <div>
+                        <p className="font-medium text-foreground text-sm mb-1">Assigning to {adminName}:</p>
+                        <ul className="list-disc pl-5 space-y-0.5">
+                          {added.map(id => {
+                            const emp = employees.find(e => e.id === id);
+                            const r = reassigned.find(r => r.id === id);
+                            return (
+                              <li key={id} className="text-sm">
+                                <span className="font-medium">{emp?.fullName}</span>
+                                {r && <span className="text-amber-600"> (currently managed by {r.currentManager})</span>}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {removed.length > 0 && (
+                      <div>
+                        <p className="font-medium text-foreground text-sm mb-1">Removing from {adminName}:</p>
+                        <ul className="list-disc pl-5 space-y-0.5">
+                          {removed.map(id => {
+                            const emp = employees.find(e => e.id === id);
+                            return <li key={id} className="text-sm"><span className="font-medium">{emp?.fullName}</span></li>;
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    <p className="text-sm">Are you sure you want to apply these changes?</p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleGoBack} data-testid="button-go-back">Go Back</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmSave} disabled={saving} data-testid="button-confirm-changes">
+                  {saving ? "Saving…" : "Confirm Changes"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={showConfirm} onOpenChange={(o) => { if (!o) setShowConfirm(false); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Confirm Changes
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                {added.length > 0 && (
-                  <div>
-                    <p className="font-medium text-foreground text-sm mb-1">Assigning to {adminName}:</p>
-                    <ul className="list-disc pl-5 space-y-0.5">
-                      {added.map(id => {
-                        const emp = employees.find(e => e.id === id);
-                        const r = reassigned.find(r => r.id === id);
-                        return (
-                          <li key={id} className="text-sm">
-                            <span className="font-medium">{emp?.fullName}</span>
-                            {r && <span className="text-amber-600"> (currently managed by {r.currentManager})</span>}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-                {removed.length > 0 && (
-                  <div>
-                    <p className="font-medium text-foreground text-sm mb-1">Removing from {adminName}:</p>
-                    <ul className="list-disc pl-5 space-y-0.5">
-                      {removed.map(id => {
-                        const emp = employees.find(e => e.id === id);
-                        return <li key={id} className="text-sm"><span className="font-medium">{emp?.fullName}</span></li>;
-                      })}
-                    </ul>
-                  </div>
-                )}
-                <p className="text-sm">Are you sure you want to apply these changes?</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleGoBack} data-testid="button-go-back">Go Back</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSave} disabled={saving} data-testid="button-confirm-changes">
-              {saving ? "Saving…" : "Confirm Changes"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

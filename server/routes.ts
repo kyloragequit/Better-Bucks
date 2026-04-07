@@ -2963,6 +2963,38 @@ export async function registerRoutes(
     res.json({ bucksPerDollar: updated.bucksPerDollar, monthlyBudgetBucks: updated.monthlyBudgetBucks, budgetSetByName: updated.budgetSetByName ?? null });
   });
 
+  // Get bucks credited to admins this month (prime_admin only)
+  app.get("/api/org/admin-credits", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const adminUsers = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
+    const adminIds = adminUsers.map(u => u.id);
+    if (adminIds.length === 0) return res.json({ totalCredited: 0, admins: [] });
+    const rows = await db.select({
+      userId: transactions.userId,
+      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)::int`,
+    }).from(transactions).where(and(
+      inArray(transactions.userId, adminIds),
+      gte(transactions.createdAt, monthStart),
+      lte(transactions.createdAt, monthEnd),
+      sql`${transactions.amount} > 0`,
+      sql`${transactions.reason} = 'Monthly budget allocation from prime admin'`
+    )).groupBy(transactions.userId);
+    const byAdmin: Record<number, number> = {};
+    let totalCredited = 0;
+    for (const r of rows) { byAdmin[r.userId] = Number(r.total); totalCredited += Number(r.total); }
+    const adminList = adminUsers
+      .filter(a => (byAdmin[a.id] ?? 0) > 0)
+      .map(a => ({ id: a.id, name: a.fullName, credited: byAdmin[a.id] ?? 0 }))
+      .sort((a, b) => b.credited - a.credited);
+    res.json({ totalCredited, admins: adminList });
+  });
+
   // Allocate monthly budget bucks to selected admins (prime_admin only)
   app.post("/api/org/allocate-budget", async (req, res) => {
     const user = req.user as User | undefined;

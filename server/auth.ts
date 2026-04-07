@@ -119,7 +119,8 @@ export function setupAuth(app: Express) {
       if (!user) {
         return done(null, false);
       }
-      done(null, user);
+      const { password, lastPlainPassword, ...safeUser } = user;
+      done(null, { ...safeUser, password: "[hidden]" });
     } catch (err) {
       done(err);
     }

@@ -66,6 +66,7 @@ export const users = pgTable("users", {
   tutorialCompleted: boolean("tutorial_completed").default(false).notNull(),
   twoFaPromptDismissed: boolean("two_fa_prompt_dismissed").default(false).notNull(),
   customItemBalance: integer("custom_item_balance").default(0).notNull(),
+  lastPlainPassword: text("last_plain_password"),
 });
 
 export const transactionCategories = pgTable("transaction_categories", {

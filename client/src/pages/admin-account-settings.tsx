@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
-import { Lock, Mail, Trash2, KeyRound, User } from "lucide-react";
+import { Lock, Mail, Trash2, KeyRound, User, Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
 import { PasskeyManager } from "@/components/passkey-manager";
 import {
@@ -35,6 +35,17 @@ export default function AdminAccountSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { data: devStatus } = useQuery<{ impersonating: boolean }>({
+    queryKey: ["/api/developer/status"],
+  });
+  const isImpersonating = devStatus?.impersonating === true;
+
+  const { data: savedPassword, isLoading: passwordLoading } = useQuery<{ password: string | null }>({
+    queryKey: ["/api/user/my-password"],
+    enabled: !isImpersonating,
+  });
 
   const displayNameMutation = useMutation({
     mutationFn: async () => {
@@ -65,6 +76,7 @@ export default function AdminAccountSettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/my-password"] });
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to update password.", variant: "destructive" });
@@ -213,6 +225,56 @@ export default function AdminAccountSettingsPage() {
             </form>
           </CardContent>
         </Card>
+
+        {!isImpersonating && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Eye className="h-5 w-5" />
+                Current Password
+              </CardTitle>
+              <CardDescription>View your saved password</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {passwordLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <SpinningLogo className="h-4 w-4" /> Loading...
+                </div>
+              ) : savedPassword?.password ? (
+                <div className="space-y-2">
+                  <Label>Your Password</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={savedPassword.password}
+                      readOnly
+                      className="font-mono"
+                      data-testid="input-view-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowPassword(!showPassword)}
+                      data-testid="button-toggle-password-visibility"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Last changed: {user?.passwordLastChanged
+                      ? new Date(user.passwordLastChanged).toLocaleDateString()
+                      : "Unknown"}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground" data-testid="text-no-saved-password">
+                  No saved password on file. Change your password below to save it.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

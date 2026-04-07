@@ -53,6 +53,7 @@ Preferred communication style: Simple, everyday language.
 - **Super User Transfer**: The prime_admin (Super User) can transfer their role to another approved org user via an atomic DB transaction. Only the Super User can cancel pending accounts and manage settings.
 - **Pending Accounts Page**: Shows accounts awaiting approval or that have never logged in, with balance, transaction count, and clickable links to full account detail pages.
 - **Data Retention**: Transaction data is preserved when individual users are deleted (no FK cascade). Only full organization deletion removes transaction history.
+- **Password Viewing**: Users can view their current saved password from Account Settings via a show/hide toggle. Plaintext stored in `lastPlainPassword` column, updated on every password change (profile update, admin reset, forgot-password, user creation). Hidden from developer accounts and full-service (impersonation) views. Sensitive fields (`password`, `lastPlainPassword`, `passwordResetToken`) are stripped from all user API responses via `sanitizeUser` helper and session deserialization.
 - **QR Code System**: QR code-based employee identification and instant point transactions.
 
 ### Performance & Security

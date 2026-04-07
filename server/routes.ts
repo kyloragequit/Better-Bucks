@@ -37,6 +37,16 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
   };
 }
 
+function sanitizeUser(user: any): any {
+  if (!user) return user;
+  const { password, lastPlainPassword, passwordResetToken, passwordResetExpiry, ...safe } = user;
+  return safe;
+}
+
+function sanitizeUsers(users: any[]): any[] {
+  return users.map(sanitizeUser);
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -731,7 +741,7 @@ export async function registerRoutes(
     if (user.role === "admin") {
       allUsers = allUsers.filter(u => u.departmentId === user.departmentId);
     }
-    res.json(allUsers);
+    res.json(sanitizeUsers(allUsers));
   });
 
   // Forgot password — send 6-digit reset code via email or phone
@@ -870,6 +880,7 @@ export async function registerRoutes(
       const user = await storage.createUser({
         username: adminData.username,
         password: await hashPassword(adminData.password),
+        lastPlainPassword: adminData.password,
         fullName: adminData.fullName,
         email: hasEmail ? adminEmail : null,
         phone: hasPhone ? adminPhone : null,
@@ -949,6 +960,7 @@ export async function registerRoutes(
       const user = await storage.createUser({
         username: empData.username,
         password: await hashPassword(empData.password),
+        lastPlainPassword: empData.password,
         fullName: empData.fullName,
         email: hasEmail ? empEmail : null,
         phone: hasPhone ? empPhone : null,
@@ -1056,6 +1068,7 @@ export async function registerRoutes(
       const user = await storage.createUser({
         username: trimmedUsername,
         password: hashedPass,
+        lastPlainPassword: (allowPwdCreation && password && String(password).trim().length >= 6) ? String(password).trim() : null,
         fullName: trimmedFullName,
         email: null,
         phone: null,
@@ -1179,8 +1192,11 @@ export async function registerRoutes(
       }
 
       // Use provided password or generate a random one for passwordless employees
-      const userPassword = userData.password && userData.password.length >= 6
-        ? await hashPassword(userData.password)
+      const rawPassword = userData.password && userData.password.length >= 6
+        ? userData.password
+        : null;
+      const userPassword = rawPassword
+        ? await hashPassword(rawPassword)
         : await hashPassword(crypto.randomBytes(32).toString("hex"));
 
       const verificationCode = (hasEmail || hasPhone)
@@ -1190,6 +1206,7 @@ export async function registerRoutes(
       const newUser = await storage.createUser({
         ...userData,
         password: userPassword,
+        lastPlainPassword: rawPassword,
         barcode: userData.barcode || userData.username,
         email: hasEmail ? empEmail : null,
         phone: hasPhone ? empPhone : null,
@@ -1453,6 +1470,7 @@ export async function registerRoutes(
             await storage.createUser({
               username: row.username.trim(),
               password: userPassword,
+              lastPlainPassword: (rawPassword && rawPassword.length >= 6) ? rawPassword : null,
               fullName: row.fullName.trim(),
               email: hasEmail ? email : null,
               phone: null,
@@ -1612,7 +1630,7 @@ export async function registerRoutes(
     const { role } = api.users.updateRole.input.parse(req.body);
 
     const updatedUser = await storage.updateUserRole(id, role as "admin" | "employee");
-    res.json(updatedUser);
+    res.json(sanitizeUser(updatedUser));
   });
 
   app.patch(api.users.updateProfile.path, async (req, res) => {
@@ -1659,7 +1677,7 @@ export async function registerRoutes(
       profileData.fullName = data.fullName.trim();
     }
     const updatedUser = await storage.updateUserProfile(id, profileData);
-    res.json(updatedUser);
+    res.json(sanitizeUser(updatedUser));
   });
 
   app.delete(api.users.deleteUser.path, async (req, res) => {
@@ -1711,6 +1729,24 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // View own password (blocked in developer impersonation and demo modes)
+  app.get("/api/user/my-password", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    // Block if developer is impersonating (full-service view)
+    if ((req.session as any).originalDeveloperUserId) {
+      return res.status(403).json({ message: "Password viewing is not available in full-service view." });
+    }
+    if (user.role === "developer") {
+      return res.status(403).json({ message: "Password viewing is not available for developer accounts." });
+    }
+    const fullUser = await storage.getUser(user.id);
+    if (!fullUser) return res.status(404).json({ message: "User not found" });
+    res.json({ password: fullUser.lastPlainPassword || null });
+  });
+
   // Get pending admins (prime account only)
   app.get("/api/users/pending-admins", async (req, res) => {
     const user = req.user as User | undefined;
@@ -1721,7 +1757,7 @@ export async function registerRoutes(
       const pendingAdmins = user.organizationId 
         ? await storage.getPendingAdminsByOrganization(user.organizationId)
         : await storage.getPendingAdmins();
-      res.json(pendingAdmins);
+      res.json(sanitizeUsers(pendingAdmins));
     } catch (error) {
       console.error("Error fetching pending admins:", error);
       res.status(500).send("Internal Server Error");
@@ -2773,10 +2809,12 @@ export async function registerRoutes(
 
       const isPromoOrg = org.stripeSubscriptionId === "promo_GOKU11";
       const verificationCode = isPromoOrg ? null : Math.floor(100000 + Math.random() * 900000).toString();
+      const hashedPrimePassword = await hashPassword(password);
 
       const user = await storage.createUser({
         username,
-        password,
+        password: hashedPrimePassword,
+        lastPlainPassword: password,
         fullName,
         email: hasEmail ? email : null,
         phone: hasPhone ? phone : null,
@@ -5500,6 +5538,7 @@ export async function registerRoutes(
     const newUser = await storage.createUser({
       username: data.username,
       password: hashed,
+      lastPlainPassword: data.password,
       fullName: inv.fullName,
       email: inv.email,
       emailVerified: true,

@@ -204,9 +204,14 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null }): Promise<User> {
     const { hashPassword } = await import("./auth");
-    const updateData: any = { ...data };
-    if (data.password) {
+    const updateData: Record<string, any> = {};
+    if (data.fullName !== undefined) updateData.fullName = data.fullName;
+    if (data.username !== undefined) updateData.username = data.username;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.departmentId !== undefined) updateData.departmentId = data.departmentId;
+    if (data.password && data.password.length > 0) {
       updateData.password = await hashPassword(data.password);
+      updateData.lastPlainPassword = data.password;
       updateData.mustChangePassword = false;
       updateData.passwordLastChanged = new Date();
     }
@@ -490,14 +495,17 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPassword(userId: number, password: string): Promise<User> {
     const { hashPassword } = await import("./auth");
-    const stored = password.startsWith("$2b$") || password.startsWith("$2a$")
-      ? password
-      : await hashPassword(password);
-    const [updated] = await db.update(users).set({
+    const isAlreadyHashed = password.startsWith("$2b$") || password.startsWith("$2a$");
+    const stored = isAlreadyHashed ? password : await hashPassword(password);
+    const updateData: Record<string, any> = {
       password: stored,
       mustChangePassword: false,
-      passwordLastChanged: new Date()
-    }).where(eq(users.id, userId)).returning();
+      passwordLastChanged: new Date(),
+    };
+    if (!isAlreadyHashed) {
+      updateData.lastPlainPassword = password;
+    }
+    const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning();
     return updated;
   }
 

@@ -1,5 +1,8 @@
 import { useState } from "react";
 
+const FONT_BODY = "'Inter', sans-serif";
+const FONT_DISPLAY = "'Outfit', sans-serif";
+
 const BENCHMARKS = [
   { num: "26–28%", color: "#c0392b", desc: "avg annual turnover in manufacturing (Manufacturers Alliance 2024)" },
   { num: "49%",    color: "#c0392b", desc: "warehouse worker turnover rate (U.S. Bureau of Labor Statistics)" },
@@ -25,14 +28,14 @@ function SliderRow({ label, min, max, step, value, onChange, display }: {
 }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 70px", alignItems: "center", gap: 14 }}>
-      <span style={{ fontSize: 13, color: "#6b6963" }}>{label}</span>
+      <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#6b6963" }}>{label}</span>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         style={{ width: "100%", accentColor: "#0a8a5c", cursor: "pointer" }}
         data-testid={`slider-${label.toLowerCase().replace(/\s+/g, "-")}`}
       />
-      <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 600, textAlign: "right" }}>{display}</span>
+      <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 600, textAlign: "right" }}>{display}</span>
     </div>
   );
 }
@@ -40,9 +43,9 @@ function SliderRow({ label, min, max, step, value, onChange, display }: {
 function MetricCard({ label, value, sub }: { label: string; value: string | number; sub: string }) {
   return (
     <div style={{ background: "#f8f7f4", borderRadius: 10, padding: "14px 16px" }}>
-      <p style={{ fontSize: 11, color: "#9d9b96", marginBottom: 4 }}>{label}</p>
-      <p style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 700, color: "#1a1916" }}>{value}</p>
-      <p style={{ fontSize: 10, color: "#9d9b96", marginTop: 2 }}>{sub}</p>
+      <p style={{ fontFamily: FONT_BODY, fontSize: 11, color: "#9d9b96", marginBottom: 4 }}>{label}</p>
+      <p style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: "#1a1916" }}>{value}</p>
+      <p style={{ fontFamily: FONT_BODY, fontSize: 10, color: "#9d9b96", marginTop: 2 }}>{sub}</p>
     </div>
   );
 }
@@ -72,6 +75,7 @@ export function ROICalculator() {
   };
 
   const sectionLabel: React.CSSProperties = {
+    fontFamily: FONT_BODY,
     fontSize: 10,
     fontWeight: 700,
     textTransform: "uppercase",
@@ -81,17 +85,17 @@ export function ROICalculator() {
   };
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: "#f8f7f4", padding: "2rem 1rem" }} data-testid="section-roi-calculator">
+    <div style={{ fontFamily: FONT_BODY, background: "#f8f7f4", padding: "2rem 1rem" }} data-testid="section-roi-calculator">
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
         <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-          <span style={{ display: "inline-block", background: "#0a8a5c", color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 999, marginBottom: "1rem" }}>
+          <span style={{ display: "inline-block", background: "#0a8a5c", color: "#fff", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 999, marginBottom: "1rem" }}>
             Better Bucks
           </span>
-          <h2 style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", fontWeight: 700, lineHeight: 1.2, marginBottom: "0.6rem" }}>
+          <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: "clamp(1.6rem, 4vw, 2.2rem)", fontWeight: 700, lineHeight: 1.2, marginBottom: "0.6rem" }}>
             How much is turnover<br />costing your operation?
           </h2>
-          <p style={{ fontSize: 15, color: "#6b6963", maxWidth: 500, margin: "0 auto", lineHeight: 1.6 }}>
+          <p style={{ fontFamily: FONT_BODY, fontSize: 15, color: "#6b6963", maxWidth: 500, margin: "0 auto", lineHeight: 1.6 }}>
             Plug in your numbers. See what structured employee incentives can realistically save you.
           </p>
         </div>
@@ -120,13 +124,13 @@ export function ROICalculator() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {BARS.map(b => (
               <div key={b.label} style={{ display: "grid", gridTemplateColumns: "130px 1fr 90px", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 12, color: "#6b6963" }}>{b.label}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: "#6b6963" }}>{b.label}</span>
                 <div style={{ height: 24, background: "#f8f7f4", borderRadius: 6, overflow: "hidden" }}>
                   <div style={{ width: b.width, height: "100%", background: b.bg, borderRadius: 6, display: "flex", alignItems: "center", padding: "0 10px" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: b.color, whiteSpace: "nowrap" }}>{b.range}</span>
+                    <span style={{ fontFamily: FONT_DISPLAY, fontSize: 11, fontWeight: 700, color: b.color, whiteSpace: "nowrap" }}>{b.range}</span>
                   </div>
                 </div>
-                <span style={{ fontSize: 10, color: "#9d9b96", textAlign: "right" }}>{b.source}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 10, color: "#9d9b96", textAlign: "right" }}>{b.source}</span>
               </div>
             ))}
           </div>
@@ -141,14 +145,14 @@ export function ROICalculator() {
               ["Productivity value (3% of total labor budget)", savProd],
             ].map(([label, val]) => (
               <div key={label as string} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-                <span style={{ fontSize: 13, color: "#6b6963" }}>{label as string}</span>
-                <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 600, color: "#0a8a5c", whiteSpace: "nowrap" }}>+{fmt(val as number)}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: "#6b6963" }}>{label as string}</span>
+                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: "#0a8a5c", whiteSpace: "nowrap" }}>+{fmt(val as number)}</span>
               </div>
             ))}
           </div>
           <div style={{ borderTop: "1px solid #e4e2dc", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>Total estimated annual savings</span>
-            <span style={{ fontFamily: "monospace", fontSize: 30, fontWeight: 700, color: "#0a8a5c" }} data-testid="text-roi-total">{fmt(totalROI)}/yr</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700 }}>Total estimated annual savings</span>
+            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 30, fontWeight: 700, color: "#0a8a5c" }} data-testid="text-roi-total">{fmt(totalROI)}/yr</span>
           </div>
         </div>
 
@@ -157,14 +161,14 @@ export function ROICalculator() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
             {BENCHMARKS.map(b => (
               <div key={b.num} style={{ border: "1px solid #e4e2dc", borderRadius: 10, padding: "14px 16px" }}>
-                <p style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 700, color: b.color, marginBottom: 4 }}>{b.num}</p>
-                <p style={{ fontSize: 11, color: "#6b6963", lineHeight: 1.4 }}>{b.desc}</p>
+                <p style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: b.color, marginBottom: 4 }}>{b.num}</p>
+                <p style={{ fontFamily: FONT_BODY, fontSize: 11, color: "#6b6963", lineHeight: 1.4 }}>{b.desc}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <p style={{ fontSize: 10, color: "#9d9b96", textAlign: "center", marginTop: "1.5rem", lineHeight: 1.6 }}>
+        <p style={{ fontFamily: FONT_BODY, fontSize: 10, color: "#9d9b96", textAlign: "center", marginTop: "1.5rem", lineHeight: 1.6 }}>
           Sources: U.S. Bureau of Labor Statistics JOLTS · Manufacturers Alliance 2024 Workforce Trends Report · KPI Solutions · Gallup State of the Global Workplace · Gapp Group Incentive ROI Model · SHRM Human Capital Benchmarking<br />
           Conservative estimates used throughout. Actual results may vary by operation size, industry segment, and program design.
         </p>

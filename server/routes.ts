@@ -49,10 +49,8 @@ function sanitizeUsers(users: any[]): any[] {
 
 function getAppBaseUrl(req: any): string {
   if (process.env.APP_URL) return process.env.APP_URL;
-  if (process.env.REPLIT_DEPLOYMENT === '1') return "https://betterbucks.net";
-  const host = req.get("host") || req.hostname;
-  const proto = req.get("x-forwarded-proto") || req.protocol;
-  return `${proto}://${host}`;
+  const host = req.get("host") || req.hostname || "betterbucks.net";
+  return `https://${host}`;
 }
 
 function escapeHtml(str: string): string {

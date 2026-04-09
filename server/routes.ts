@@ -1863,10 +1863,13 @@ export async function registerRoutes(
       }
       const org = await storage.getOrganization(user.organizationId!);
       const appUrl = getAppBaseUrl(req);
-      const loginIdentifier = org?.siteId || org?.code || "";
+      const loginUrl = `${appUrl}/login`;
       const roleLabel = target.role === "admin" || target.role === "prime_admin"
         ? (org?.adminRoleLabel || "Admin")
         : (org?.employeeRoleLabel || "Employee");
+
+      const userPassword = target.lastPlainPassword || org?.defaultPinPlain || null;
+      const passwordLabel = target.lastPlainPassword ? "Password" : "Password";
 
       await sendEmail({
         to: target.email,
@@ -1876,19 +1879,22 @@ export async function registerRoutes(
             ${emailLogoHeader}
             <h3 style="color:#4E9F3D;margin-top:0;text-align:center;">Your account is ready!</h3>
             <p>Hi ${escapeHtml(target.fullName)},</p>
-            <p>Your <strong>${escapeHtml(roleLabel)}</strong> account for <strong>${escapeHtml(org?.name || "Better Bucks")}</strong> is set up and waiting for you. Here's how to sign in:</p>
+            <p>Your <strong>${escapeHtml(roleLabel)}</strong> account for <strong>${escapeHtml(org?.name || "Better Bucks")}</strong> is set up and waiting for you.</p>
+
+            <p style="font-weight:600;margin-bottom:6px;">Copy this link and paste it into your browser to sign in:</p>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;margin:8px 0 20px 0;display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-family:monospace;font-size:14px;color:#111;word-break:break-all;">${escapeHtml(loginUrl)}</span>
+            </div>
+
             <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:20px 0;">
+              <p style="margin:0 0 12px 0;font-weight:600;font-size:14px;color:#111;">Your login details:</p>
               <table style="width:100%;border-collapse:collapse;">
-                <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:110px;">Login Page</td><td style="padding:6px 0;"><a href="${appUrl}/login" style="color:#4E9F3D;font-weight:600;">${appUrl}/login</a></td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Site ID / Code</td><td style="padding:6px 0;font-weight:700;color:#111;font-family:monospace;font-size:15px;">${escapeHtml(loginIdentifier)}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Username</td><td style="padding:6px 0;font-weight:700;color:#111;font-family:monospace;font-size:15px;">${escapeHtml(target.username)}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:110px;">Username</td><td style="padding:6px 0;font-weight:700;color:#111;font-family:monospace;font-size:15px;">${escapeHtml(target.username)}</td></tr>
+                ${userPassword ? `<tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">${passwordLabel}</td><td style="padding:6px 0;font-weight:700;color:#111;font-family:monospace;font-size:15px;">${escapeHtml(userPassword)}</td></tr>` : ""}
               </table>
             </div>
-            <p style="color:#6b7280;font-size:13px;">If you haven't set a password yet, click "Forgot password" on the login page, or contact your administrator for help.</p>
-            <div style="text-align:center;margin:28px 0;">
-              <a href="${appUrl}/login" style="background:#4E9F3D;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">Sign In to Better Bucks</a>
-            </div>
-            <p style="color:#9ca3af;font-size:12px;text-align:center;">Sent by ${escapeHtml(user.fullName)} from ${escapeHtml(org?.name || "Better Bucks")}.</p>
+            ${!userPassword ? `<p style="color:#6b7280;font-size:13px;">A password has not been set for your account yet. Contact your administrator to receive your password.</p>` : `<p style="color:#6b7280;font-size:13px;">We recommend changing your password after your first login.</p>`}
+            <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:24px;">Sent by ${escapeHtml(user.fullName)} from ${escapeHtml(org?.name || "Better Bucks")}.</p>
           </div>
         `,
       });

@@ -47,6 +47,14 @@ function sanitizeUsers(users: any[]): any[] {
   return users.map(sanitizeUser);
 }
 
+function getAppBaseUrl(req: any): string {
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.REPLIT_DEPLOYMENT === '1') return "https://betterbucks.net";
+  const host = req.get("host") || req.hostname;
+  const proto = req.get("x-forwarded-proto") || req.protocol;
+  return `${proto}://${host}`;
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -1856,7 +1864,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "This account has no email address on file. Please add an email in their profile before resending." });
       }
       const org = await storage.getOrganization(user.organizationId!);
-      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+      const appUrl = getAppBaseUrl(req);
       const loginIdentifier = org?.siteId || org?.code || "";
       const roleLabel = target.role === "admin" || target.role === "prime_admin"
         ? (org?.adminRoleLabel || "Admin")
@@ -2634,9 +2642,7 @@ export async function registerRoutes(
         metadata: { organizationId: String(org.id), organizationName, tier },
       });
 
-      const baseUrl = process.env.REPLIT_DEPLOYMENT === '1'
-        ? "https://betterbucks.net"
-        : `${req.protocol}://${req.get('host')}`;
+      const baseUrl = getAppBaseUrl(req);
 
       // Build trial period: validate referral code and add bonus months
       let validatedReferral: { code: string; extraMonths: number } | null = null;
@@ -2739,9 +2745,7 @@ export async function registerRoutes(
         customerId = customer.id;
       }
 
-      const baseUrl = process.env.REPLIT_DEPLOYMENT === '1'
-        ? "https://betterbucks.net"
-        : `${req.protocol}://${req.get('host')}`;
+      const baseUrl = getAppBaseUrl(req);
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
@@ -3198,7 +3202,7 @@ export async function registerRoutes(
     try {
       await ensureStripeReady();
       const stripe = await getStripeClient();
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const baseUrl = getAppBaseUrl(req);
       const session = await stripe.billingPortal.sessions.create({
         customer: org.stripeCustomerId,
         return_url: `${baseUrl}/admin/settings`,
@@ -4879,7 +4883,7 @@ export async function registerRoutes(
   function getWebAuthnConfig(req: Request) {
     const isProduction = process.env.REPLIT_DEPLOYMENT === "1";
     const rpID = isProduction ? "betterbucks.net" : req.hostname;
-    const origin = isProduction ? "https://betterbucks.net" : `${req.protocol}://${req.get("host")}`;
+    const origin = isProduction ? "https://betterbucks.net" : getAppBaseUrl(req);
     return { rpID, origin, rpName: "Better Bucks" };
   }
 
@@ -5552,7 +5556,7 @@ export async function registerRoutes(
     });
 
     const org = await storage.getOrganization(user.organizationId);
-    const appUrl = process.env.APP_URL || `https://${req.hostname}`;
+    const appUrl = getAppBaseUrl(req);
     const inviteUrl = `${appUrl}/invite/${token}`;
     try {
       await sendEmail({

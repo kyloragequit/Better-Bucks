@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLogo } from "@/components/app-logo";
 import { SiteFooter } from "@/components/site-footer";
+import { ROICalculator } from "@/components/roi-calculator";
 import { PageSEO } from "@/components/page-seo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -411,6 +412,9 @@ export default function HowItWorksPage() {
           </div>
         </section>
       </div>
+
+      {/* ─── ROI Calculator ─────────── */}
+      <ROICalculator />
 
       {/* ─── SECTION 3: Reward → Redeem → Budget (3-tab) ─────────── */}
       <div className="relative sm:h-[175vh]">

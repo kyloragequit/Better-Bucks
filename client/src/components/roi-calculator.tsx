@@ -10,7 +10,6 @@ const MUTED = "#64748b";
 const BORDER = "#dde3ea";
 const BG_SECTION = "#F0F4F8";
 const BG_CARD_INNER = "#f5f7fa";
-const RED = "#dc2626";
 const RED_DARK = "#b91c1c";
 const BLUE = "#1a6fb5";
 const PURPLE = "#5a42cc";
@@ -39,15 +38,15 @@ function SliderRow({ label, min, max, step, value, onChange, display }: {
   label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void; display: string | number;
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 70px", alignItems: "center", gap: 14 }}>
-      <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: MUTED }}>{label}</span>
+    <div className="roi-slider-row">
+      <span className="roi-slider-label" style={{ fontFamily: FONT_BODY, fontSize: 13, color: MUTED }}>{label}</span>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         style={{ width: "100%", accentColor: GREEN, cursor: "pointer" }}
         data-testid={`slider-${label.toLowerCase().replace(/\s+/g, "-")}`}
       />
-      <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 600, textAlign: "right", color: NAVY }}>{display}</span>
+      <span className="roi-slider-value" style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 600, textAlign: "right", color: NAVY }}>{display}</span>
     </div>
   );
 }
@@ -98,6 +97,75 @@ export function ROICalculator() {
 
   return (
     <div style={{ fontFamily: FONT_BODY, background: BG_SECTION, padding: "2rem 1rem" }} data-testid="section-roi-calculator">
+      <style>{`
+        .roi-slider-row {
+          display: grid;
+          grid-template-columns: 140px 1fr 70px;
+          align-items: center;
+          gap: 14px;
+        }
+        .roi-bar-row {
+          display: grid;
+          grid-template-columns: 130px 1fr 90px;
+          align-items: center;
+          gap: 12px;
+        }
+        .roi-metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+        .roi-benchmarks-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+        .roi-savings-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+        }
+        .roi-total-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+        }
+        .roi-bar-source {
+          text-align: right;
+        }
+        @media (max-width: 540px) {
+          .roi-slider-row {
+            grid-template-columns: 1fr 50px;
+            gap: 8px;
+          }
+          .roi-slider-label {
+            grid-column: 1 / -1;
+          }
+          .roi-bar-row {
+            grid-template-columns: 1fr;
+            gap: 4px;
+          }
+          .roi-bar-source {
+            text-align: left;
+          }
+          .roi-metrics-grid {
+            grid-template-columns: 1fr;
+          }
+          .roi-benchmarks-grid {
+            grid-template-columns: 1fr;
+          }
+          .roi-savings-row {
+            flex-direction: column;
+            gap: 2px;
+          }
+          .roi-total-row {
+            flex-direction: column;
+            gap: 4px;
+            align-items: flex-start;
+          }
+        }
+      `}</style>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
         <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
@@ -123,7 +191,7 @@ export function ROICalculator() {
 
         <div style={card}>
           <p style={sectionLabel}>What turnover is costing you today</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div className="roi-metrics-grid">
             <MetricCard label="Workers leaving per year"   value={leavers}           sub="at current turnover rate" />
             <MetricCard label="Cost to replace one worker" value={fmt(replaceCost)}  sub="hard + soft costs combined" />
             <MetricCard label="Annual turnover cost"       value={fmt(totalTurnover)} sub="lost every year" />
@@ -135,14 +203,14 @@ export function ROICalculator() {
           <p style={sectionLabel}>What Better Bucks realistically delivers</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {BARS.map(b => (
-              <div key={b.label} style={{ display: "grid", gridTemplateColumns: "130px 1fr 90px", alignItems: "center", gap: 12 }}>
+              <div key={b.label} className="roi-bar-row">
                 <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: MUTED }}>{b.label}</span>
                 <div style={{ height: 24, background: BG_CARD_INNER, borderRadius: 6, overflow: "hidden" }}>
-                  <div style={{ width: b.width, height: "100%", background: b.bg, borderRadius: 6, display: "flex", alignItems: "center", padding: "0 10px" }}>
+                  <div style={{ width: b.width, minWidth: 80, height: "100%", background: b.bg, borderRadius: 6, display: "flex", alignItems: "center", padding: "0 10px" }}>
                     <span style={{ fontFamily: FONT_DISPLAY, fontSize: 11, fontWeight: 700, color: b.color, whiteSpace: "nowrap" }}>{b.range}</span>
                   </div>
                 </div>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 10, color: MUTED, textAlign: "right" }}>{b.source}</span>
+                <span className="roi-bar-source" style={{ fontFamily: FONT_BODY, fontSize: 10, color: MUTED }}>{b.source}</span>
               </div>
             ))}
           </div>
@@ -156,13 +224,13 @@ export function ROICalculator() {
               ["Overtime + absenteeism savings (10%)",          savOT],
               ["Productivity value (3% of total labor budget)", savProd],
             ].map(([label, val]) => (
-              <div key={label as string} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+              <div key={label as string} className="roi-savings-row">
                 <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: MUTED }}>{label as string}</span>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: GREEN, whiteSpace: "nowrap" }}>+{fmt(val as number)}</span>
               </div>
             ))}
           </div>
-          <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div className="roi-total-row" style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "1rem" }}>
             <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, color: NAVY }}>Total estimated annual savings</span>
             <span style={{ fontFamily: FONT_DISPLAY, fontSize: 30, fontWeight: 700, color: GREEN }} data-testid="text-roi-total">{fmt(totalROI)}/yr</span>
           </div>
@@ -170,7 +238,7 @@ export function ROICalculator() {
 
         <div style={card}>
           <p style={sectionLabel}>Industry benchmarks — backed by BLS + Manufacturers Alliance</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div className="roi-benchmarks-grid">
             {BENCHMARKS.map(b => (
               <div key={b.num} style={{ border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 16px" }}>
                 <p style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: b.color, marginBottom: 4 }}>{b.num}</p>

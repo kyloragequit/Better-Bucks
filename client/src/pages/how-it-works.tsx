@@ -375,6 +375,9 @@ export default function HowItWorksPage() {
         </section>
       </div>
 
+      {/* ─── ROI Calculator ─────────── */}
+      <ROICalculator />
+
       {/* ─── SECTION 2: The Answer ────────────────────────────────── */}
       <div className="relative" style={{ height: "100vh" }}>
         <section className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden bg-white" style={{ zIndex: 20 }}>
@@ -412,9 +415,6 @@ export default function HowItWorksPage() {
           </div>
         </section>
       </div>
-
-      {/* ─── ROI Calculator ─────────── */}
-      <ROICalculator />
 
       {/* ─── SECTION 3: Reward → Redeem → Budget (3-tab) ─────────── */}
       <div className="relative sm:h-[175vh]">

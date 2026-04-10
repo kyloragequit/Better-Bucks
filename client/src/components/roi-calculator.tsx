@@ -183,7 +183,7 @@ export function ROICalculator() {
         <div style={card}>
           <p style={sectionLabel}>Your operation</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
-            <SliderRow label="Employees"          min={50}  max={500} step={10} value={emp}  onChange={setEmp}  display={emp} />
+            <SliderRow label="Employees"          min={5}   max={500} step={5}  value={emp}  onChange={setEmp}  display={emp} />
             <SliderRow label="Avg hourly wage"    min={15}  max={35}  step={1}  value={wage} onChange={setWage} display={"$" + wage} />
             <SliderRow label="Annual turnover %"  min={20}  max={60}  step={1}  value={turn} onChange={setTurn} display={turn + "%"} />
           </div>

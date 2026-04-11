@@ -4678,7 +4678,7 @@ export async function registerRoutes(
     const schema = z.object({
       code: z.string().min(2).max(30),
       description: z.string().optional(),
-      extraMonths: z.number().int().min(1).max(12).default(1),
+      extraMonths: z.number().int().min(0).max(12).default(1),
       active: z.boolean().default(true),
     });
     const data = schema.parse(req.body);
@@ -4692,7 +4692,7 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     const schema = z.object({
       description: z.string().optional(),
-      extraMonths: z.number().int().min(1).max(12).optional(),
+      extraMonths: z.number().int().min(0).max(12).optional(),
       active: z.boolean().optional(),
     });
     const data = schema.parse(req.body);

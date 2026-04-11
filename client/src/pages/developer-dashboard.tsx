@@ -792,10 +792,10 @@ export default function DeveloperDashboardPage() {
                       <Input
                         id="rc-months"
                         type="number"
-                        min={1}
+                        min={0}
                         max={12}
                         value={refCodeForm.extraMonths}
-                        onChange={(e) => setRefCodeForm(p => ({ ...p!, extraMonths: parseInt(e.target.value) || 1 }))}
+                        onChange={(e) => { const v = parseInt(e.target.value); setRefCodeForm(p => ({ ...p!, extraMonths: isNaN(v) ? 0 : v })); }}
                         data-testid="input-referral-code-months"
                       />
                     </div>
@@ -840,7 +840,7 @@ export default function DeveloperDashboardPage() {
                         <TableCell className="font-mono font-semibold text-sm">{rc.code}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{rc.description || "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary">+{rc.extraMonths} month{rc.extraMonths > 1 ? "s" : ""}</Badge>
+                          <Badge variant="secondary">{rc.extraMonths === 0 ? "No extra months" : `+${rc.extraMonths} month${rc.extraMonths > 1 ? "s" : ""}`}</Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant={rc.active ? "default" : "secondary"} className={rc.active ? "bg-green-100 text-green-800 border-green-200" : ""}>

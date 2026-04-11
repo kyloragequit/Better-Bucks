@@ -296,6 +296,10 @@ export default function HowItWorksPage() {
               <BookOpen className="mr-1.5 h-4 w-4" />
               Blog
             </Button>
+            <Button variant="ghost" size="sm" onClick={startPublicDemo} disabled={demoLoading} data-testid="button-header-demo">
+              <Play className="mr-1.5 h-4 w-4" />
+              {demoLoading ? "Loading…" : "Demo"}
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => setLocation("/login")} data-testid="button-header-login">
               <LogIn className="mr-1.5 h-4 w-4" />
               Log In
@@ -322,6 +326,9 @@ export default function HowItWorksPage() {
                     </button>
                     <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setLocation("/affiliate"); setMobileMenuOpen(false); }} data-testid="button-mobile-affiliate">
                       Affiliate Marketing
+                    </button>
+                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" disabled={demoLoading} onClick={() => { setMobileMenuOpen(false); startPublicDemo(); }} data-testid="button-mobile-demo">
+                      <Play className="h-4 w-4" /> {demoLoading ? "Loading…" : "Demo Account"}
                     </button>
                     <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100" onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }} data-testid="button-mobile-login">
                       <LogIn className="h-4 w-4" /> Log In

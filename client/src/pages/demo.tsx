@@ -17,11 +17,11 @@ export default function DemoPage() {
         if (cancelled) return;
         if (!res.ok) throw new Error(data.message || "Failed to start demo");
         try { sessionStorage.setItem("bb_demo_visitor", "1"); } catch {}
-        const role = data.user?.role;
-        if (role === "admin" || role === "prime_admin") {
-          setLocation("/admin/dashboard");
-        } else {
+        const role = data.role;
+        if (role === "employee") {
           setLocation("/dashboard");
+        } else {
+          setLocation("/admin/dashboard");
         }
       } catch (err: any) {
         if (!cancelled) setError(err.message || "Something went wrong. Please try again.");

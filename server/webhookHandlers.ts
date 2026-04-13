@@ -159,13 +159,13 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
 
         <div style="margin-top:24px;padding-top:20px;border-top:1px solid #dde3ea;text-align:center;">
           <p style="color:#64748b;font-size:12px;margin:0 0 4px;">Questions about your bill? Reply to this email or contact us at</p>
-          <p style="margin:0;"><a href="mailto:support@betterbucks.net" style="color:#4E9F3D;font-size:12px;text-decoration:none;">support@betterbucks.net</a></p>
+          <p style="margin:0;"><a href="mailto:miles.chase@betterbucks.net" style="color:#4E9F3D;font-size:12px;text-decoration:none;">miles.chase@betterbucks.net</a></p>
           <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">Better Bucks, LLC — Employee Incentive Platform</p>
         </div>
       </div>
     `;
 
-    const text = `Better Bucks — Payment Receipt\n\nInvoice: ${invoiceNumber}\nDate: ${invoiceDate}\nOrganization: ${org.name}\nPlan: ${planName}\nPeriod: ${periodStart} — ${periodEnd}\nSubtotal: ${fmtCents(subtotal)}\nTax: ${fmtCents(tax)}\nTotal Charged: ${fmtCents(total)}\nPayment: ${paymentMethodDesc}\n\nQuestions? Contact support@betterbucks.net`;
+    const text = `Better Bucks — Payment Receipt\n\nInvoice: ${invoiceNumber}\nDate: ${invoiceDate}\nOrganization: ${org.name}\nPlan: ${planName}\nPeriod: ${periodStart} — ${periodEnd}\nSubtotal: ${fmtCents(subtotal)}\nTax: ${fmtCents(tax)}\nTotal Charged: ${fmtCents(total)}\nPayment: ${paymentMethodDesc}\n\nQuestions? Contact miles.chase@betterbucks.net`;
 
     for (const admin of primeAdmins) {
       await sendEmail({

@@ -14,6 +14,7 @@ import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
 
@@ -215,15 +216,20 @@ export default function DeveloperDashboardPage() {
     },
   });
 
+  const [deleteDialog, setDeleteDialog] = useState<{ orgId: number; orgName: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
   const deleteMutation = useMutation({
-    mutationFn: async ({ orgId, orgName }: { orgId: number; orgName: string }) => {
-      const res = await apiRequest("DELETE", `/api/developer/organizations/${orgId}?confirm=${encodeURIComponent(orgName)}`);
+    mutationFn: async ({ orgId, orgName, reason }: { orgId: number; orgName: string; reason: string }) => {
+      const res = await apiRequest("DELETE", `/api/developer/organizations/${orgId}`, { confirmOrgName: orgName, reason });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/developer/organizations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/developer/metrics"] });
-      toast({ title: "Deleted", description: "Organization has been removed." });
+      toast({ title: "Deleted", description: "Organization has been removed and notification email sent." });
+      setDeleteDialog(null);
+      setDeleteReason("");
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -1360,9 +1366,8 @@ export default function DeveloperDashboardPage() {
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => {
-                                      if (confirm(`Delete "${org.name}"? It will be hidden from the dashboard but data is preserved for auditing.`)) {
-                                        deleteMutation.mutate({ orgId: org.id, orgName: org.name });
-                                      }
+                                      setDeleteReason("");
+                                      setDeleteDialog({ orgId: org.id, orgName: org.name });
                                     }}
                                     disabled={deleteMutation.isPending}
                                     data-testid={`button-delete-org-${org.id}`}
@@ -1521,6 +1526,52 @@ export default function DeveloperDashboardPage() {
         )}
       </main>
       <SiteFooter />
+
+      <Dialog open={!!deleteDialog} onOpenChange={(open) => { if (!open) { setDeleteDialog(null); setDeleteReason(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Organization
+            </DialogTitle>
+            <DialogDescription>
+              This will delete <span className="font-semibold text-foreground">"{deleteDialog?.orgName}"</span>. Data is preserved for auditing but the account will be deactivated. A notification email will be sent to the organization's admins.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="delete-reason">Reason for deletion <span className="text-red-500">*</span></Label>
+            <Textarea
+              id="delete-reason"
+              data-testid="input-delete-reason"
+              placeholder="e.g. Non-payment, Terms of Service violation, Customer request..."
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              className="min-h-[80px]"
+            />
+            {deleteReason.length > 0 && deleteReason.trim().length < 3 && (
+              <p className="text-xs text-red-500">Reason must be at least 3 characters.</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setDeleteDialog(null); setDeleteReason(""); }} data-testid="button-cancel-delete">
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteReason.trim().length < 3 || deleteMutation.isPending}
+              onClick={() => {
+                if (deleteDialog) {
+                  deleteMutation.mutate({ orgId: deleteDialog.orgId, orgName: deleteDialog.orgName, reason: deleteReason.trim() });
+                }
+              }}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Delete & Notify
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

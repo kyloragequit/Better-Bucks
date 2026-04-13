@@ -3757,7 +3757,6 @@ export async function registerRoutes(
       const org = await storage.getOrganization(orgId);
       if (!org) return res.status(404).json({ message: "Organization not found" });
 
-      // Require explicit confirmation matching the org name — safety guardrail
       const confirmName = (req.query.confirm as string) || (req.body?.confirmOrgName as string);
       if (!confirmName || confirmName.trim().toLowerCase() !== org.name.trim().toLowerCase()) {
         return res.status(400).json({
@@ -3766,7 +3765,48 @@ export async function registerRoutes(
         });
       }
 
+      const reason = (req.query.reason as string) || (req.body?.reason as string) || "";
+      if (!reason || reason.trim().length < 3) {
+        return res.status(400).json({ message: "A deletion reason is required (at least 3 characters)." });
+      }
+
       await storage.updateOrganizationStatus(orgId, "deleted");
+
+      const adminEmails = await getOrgAdminEmails(orgId);
+      if (adminEmails.length > 0) {
+        const html = `
+          <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+            ${emailLogoHeader}
+            <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Account Deleted</h2>
+            <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Your Better Bucks account has been removed</p>
+
+            <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:20px;margin-bottom:20px;">
+              <p style="margin:0 0 8px;color:#991B1B;font-size:14px;font-weight:600;">Your organization "${escapeHtml(org.name)}" has been deleted.</p>
+              <p style="margin:0;color:#7F1D1D;font-size:13px;">This means your account is no longer active and all users have lost access to the platform.</p>
+            </div>
+
+            <div style="background:#F0F4F8;border-radius:12px;padding:20px;margin-bottom:20px;">
+              <p style="margin:0 0 4px;color:#64748b;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Reason provided</p>
+              <p style="margin:0;color:#162A4A;font-size:14px;line-height:1.6;">${escapeHtml(reason.trim())}</p>
+            </div>
+
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid #dde3ea;text-align:center;">
+              <p style="color:#64748b;font-size:12px;margin:0 0 4px;">If you believe this was done in error, please contact us at</p>
+              <p style="margin:0;"><a href="mailto:support@betterbucks.net" style="color:#4E9F3D;font-size:12px;text-decoration:none;">support@betterbucks.net</a></p>
+              <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">Better Bucks, LLC — Employee Incentive Platform</p>
+            </div>
+          </div>
+        `;
+        for (const email of adminEmails) {
+          sendEmail({
+            to: email,
+            subject: `Better Bucks — Your Account Has Been Deleted`,
+            html,
+            text: `Your organization "${org.name}" has been deleted.\n\nReason: ${reason.trim()}\n\nIf you believe this was done in error, contact support@betterbucks.net`,
+          }).catch(err => console.error("[Delete Org Email] Failed to send to", email, err));
+        }
+      }
+
       res.json({ success: true });
     } catch (e) {
       console.error("Developer delete org error:", e);

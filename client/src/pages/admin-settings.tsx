@@ -1054,7 +1054,7 @@ function SuperUserTransferSection() {
 
   const currentSuperUsers = orgUsers.filter(u => u.role === "prime_admin" && u.status === "approved");
   const promotableUsers = orgUsers.filter(
-    (u) => u.status === "approved" && u.role !== "prime_admin" && (u.role === "admin" || u.role === "employee")
+    (u) => u.status === "approved" && u.role === "admin"
   );
 
   const { mutate: promoteUser, isPending: isPromoting } = useMutation({
@@ -1138,7 +1138,7 @@ function SuperUserTransferSection() {
 
         {promotableUsers.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No other approved users available to promote. Add and approve users first.
+            No Admin users available to promote. Only Admins can be promoted to Super User.
           </p>
         ) : (
           <div className="space-y-3">

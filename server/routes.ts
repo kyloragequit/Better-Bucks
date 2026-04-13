@@ -1834,8 +1834,13 @@ export async function registerRoutes(
       }
     }
 
-    if (role === "prime_admin" && user.role !== "prime_admin") {
-      return res.status(403).send("Only a Super User can promote others to Super User");
+    if (role === "prime_admin") {
+      if (user.role !== "prime_admin") {
+        return res.status(403).send("Only a Super User can promote others to Super User");
+      }
+      if (targetUser.role !== "admin") {
+        return res.status(400).send("Only Admin users can be promoted to Super User");
+      }
     }
 
     const updatedUser = await storage.updateUserRole(id, role as "admin" | "employee" | "prime_admin");

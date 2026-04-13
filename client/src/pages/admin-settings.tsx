@@ -113,6 +113,15 @@ export default function AdminSettingsPage() {
   const [selectedTier, setSelectedTier] = useState("");
   const [cancelStep, setCancelStep] = useState<"closed" | "alternatives" | "confirm">("closed");
   const [cancelUpgradeTier, setCancelUpgradeTier] = useState("");
+  const [cancelPreview, setCancelPreview] = useState<{
+    canCancel?: boolean;
+    isTrialing?: boolean;
+    losesAccessImmediately?: boolean;
+    accessEndDate?: string | null;
+    trialEndsAt?: string | null;
+    reason?: string;
+  } | null>(null);
+  const [loadingCancelPreview, setLoadingCancelPreview] = useState(false);
 
   const { mutate: changeTier, isPending: isChangingTier } = useMutation({
     mutationFn: async (tier: string) => {
@@ -824,10 +833,23 @@ export default function AdminSettingsPage() {
 
                         <Button
                           variant="destructive"
-                          onClick={() => { setCancelStep("alternatives"); setCancelUpgradeTier(""); }}
+                          disabled={loadingCancelPreview}
+                          onClick={async () => {
+                            setLoadingCancelPreview(true);
+                            try {
+                              const res = await fetch("/api/organizations/cancel-preview", { credentials: "include" });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setCancelPreview(data);
+                              }
+                            } catch {}
+                            setLoadingCancelPreview(false);
+                            setCancelStep("alternatives");
+                            setCancelUpgradeTier("");
+                          }}
                           data-testid="button-cancel-subscription"
                         >
-                          <AlertTriangle className="mr-2 h-4 w-4" />
+                          {loadingCancelPreview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
                           Cancel Subscription
                         </Button>
                       </div>
@@ -955,8 +977,22 @@ export default function AdminSettingsPage() {
                 </DialogTitle>
                 <DialogDescription asChild>
                   <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>If you are still in your <strong>free trial</strong>, your access will end immediately and no charge will be made.</p>
-                    <p>If you have already been billed, your access will continue until the <strong>end of your current billing period</strong> — no further charges will be made after that.</p>
+                    {cancelPreview?.isTrialing ? (
+                      <div className="rounded-md bg-red-50 border border-red-200 p-3 text-red-800">
+                        <p className="font-semibold">You are still in your free trial.</p>
+                        <p className="mt-1">Your access will end <strong>immediately</strong> when you confirm. All team members will be blocked from the platform right away. No charge will be made to your card.</p>
+                      </div>
+                    ) : cancelPreview?.accessEndDate ? (
+                      <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-amber-800">
+                        <p className="font-semibold">Your access will continue through {new Date(cancelPreview.accessEndDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}.</p>
+                        <p className="mt-1">You and your team will have full access until that date. After that, all team members will be blocked from the platform. No further charges will be made.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p>If you are still in your <strong>free trial</strong>, your access will end immediately and no charge will be made.</p>
+                        <p>If you have already been billed, your access will continue until the <strong>end of your current billing period</strong> — no further charges will be made after that.</p>
+                      </>
+                    )}
                     <p>Your organization data, employee accounts, and history are fully preserved. You can reactivate at any time.</p>
                   </div>
                 </DialogDescription>

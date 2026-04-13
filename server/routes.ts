@@ -3250,6 +3250,58 @@ export async function registerRoutes(
     res.json({ storeUrl: org?.storeUrl || "https://dscpromostore.com/" });
   });
 
+  app.get("/api/organizations/cancel-preview", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization found" });
+
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+
+    if (org.stripeCustomerId === "free_membership") {
+      return res.json({ canCancel: false, reason: "Free memberships cannot be cancelled" });
+    }
+
+    const isPromoOrg = org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");
+    if (isPromoOrg) {
+      return res.json({ canCancel: true, isTrialing: false, losesAccessImmediately: true, accessEndDate: null });
+    }
+
+    if (!org.stripeSubscriptionId || org.stripeSubscriptionId === "pending_checkout") {
+      return res.json({ canCancel: false, reason: "No active subscription to cancel" });
+    }
+
+    try {
+      await ensureStripeReady();
+      const stripe = await getStripeClient();
+      const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId!);
+
+      if (sub.status === "trialing") {
+        const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null;
+        return res.json({
+          canCancel: true,
+          isTrialing: true,
+          losesAccessImmediately: true,
+          accessEndDate: null,
+          trialEndsAt: trialEnd,
+        });
+      } else {
+        const periodEnd = new Date(sub.current_period_end * 1000).toISOString();
+        return res.json({
+          canCancel: true,
+          isTrialing: false,
+          losesAccessImmediately: false,
+          accessEndDate: periodEnd,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching cancel preview:", error);
+      res.status(500).json({ message: "Unable to fetch subscription details" });
+    }
+  });
+
   // Cancel subscription (any org admin)
   app.post("/api/organizations/cancel-subscription", async (req, res) => {
     const user = req.user as User | undefined;
@@ -3283,21 +3335,90 @@ export async function registerRoutes(
       const stripe = await getStripeClient();
       const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId!);
 
+      const baseUrl = getAppBaseUrl(req);
+      const adminEmail = user.email;
+      const orgName = org.name;
+
       if (sub.status === "trialing") {
-        // In trial — no payment has been made, cancel immediately
         await stripe.subscriptions.cancel(org.stripeSubscriptionId!);
         await storage.updateOrganizationStatus(org.id, "paused");
+
+        if (adminEmail) {
+          sendEmail({
+            to: adminEmail,
+            subject: `Your Better Bucks subscription has been cancelled — ${orgName}`,
+            html: `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;">
+<div style="background:#162A4A;padding:24px 20px;border-radius:12px 12px 0 0;text-align:center;">
+  <img src="${EMAIL_LOGO_URL}" alt="Better Bucks" width="56" height="56" style="display:block;margin:0 auto 10px;" />
+  <h1 style="color:#fff;margin:0;font-size:22px;">Subscription Cancelled</h1>
+</div>
+<div style="background:#fff;padding:28px 24px;border:1px solid #dde3ea;border-top:none;border-radius:0 0 12px 12px;">
+  <p style="color:#374151;font-size:15px;margin:0 0 16px;">Hi${user.firstName ? ` ${user.firstName}` : ''},</p>
+  <p style="color:#374151;font-size:15px;margin:0 0 16px;">Your Better Bucks subscription for <strong>${escapeHtml(orgName)}</strong> has been cancelled.</p>
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin:0 0 20px;">
+    <p style="color:#991b1b;font-size:14px;margin:0;font-weight:600;">⚠️ Your access has ended immediately.</p>
+    <p style="color:#991b1b;font-size:13px;margin:6px 0 0;">Since you were still in your free trial, all team members have been blocked from the platform effective now.</p>
+  </div>
+  <p style="color:#374151;font-size:15px;margin:0 0 8px;">The good news:</p>
+  <ul style="color:#374151;font-size:14px;margin:0 0 20px;padding-left:20px;">
+    <li style="margin:4px 0;">Your data, employees, and history are <strong>fully preserved</strong></li>
+    <li style="margin:4px 0;">You can <strong>reactivate at any time</strong> and pick up right where you left off</li>
+    <li style="margin:4px 0;">No charges have been made to your card</li>
+  </ul>
+  <div style="text-align:center;margin:24px 0;">
+    <a href="${baseUrl}/admin/reactivate" style="display:inline-block;background:#4E9F3D;color:#fff;font-weight:600;font-size:15px;padding:12px 32px;border-radius:8px;text-decoration:none;">Reactivate My Subscription</a>
+  </div>
+  <p style="color:#6b7280;font-size:13px;margin:20px 0 0;text-align:center;">Questions? Reach out anytime at <a href="mailto:miles.chase@betterbucks.net" style="color:#4E9F3D;text-decoration:none;">miles.chase@betterbucks.net</a></p>
+</div>
+</div>`,
+            text: `Hi${user.firstName ? ` ${user.firstName}` : ''},\n\nYour Better Bucks subscription for ${orgName} has been cancelled.\n\nSince you were still in your free trial, your access has ended immediately. All team members have been blocked from the platform.\n\nYour data, employees, and history are fully preserved. You can reactivate at any time at ${baseUrl}/admin/reactivate.\n\nNo charges have been made to your card.\n\nQuestions? Contact miles.chase@betterbucks.net`,
+          }).catch(err => console.error("[Email] Failed to send cancellation email:", err));
+        }
+
         return res.json({
           message: "Subscription cancelled. Your trial has ended and access has been removed.",
           cancelledImmediately: true,
         });
       } else {
-        // Has made at least one payment — cancel at end of current billing period
         const updated = await stripe.subscriptions.update(org.stripeSubscriptionId!, {
           cancel_at_period_end: true,
         });
-        // Keep org active — webhook will mark it inactive when period ends
         const cancelAt = new Date(updated.current_period_end * 1000).toISOString();
+        const cancelDateFormatted = new Date(updated.current_period_end * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+        if (adminEmail) {
+          sendEmail({
+            to: adminEmail,
+            subject: `Your Better Bucks subscription is set to cancel — ${orgName}`,
+            html: `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;">
+<div style="background:#162A4A;padding:24px 20px;border-radius:12px 12px 0 0;text-align:center;">
+  <img src="${EMAIL_LOGO_URL}" alt="Better Bucks" width="56" height="56" style="display:block;margin:0 auto 10px;" />
+  <h1 style="color:#fff;margin:0;font-size:22px;">Cancellation Scheduled</h1>
+</div>
+<div style="background:#fff;padding:28px 24px;border:1px solid #dde3ea;border-top:none;border-radius:0 0 12px 12px;">
+  <p style="color:#374151;font-size:15px;margin:0 0 16px;">Hi${user.firstName ? ` ${user.firstName}` : ''},</p>
+  <p style="color:#374151;font-size:15px;margin:0 0 16px;">Your Better Bucks subscription for <strong>${escapeHtml(orgName)}</strong> has been scheduled for cancellation.</p>
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin:0 0 20px;">
+    <p style="color:#92400e;font-size:14px;margin:0;font-weight:600;">Your access continues through ${cancelDateFormatted}</p>
+    <p style="color:#92400e;font-size:13px;margin:6px 0 0;">You and your team have full access until then. After that date, all team members will be blocked from the platform and no further charges will be made.</p>
+  </div>
+  <p style="color:#374151;font-size:15px;margin:0 0 8px;">What you should know:</p>
+  <ul style="color:#374151;font-size:14px;margin:0 0 20px;padding-left:20px;">
+    <li style="margin:4px 0;">Your data, employees, and history are <strong>fully preserved</strong></li>
+    <li style="margin:4px 0;">You can <strong>reactivate at any time</strong> — even after access ends</li>
+    <li style="margin:4px 0;">No additional charges will be made after your current period</li>
+  </ul>
+  <p style="color:#374151;font-size:15px;margin:0 0 16px;">Changed your mind? You can reverse this anytime before ${cancelDateFormatted} from your Settings page — your subscription will continue as normal.</p>
+  <div style="text-align:center;margin:24px 0;">
+    <a href="${baseUrl}/admin/settings" style="display:inline-block;background:#4E9F3D;color:#fff;font-weight:600;font-size:15px;padding:12px 32px;border-radius:8px;text-decoration:none;">Keep My Subscription</a>
+  </div>
+  <p style="color:#6b7280;font-size:13px;margin:20px 0 0;text-align:center;">Questions? Reach out anytime at <a href="mailto:miles.chase@betterbucks.net" style="color:#4E9F3D;text-decoration:none;">miles.chase@betterbucks.net</a></p>
+</div>
+</div>`,
+            text: `Hi${user.firstName ? ` ${user.firstName}` : ''},\n\nYour Better Bucks subscription for ${orgName} has been scheduled for cancellation.\n\nYour access continues through ${cancelDateFormatted}. You and your team have full access until then. After that date, all team members will be blocked and no further charges will be made.\n\nYour data, employees, and history are fully preserved. You can reactivate at any time.\n\nChanged your mind? Visit ${baseUrl}/admin/settings to reverse the cancellation before ${cancelDateFormatted}.\n\nQuestions? Contact miles.chase@betterbucks.net`,
+          }).catch(err => console.error("[Email] Failed to send cancellation email:", err));
+        }
+
         return res.json({
           message: "Your subscription is scheduled to cancel at the end of your billing period.",
           cancelledImmediately: false,

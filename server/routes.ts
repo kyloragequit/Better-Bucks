@@ -160,6 +160,107 @@ async function notifyAllPrimeAdmins(organizationId: number, subject: string, det
   await Promise.all(emails.map(email => notifyAdmin(email, subject, details).catch(() => {})));
 }
 
+interface BillingEmailParams {
+  to: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  planName: string;
+  subtotal: string;
+  taxAmount: string;
+  taxLabel: string;
+  total: string;
+  periodStart: string;
+  periodEnd: string;
+  paymentMethod: string;
+  organizationName: string;
+  invoicePdfUrl?: string;
+  isTrialEnd?: boolean;
+}
+
+async function sendBillingReceiptEmail(params: BillingEmailParams): Promise<void> {
+  const {
+    to, invoiceNumber, invoiceDate, planName, subtotal, taxAmount, taxLabel,
+    total, periodStart, periodEnd, paymentMethod, organizationName,
+    invoicePdfUrl, isTrialEnd,
+  } = params;
+
+  const trialBanner = isTrialEnd
+    ? `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:20px;text-align:center;">
+        <p style="margin:0;font-size:14px;color:#92400e;font-weight:600;">🎉 Your free trial has ended — your subscription is now active!</p>
+      </div>`
+    : "";
+
+  const pdfButton = invoicePdfUrl
+    ? `<div style="text-align:center;margin-top:20px;">
+        <a href="${invoicePdfUrl}" style="display:inline-block;background:#162A4A;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Download Invoice PDF</a>
+      </div>`
+    : "";
+
+  const html = `
+    <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+      ${emailLogoHeader}
+      
+      <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Payment Receipt</h2>
+      <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Invoice #${escapeHtml(invoiceNumber)} • ${escapeHtml(invoiceDate)}</p>
+
+      ${trialBanner}
+
+      <div style="background:#F0F4F8;border-radius:12px;padding:20px;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-size:13px;">Organization</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(organizationName)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-size:13px;">Plan</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(planName)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-size:13px;">Billing Period</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(periodStart)} — ${escapeHtml(periodEnd)}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#64748b;font-size:13px;">Payment Method</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(paymentMethod)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background:#ffffff;border:1px solid #dde3ea;border-radius:12px;padding:20px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:8px 0;color:#162A4A;font-size:14px;">${escapeHtml(planName)}</td>
+            <td style="padding:8px 0;text-align:right;color:#162A4A;font-size:14px;">${escapeHtml(subtotal)}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#64748b;font-size:13px;">${escapeHtml(taxLabel)}</td>
+            <td style="padding:8px 0;text-align:right;color:#64748b;font-size:13px;">${escapeHtml(taxAmount)}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="border-top:1px solid #dde3ea;padding:0;"></td>
+          </tr>
+          <tr>
+            <td style="padding:12px 0 4px;color:#162A4A;font-size:16px;font-weight:700;">Total Charged</td>
+            <td style="padding:12px 0 4px;text-align:right;color:#4E9F3D;font-size:20px;font-weight:700;">${escapeHtml(total)}</td>
+          </tr>
+        </table>
+      </div>
+
+      ${pdfButton}
+
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid #dde3ea;text-align:center;">
+        <p style="color:#64748b;font-size:12px;margin:0 0 4px;">Questions about your bill? Reply to this email or contact us at</p>
+        <p style="margin:0;"><a href="mailto:support@betterbucks.net" style="color:#4E9F3D;font-size:12px;text-decoration:none;">support@betterbucks.net</a></p>
+        <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">Better Bucks, LLC — Employee Incentive Platform</p>
+      </div>
+    </div>
+  `;
+
+  const text = `Better Bucks — Payment Receipt\n\nInvoice: ${invoiceNumber}\nDate: ${invoiceDate}\nOrganization: ${organizationName}\nPlan: ${planName}\nPeriod: ${periodStart} — ${periodEnd}\nSubtotal: ${subtotal}\nTax: ${taxAmount}\nTotal Charged: ${total}\nPayment: ${paymentMethod}\n\nQuestions? Contact support@betterbucks.net`;
+
+  await sendEmail({ to, subject: `Better Bucks — Payment Receipt (${invoiceDate})`, html, text });
+}
+
 async function notifyAdmin(to: string, subject: string, details: Record<string, string>): Promise<void> {
   const rows = Object.entries(details)
     .map(([k, v]) => `<tr><td style="padding:4px 8px;color:#666;font-weight:500;white-space:nowrap">${escapeHtml(k)}</td><td style="padding:4px 8px;">${escapeHtml(v || "—")}</td></tr>`)
@@ -2680,20 +2781,26 @@ export async function registerRoutes(
             },
             unit_amount: config.price,
             recurring: { interval: 'month' },
+            tax_behavior: 'exclusive',
           },
           quantity: 1,
         }],
         mode: 'subscription',
+        automatic_tax: { enabled: true },
         subscription_data: {
           trial_period_days: trialDays,
           trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
           metadata: { organizationId: String(org.id), tier, orgCode },
-          description: `Better Bucks ${config.name} — ${trialLabel} free trial, then $${(config.price / 100).toFixed(2)}/month.${referralNote}`,
+          description: `Better Bucks ${config.name} — ${trialLabel} free trial, then $${(config.price / 100).toFixed(2)}/month + applicable taxes.${referralNote}`,
         },
         payment_method_collection: 'always',
+        consent_collection: { terms_of_service: 'required' },
         custom_text: {
           submit: {
-            message: `Your card won't be charged until after your ${trialLabel} free trial ends.${referralNote}`,
+            message: `Your card won't be charged until after your ${trialLabel} free trial ends. Applicable sales tax will be added based on your location.${referralNote}`,
+          },
+          terms_of_service_acceptance: {
+            message: `I agree to the [Terms of Service](${baseUrl}/terms).`,
           },
         },
         success_url: `${baseUrl}/login`,
@@ -2764,11 +2871,20 @@ export async function registerRoutes(
             },
             unit_amount: config.price,
             recurring: { interval: 'month' },
+            tax_behavior: 'exclusive',
           },
           quantity: 1,
         }],
         mode: 'subscription',
+        automatic_tax: { enabled: true },
         billing_address_collection: 'required',
+        payment_method_collection: 'always',
+        consent_collection: { terms_of_service: 'required' },
+        custom_text: {
+          terms_of_service_acceptance: {
+            message: `I agree to the [Terms of Service](${baseUrl}/terms).`,
+          },
+        },
         success_url: `${baseUrl}/admin/settings?reactivated=true`,
         cancel_url: `${baseUrl}/reactivate?cancelled=true`,
         metadata: { organizationId: String(org.id), tier, type: "reactivation" },
@@ -3349,6 +3465,7 @@ export async function registerRoutes(
           },
           unit_amount: config.price,
           recurring: { interval: 'month' },
+          tax_behavior: 'exclusive',
         });
 
         const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
@@ -4705,6 +4822,57 @@ export async function registerRoutes(
     if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
     await storage.deleteReferralCode(parseInt(req.params.id));
     res.sendStatus(200);
+  });
+
+  app.post("/api/developer/test-billing-emails", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    const { email, address } = z.object({
+      email: z.string().email(),
+      address: z.string().optional(),
+    }).parse(req.body);
+
+    const tiers = [
+      { tier: "small", price: 4999, name: "Small Site", maxEmp: 25 },
+      { tier: "mid", price: 9999, name: "Mid-Size Site", maxEmp: 75 },
+      { tier: "large", price: 14999, name: "Large Site", maxEmp: 150 },
+      { tier: "enterprise", price: 29999, name: "Enterprise Site", maxEmp: "Unlimited" },
+    ];
+
+    const laTaxRate = 0.0945;
+    const today = new Date();
+    const nextMonth = new Date(today);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const fmtCents = (c: number) => "$" + (c / 100).toFixed(2);
+
+    let sent = 0;
+    for (const t of tiers) {
+      const tax = Math.round(t.price * laTaxRate);
+      const total = t.price + tax;
+
+      const params: BillingEmailParams = {
+        to: email,
+        invoiceNumber: `BB-TEST-${t.tier.toUpperCase()}-${Date.now().toString(36).slice(-4).toUpperCase()}`,
+        invoiceDate: fmtDate(today),
+        planName: `Better Bucks – ${t.name}`,
+        subtotal: fmtCents(t.price),
+        taxAmount: fmtCents(tax),
+        taxLabel: `Louisiana Sales Tax (9.45%)`,
+        total: fmtCents(total),
+        periodStart: fmtDate(today),
+        periodEnd: fmtDate(nextMonth),
+        paymentMethod: "VISA •••• 4242",
+        organizationName: "Example Organization",
+        isTrialEnd: t.tier === "small",
+      };
+
+      await sendBillingReceiptEmail(params);
+      sent++;
+    }
+
+    res.json({ message: `Sent ${sent} test billing emails to ${email}` });
   });
 
   // ─── Goals ────────────────────────────────────────────────────────────────

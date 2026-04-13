@@ -61,6 +61,7 @@ export interface IStorage {
   updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused" | "deleted"): Promise<Organization>;
   updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization>;
   updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization>;
+  updateOrganizationSignupPrice(id: number, signupPrice: number): Promise<Organization>;
   deleteOrganization(id: number): Promise<void>;
 
   createDocument(doc: InsertDocument): Promise<Document>;
@@ -466,6 +467,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ tier, maxEmployees }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async updateOrganizationSignupPrice(id: number, signupPrice: number): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ signupPrice }).where(eq(organizations.id, id)).returning();
     return updated;
   }
 

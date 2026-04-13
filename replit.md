@@ -47,7 +47,7 @@ Preferred communication style: Simple, everyday language.
 - **Transaction Categories + Analytics**: Prime admins define color-coded transaction categories for analytics.
 - **Monthly Reports + Documents Page**: Automated monthly JSONB reports with conversion rate, daily dollar spending chart (double line: awarded vs spent), department and category breakdowns, and an admin interface to view and generate them. PDF download uses html2canvas + jsPDF to generate real PDF files (no browser print dialog).
 - **Universal Passkey**: Org-level fallback PIN for employee login.
-- **Organization & Subscription**: Tiered Stripe subscriptions, organization code generation, and subscription management.
+- **Organization & Subscription**: Tiered Stripe subscriptions, organization code generation, and subscription management. Price grandfathering system: `signupPrice` column on organizations locks in the rate at signup time. Tier changes and reactivations use current market rates. Admin settings shows locked-in vs current pricing. Server-authoritative tier pricing via `/api/organizations/tier-pricing` endpoint.
 - **Manager Assignment**: Prime admins can assign a manager (admin) to each employee. Manager filter available on Employees page and Dashboard. Budget panel shows employee distribution by manager with percentage breakdown. Auto-allocate distributes remaining budget proportionally based on each manager's employee count.
 - **Department Management**: Prime admins manage departments and user assignments; non-prime admins are department-isolated.
 - **Custom Role Labels**: Prime admins can customize display names for roles.

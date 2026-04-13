@@ -32,6 +32,7 @@ export const organizations = pgTable("organizations", {
   ordersEnabled: boolean("orders_enabled").default(true).notNull(),
   marketingOptIn: boolean("marketing_opt_in").default(false).notNull(),
   budgetSetByName: text("budget_set_by_name"),
+  signupPrice: integer("signup_price"),
 });
 
 export const departments = pgTable("departments", {

@@ -2737,6 +2737,7 @@ export async function registerRoutes(
       if (isPromoSignup) {
         await storage.updateOrganizationStripe(org.id, "promo_GOKU11", "promo_GOKU11");
         await storage.updateOrganizationStatus(org.id, "active");
+        await storage.updateOrganizationSignupPrice(org.id, config.price);
         sendSignupNotificationEmail({ organizationName, email, tier, config, orgCode, referralCode, mode: "promo" });
         return res.json({ promoApplied: true, orgCode });
       }
@@ -2813,6 +2814,7 @@ export async function registerRoutes(
       });
 
       await storage.updateOrganizationStripe(org.id, customer.id, "pending_checkout");
+      await storage.updateOrganizationSignupPrice(org.id, config.price);
 
       // Send admin notification email
       sendSignupNotificationEmail({ organizationName, email, tier, config, orgCode, referralCode: validatedReferral?.code, mode: "stripe" });
@@ -2894,7 +2896,8 @@ export async function registerRoutes(
 
       await storage.updateOrganizationStripe(org.id, customerId, "pending_checkout");
       await storage.updateOrganizationStatus(org.id, org.status as any);
-      await storage.updateOrganizationTier(org.id, tier, config.maxEmployees === -1 ? 999999 : config.maxEmployees);
+      await storage.updateOrganizationTier(org.id, tier, config.maxEmployees);
+      await storage.updateOrganizationSignupPrice(org.id, config.price);
 
       res.json({ url: session.url });
     } catch (error) {
@@ -3336,6 +3339,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/organizations/tier-pricing", (req, res) => {
+    const pricing = Object.fromEntries(
+      Object.entries(tierConfig).map(([key, val]) => [key, {
+        price: val.price,
+        maxEmployees: val.maxEmployees,
+        name: val.name,
+        description: val.description,
+      }])
+    );
+    res.json(pricing);
+  });
+
   // Check org status for current user (any authenticated user)
   app.get("/api/organizations/my-status", async (req, res) => {
     const user = req.user as User | undefined;
@@ -3481,6 +3496,7 @@ export async function registerRoutes(
         });
 
         await storage.updateOrganizationTier(org.id, tier, config.maxEmployees);
+        await storage.updateOrganizationSignupPrice(org.id, config.price);
         res.json({ message: "Subscription updated successfully", tier, maxEmployees: config.maxEmployees });
       } else {
         return res.status(400).json({ message: "No active subscription to modify" });

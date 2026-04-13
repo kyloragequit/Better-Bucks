@@ -31,15 +31,25 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const tierConfig: Record<string, { label: string; price: number; maxEmployees: number }> = {
-  small:      { label: "Small Site",      price: 49.99,  maxEmployees: 25 },
-  mid:        { label: "Mid-Size Site",   price: 99.99,  maxEmployees: 75 },
-  large:      { label: "Large Site",      price: 149.99, maxEmployees: 150 },
-  enterprise: { label: "Enterprise Site", price: 299.99, maxEmployees: -1 },
+const tierDefaults: Record<string, { name: string; price: number; maxEmployees: number }> = {
+  small:      { name: "Small Site",      price: 4999,  maxEmployees: 25 },
+  mid:        { name: "Mid-Size Site",   price: 9999,  maxEmployees: 75 },
+  large:      { name: "Large Site",      price: 14999, maxEmployees: 150 },
+  enterprise: { name: "Enterprise Site", price: 29999, maxEmployees: -1 },
 };
-const tierLabels: Record<string, string> = Object.fromEntries(Object.entries(tierConfig).map(([k, v]) => [k, v.label]));
-const tierPrices: Record<string, number> = Object.fromEntries(Object.entries(tierConfig).map(([k, v]) => [k, v.price]));
 const tierOrder = ["small", "mid", "large", "enterprise"] as const;
+
+type TierPricingMap = Record<string, { price: number; maxEmployees: number; name: string; description: string }>;
+
+function getTierInfo(tier: string, livePricing?: TierPricingMap) {
+  const lp = livePricing?.[tier];
+  const fallback = tierDefaults[tier];
+  return {
+    name: lp?.name || fallback?.name || tier,
+    price: lp?.price ?? fallback?.price ?? 0,
+    maxEmployees: lp?.maxEmployees ?? fallback?.maxEmployees ?? 0,
+  };
+}
 
 export default function AdminSettingsPage() {
   const { data: user } = useUser();
@@ -54,6 +64,11 @@ export default function AdminSettingsPage() {
 
   const { data: org, isLoading } = useQuery<OrgWithFree>({
     queryKey: ["/api/organizations/my-org"],
+    enabled: user?.role === "prime_admin" || user?.role === "admin",
+  });
+
+  const { data: livePricing } = useQuery<TierPricingMap>({
+    queryKey: ["/api/organizations/tier-pricing"],
     enabled: user?.role === "prime_admin" || user?.role === "admin",
   });
 
@@ -245,8 +260,11 @@ export default function AdminSettingsPage() {
     );
   }
 
-  const tierLabel = org ? (tierLabels[org.tier] || org.tier) : "";
-  const tierPrice = org ? (tierPrices[org.tier] || 0) : 0;
+  const currentTierInfo = org ? getTierInfo(org.tier, livePricing) : null;
+  const tierLabel = currentTierInfo?.name ?? "";
+  const grandfatheredPrice = org?.signupPrice ? (org.signupPrice / 100) : null;
+  const currentTierPrice = currentTierInfo ? (currentTierInfo.price / 100) : 0;
+  const tierPrice = grandfatheredPrice ?? currentTierPrice;
   const employeeLimit = org?.maxEmployees === -1 ? "Unlimited" : String(org?.maxEmployees || 0);
   const employeeCount = org?.employeeCount || 0;
 
@@ -554,8 +572,13 @@ export default function AdminSettingsPage() {
                   <div>
                     <div className="text-sm text-muted-foreground">Monthly Cost</div>
                     <div className="font-medium" data-testid="text-monthly-cost">
-                      {org.isFree ? "Free" : `$${tierPrice}/month`}
+                      {org.isFree ? "Free" : `$${tierPrice.toFixed(2)}/month`}
                     </div>
+                    {!org.isFree && grandfatheredPrice !== null && currentTierPrice > 0 && grandfatheredPrice < currentTierPrice && (
+                      <div className="text-xs text-green-600 mt-0.5" data-testid="text-grandfathered-savings">
+                        Locked-in rate (currently ${currentTierPrice.toFixed(2)}/mo)
+                      </div>
+                    )}
                   </div>
                 </div>
                 {!org.isFree && org.maxEmployees > 0 && (
@@ -727,7 +750,7 @@ export default function AdminSettingsPage() {
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div>
                         <div className="text-sm text-muted-foreground">Plan</div>
-                        <div className="font-medium">{tierLabel} - ${tierPrice}/month</div>
+                        <div className="font-medium">{tierLabel} - ${tierPrice.toFixed(2)}/month</div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Status</div>
@@ -756,12 +779,13 @@ export default function AdminSettingsPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {tierOrder.filter(t => t !== org.tier).map(t => {
-                              const tc = tierConfig[t];
-                              const empLabel = tc.maxEmployees === -1 ? "unlimited" : `up to ${tc.maxEmployees}`;
-                              const tooSmall = tc.maxEmployees !== -1 && org.employeeCount > tc.maxEmployees;
+                              const info = getTierInfo(t, livePricing);
+                              const price = (info.price / 100).toFixed(2);
+                              const empLabel = info.maxEmployees === -1 ? "unlimited" : `up to ${info.maxEmployees}`;
+                              const tooSmall = info.maxEmployees !== -1 && org.employeeCount > info.maxEmployees;
                               return (
                                 <SelectItem key={t} value={t} disabled={tooSmall}>
-                                  {tc.label} - ${tc.price}/mo ({empLabel}){tooSmall ? " — too many employees" : ""}
+                                  {info.name} - ${price}/mo ({empLabel}){tooSmall ? " — too many employees" : ""}
                                 </SelectItem>
                               );
                             })}
@@ -859,10 +883,11 @@ export default function AdminSettingsPage() {
 
               <div className="space-y-2 py-2">
                 {tierOrder.map(t => {
-                  const tc = tierConfig[t];
+                  const info = getTierInfo(t, livePricing);
+                  const price = (info.price / 100).toFixed(2);
                   const isCurrent = t === org.tier;
-                  const tooSmall = tc.maxEmployees !== -1 && org.employeeCount > tc.maxEmployees;
-                  const empLabel = tc.maxEmployees === -1 ? "Unlimited employees" : `Up to ${tc.maxEmployees} employees`;
+                  const tooSmall = info.maxEmployees !== -1 && org.employeeCount > info.maxEmployees;
+                  const empLabel = info.maxEmployees === -1 ? "Unlimited employees" : `Up to ${info.maxEmployees} employees`;
                   return (
                     <button
                       key={t}
@@ -881,11 +906,11 @@ export default function AdminSettingsPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="font-semibold text-sm">{tc.label}</span>
+                          <span className="font-semibold text-sm">{info.name}</span>
                           {isCurrent && <Badge variant="outline" className="ml-2 text-xs text-green-700 border-green-300">Current</Badge>}
                           {tooSmall && <span className="ml-2 text-xs text-red-500">Too many employees</span>}
                         </div>
-                        <span className="font-semibold text-sm">${tc.price}/mo</span>
+                        <span className="font-semibold text-sm">${price}/mo</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">{empLabel}</p>
                     </button>

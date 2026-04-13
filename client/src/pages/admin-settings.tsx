@@ -10,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send, UserCheck } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send, UserCheck, TrendingUp, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
@@ -30,19 +31,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const tierLabels: Record<string, string> = {
-  small: "Small Site",
-  mid: "Mid-Size Site",
-  large: "Large Site",
-  enterprise: "Enterprise Site",
+const tierConfig: Record<string, { label: string; price: number; maxEmployees: number }> = {
+  small:      { label: "Small Site",      price: 49.99,  maxEmployees: 25 },
+  mid:        { label: "Mid-Size Site",   price: 99.99,  maxEmployees: 75 },
+  large:      { label: "Large Site",      price: 149.99, maxEmployees: 150 },
+  enterprise: { label: "Enterprise Site", price: 299.99, maxEmployees: -1 },
 };
-
-const tierPrices: Record<string, number> = {
-  small: 99.99,
-  mid: 199.99,
-  large: 299.99,
-  enterprise: 599.99,
-};
+const tierLabels: Record<string, string> = Object.fromEntries(Object.entries(tierConfig).map(([k, v]) => [k, v.label]));
+const tierPrices: Record<string, number> = Object.fromEntries(Object.entries(tierConfig).map(([k, v]) => [k, v.price]));
+const tierOrder = ["small", "mid", "large", "enterprise"] as const;
 
 export default function AdminSettingsPage() {
   const { data: user } = useUser();
@@ -99,6 +96,8 @@ export default function AdminSettingsPage() {
 
   const [changingTier, setChangingTier] = useState(false);
   const [selectedTier, setSelectedTier] = useState("");
+  const [cancelStep, setCancelStep] = useState<"closed" | "alternatives" | "confirm">("closed");
+  const [cancelUpgradeTier, setCancelUpgradeTier] = useState("");
 
   const { mutate: changeTier, isPending: isChangingTier } = useMutation({
     mutationFn: async (tier: string) => {
@@ -756,10 +755,16 @@ export default function AdminSettingsPage() {
                             <SelectValue placeholder="Choose a plan" />
                           </SelectTrigger>
                           <SelectContent>
-                            {org.tier !== "small" && <SelectItem value="small">Small Site - $99.99/mo (up to 25)</SelectItem>}
-                            {org.tier !== "mid" && <SelectItem value="mid">Mid-Size Site - $199.99/mo (up to 75)</SelectItem>}
-                            {org.tier !== "large" && <SelectItem value="large">Large Site - $299.99/mo (up to 150)</SelectItem>}
-                            {org.tier !== "enterprise" && <SelectItem value="enterprise">Enterprise - $599.99/mo (150+)</SelectItem>}
+                            {tierOrder.filter(t => t !== org.tier).map(t => {
+                              const tc = tierConfig[t];
+                              const empLabel = tc.maxEmployees === -1 ? "unlimited" : `up to ${tc.maxEmployees}`;
+                              const tooSmall = tc.maxEmployees !== -1 && org.employeeCount > tc.maxEmployees;
+                              return (
+                                <SelectItem key={t} value={t} disabled={tooSmall}>
+                                  {tc.label} - ${tc.price}/mo ({empLabel}){tooSmall ? " — too many employees" : ""}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                         <div className="flex items-center gap-2">
@@ -793,44 +798,14 @@ export default function AdminSettingsPage() {
                           Change Plan
                         </Button>
 
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" data-testid="button-cancel-subscription">
-                              <AlertTriangle className="mr-2 h-4 w-4" />
-                              Cancel Subscription
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Cancel Subscription?</AlertDialogTitle>
-                              <AlertDialogDescription asChild>
-                                <div className="space-y-2 text-sm text-muted-foreground">
-                                  <p>If you are still in your <strong>free trial</strong>, your access will end immediately and no charge will be made.</p>
-                                  <p>If you have already been billed, your access will continue until the <strong>end of your current billing period</strong> — no further charges will be made after that.</p>
-                                  <p>Your organization data, employee accounts, and history are fully preserved. You can reactivate at any time.</p>
-                                </div>
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel data-testid="button-cancel-dialog-cancel">Keep Subscription</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => cancelSubscription()}
-                                className="bg-destructive text-destructive-foreground"
-                                disabled={isCancelling}
-                                data-testid="button-confirm-cancel"
-                              >
-                                {isCancelling ? (
-                                  <>
-                                    <SpinningLogo className="mr-2 h-4 w-4" />
-                                    Cancelling...
-                                  </>
-                                ) : (
-                                  "Yes, Cancel Subscription"
-                                )}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button
+                          variant="destructive"
+                          onClick={() => { setCancelStep("alternatives"); setCancelUpgradeTier(""); }}
+                          data-testid="button-cancel-subscription"
+                        >
+                          <AlertTriangle className="mr-2 h-4 w-4" />
+                          Cancel Subscription
+                        </Button>
                       </div>
                     )}
                   </>
@@ -867,6 +842,127 @@ export default function AdminSettingsPage() {
           </Card>
         )}
       </div>
+
+      <Dialog open={cancelStep !== "closed"} onOpenChange={(open) => { if (!open) { setCancelStep("closed"); setCancelUpgradeTier(""); } }}>
+        <DialogContent className="sm:max-w-lg">
+          {cancelStep === "alternatives" && org && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  Before you go...
+                </DialogTitle>
+                <DialogDescription>
+                  Would a different plan be a better fit? You can switch plans instantly — your data, employees, and history stay exactly the same.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2 py-2">
+                {tierOrder.map(t => {
+                  const tc = tierConfig[t];
+                  const isCurrent = t === org.tier;
+                  const tooSmall = tc.maxEmployees !== -1 && org.employeeCount > tc.maxEmployees;
+                  const empLabel = tc.maxEmployees === -1 ? "Unlimited employees" : `Up to ${tc.maxEmployees} employees`;
+                  return (
+                    <button
+                      key={t}
+                      disabled={isCurrent || tooSmall}
+                      onClick={() => setCancelUpgradeTier(t)}
+                      className={`w-full text-left rounded-lg border-2 p-4 transition-colors ${
+                        cancelUpgradeTier === t
+                          ? "border-primary bg-primary/5"
+                          : isCurrent
+                          ? "border-green-200 bg-green-50/50 cursor-default"
+                          : tooSmall
+                          ? "border-muted bg-muted/30 opacity-50 cursor-not-allowed"
+                          : "border-border hover:border-primary/40 hover:bg-muted/30 cursor-pointer"
+                      }`}
+                      data-testid={`tier-option-${t}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-semibold text-sm">{tc.label}</span>
+                          {isCurrent && <Badge variant="outline" className="ml-2 text-xs text-green-700 border-green-300">Current</Badge>}
+                          {tooSmall && <span className="ml-2 text-xs text-red-500">Too many employees</span>}
+                        </div>
+                        <span className="font-semibold text-sm">${tc.price}/mo</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{empLabel}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <DialogFooter className="flex-col gap-2 sm:flex-row">
+                <Button
+                  onClick={() => {
+                    if (cancelUpgradeTier && cancelUpgradeTier !== org.tier) {
+                      changeTier(cancelUpgradeTier);
+                      setCancelStep("closed");
+                      setCancelUpgradeTier("");
+                    }
+                  }}
+                  disabled={!cancelUpgradeTier || cancelUpgradeTier === org.tier || isChangingTier}
+                  className="w-full sm:w-auto"
+                  data-testid="button-switch-plan-from-cancel"
+                >
+                  {isChangingTier ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
+                  Switch Plan
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full sm:w-auto text-muted-foreground"
+                  onClick={() => setCancelStep("confirm")}
+                  data-testid="button-still-want-to-cancel"
+                >
+                  I still want to cancel
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {cancelStep === "confirm" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Cancel Subscription?
+                </DialogTitle>
+                <DialogDescription asChild>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>If you are still in your <strong>free trial</strong>, your access will end immediately and no charge will be made.</p>
+                    <p>If you have already been billed, your access will continue until the <strong>end of your current billing period</strong> — no further charges will be made after that.</p>
+                    <p>Your organization data, employee accounts, and history are fully preserved. You can reactivate at any time.</p>
+                  </div>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => { setCancelStep("closed"); setCancelUpgradeTier(""); }}
+                  data-testid="button-keep-subscription"
+                >
+                  Keep Subscription
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                  disabled={isCancelling}
+                  onClick={() => {
+                    cancelSubscription();
+                    setCancelStep("closed");
+                  }}
+                  data-testid="button-confirm-cancel"
+                >
+                  {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Yes, Cancel Subscription
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

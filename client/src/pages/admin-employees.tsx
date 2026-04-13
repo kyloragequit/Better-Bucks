@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
@@ -1078,6 +1078,8 @@ function CreateEmployeeDialog() {
     queryKey: ["/api/organizations/my-org"],
   });
   const isAtCapacity = !!org && org.maxEmployees > 0 && org.employeeCount >= org.maxEmployees;
+  const isNearCapacity = !!org && org.maxEmployees > 0 && !isAtCapacity && org.employeeCount >= org.maxEmployees - 3;
+  const spotsRemaining = org && org.maxEmployees > 0 ? Math.max(0, org.maxEmployees - org.employeeCount) : null;
 
   const isAdminRole = formData.role === "admin" || formData.role === "prime_admin";
 
@@ -1148,6 +1150,26 @@ function CreateEmployeeDialog() {
             Create a new employee account. They will use the code to login.
           </DialogDescription>
         </DialogHeader>
+        {isNearCapacity && spotsRemaining !== null && (
+          <div className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm" data-testid="near-capacity-warning">
+            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-800 font-medium">Only {spotsRemaining} spot{spotsRemaining !== 1 ? "s" : ""} remaining</p>
+              <p className="text-amber-700 text-xs mt-0.5">
+                Your plan allows {org?.maxEmployees} employees.{" "}
+                <button
+                  type="button"
+                  className="underline font-medium hover:text-amber-900"
+                  onClick={() => { setOpen(false); navigate("/admin/settings"); }}
+                  data-testid="link-upgrade-near-capacity"
+                >
+                  Upgrade your plan
+                </button>{" "}
+                for more capacity.
+              </p>
+            </div>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid gap-2">
             <Label htmlFor="name">Full Name</Label>

@@ -5,6 +5,44 @@ import { ensureStripeReady } from "./stripeLazy";
 import { WebhookHandlers } from "./webhookHandlers";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cluster from "node:cluster";
+import os from "node:os";
+
+const isProduction = process.env.NODE_ENV === "production";
+const CLUSTER_WORKERS = isProduction
+  ? Math.min(parseInt(process.env.WEB_CONCURRENCY || "0") || os.cpus().length, 8)
+  : 1;
+
+declare module "http" {
+  interface IncomingMessage {
+    rawBody: unknown;
+  }
+}
+
+export function log(message: string, source = "express") {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+
+if (isProduction && cluster.isPrimary && CLUSTER_WORKERS > 1) {
+  console.log(`Primary ${process.pid} forking ${CLUSTER_WORKERS} workers`);
+  for (let i = 0; i < CLUSTER_WORKERS; i++) {
+    cluster.fork();
+  }
+  cluster.on("exit", (worker, code) => {
+    console.error(`Worker ${worker.process.pid} exited (code ${code}). Respawning…`);
+    cluster.fork();
+  });
+} else {
+  startServer();
+}
+
+function startServer() {
 
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
@@ -27,8 +65,7 @@ process.on("SIGINT", () => {
 process.on("SIGHUP", () => {
 });
 
-// Refuse to start in production without a real session secret
-if (process.env.NODE_ENV === "production") {
+if (isProduction) {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret === "super secret session key" || secret.length < 32) {
     console.error("FATAL: SESSION_SECRET is not set or is insecure. Refusing to start in production.");
@@ -42,12 +79,6 @@ const httpServer = createServer(app);
 // Trust the first proxy hop (Replit's reverse proxy) so rate limiters
 // use the real client IP from X-Forwarded-For rather than the proxy's IP.
 app.set("trust proxy", 1);
-
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
 
 // Security headers (must be before routes)
 app.use(helmet({
@@ -122,20 +153,18 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: "50kb" }));
 
-// General API rate limiter: 300 requests/minute per IP
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 300,
+  max: isProduction ? 600 : 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests. Please slow down." },
 });
 app.use("/api", apiLimiter);
 
-// Strict login rate limiter: 10 attempts per 15 minutes per IP
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: isProduction ? 30 : 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many login attempts. Please try again in 15 minutes." },
@@ -143,17 +172,6 @@ const loginLimiter = rateLimit({
 });
 app.use("/api/login", loginLimiter);
 app.use("/api/developer-login", loginLimiter);
-
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -203,7 +221,9 @@ app.use((req, res, next) => {
       reusePort: true,
     },
     () => {
-      log(`serving on port ${port}`);
+      log(`serving on port ${port} (worker ${process.pid})`);
     },
   );
 })();
+
+} // end startServer

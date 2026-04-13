@@ -2,7 +2,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { seedDemoOrg, createSessionDemoOrg, deleteSessionDemoOrg, cleanupStaleDemoOrgs } from "./seedDemo";
 import type { Server } from "http";
-import { setupAuth, hashPassword, verifyPassword, isCaptchaRequired, verifyTurnstileToken } from "./auth";
+import { setupAuth, hashPassword, verifyPassword, isCaptchaRequired, verifyTurnstileToken, invalidateUserCache } from "./auth";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -1829,6 +1829,7 @@ export async function registerRoutes(
     const { role } = api.users.updateRole.input.parse(req.body);
 
     const updatedUser = await storage.updateUserRole(id, role as "admin" | "employee");
+    invalidateUserCache(id);
     res.json(sanitizeUser(updatedUser));
   });
 
@@ -1876,6 +1877,7 @@ export async function registerRoutes(
       profileData.fullName = data.fullName.trim();
     }
     const updatedUser = await storage.updateUserProfile(id, profileData);
+    invalidateUserCache(id);
     res.json(sanitizeUser(updatedUser));
   });
 

@@ -11,11 +11,17 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  max: isProduction ? 80 : 20,
+  min: isProduction ? 10 : 2,
+  idleTimeoutMillis: isProduction ? 60_000 : 30_000,
+  connectionTimeoutMillis: isProduction ? 10_000 : 5_000,
+  allowExitOnIdle: !isProduction,
+  statement_timeout: 30_000,
+  query_timeout: 30_000,
 });
 
 pool.on("error", (err) => {

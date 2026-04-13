@@ -11,7 +11,33 @@ import { pool } from "./db";
 import { User } from "@shared/schema";
 import { deleteSessionDemoOrg } from "./seedDemo";
 
-export const BCRYPT_ROUNDS = 12;
+export const BCRYPT_ROUNDS = 10;
+
+const USER_CACHE_TTL = 60_000;
+const USER_CACHE_MAX = 10_000;
+const userCache = new Map<number, { user: User; ts: number }>();
+
+function getCachedUser(id: number): User | undefined {
+  const entry = userCache.get(id);
+  if (!entry) return undefined;
+  if (Date.now() - entry.ts > USER_CACHE_TTL) {
+    userCache.delete(id);
+    return undefined;
+  }
+  return entry.user;
+}
+
+function setCachedUser(user: User) {
+  if (userCache.size >= USER_CACHE_MAX) {
+    const oldest = userCache.keys().next().value;
+    if (oldest !== undefined) userCache.delete(oldest);
+  }
+  userCache.set(user.id, { user, ts: Date.now() });
+}
+
+export function invalidateUserCache(userId: number) {
+  userCache.delete(userId);
+}
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_ROUNDS);
@@ -55,7 +81,7 @@ export function setupAuth(app: Express) {
       store: new PgSession({
         pool,
         createTableIfMissing: true,
-        pruneSessionInterval: 60 * 60,   // prune expired sessions every hour
+        pruneSessionInterval: 5 * 60,
         errorLog: (err) => console.error("Session store error:", err),
       }),
       secret: process.env.SESSION_SECRET || "super secret session key",
@@ -66,7 +92,7 @@ export function setupAuth(app: Express) {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 24 * 60 * 60 * 1000,   // 24h default; remember-me extends to 30d
+        maxAge: 24 * 60 * 60 * 1000,
       },
     })
   );
@@ -100,6 +126,7 @@ export function setupAuth(app: Express) {
         if (!user.password.startsWith("$2b$") && !user.password.startsWith("$2a$")) {
           const hashed = await hashPassword(password);
           await storage.updateUserPassword(user.id, hashed);
+          invalidateUserCache(user.id);
         }
 
         return done(null, user);
@@ -115,9 +142,13 @@ export function setupAuth(app: Express) {
 
   passport.deserializeUser(async (id: number, done) => {
     try {
-      const user = await storage.getUser(id);
+      let user = getCachedUser(id);
       if (!user) {
-        return done(null, false);
+        user = await storage.getUser(id);
+        if (!user) {
+          return done(null, false);
+        }
+        setCachedUser(user);
       }
       const { password, lastPlainPassword, ...safeUser } = user;
       done(null, { ...safeUser, password: "[hidden]" });
@@ -170,7 +201,9 @@ export function setupAuth(app: Express) {
 
       req.login(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
+        invalidateUserCache(user.id);
         const updated = await storage.incrementSuccessfulLoginCount(user.id);
+        setCachedUser(updated);
         res.json(updated);
       });
     })(req, res, next);

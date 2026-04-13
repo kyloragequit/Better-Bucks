@@ -58,8 +58,9 @@ Preferred communication style: Simple, everyday language.
 - **QR Code System**: QR code-based employee identification and instant point transactions.
 
 ### Performance & Security
-- **Memory Optimizations**: Lazy-loaded server modules, minimal imports, limited DB connection pool.
-- **Security (OWASP-hardened)**: Bcrypt password hashing, secure session cookies, `helmet` security headers, rate limiting, Zod validation, error stripping in production, Cloudflare Turnstile CAPTCHA, and PII masking in logs.
+- **High-Concurrency Optimizations**: Node.js clustering (up to 8 workers in production), DB connection pool (80 max in production), in-memory user cache (60s TTL, 10k max entries) for session deserialization, bcrypt cost factor 10, session pruning every 5 minutes, `reusePort` for socket sharing, database indexes on `users.email`, `users.organization_id`, `users.organization_id+role`, `session.expire`, `transactions.user_id`.
+- **Memory Optimizations**: Lazy-loaded server modules, minimal imports.
+- **Security (OWASP-hardened)**: Bcrypt password hashing, secure session cookies, `helmet` security headers, rate limiting (600 req/min API, 30 failed logins/15min in production), Zod validation, error stripping in production, Cloudflare Turnstile CAPTCHA, and PII masking in logs.
 - **SEO**: Per-page SEO with `PageSEO` component, `robots.txt`, and `sitemap.xml`.
 
 ### Blog System

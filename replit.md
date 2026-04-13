@@ -58,8 +58,9 @@ Preferred communication style: Simple, everyday language.
 - **QR Code System**: QR code-based employee identification and instant point transactions.
 
 ### Performance & Security
-- **High-Concurrency Optimizations**: Node.js clustering (up to 8 workers in production), DB connection pool (80 max in production), in-memory user cache (60s TTL, 10k max entries) for session deserialization, bcrypt cost factor 10, session pruning every 5 minutes, `reusePort` for socket sharing, database indexes on `users.email`, `users.organization_id`, `users.organization_id+role`, `session.expire`, `transactions.user_id`.
-- **Memory Optimizations**: Lazy-loaded server modules, minimal imports.
+- **High-Concurrency Optimizations**: Node.js clustering (up to 8 workers in production), right-sized DB pool (30 max prod / 10 dev, 4 min prod / 1 dev), in-memory user cache (120s TTL, 10k max entries) for session deserialization, bcrypt cost factor 10, session pruning every 5 minutes, `reusePort` for socket sharing, database indexes on `users.email`, `users.organization_id`, `users.organization_id+role`, `session.expire`, `transactions.user_id`.
+- **Query Optimizations**: Atomic SQL increments for balance updates and login counts (no read-before-write), subquery-based IN clauses for `getCategoryStats` and `getMonthlyBudgetUsed` (single round-trip instead of two).
+- **Memory & Speed Optimizations**: Lazy-loaded server modules, minimal imports, gzip compression in all environments (level 6, 1KB threshold), vendor chunk splitting for React/TanStack/UI libs, CSS code splitting, 5-minute Cache-Control on tier pricing endpoint.
 - **Security (OWASP-hardened)**: Bcrypt password hashing, secure session cookies, `helmet` security headers, rate limiting (600 req/min API, 30 failed logins/15min in production), Zod validation, error stripping in production, Cloudflare Turnstile CAPTCHA, and PII masking in logs.
 - **SEO**: Per-page SEO with `PageSEO` component, `robots.txt`, and `sitemap.xml`.
 

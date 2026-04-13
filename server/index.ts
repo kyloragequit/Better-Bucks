@@ -203,9 +203,10 @@ app.use((req, res, next) => {
     }
   });
 
+  const compression = (await import("compression")).default;
+  app.use(compression({ level: 6, threshold: 1024 }));
+
   if (process.env.NODE_ENV === "production") {
-    const compression = (await import("compression")).default;
-    app.use(compression());
     const { serveStatic } = await import("./static");
     serveStatic(app);
   } else {

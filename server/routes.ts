@@ -3348,6 +3348,7 @@ export async function registerRoutes(
         description: val.description,
       }])
     );
+    res.setHeader("Cache-Control", "public, max-age=300");
     res.json(pricing);
   });
 

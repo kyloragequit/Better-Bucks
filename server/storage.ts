@@ -188,15 +188,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserBalance(userId: number, amount: number): Promise<User> {
-    const user = await this.getUser(userId);
-    if (!user) throw new Error("User not found");
-    
     const [updatedUser] = await db
       .update(users)
-      .set({ balance: user.balance + amount })
+      .set({ balance: sql`${users.balance} + ${amount}` })
       .where(eq(users.id, userId))
       .returning();
-      
+    if (!updatedUser) throw new Error("User not found");
     return updatedUser;
   }
 
@@ -712,8 +709,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addToWishlist(userId: number, storeItemId: number): Promise<Wishlist> {
-    const existing = await db.select().from(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.storeItemId, storeItemId)));
-    if (existing.length > 0) return existing[0];
+    const [existing] = await db.select().from(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.storeItemId, storeItemId))).limit(1);
+    if (existing) return existing;
     const [entry] = await db.insert(wishlists).values({ userId, storeItemId }).returning();
     return entry;
   }
@@ -753,13 +750,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async incrementSuccessfulLoginCount(userId: number): Promise<User> {
-    const user = await this.getUser(userId);
-    if (!user) throw new Error("User not found");
     const [updated] = await db
       .update(users)
-      .set({ successfulLoginCount: (user.successfulLoginCount ?? 0) + 1 })
+      .set({ successfulLoginCount: sql`COALESCE(${users.successfulLoginCount}, 0) + 1` })
       .where(eq(users.id, userId))
       .returning();
+    if (!updated) throw new Error("User not found");
     return updated;
   }
 
@@ -1083,9 +1079,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCategoryStats(orgId: number, from: Date, to: Date): Promise<{ categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number }[]> {
-    const orgUsers = await db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
-    const userIds = orgUsers.map(u => u.id);
-    if (userIds.length === 0) return [];
+    const orgUserIds = db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
 
     const rows = await db
       .select({
@@ -1097,7 +1091,7 @@ export class DatabaseStorage implements IStorage {
       .from(transactions)
       .leftJoin(transactionCategories, eq(transactions.categoryId, transactionCategories.id))
       .where(and(
-        inArray(transactions.userId, userIds),
+        inArray(transactions.userId, orgUserIds),
         gte(transactions.createdAt, from),
         lte(transactions.createdAt, to),
         sql`${transactions.amount} > 0`
@@ -1115,15 +1109,13 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyBudgetUsed(orgId: number, year: number, month: number): Promise<number> {
     const from = new Date(year, month - 1, 1);
     const to = new Date(year, month, 0, 23, 59, 59, 999);
-    const orgUsers = await db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
-    const userIds = orgUsers.map(u => u.id);
-    if (userIds.length === 0) return 0;
+    const orgUserIds = db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
 
     const [row] = await db
       .select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)::int` })
       .from(transactions)
       .where(and(
-        inArray(transactions.userId, userIds),
+        inArray(transactions.userId, orgUserIds),
         gte(transactions.createdAt, from),
         lte(transactions.createdAt, to),
         sql`${transactions.amount} > 0`,

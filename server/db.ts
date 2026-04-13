@@ -15,9 +15,9 @@ const isProduction = process.env.NODE_ENV === "production";
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: isProduction ? 80 : 20,
-  min: isProduction ? 10 : 2,
-  idleTimeoutMillis: isProduction ? 60_000 : 30_000,
+  max: isProduction ? 30 : 10,
+  min: isProduction ? 4 : 1,
+  idleTimeoutMillis: isProduction ? 30_000 : 15_000,
   connectionTimeoutMillis: isProduction ? 10_000 : 5_000,
   allowExitOnIdle: !isProduction,
   statement_timeout: 30_000,

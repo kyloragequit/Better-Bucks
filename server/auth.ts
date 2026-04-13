@@ -13,7 +13,7 @@ import { deleteSessionDemoOrg } from "./seedDemo";
 
 export const BCRYPT_ROUNDS = 10;
 
-const USER_CACHE_TTL = 60_000;
+const USER_CACHE_TTL = 120_000;
 const USER_CACHE_MAX = 10_000;
 const userCache = new Map<number, { user: User; ts: number }>();
 

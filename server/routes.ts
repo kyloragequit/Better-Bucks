@@ -1991,7 +1991,7 @@ export async function registerRoutes(
         : (org?.employeeRoleLabel || "Employee");
 
       const userPassword = target.lastPlainPassword || org?.defaultPinPlain || null;
-      const passwordLabel = target.lastPlainPassword ? "Password" : "Password";
+      const passwordLabel = "Password";
 
       await sendEmail({
         to: target.email,

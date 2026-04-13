@@ -1821,14 +1821,24 @@ export async function registerRoutes(
     const targetUser = await storage.getUser(id);
     if (!targetUser) return res.status(404).send("User not found");
 
-    // Prevent changing role of prime_admin
-    if (targetUser.role === "prime_admin") {
-      return res.status(400).send("Cannot change role of prime administrator");
-    }
-
     const { role } = api.users.updateRole.input.parse(req.body);
 
-    const updatedUser = await storage.updateUserRole(id, role as "admin" | "employee");
+    if (targetUser.role === "prime_admin" && role !== "prime_admin") {
+      if (user.role !== "prime_admin") {
+        return res.status(403).send("Only a Super User can demote another Super User");
+      }
+      const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+      const primeCount = orgUsers.filter(u => u.role === "prime_admin").length;
+      if (primeCount <= 1) {
+        return res.status(400).send("Cannot demote the last Super User. Promote another user first.");
+      }
+    }
+
+    if (role === "prime_admin" && user.role !== "prime_admin") {
+      return res.status(403).send("Only a Super User can promote others to Super User");
+    }
+
+    const updatedUser = await storage.updateUserRole(id, role as "admin" | "employee" | "prime_admin");
     invalidateUserCache(id);
     res.json(sanitizeUser(updatedUser));
   });
@@ -1895,17 +1905,21 @@ export async function registerRoutes(
 
     await ensureStripeReady();
 
-    // Users can delete their own account (except prime admins)
+    if (targetUser.role === "prime_admin") {
+      const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+      const primeCount = orgUsers.filter(u => u.role === "prime_admin").length;
+      if (primeCount <= 1) {
+        return res.status(400).send("Cannot delete the last Super User. Promote another user first.");
+      }
+    }
+
     if (user.id === id) {
-      if (user.role === "prime_admin") return res.status(400).send("Cannot delete prime account");
       await storage.deleteUser(id);
       req.logout(() => {});
       return res.sendStatus(200);
     }
 
-    // Prime can delete anyone except themselves or other prime admins
     if (isPrime) {
-      if (targetUser.role === "prime_admin") return res.status(400).send("Cannot delete prime account");
       await storage.deleteUser(id);
       return res.sendStatus(200);
     }
@@ -2026,7 +2040,7 @@ export async function registerRoutes(
       const validRoles = ["employee", "admin", "prime_admin"] as const;
       const newRole = validRoles.includes(roleRaw) ? roleRaw as typeof validRoles[number] : null;
       if (newRole && newRole !== targetUser.role) {
-        await storage.updateUserRole(id, newRole === "prime_admin" ? "admin" : newRole);
+        await storage.updateUserRole(id, newRole);
       }
       const approvedUser = await storage.approveAdminUser(id);
       res.json(approvedUser);
@@ -3530,10 +3544,12 @@ export async function registerRoutes(
     const org = await storage.getOrganization(user.organizationId);
     if (!org) return res.status(404).json({ message: "Organization not found" });
 
-    // Require the user to explicitly confirm by typing the org name
-    const { confirmOrgName } = req.body;
+    const { confirmOrgName, confirmEmail } = req.body;
     if (!confirmOrgName || confirmOrgName.trim().toLowerCase() !== org.name.trim().toLowerCase()) {
       return res.status(400).json({ message: `To confirm deletion, please type the organization name exactly: "${org.name}"` });
+    }
+    if (!confirmEmail || !user.email || confirmEmail.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
+      return res.status(400).json({ message: "Please enter your email address to confirm deletion." });
     }
 
     const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_") || org.stripeSubscriptionId?.startsWith("promo_");

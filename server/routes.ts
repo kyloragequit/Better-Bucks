@@ -4915,6 +4915,283 @@ export async function registerRoutes(
     res.json({ message: `Sent ${sent} test billing emails to ${email}` });
   });
 
+  // ─── Enterprise Accounts ───────────────────────────────────────────────────
+
+  app.get("/api/developer/enterprise-accounts", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const accounts = await storage.getAllEnterpriseAccounts();
+    res.json(accounts);
+  });
+
+  app.get("/api/developer/enterprise-accounts/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const account = await storage.getEnterpriseAccount(parseInt(req.params.id));
+    if (!account) return res.status(404).json({ message: "Not found" });
+    res.json(account);
+  });
+
+  app.post("/api/developer/enterprise-accounts", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    const schema = z.object({
+      companyName: z.string().min(2),
+      contactEmail: z.string().email(),
+      contactName: z.string().min(2),
+      address: z.string().min(3),
+      city: z.string().min(2),
+      state: z.string().min(2),
+      zip: z.string().min(4),
+      customPrice: z.number().int().min(100),
+      billingCycle: z.enum(["monthly", "quarterly", "annual"]),
+      maxLogins: z.number().int().min(1),
+      notes: z.string().optional(),
+    });
+
+    try {
+      const data = schema.parse(req.body);
+
+      const stripe = await getStripeClient();
+
+      const customer = await stripe.customers.create({
+        name: data.companyName,
+        email: data.contactEmail,
+        address: {
+          line1: data.address,
+          city: data.city,
+          state: data.state,
+          postal_code: data.zip,
+          country: "US",
+        },
+        metadata: { accountType: "enterprise", contactName: data.contactName },
+      });
+
+      const intervalMap: Record<string, { interval: "month" | "year"; count: number }> = {
+        monthly: { interval: "month", count: 1 },
+        quarterly: { interval: "month", count: 3 },
+        annual: { interval: "year", count: 1 },
+      };
+      const billing = intervalMap[data.billingCycle];
+
+      const price = await stripe.prices.create({
+        currency: "usd",
+        unit_amount: data.customPrice,
+        recurring: {
+          interval: billing.interval,
+          interval_count: billing.count,
+        },
+        product_data: {
+          name: `Better Bucks Enterprise — ${data.companyName}`,
+          metadata: { accountType: "enterprise" },
+        },
+        tax_behavior: "exclusive",
+      });
+
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [{ price: price.id }],
+        automatic_tax: { enabled: true },
+        metadata: { accountType: "enterprise", companyName: data.companyName },
+        collection_method: "send_invoice",
+        days_until_due: 30,
+      });
+
+      const account = await storage.createEnterpriseAccount({
+        ...data,
+        stripeCustomerId: customer.id,
+        stripeSubscriptionId: subscription.id,
+        status: "active",
+      });
+
+      const cycleLabels: Record<string, string> = { monthly: "Monthly", quarterly: "Quarterly", annual: "Annual" };
+      const fmtPrice = "$" + (data.customPrice / 100).toFixed(2);
+
+      await sendEmail({
+        to: data.contactEmail,
+        subject: `Better Bucks — Enterprise Account Activated`,
+        html: `
+          <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+            ${emailLogoHeader}
+            <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Welcome to Better Bucks Enterprise</h2>
+            <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Your enterprise account is now active</p>
+
+            <div style="background:#F0F4F8;border-radius:12px;padding:20px;margin-bottom:20px;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Company</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(data.companyName)}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Contact</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(data.contactName)}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Billing Address</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(data.address)}, ${escapeHtml(data.city)}, ${escapeHtml(data.state)} ${escapeHtml(data.zip)}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Plan Rate</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#4E9F3D;font-size:15px;">${fmtPrice}/${data.billingCycle === "annual" ? "year" : data.billingCycle === "quarterly" ? "quarter" : "month"}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Billing Cycle</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${cycleLabels[data.billingCycle]}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Login Limit</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${data.maxLogins.toLocaleString()} logins</td></tr>
+              </table>
+            </div>
+
+            <p style="color:#162A4A;font-size:14px;line-height:1.6;margin:0 0 16px;">Your account has been set up with custom billing. Invoices will be sent automatically via Stripe to <strong>${escapeHtml(data.contactEmail)}</strong>. Tax will be calculated automatically based on your billing address.</p>
+
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid #dde3ea;text-align:center;">
+              <p style="color:#64748b;font-size:12px;margin:0 0 4px;">Questions? Contact us at</p>
+              <p style="margin:0;"><a href="mailto:support@betterbucks.net" style="color:#4E9F3D;font-size:12px;text-decoration:none;">support@betterbucks.net</a></p>
+              <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">Better Bucks, LLC — Employee Incentive Platform</p>
+            </div>
+          </div>
+        `,
+        text: `Better Bucks Enterprise Account Activated\n\nCompany: ${data.companyName}\nContact: ${data.contactName}\nAddress: ${data.address}, ${data.city}, ${data.state} ${data.zip}\nRate: ${fmtPrice}/${data.billingCycle}\nLogin Limit: ${data.maxLogins}\n\nInvoices will be sent to ${data.contactEmail}.`,
+      }).catch(err => console.error("[Enterprise Email] Failed:", err));
+
+      sendEmail({
+        to: ADMIN_NOTIFY_EMAIL,
+        subject: `🏢 NEW ENTERPRISE ACCOUNT — ${data.companyName}`,
+        html: `<div style="font-family:sans-serif;max-width:520px"><div style="background:#162A4A;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;text-align:center"><img src="${EMAIL_LOGO_URL}" alt="Better Bucks" width="48" height="48" style="display:block;margin:0 auto 8px;" /><h2 style="margin:0;font-size:20px">🏢 New Enterprise Account</h2></div><div style="background:#f9fafb;padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px"><table style="border-collapse:collapse;width:100%"><tr><td style="padding:8px 12px;font-weight:600;background:#fff;border:1px solid #e5e7eb;width:38%">Company</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${escapeHtml(data.companyName)}</td></tr><tr><td style="padding:8px 12px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb">Contact</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb">${escapeHtml(data.contactName)} &lt;${escapeHtml(data.contactEmail)}&gt;</td></tr><tr><td style="padding:8px 12px;font-weight:600;background:#fff;border:1px solid #e5e7eb">Address</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${escapeHtml(data.address)}, ${escapeHtml(data.city)}, ${escapeHtml(data.state)} ${escapeHtml(data.zip)}</td></tr><tr><td style="padding:8px 12px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb">Rate</td><td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:700;color:#4E9F3D">${fmtPrice}/${data.billingCycle}</td></tr><tr><td style="padding:8px 12px;font-weight:600;background:#fff;border:1px solid #e5e7eb">Login Limit</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${data.maxLogins}</td></tr></table></div></div>`,
+      }).catch(err => console.error("[Enterprise Admin Notify] Failed:", err));
+
+      res.json(account);
+    } catch (e: any) {
+      console.error("Create enterprise account error:", e);
+      if (e instanceof z.ZodError) return res.status(400).json({ message: e.errors.map(x => x.message).join(", ") });
+      res.status(500).json({ message: e.message || "Failed to create enterprise account" });
+    }
+  });
+
+  app.post("/api/developer/enterprise-accounts/:id/upload-contract", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    const u = getUpload();
+    u.single("contract")(req, res, async (err: any) => {
+      if (err) return res.status(400).json({ message: err.message });
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+      const contractUrl = `/uploads/${req.file.filename}`;
+      const account = await storage.updateEnterpriseAccount(parseInt(req.params.id), { contractUrl } as any);
+      res.json(account);
+    });
+  });
+
+  app.post("/api/developer/enterprise-accounts/:id/cancel", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    const id = parseInt(req.params.id);
+    const account = await storage.getEnterpriseAccount(id);
+    if (!account) return res.status(404).json({ message: "Not found" });
+
+    try {
+      if (account.stripeSubscriptionId) {
+        const stripe = await getStripeClient();
+        await stripe.subscriptions.cancel(account.stripeSubscriptionId);
+      }
+
+      const updated = await storage.updateEnterpriseAccount(id, {
+        status: "cancelled",
+        cancelledAt: new Date(),
+      } as any);
+
+      const fmtPrice = "$" + (account.customPrice / 100).toFixed(2);
+      const cycleLabel = account.billingCycle === "annual" ? "year" : account.billingCycle === "quarterly" ? "quarter" : "month";
+
+      await sendEmail({
+        to: account.contactEmail,
+        subject: `Better Bucks — Enterprise Account Cancelled`,
+        html: `
+          <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+            ${emailLogoHeader}
+            <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Account Cancelled</h2>
+            <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Your enterprise account has been deactivated</p>
+
+            <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:20px;margin-bottom:20px;">
+              <p style="margin:0 0 8px;color:#991B1B;font-size:14px;font-weight:600;">Your enterprise account for "${escapeHtml(account.companyName)}" has been cancelled.</p>
+              <p style="margin:0;color:#7F1D1D;font-size:13px;">Your Stripe subscription has been stopped and no further charges will be made.</p>
+            </div>
+
+            <div style="background:#F0F4F8;border-radius:12px;padding:20px;margin-bottom:20px;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Company</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(account.companyName)}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Previous Rate</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${fmtPrice}/${cycleLabel}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Cancelled On</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</td></tr>
+              </table>
+            </div>
+
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid #dde3ea;text-align:center;">
+              <p style="color:#64748b;font-size:12px;margin:0 0 4px;">Questions? Contact us at</p>
+              <p style="margin:0;"><a href="mailto:support@betterbucks.net" style="color:#4E9F3D;font-size:12px;text-decoration:none;">support@betterbucks.net</a></p>
+              <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">Better Bucks, LLC — Employee Incentive Platform</p>
+            </div>
+          </div>
+        `,
+      }).catch(err => console.error("[Enterprise Cancel Email] Failed:", err));
+
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Cancel enterprise account error:", e);
+      res.status(500).json({ message: e.message || "Failed to cancel" });
+    }
+  });
+
+  app.post("/api/developer/enterprise-accounts/:id/send-test-email", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    const id = parseInt(req.params.id);
+    const account = await storage.getEnterpriseAccount(id);
+    if (!account) return res.status(404).json({ message: "Not found" });
+
+    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+    const fmtPrice = "$" + (account.customPrice / 100).toFixed(2);
+    const cycleLabel = account.billingCycle === "annual" ? "year" : account.billingCycle === "quarterly" ? "quarter" : "month";
+    const taxRate = 0.0945;
+    const tax = Math.round(account.customPrice * taxRate);
+    const total = account.customPrice + tax;
+    const fmtCents = (c: number) => "$" + (c / 100).toFixed(2);
+    const today = new Date();
+    const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const nextDate = new Date(today);
+    if (account.billingCycle === "annual") nextDate.setFullYear(nextDate.getFullYear() + 1);
+    else if (account.billingCycle === "quarterly") nextDate.setMonth(nextDate.getMonth() + 3);
+    else nextDate.setMonth(nextDate.getMonth() + 1);
+
+    const invoiceNumber = `BB-ENT-${account.id}-${Date.now().toString(36).slice(-5).toUpperCase()}`;
+
+    await sendEmail({
+      to: email,
+      subject: `Better Bucks — Enterprise Billing Receipt (${account.companyName})`,
+      html: `
+        <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+          ${emailLogoHeader}
+          <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Enterprise Billing Receipt</h2>
+          <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Invoice #${escapeHtml(invoiceNumber)} • ${escapeHtml(fmtDate(today))}</p>
+
+          <div style="background:#F0F4F8;border-radius:12px;padding:20px;margin-bottom:20px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Company</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(account.companyName)}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Contact</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(account.contactName)}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Billing Address</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(account.address)}, ${escapeHtml(account.city)}, ${escapeHtml(account.state)} ${escapeHtml(account.zip)}</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Plan</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">Enterprise Custom (${account.maxLogins.toLocaleString()} logins)</td></tr>
+              <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Billing Period</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#162A4A;font-size:13px;">${escapeHtml(fmtDate(today))} — ${escapeHtml(fmtDate(nextDate))}</td></tr>
+            </table>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dde3ea;border-radius:12px;padding:20px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:8px 0;color:#162A4A;font-size:14px;">Enterprise Custom — ${escapeHtml(account.companyName)}</td><td style="padding:8px 0;text-align:right;color:#162A4A;font-size:14px;">${fmtPrice}</td></tr>
+              <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Estimated Tax (9.45%)</td><td style="padding:8px 0;text-align:right;color:#64748b;font-size:13px;">${fmtCents(tax)}</td></tr>
+              <tr><td colspan="2" style="border-top:1px solid #dde3ea;padding:0;"></td></tr>
+              <tr><td style="padding:12px 0 4px;color:#162A4A;font-size:16px;font-weight:700;">Total</td><td style="padding:12px 0 4px;text-align:right;color:#4E9F3D;font-size:20px;font-weight:700;">${fmtCents(total)}</td></tr>
+            </table>
+          </div>
+
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid #dde3ea;text-align:center;">
+            <p style="color:#64748b;font-size:12px;margin:0 0 4px;">Questions about your bill? Contact us at</p>
+            <p style="margin:0;"><a href="mailto:support@betterbucks.net" style="color:#4E9F3D;font-size:12px;text-decoration:none;">support@betterbucks.net</a></p>
+            <p style="color:#94a3b8;font-size:11px;margin:12px 0 0;">Better Bucks, LLC — Employee Incentive Platform</p>
+          </div>
+        </div>
+      `,
+    });
+
+    res.json({ message: `Test enterprise billing email sent to ${email}` });
+  });
+
   // ─── Goals ────────────────────────────────────────────────────────────────
 
   // Helper: reset expired time-based goals for demo orgs so they never finish

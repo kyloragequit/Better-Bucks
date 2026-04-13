@@ -91,7 +91,7 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
@@ -413,7 +413,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -461,6 +461,15 @@ export default function DeveloperDashboardPage() {
             >
               <Shield className="mr-1.5 h-4 w-4" />
               Agreements
+            </Button>
+            <Button
+              variant={activeTab === "enterprise" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("enterprise"); setBlogForm(null); }}
+              data-testid="button-tab-enterprise"
+            >
+              <Building2 className="mr-1.5 h-4 w-4" />
+              Enterprise Accounts
             </Button>
           </div>
         </div>
@@ -1524,6 +1533,8 @@ export default function DeveloperDashboardPage() {
             </CardContent>
           </Card>
         )}
+
+        {activeTab === "enterprise" && <EnterpriseAccountsTab />}
       </main>
       <SiteFooter />
 
@@ -1572,6 +1583,312 @@ export default function DeveloperDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+type EntAccount = {
+  id: number;
+  companyName: string;
+  contactEmail: string;
+  contactName: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  customPrice: number;
+  billingCycle: string;
+  maxLogins: number;
+  contractUrl: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  cancelledAt: string | null;
+};
+
+function EnterpriseAccountsTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [contractUploading, setContractUploading] = useState<number | null>(null);
+
+  const [form, setForm] = useState({
+    companyName: "", contactEmail: "", contactName: "",
+    address: "", city: "", state: "", zip: "",
+    customPrice: "", billingCycle: "monthly" as string,
+    maxLogins: "", notes: "",
+  });
+
+  const { data: accounts, isLoading, isError, error, refetch } = useQuery<EntAccount[]>({
+    queryKey: ["/api/developer/enterprise-accounts"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/developer/enterprise-accounts", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/enterprise-accounts"] });
+      toast({ title: "Created", description: "Enterprise account created and billing started." });
+      setShowForm(false);
+      setForm({ companyName: "", contactEmail: "", contactName: "", address: "", city: "", state: "", zip: "", customPrice: "", billingCycle: "monthly", maxLogins: "", notes: "" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/developer/enterprise-accounts/${id}/cancel`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/enterprise-accounts"] });
+      toast({ title: "Cancelled", description: "Enterprise account cancelled and customer notified." });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const sendTestEmailMutation = useMutation({
+    mutationFn: async ({ id, email }: { id: number; email: string }) => {
+      const res = await apiRequest("POST", `/api/developer/enterprise-accounts/${id}/send-test-email`, { email });
+      return res.json();
+    },
+    onSuccess: (data) => toast({ title: "Sent", description: data.message }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  async function handleContractUpload(accountId: number, file: File) {
+    setContractUploading(accountId);
+    try {
+      const fd = new FormData();
+      fd.append("contract", file);
+      const res = await fetch(`/api/developer/enterprise-accounts/${accountId}/upload-contract`, {
+        method: "POST", body: fd, credentials: "include",
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(errData.message || "Upload failed");
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/enterprise-accounts"] });
+      toast({ title: "Contract uploaded" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setContractUploading(null);
+    }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const priceInCents = Math.round(parseFloat(form.customPrice) * 100);
+    if (isNaN(priceInCents) || priceInCents < 100) {
+      toast({ title: "Error", description: "Price must be at least $1.00", variant: "destructive" });
+      return;
+    }
+    const logins = parseInt(form.maxLogins);
+    if (!Number.isFinite(logins) || logins < 1) {
+      toast({ title: "Error", description: "Max logins must be at least 1", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate({
+      ...form,
+      customPrice: priceInCents,
+      maxLogins: logins,
+    });
+  };
+
+  const fmtPrice = (cents: number) => "$" + (cents / 100).toFixed(2);
+  const cycleLabels: Record<string, string> = { monthly: "/mo", quarterly: "/qtr", annual: "/yr" };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Enterprise Accounts
+              </CardTitle>
+              <CardDescription>Custom-priced accounts with specialized billing and contract management.</CardDescription>
+            </div>
+            <Button onClick={() => setShowForm(!showForm)} data-testid="button-new-enterprise">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Enterprise Account
+            </Button>
+          </div>
+        </CardHeader>
+
+        {showForm && (
+          <CardContent className="border-t bg-muted/30">
+            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Company Name</Label>
+                  <Input required value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} data-testid="input-ent-company" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Contact Name</Label>
+                  <Input required value={form.contactName} onChange={e => setForm({...form, contactName: e.target.value})} data-testid="input-ent-contact-name" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Contact Email</Label>
+                  <Input type="email" required value={form.contactEmail} onChange={e => setForm({...form, contactEmail: e.target.value})} data-testid="input-ent-email" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Street Address</Label>
+                  <Input required value={form.address} onChange={e => setForm({...form, address: e.target.value})} data-testid="input-ent-address" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label>City</Label>
+                    <Input required value={form.city} onChange={e => setForm({...form, city: e.target.value})} data-testid="input-ent-city" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>State</Label>
+                    <Input required value={form.state} onChange={e => setForm({...form, state: e.target.value})} data-testid="input-ent-state" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>ZIP</Label>
+                    <Input required value={form.zip} onChange={e => setForm({...form, zip: e.target.value})} data-testid="input-ent-zip" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Custom Price ($)</Label>
+                  <Input type="number" step="0.01" min="1" required value={form.customPrice} onChange={e => setForm({...form, customPrice: e.target.value})} placeholder="e.g. 499.99" data-testid="input-ent-price" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Billing Cycle</Label>
+                  <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.billingCycle} onChange={e => setForm({...form, billingCycle: e.target.value})} data-testid="select-ent-cycle">
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="annual">Annual</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Max Logins (Usage Limit)</Label>
+                  <Input type="number" min="1" required value={form.maxLogins} onChange={e => setForm({...form, maxLogins: e.target.value})} placeholder="e.g. 500" data-testid="input-ent-logins" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Notes (optional)</Label>
+                <Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Internal notes about this account..." data-testid="input-ent-notes" />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={createMutation.isPending} data-testid="button-create-enterprise">
+                  {createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                  Create & Start Billing
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+              </div>
+            </form>
+          </CardContent>
+        )}
+
+        <CardContent className={showForm ? "border-t" : ""}>
+          {isLoading ? (
+            <div className="py-8 text-center"><Loader /></div>
+          ) : isError ? (
+            <div className="py-8 text-center space-y-2">
+              <p className="text-red-600 font-medium">Failed to load enterprise accounts</p>
+              <p className="text-sm text-muted-foreground">{(error as Error)?.message}</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-retry-enterprise">Retry</Button>
+            </div>
+          ) : !accounts?.length ? (
+            <p className="py-8 text-center text-muted-foreground">No enterprise accounts yet. Click "New Enterprise Account" to create one.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Logins</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Contract</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {accounts.map(acc => (
+                    <TableRow key={acc.id} data-testid={`row-enterprise-${acc.id}`}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{acc.companyName}</p>
+                          <p className="text-xs text-muted-foreground">{acc.address}, {acc.city}, {acc.state} {acc.zip}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm">{acc.contactName}</p>
+                          <p className="text-xs text-muted-foreground">{acc.contactEmail}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-semibold text-green-700">{fmtPrice(acc.customPrice)}</span>
+                        <span className="text-xs text-muted-foreground">{cycleLabels[acc.billingCycle]}</span>
+                      </TableCell>
+                      <TableCell>{acc.maxLogins.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant={acc.status === "active" ? "default" : acc.status === "cancelled" ? "destructive" : "secondary"}>
+                          {acc.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {acc.contractUrl ? (
+                          <a href={acc.contractUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1" data-testid={`link-contract-${acc.id}`}>
+                            <ExternalLink className="h-3 w-3" /> View
+                          </a>
+                        ) : (
+                          <label className="cursor-pointer text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+                            <Upload className="h-3 w-3" />
+                            {contractUploading === acc.id ? "Uploading..." : "Upload"}
+                            <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={e => { if (e.target.files?.[0]) handleContractUpload(acc.id, e.target.files[0]); }} />
+                          </label>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => sendTestEmailMutation.mutate({ id: acc.id, email: acc.contactEmail })}
+                            disabled={sendTestEmailMutation.isPending}
+                            data-testid={`button-test-email-${acc.id}`}
+                          >
+                            <Mail className="mr-1 h-3 w-3" /> Test Email
+                          </Button>
+                          {acc.status === "active" && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 text-xs"
+                              onClick={() => {
+                                if (confirm(`Cancel enterprise account for "${acc.companyName}"? Stripe billing will be stopped and they will be notified.`)) {
+                                  cancelMutation.mutate(acc.id);
+                                }
+                              }}
+                              disabled={cancelMutation.isPending}
+                              data-testid={`button-cancel-enterprise-${acc.id}`}
+                            >
+                              <XCircle className="mr-1 h-3 w-3" /> Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

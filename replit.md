@@ -70,6 +70,14 @@ Preferred communication style: Simple, everyday language.
 - `referral_codes` table for managing developer-managed codes that grant extra free months on signup.
 - Integrated into the signup flow and lead notification emails.
 
+### Enterprise Accounts System
+- `enterprise_accounts` table for custom-priced enterprise clients with specialized billing.
+- Fields: companyName, contactEmail, contactName, address, city, state, zip, customPrice (cents), billingCycle (monthly/quarterly/annual), maxLogins, contractUrl, stripeCustomerId, stripeSubscriptionId, status, notes.
+- Backend: Full CRUD API routes under `/api/developer/enterprise-accounts` (list, create, cancel, upload-contract, send-test-email).
+- Create flow: Creates Stripe customer + custom price + subscription with `collection_method:"send_invoice"` and `days_until_due:30`. Sends activation email to client and admin notification.
+- Frontend: "Enterprise Accounts" tab in Developer Dashboard with creation form, account list table, contract upload, cancel, and test email buttons.
+- Billing receipt email: Branded HTML receipt with company details, line items, tax calculation, and invoice number.
+
 ### Stripe-less Signup Flow
 - When Stripe is not configured, signup triggers a lead notification email.
 - Specific promo codes can bypass Stripe for immediate organization creation.

@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, invitations, transactionCategories, monthlyReports, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, invitations, transactionCategories, monthlyReports, enterpriseAccounts, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -162,6 +162,12 @@ export interface IStorage {
   createMonthlyReport(data: InsertMonthlyReport): Promise<MonthlyReport>;
   getMonthlyReportsByOrg(orgId: number): Promise<MonthlyReport[]>;
   getMonthlyReport(orgId: number, year: number, month: number): Promise<MonthlyReport | undefined>;
+
+  createEnterpriseAccount(data: any): Promise<EnterpriseAccount>;
+  getAllEnterpriseAccounts(): Promise<EnterpriseAccount[]>;
+  getEnterpriseAccount(id: number): Promise<EnterpriseAccount | undefined>;
+  updateEnterpriseAccount(id: number, data: Partial<EnterpriseAccount>): Promise<EnterpriseAccount>;
+  deleteEnterpriseAccount(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1137,6 +1143,29 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyReport(orgId: number, year: number, month: number): Promise<MonthlyReport | undefined> {
     const [report] = await db.select().from(monthlyReports).where(and(eq(monthlyReports.orgId, orgId), eq(monthlyReports.year, year), eq(monthlyReports.month, month)));
     return report;
+  }
+
+  async createEnterpriseAccount(data: any): Promise<EnterpriseAccount> {
+    const [account] = await db.insert(enterpriseAccounts).values(data).returning();
+    return account;
+  }
+
+  async getAllEnterpriseAccounts(): Promise<EnterpriseAccount[]> {
+    return db.select().from(enterpriseAccounts).orderBy(desc(enterpriseAccounts.createdAt));
+  }
+
+  async getEnterpriseAccount(id: number): Promise<EnterpriseAccount | undefined> {
+    const [account] = await db.select().from(enterpriseAccounts).where(eq(enterpriseAccounts.id, id));
+    return account;
+  }
+
+  async updateEnterpriseAccount(id: number, data: Partial<EnterpriseAccount>): Promise<EnterpriseAccount> {
+    const [updated] = await db.update(enterpriseAccounts).set(data).where(eq(enterpriseAccounts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteEnterpriseAccount(id: number): Promise<void> {
+    await db.delete(enterpriseAccounts).where(eq(enterpriseAccounts.id, id));
   }
 }
 

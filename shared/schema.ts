@@ -437,3 +437,29 @@ export type InsertTransactionCategory = z.infer<typeof insertTransactionCategory
 export const insertMonthlyReportSchema = createInsertSchema(monthlyReports).omit({ id: true, generatedAt: true });
 export type MonthlyReport = typeof monthlyReports.$inferSelect;
 export type InsertMonthlyReport = z.infer<typeof insertMonthlyReportSchema>;
+
+export const enterpriseAccounts = pgTable("enterprise_accounts", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id"),
+  companyName: text("company_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  contactName: text("contact_name").notNull(),
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  zip: text("zip").notNull(),
+  customPrice: integer("custom_price").notNull(),
+  billingCycle: text("billing_cycle", { enum: ["monthly", "quarterly", "annual"] }).default("monthly").notNull(),
+  maxLogins: integer("max_logins").notNull(),
+  contractUrl: text("contract_url"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status", { enum: ["active", "cancelled", "pending", "paused"] }).default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  cancelledAt: timestamp("cancelled_at"),
+});
+
+export const insertEnterpriseAccountSchema = createInsertSchema(enterpriseAccounts).omit({ id: true, createdAt: true, cancelledAt: true, stripeCustomerId: true, stripeSubscriptionId: true, organizationId: true, status: true });
+export type EnterpriseAccount = typeof enterpriseAccounts.$inferSelect;
+export type InsertEnterpriseAccount = z.infer<typeof insertEnterpriseAccountSchema>;

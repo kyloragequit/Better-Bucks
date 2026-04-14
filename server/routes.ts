@@ -3788,10 +3788,12 @@ export async function registerRoutes(
       if (user.emailVerified) {
         return res.json({ message: "Email already verified" });
       }
-      if (user.emailVerificationCode !== code) {
+      const freshUser = await storage.getUser(user.id);
+      if (!freshUser || freshUser.emailVerificationCode !== code) {
         return res.status(400).json({ message: "Invalid verification code" });
       }
       const updated = await storage.updateUserEmailVerification(user.id, null, true);
+      invalidateUserCache(user.id);
       res.json(updated);
     } catch (e) {
       res.status(400).json({ message: "Invalid verification code" });
@@ -3808,6 +3810,7 @@ export async function registerRoutes(
     }
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
     await storage.updateUserEmailVerification(user.id, newCode, false);
+    invalidateUserCache(user.id);
     sendVerificationCode(user.email, user.phone, newCode, user.fullName).catch(() => {});
     res.json({ message: "Verification code sent" });
   });

@@ -532,11 +532,12 @@ export function FullTutorialOverlay() {
     if (stepIndex > 0) setStepIndex(s => s - 1);
   };
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
+    document.body.style.overflow = "";
     setForceHide(true);
     setLocation(homePath);
     skipTutorial();
-  };
+  }, [homePath, setLocation, skipTutorial]);
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
   const isActive = !forceHide && showFullTutorial && !!user && isOnAppPage && !!user?.termsAcceptedAt;
@@ -549,6 +550,13 @@ export function FullTutorialOverlay() {
     }
     return () => { document.body.style.overflow = ""; };
   }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleSkip(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isActive, handleSkip]);
 
   if (!isActive) return null;
 
@@ -568,8 +576,9 @@ export function FullTutorialOverlay() {
 
       <div
         className="fixed inset-0"
-        style={{ zIndex: 9996, pointerEvents: "auto" }}
-        onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+        style={{ zIndex: 9996, pointerEvents: "auto", cursor: "pointer" }}
+        onClick={handleSkip}
+        title="Click to exit tour"
       />
 
       {!displayRect && <div className="fixed inset-0 bg-black/65 pointer-events-none transition-opacity duration-500" style={{ zIndex: 9997 }} />}

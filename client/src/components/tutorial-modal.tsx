@@ -1013,10 +1013,18 @@ export function TutorialModal() {
     return () => { document.body.style.overflow = ""; };
   }, [isActive]);
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
+    document.body.style.overflow = "";
     setForceHide(true);
     skipTutorial();
-  };
+  }, [skipTutorial]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleSkip(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isActive, handleSkip]);
 
   const slideTimerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => clearTimeout(slideTimerRef.current), []);

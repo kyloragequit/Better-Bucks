@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -95,6 +95,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin/team", label: "Team", icon: UsersRound },
     { href: "/admin/employees", label: "Employees", icon: Users },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
     { href: "/admin/instant-transaction", label: "Instant Transaction", shortLabel: "Quick TX", icon: Zap, testId: "link-instant-transaction" },

@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Order System**: Employees can submit orders; prime admins are solely responsible for approval/rejection.
 - **Admin Email Requirement**: Admin and prime_admin accounts require a valid email.
 - **Weekly Report Email**: Automated weekly HTML email reports for prime admins summarizing organizational activity.
+- **Admin Team Management**: Admins have a dedicated "Team" tab showing employees assigned to them (via `managerId`). Admins can add/remove employees from their own team; prime admins can manage any assignment. Route: `/admin/team`.
 - **Custom Items**: A secondary, non-Bucks incentive token system configurable by prime admins.
 - **Catalogue Maker**: Admin-defined shorthand codes for instant Bucks transactions.
 - **Transaction Categories + Analytics**: Prime admins define color-coded transaction categories for analytics.

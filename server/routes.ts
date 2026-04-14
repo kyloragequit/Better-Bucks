@@ -97,23 +97,40 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000).unref();
 
-async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }): Promise<void> {
+let cachedTransporter: any = null;
+let cachedSmtpKey = "";
+
+function getTransporter() {
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
-  if (!smtpUser || !smtpPass) {
-    const msg = `SMTP not configured — SMTP_USER / SMTP_PASS env vars are missing. Cannot send "${subject}" to ${maskEmail(typeof to === "string" ? to : String(to))}.`;
-    console.error(`[Email] ${msg}`);
-    throw new Error(msg);
-  }
+  if (!smtpUser || !smtpPass) return null;
   const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
   const smtpPort = parseInt(process.env.SMTP_PORT || "587");
-  const nm = await import("nodemailer");
-  const transporter = nm.default.createTransport({
+  const key = `${smtpHost}:${smtpPort}:${smtpUser}`;
+  if (cachedTransporter && cachedSmtpKey === key) return cachedTransporter;
+  const nm = require("nodemailer");
+  cachedTransporter = nm.createTransport({
     host: smtpHost,
     port: smtpPort,
     secure: smtpPort === 465,
     auth: { user: smtpUser, pass: smtpPass },
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 100,
   });
+  cachedSmtpKey = key;
+  return cachedTransporter;
+}
+
+async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }): Promise<void> {
+  const smtpUser = process.env.SMTP_USER;
+  if (!smtpUser || !process.env.SMTP_PASS) {
+    const msg = `SMTP not configured — SMTP_USER / SMTP_PASS env vars are missing. Cannot send "${subject}" to ${maskEmail(typeof to === "string" ? to : String(to))}.`;
+    console.error(`[Email] ${msg}`);
+    throw new Error(msg);
+  }
+  const transporter = getTransporter();
+  if (!transporter) throw new Error("SMTP not configured");
   try {
     await transporter.sendMail({
       from: `"Better Bucks" <${smtpUser}>`,
@@ -125,6 +142,8 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
     console.log(`[Email] Sent "${subject}" to ${maskEmail(to)}`);
   } catch (err: any) {
     console.error(`[Email] Failed to send "${subject}" to ${maskEmail(to)}:`, err?.message ?? err);
+    cachedTransporter = null;
+    cachedSmtpKey = "";
     throw err;
   }
 }
@@ -998,7 +1017,7 @@ export async function registerRoutes(
         organizationId: org.id,
       });
 
-      await sendVerificationCode(hasEmail ? adminEmail : null, hasPhone ? adminPhone : null, verificationCode, adminData.fullName);
+      sendVerificationCode(hasEmail ? adminEmail : null, hasPhone ? adminPhone : null, verificationCode, adminData.fullName).catch(() => {});
       notifyAllPrimeAdmins(org.id, "New Account Pending Approval", {
         "Name": adminData.fullName,
         "Username": adminData.username,
@@ -1078,7 +1097,7 @@ export async function registerRoutes(
         organizationId: org.id,
       });
 
-      await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, empData.fullName);
+      sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode, empData.fullName).catch(() => {});
       notifyAllPrimeAdmins(org.id, "New Account Pending Approval", {
         "Name": empData.fullName,
         "Username": empData.username,
@@ -1325,7 +1344,7 @@ export async function registerRoutes(
       });
 
       if (hasEmail || hasPhone) {
-        await sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode!, userData.fullName);
+        sendVerificationCode(hasEmail ? empEmail : null, hasPhone ? empPhone : null, verificationCode!, userData.fullName).catch(() => {});
       }
       if (user.organizationId) {
         const orgPrimeEmail = await getOrgPrimeAdminEmail(user.organizationId);
@@ -1680,7 +1699,7 @@ export async function registerRoutes(
               await storage.updateUserManager(newUser.id, managerId);
             }
             if (hasEmail && verificationCode) {
-              await sendVerificationCode(email, null, verificationCode, row.fullName.trim());
+              sendVerificationCode(email, null, verificationCode, row.fullName.trim()).catch(() => {});
             }
             if (role === "admin" || role === "prime_admin") {
               adminNameMap.set(row.fullName.trim().toLowerCase(), newUser.id);
@@ -2999,7 +3018,7 @@ export async function registerRoutes(
       });
 
       if (!isPromoOrg) {
-        await sendVerificationCode(hasEmail ? email : null, hasPhone ? phone : null, verificationCode!, fullName);
+        sendVerificationCode(hasEmail ? email : null, hasPhone ? phone : null, verificationCode!, fullName).catch(() => {});
       }
       notifyAdmin(ADMIN_NOTIFY_EMAIL, "New Prime Admin Account Created", {
         "Name": fullName,
@@ -3789,7 +3808,7 @@ export async function registerRoutes(
     }
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
     await storage.updateUserEmailVerification(user.id, newCode, false);
-    await sendVerificationCode(user.email, user.phone, newCode, user.fullName);
+    sendVerificationCode(user.email, user.phone, newCode, user.fullName).catch(() => {});
     res.json({ message: "Verification code sent" });
   });
 
@@ -4625,7 +4644,7 @@ export async function registerRoutes(
 
   app.patch("/api/users/:id/manager", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
       return res.status(401).send("Unauthorized");
     }
     const id = parseInt(req.params.id);
@@ -4635,6 +4654,14 @@ export async function registerRoutes(
       return res.status(404).json({ message: "User not found" });
     }
     const { managerId } = z.object({ managerId: z.number().int().nullable() }).parse(req.body);
+    if (user.role === "admin") {
+      if (managerId !== null && managerId !== user.id) {
+        return res.status(403).json({ message: "You can only assign employees to your own team" });
+      }
+      if (managerId === null && target.managerId !== user.id) {
+        return res.status(403).json({ message: "You can only remove employees from your own team" });
+      }
+    }
     if (managerId !== null) {
       const manager = await storage.getUser(managerId);
       if (!manager || manager.organizationId !== user.organizationId || (manager.role !== "admin" && manager.role !== "prime_admin")) {

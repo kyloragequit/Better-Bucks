@@ -1965,6 +1965,7 @@ export async function registerRoutes(
     }
     const { marketingOptIn } = z.object({ marketingOptIn: z.boolean().default(false) }).parse(req.body);
     const updated = await storage.acceptTerms(user.id, marketingOptIn);
+    invalidateUserCache(user.id);
     res.json(updated);
   });
 
@@ -4708,6 +4709,7 @@ export async function registerRoutes(
       return res.json({ ...user, tutorialCompleted: true });
     }
     const updated = await storage.setTutorialCompleted(user.id, true);
+    invalidateUserCache(user.id);
     res.json(updated);
   });
 
@@ -4720,6 +4722,7 @@ export async function registerRoutes(
       return res.json({ ...user, tutorialCompleted: false });
     }
     const updated = await storage.setTutorialCompleted(user.id, false);
+    invalidateUserCache(user.id);
     res.json(updated);
   });
 

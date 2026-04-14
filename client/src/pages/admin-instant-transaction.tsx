@@ -182,12 +182,18 @@ export default function AdminInstantTransactionPage() {
       toast({ title: "Invalid", description: "Please enter a valid amount.", variant: "destructive" });
       return;
     }
+    const hasCategory = txType === "credit" && categoryId && categoryId !== "none";
+    const hasReason = reason.trim().length > 0;
+    if (txType === "credit" && !hasCategory && !hasReason) {
+      toast({ title: "Missing Info", description: "Please select a category or write a reason.", variant: "destructive" });
+      return;
+    }
     const signedAmount = txType === "credit" ? parseInt(amount) : -parseInt(amount);
     transactionMutation.mutate({
       userId: scannedUser.id,
       amount: signedAmount,
       reason: reason || (txType === "credit" ? "Instant credit" : "Instant debit"),
-      categoryId: (txType === "credit" && categoryId && categoryId !== "none") ? parseInt(categoryId) : undefined,
+      categoryId: hasCategory ? parseInt(categoryId) : undefined,
     });
   };
 
@@ -270,7 +276,7 @@ export default function AdminInstantTransactionPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="tx-reason">Reason (optional)</Label>
+                  <Label htmlFor="tx-reason">{txType === "credit" ? "Reason (required if no category)" : "Reason (optional)"}</Label>
                   <Textarea
                     id="tx-reason"
                     value={reason}
@@ -282,7 +288,7 @@ export default function AdminInstantTransactionPage() {
                 </div>
                 {txType === "credit" && categories && categories.length > 0 && (
                   <div className="space-y-1">
-                    <Label htmlFor="tx-category">Category (optional)</Label>
+                    <Label htmlFor="tx-category">{reason.trim() ? "Category (optional)" : "Category (required if no reason)"}</Label>
                     <Select value={categoryId} onValueChange={setCategoryId}>
                       <SelectTrigger id="tx-category" data-testid="select-tx-category">
                         <SelectValue placeholder="No category" />

@@ -42,10 +42,10 @@ Preferred communication style: Simple, everyday language.
 - **Order System**: Employees can submit orders; prime admins are solely responsible for approval/rejection.
 - **Admin Email Requirement**: Admin and prime_admin accounts require a valid email.
 - **Weekly Report Email**: Automated weekly HTML email reports for prime admins summarizing organizational activity.
-- **Admin Team Management**: Admins have a dedicated "Team" tab showing employees assigned to them (via `managerId`). Admins can add/remove employees from their own team; prime admins can manage any assignment. Route: `/admin/team`.
+- **Admin Team Management**: Admins have a dedicated "Team" tab showing employees assigned to them (via `managerId`). Admins can add/remove employees from their own team; prime admins can manage any assignment. Includes bulk credit: select team members via checkboxes, then "Give Bucks" to award bucks to all selected at once (with category and reason support). Route: `/admin/team`.
 - **Custom Items**: A secondary, non-Bucks incentive token system configurable by prime admins.
 - **Catalogue Maker**: Admin-defined shorthand codes for instant Bucks transactions.
-- **Transaction Categories + Analytics**: Prime admins define color-coded transaction categories for analytics.
+- **Transaction Categories + Analytics**: Prime admins define color-coded transaction categories for analytics. Regular admins see only the categories they personally credited; budget progression and monthly budget info are hidden from regular admins (only visible to prime admins). Credits require either a category or a written reason.
 - **Monthly Reports + Documents Page**: Automated monthly JSONB reports with conversion rate, daily dollar spending chart (double line: awarded vs spent), department and category breakdowns, and an admin interface to view and generate them. PDF download uses html2canvas + jsPDF to generate real PDF files (no browser print dialog).
 - **Universal Passkey**: Org-level fallback PIN for employee login.
 - **Organization & Subscription**: Tiered Stripe subscriptions, organization code generation, and subscription management. Price grandfathering system: `signupPrice` column on organizations locks in the rate at signup time. Tier changes and reactivations use current market rates. Admin settings shows locked-in vs current pricing. Server-authoritative tier pricing via `/api/organizations/tier-pricing` endpoint.

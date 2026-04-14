@@ -724,32 +724,6 @@ export default function AdminDashboardPage() {
               onSaved={() => refetchBudget()}
             />
           )}
-          {!isPrime && budgetSettings && budgetSettings.monthlyBudgetBucks > 0 && (
-            <Card className="border shadow-sm border-blue-200 mb-8">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                    <Wallet className="h-4 w-4" />
-                  </div>
-                  Monthly Incentive Budget
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="text-3xl font-bold text-blue-700">{budgetSettings.monthlyBudgetBucks.toLocaleString()}</span>
-                    <span className="text-sm font-medium text-blue-600">bucks / month</span>
-                    <span className="text-sm text-blue-500">≈ ${(budgetSettings.monthlyBudgetBucks / Math.max(1, budgetSettings.bucksPerDollar)).toFixed(2)}</span>
-                  </div>
-                  {budgetSettings.budgetSetByName && (
-                    <p className="text-xs text-muted-foreground mt-2" data-testid="text-budget-set-by-admin">
-                      Set by <span className="font-medium text-foreground">{budgetSettings.budgetSetByName}</span>
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Admin balance card — shows the admin's own bucks balance */}
           {!isPrime && currentUser && (
@@ -785,11 +759,11 @@ export default function AdminDashboardPage() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
                     <PieChart className="h-4 w-4" />
                   </div>
-                  {new Date().toLocaleString("default", { month: "long" })} Analytics
+                  {isPrime ? `${new Date().toLocaleString("default", { month: "long" })} Analytics` : "Your Category Breakdown"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
-                {/* Budget progress — always shown */}
+                {isPrime && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Budget Progression</p>
                   {categoryAnalytics ? (
@@ -826,7 +800,7 @@ export default function AdminDashboardPage() {
                           <div className="h-full rounded-full bg-muted-foreground/20" style={{ width: "0%" }} />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          No monthly budget configured.{isPrime ? " Set one above to track usage here." : " Contact your Organization Owner to configure a budget."}
+                          No monthly budget configured. Set one above to track usage here.
                         </p>
                       </div>
                     )
@@ -834,6 +808,7 @@ export default function AdminDashboardPage() {
                     <div className="h-3 bg-muted rounded-full animate-pulse" />
                   )}
                 </div>
+                )}
 
                 {/* Category breakdown — always shown */}
                 <div>

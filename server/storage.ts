@@ -157,7 +157,7 @@ export interface IStorage {
   deleteCategory(id: number, orgId: number): Promise<void>;
   updateCategory(id: number, orgId: number, data: { name?: string; color?: string }): Promise<TransactionCategory>;
 
-  getCategoryStats(orgId: number, from: Date, to: Date): Promise<{ categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number }[]>;
+  getCategoryStats(orgId: number, from: Date, to: Date, performedBy?: number): Promise<{ categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number }[]>;
   getMonthlyBudgetUsed(orgId: number, year: number, month: number): Promise<number>;
 
   createMonthlyReport(data: InsertMonthlyReport): Promise<MonthlyReport>;
@@ -1078,8 +1078,18 @@ export class DatabaseStorage implements IStorage {
     return cat;
   }
 
-  async getCategoryStats(orgId: number, from: Date, to: Date): Promise<{ categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number }[]> {
+  async getCategoryStats(orgId: number, from: Date, to: Date, performedBy?: number): Promise<{ categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number }[]> {
     const orgUserIds = db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
+
+    const conditions = [
+      inArray(transactions.userId, orgUserIds),
+      gte(transactions.createdAt, from),
+      lte(transactions.createdAt, to),
+      sql`${transactions.amount} > 0`,
+    ];
+    if (performedBy !== undefined) {
+      conditions.push(eq(transactions.performedBy, performedBy));
+    }
 
     const rows = await db
       .select({
@@ -1090,12 +1100,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(transactions)
       .leftJoin(transactionCategories, eq(transactions.categoryId, transactionCategories.id))
-      .where(and(
-        inArray(transactions.userId, orgUserIds),
-        gte(transactions.createdAt, from),
-        lte(transactions.createdAt, to),
-        sql`${transactions.amount} > 0`
-      ))
+      .where(and(...conditions))
       .groupBy(transactions.categoryId, transactionCategories.name, transactionCategories.color);
 
     return rows.map(r => ({

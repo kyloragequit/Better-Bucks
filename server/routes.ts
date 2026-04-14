@@ -1463,7 +1463,12 @@ export async function registerRoutes(
       return res.status(401).send("Unauthorized");
     }
 
-    const { userIds, amount, reason } = api.users.bulkCredit.input.parse(req.body);
+    const { userIds, amount, reason, categoryId } = api.users.bulkCredit.input.parse(req.body);
+
+    if (categoryId) {
+      const cat = (await storage.getCategoriesByOrg(user.organizationId!)).find(c => c.id === categoryId);
+      if (!cat) return res.status(400).json({ message: "Invalid category" });
+    }
 
     // For non-prime admins, check if they have enough balance for all users
     if (user.role !== "prime_admin") {
@@ -1511,6 +1516,7 @@ export async function registerRoutes(
         amount,
         reason,
         performedBy: user.id,
+        ...(categoryId ? { categoryId } : {}),
       });
       credited++;
     }
@@ -1769,6 +1775,11 @@ export async function registerRoutes(
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
     const { amount, reason, categoryId } = api.users.updateBalance.input.parse(req.body);
+
+    if (categoryId) {
+      const cat = (await storage.getCategoriesByOrg(user.organizationId!)).find(c => c.id === categoryId);
+      if (!cat) return res.status(400).json({ message: "Invalid category" });
+    }
 
     const targetUser = await storage.getUser(id);
     if (!targetUser || targetUser.organizationId !== user.organizationId) return res.status(404).send("User not found");
@@ -6422,8 +6433,9 @@ export async function registerRoutes(
     const month = parseInt(req.query.month as string) || (now.getMonth() + 1);
     const from = new Date(year, month - 1, 1);
     const to = new Date(year, month, 0, 23, 59, 59, 999);
+    const performedBy = user.role === "admin" ? user.id : undefined;
     const [stats, budgetUsed] = await Promise.all([
-      storage.getCategoryStats(orgId, from, to),
+      storage.getCategoryStats(orgId, from, to, performedBy),
       storage.getMonthlyBudgetUsed(orgId, year, month),
     ]);
     const org = await storage.getOrganization(orgId);

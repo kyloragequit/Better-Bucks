@@ -6,17 +6,21 @@ import { apiRequest } from "@/lib/queryClient";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, UserPlus, ChevronRight, UserMinus } from "lucide-react";
+import { Search, UserPlus, ChevronRight, UserMinus, BadgeDollarSign } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
+import { SpinningLogo } from "@/components/spinning-logo";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
 import { useUser } from "@/hooks/use-auth";
-import type { Department } from "@shared/schema";
+import type { Department, TransactionCategory } from "@shared/schema";
 
 export default function AdminTeamPage() {
   const { data: users, isLoading } = useUsers();
@@ -26,9 +30,16 @@ export default function AdminTeamPage() {
   const { getRoleLabel } = useRoleLabels();
   const [search, setSearch] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [bulkCreditOpen, setBulkCreditOpen] = useState(false);
+  const [bulkCreditSelected, setBulkCreditSelected] = useState<Set<number>>(new Set());
 
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
+  });
+
+  const { data: categories } = useQuery<TransactionCategory[]>({
+    queryKey: [`/api/organizations/${currentUser?.organizationId}/categories`],
+    enabled: !!currentUser?.organizationId,
   });
 
   const deptMap = new Map(departments?.map(d => [d.id, d.name]) || []);
@@ -75,10 +86,18 @@ export default function AdminTeamPage() {
             Employees assigned to you ({teamMembers?.length ?? 0} members)
           </p>
         </div>
-        <Button onClick={() => setAddDialogOpen(true)} data-testid="button-add-to-team">
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add to Team
-        </Button>
+        <div className="flex items-center gap-2">
+          {bulkCreditSelected.size > 0 && (
+            <Button variant="default" onClick={() => setBulkCreditOpen(true)} data-testid="button-bulk-credit-team">
+              <BadgeDollarSign className="mr-2 h-4 w-4" />
+              Give Bucks ({bulkCreditSelected.size})
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setAddDialogOpen(true)} data-testid="button-add-to-team">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add to Team
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">
@@ -107,7 +126,19 @@ export default function AdminTeamPage() {
           <div className="md:hidden space-y-2">
             {filteredTeam?.map((user) => (
               <div key={user.id} className="bg-card rounded-xl border shadow-sm p-4" data-testid={`card-team-member-${user.id}`}>
-                <Link href={`/admin/employees/${user.id}`}>
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={bulkCreditSelected.has(user.id)}
+                    onCheckedChange={() => {
+                      setBulkCreditSelected(prev => {
+                        const next = new Set(prev);
+                        next.has(user.id) ? next.delete(user.id) : next.add(user.id);
+                        return next;
+                      });
+                    }}
+                    data-testid={`checkbox-team-select-mobile-${user.id}`}
+                  />
+                <Link href={`/admin/employees/${user.id}`} className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 active:bg-muted/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -131,6 +162,7 @@ export default function AdminTeamPage() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                   </div>
                 </Link>
+                </div>
                 <div className="mt-2 pt-2 border-t flex justify-end">
                   <Button
                     variant="ghost"
@@ -152,6 +184,19 @@ export default function AdminTeamPage() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={filteredTeam && filteredTeam.length > 0 && filteredTeam.every(u => bulkCreditSelected.has(u.id))}
+                      onCheckedChange={(checked) => {
+                        setBulkCreditSelected(prev => {
+                          const next = new Set(prev);
+                          filteredTeam?.forEach(u => checked ? next.add(u.id) : next.delete(u.id));
+                          return next;
+                        });
+                      }}
+                      data-testid="checkbox-team-select-all"
+                    />
+                  </TableHead>
                   <TableHead>Employee Name</TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Role</TableHead>
@@ -163,6 +208,19 @@ export default function AdminTeamPage() {
               <TableBody>
                 {filteredTeam?.map((user) => (
                   <TableRow key={user.id} className="group hover:bg-muted/20 transition-colors" data-testid={`row-team-member-${user.id}`}>
+                    <TableCell>
+                      <Checkbox
+                        checked={bulkCreditSelected.has(user.id)}
+                        onCheckedChange={() => {
+                          setBulkCreditSelected(prev => {
+                            const next = new Set(prev);
+                            next.has(user.id) ? next.delete(user.id) : next.add(user.id);
+                            return next;
+                          });
+                        }}
+                        data-testid={`checkbox-team-select-${user.id}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{user.fullName}</TableCell>
                     <TableCell>
                       <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
@@ -202,6 +260,21 @@ export default function AdminTeamPage() {
             </Table>
           </div>
         </>
+      )}
+
+      {currentUser && (
+        <BulkCreditDialog
+          open={bulkCreditOpen}
+          onOpenChange={(v) => { if (!v) setBulkCreditOpen(false); }}
+          selectedUserIds={Array.from(bulkCreditSelected)}
+          users={teamMembers ?? []}
+          categories={categories ?? []}
+          currentUser={currentUser}
+          onComplete={() => {
+            setBulkCreditOpen(false);
+            setBulkCreditSelected(new Set());
+          }}
+        />
       )}
 
       {currentUser && (
@@ -356,6 +429,176 @@ function AddToTeamDialog({
           <Button onClick={handleSubmit} disabled={selected.size === 0} data-testid="button-confirm-add-team">
             <UserPlus className="mr-2 h-4 w-4" />
             Add {selected.size > 0 ? `${selected.size} ` : ""}to Team
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkCreditDialog({
+  open,
+  onOpenChange,
+  selectedUserIds,
+  users,
+  categories,
+  currentUser,
+  onComplete,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedUserIds: number[];
+  users: { id: number; fullName: string }[];
+  categories: TransactionCategory[];
+  currentUser: { id: number; role: string; balance: number; organizationId: number | null };
+  onComplete: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const selectedUsers = users.filter(u => selectedUserIds.includes(u.id));
+  const parsedAmount = parseInt(amount) || 0;
+  const totalCost = parsedAmount * selectedUsers.length;
+  const isPrime = currentUser.role === "prime_admin";
+  const hasCategory = categoryId && categoryId !== "none";
+  const hasReason = reason.trim().length > 0;
+
+  const bulkCreditMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/users/bulk-credit", {
+        userIds: selectedUserIds,
+        amount: parsedAmount,
+        reason: reason.trim() || (hasCategory ? categories.find(c => String(c.id) === categoryId)?.name ?? "Bulk credit" : "Bulk credit"),
+        ...(hasCategory ? { categoryId: parseInt(categoryId) } : {}),
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Bucks Credited", description: `${parsedAmount.toLocaleString()} bucks given to ${data.credited} team member${data.credited > 1 ? "s" : ""}.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      setAmount("");
+      setReason("");
+      setCategoryId("");
+      onComplete();
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  function handleSubmit() {
+    if (parsedAmount <= 0) {
+      toast({ title: "Invalid", description: "Please enter a valid amount.", variant: "destructive" });
+      return;
+    }
+    if (!hasCategory && !hasReason) {
+      toast({ title: "Missing Info", description: "Please select a category or write a reason.", variant: "destructive" });
+      return;
+    }
+    if (!isPrime && currentUser.balance < totalCost) {
+      toast({ title: "Insufficient Balance", description: `You need ${totalCost.toLocaleString()} bucks but only have ${currentUser.balance.toLocaleString()}.`, variant: "destructive" });
+      return;
+    }
+    bulkCreditMutation.mutate();
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) {
+      setAmount("");
+      setReason("");
+      setCategoryId("");
+    }
+    onOpenChange(v);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md" data-testid="dialog-bulk-credit-team">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BadgeDollarSign className="h-5 w-5" />
+            Give Bucks to {selectedUsers.length} Team Member{selectedUsers.length > 1 ? "s" : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="bg-muted/50 rounded-lg p-3 text-sm">
+            <p className="font-medium mb-1">Selected employees:</p>
+            <p className="text-muted-foreground">{selectedUsers.map(u => u.fullName).join(", ")}</p>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="bulk-amount">Amount per person</Label>
+            <Input
+              id="bulk-amount"
+              type="number"
+              min="1"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="e.g. 50"
+              data-testid="input-bulk-credit-amount"
+            />
+            {parsedAmount > 0 && selectedUsers.length > 1 && (
+              <p className="text-xs text-muted-foreground">
+                Total: {totalCost.toLocaleString()} bucks ({parsedAmount.toLocaleString()} × {selectedUsers.length})
+              </p>
+            )}
+            {!isPrime && parsedAmount > 0 && (
+              <p className={`text-xs ${totalCost > currentUser.balance ? "text-destructive" : "text-muted-foreground"}`}>
+                Your balance: {currentUser.balance.toLocaleString()} bucks
+              </p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="bulk-reason">{hasCategory ? "Reason (optional)" : "Reason (required if no category)"}</Label>
+            <Textarea
+              id="bulk-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Great performance this week"
+              rows={2}
+              data-testid="input-bulk-credit-reason"
+            />
+          </div>
+          {categories.length > 0 && (
+            <div className="space-y-1">
+              <Label htmlFor="bulk-category">{hasReason ? "Category (optional)" : "Category (required if no reason)"}</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger id="bulk-category" data-testid="select-bulk-credit-category">
+                  <SelectValue placeholder="No category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No category</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                        {cat.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} data-testid="button-cancel-bulk-credit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={bulkCreditMutation.isPending || parsedAmount <= 0}
+            data-testid="button-confirm-bulk-credit"
+          >
+            {bulkCreditMutation.isPending ? (
+              <SpinningLogo className="mr-2 h-4 w-4" />
+            ) : (
+              <BadgeDollarSign className="mr-2 h-4 w-4" />
+            )}
+            {bulkCreditMutation.isPending ? "Sending..." : `Give ${parsedAmount > 0 ? parsedAmount.toLocaleString() + " " : ""}Bucks`}
           </Button>
         </DialogFooter>
       </DialogContent>

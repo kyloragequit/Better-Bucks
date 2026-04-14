@@ -118,6 +118,7 @@ export const api = {
         userIds: z.array(z.number().int()).min(1),
         amount: z.number().int().positive(),
         reason: z.string().min(1),
+        categoryId: z.number().int().optional(),
       }),
       responses: {
         200: z.object({ credited: z.number() }),

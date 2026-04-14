@@ -1470,52 +1470,52 @@ export async function registerRoutes(
       if (!cat) return res.status(400).json({ message: "Invalid category" });
     }
 
-    // For non-prime admins, check if they have enough balance for all users
-    if (user.role !== "prime_admin") {
-      const totalCost = amount * userIds.length;
-      if (user.balance < totalCost) {
-        return res.status(400).json({
-          message: `Insufficient balance. Need ${totalCost.toLocaleString()} pts to credit ${userIds.length} employees (${amount.toLocaleString()} pts each), but only have ${user.balance.toLocaleString()} pts.`,
-        });
-      }
-    }
-
-    // Fetch all target users in a single query to avoid N+1
     const allOrgUsers = await storage.getUsersByOrganization(user.organizationId!);
     const targetUserMap = new Map(allOrgUsers.map(u => [u.id, u]));
+    const validTargetIds = userIds.filter(tid => {
+      const t = targetUserMap.get(tid);
+      return t && t.id !== user.id;
+    });
+
+    if (validTargetIds.length === 0) return res.json({ credited: 0 });
+
+    if (user.role !== "prime_admin") {
+      const totalCost = amount * validTargetIds.length;
+      const result = await db.transaction(async (tx) => {
+        const [admin] = await tx.select().from(users).where(eq(users.id, user.id)).for("update");
+        if (!admin || admin.balance < totalCost) {
+          return { error: `Insufficient balance. Need ${totalCost.toLocaleString()} pts to credit ${validTargetIds.length} employees (${amount.toLocaleString()} pts each), but only have ${(admin?.balance ?? 0).toLocaleString()} pts.` };
+        }
+        await tx.update(users).set({ balance: sql`${users.balance} - ${totalCost}` }).where(eq(users.id, user.id));
+        for (const targetId of validTargetIds) {
+          const targetUser = targetUserMap.get(targetId)!;
+          await tx.insert(transactions).values({
+            userId: user.id, amount: -amount,
+            reason: `Bucks given to ${targetUser.fullName}`, performedBy: user.id,
+          });
+          await tx.update(users).set({ balance: sql`${users.balance} + ${amount}` }).where(eq(users.id, targetId));
+          await tx.insert(transactions).values({
+            userId: targetId, amount, reason, performedBy: user.id,
+            ...(categoryId ? { categoryId } : {}),
+          });
+        }
+        return { credited: validTargetIds.length };
+      });
+      if ("error" in result) return res.status(400).json({ message: result.error });
+      invalidateUserCache(user.id);
+      return res.json(result);
+    }
 
     let credited = 0;
-    for (const targetId of userIds) {
-      const targetUser = targetUserMap.get(targetId);
-      if (!targetUser) continue;
-
-      // Cannot credit yourself
-      if (targetUser.id === user.id) continue;
-
-      // Deduct from admin balance (non-prime) or just record transaction (prime)
-      if (user.role !== "prime_admin") {
-        await storage.updateUserBalance(user.id, -amount);
-        await storage.createTransaction({
-          userId: user.id,
-          amount: -amount,
-          reason: `Bucks given to ${targetUser.fullName}`,
-          performedBy: user.id,
-        });
-      } else {
-        await storage.createTransaction({
-          userId: user.id,
-          amount: -amount,
-          reason: `Bucks given to ${targetUser.fullName}`,
-          performedBy: user.id,
-        });
-      }
-
+    for (const targetId of validTargetIds) {
+      const targetUser = targetUserMap.get(targetId)!;
+      await storage.createTransaction({
+        userId: user.id, amount: -amount,
+        reason: `Bucks given to ${targetUser.fullName}`, performedBy: user.id,
+      });
       await storage.updateUserBalance(targetId, amount);
       await storage.createTransaction({
-        userId: targetId,
-        amount,
-        reason,
-        performedBy: user.id,
+        userId: targetId, amount, reason, performedBy: user.id,
         ...(categoryId ? { categoryId } : {}),
       });
       credited++;
@@ -1784,32 +1784,42 @@ export async function registerRoutes(
     const targetUser = await storage.getUser(id);
     if (!targetUser || targetUser.organizationId !== user.organizationId) return res.status(404).send("User not found");
 
-    // If not prime admin, deduct from current admin balance
-    if (user.role !== "prime_admin") {
-      // For credits (giving Bucks)
-      if (amount > 0) {
-        if (user.balance < amount) {
-          return res.status(400).json({ message: "Insufficient balance to award Bucks" });
+    if (user.role !== "prime_admin" && amount > 0) {
+      const result = await db.transaction(async (tx) => {
+        const [admin] = await tx.select().from(users).where(eq(users.id, user.id)).for("update");
+        if (!admin || admin.balance < amount) {
+          return { error: "Insufficient balance to award Bucks" };
         }
-        // Deduct from admin
-        await storage.updateUserBalance(user.id, -amount);
-        await storage.createTransaction({
+        await tx.update(users).set({ balance: sql`${users.balance} - ${amount}` }).where(eq(users.id, user.id));
+        await tx.insert(transactions).values({
           userId: user.id,
           amount: -amount,
           reason: `Bucks given to ${targetUser.fullName}`,
           performedBy: user.id,
         });
-      }
-    } else {
-      // Prime admin also gets a debit record when giving Bucks
-      if (amount > 0) {
-        await storage.createTransaction({
-          userId: user.id,
-          amount: -amount,
-          reason: `Bucks given to ${targetUser.fullName}`,
+        await tx.update(users).set({ balance: sql`${users.balance} + ${amount}` }).where(eq(users.id, id));
+        const [recipient] = await tx.insert(transactions).values({
+          userId: id,
+          amount,
+          reason,
           performedBy: user.id,
-        });
-      }
+          categoryId: categoryId ?? null,
+        }).returning();
+        const [updatedTarget] = await tx.select().from(users).where(eq(users.id, id));
+        return { user: updatedTarget };
+      });
+      if ("error" in result) return res.status(400).json({ message: result.error });
+      invalidateUserCache(user.id);
+      return res.json(result.user);
+    }
+
+    if (user.role === "prime_admin" && amount > 0) {
+      await storage.createTransaction({
+        userId: user.id,
+        amount: -amount,
+        reason: `Bucks given to ${targetUser.fullName}`,
+        performedBy: user.id,
+      });
     }
 
     const updatedUser = await storage.updateUserBalance(id, amount);
@@ -2274,6 +2284,11 @@ export async function registerRoutes(
     const order = await storage.getOrder(id);
     if (!order) return res.status(404).send("Order not found");
 
+    const orderOwner = await storage.getUser(order.userId);
+    if (!orderOwner || orderOwner.organizationId !== user.organizationId) {
+      return res.status(404).send("Order not found");
+    }
+
     if (status === "rejected" && order.status === "pending") {
       await storage.updateUserBalance(order.userId, order.pointsCost);
       await storage.createTransaction({
@@ -2302,6 +2317,12 @@ export async function registerRoutes(
 
     const order = await storage.getOrder(id);
     if (!order) return res.status(404).send("Order not found");
+
+    const orderOwner = await storage.getUser(order.userId);
+    if (!orderOwner || orderOwner.organizationId !== user.organizationId) {
+      return res.status(404).send("Order not found");
+    }
+
     if (order.status === "rejected") {
       return res.status(400).json({ message: "Cannot adjust Bucks on a rejected order." });
     }

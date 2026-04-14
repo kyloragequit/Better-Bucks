@@ -94,10 +94,12 @@ export default function HowItWorksPage() {
   const surveyResults1 = [42, 33, 17, 8];
   const surveyResults2 = [41, 33, 17, 9];
 
+  const surveyTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const handleSurveySubmit = () => {
     setSurveyStep(1);
-    setTimeout(() => setSurveyStep(2), 1100);
+    surveyTimerRef.current = setTimeout(() => setSurveyStep(2), 1100);
   };
+  useEffect(() => () => clearTimeout(surveyTimerRef.current), []);
   const handleSurveyReset = () => {
     setSurveyQ1(null);
     setSurveyQ2(null);
@@ -114,15 +116,16 @@ export default function HowItWorksPage() {
   const [wordIdx, setWordIdx] = useState(0);
   const [wordVisible, setWordVisible] = useState(true);
 
+  const wordTimerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     const timer = setInterval(() => {
       setWordVisible(false);
-      setTimeout(() => {
+      wordTimerRef.current = setTimeout(() => {
         setWordIdx(i => (i + 1) % SCROLLING_WORDS.length);
         setWordVisible(true);
       }, 320);
     }, 1800);
-    return () => clearInterval(timer);
+    return () => { clearInterval(timer); clearTimeout(wordTimerRef.current); };
   }, []);
 
   const handleSelect = (i: number) => {

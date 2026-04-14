@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -342,17 +343,19 @@ function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-        <TutorialModal />
-        <FullTutorialOverlay />
-        <TermsAgreementModal />
-        <TwoFaPrompt />
-        <GoalNotificationModal />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+          <TutorialModal />
+          <FullTutorialOverlay />
+          <TermsAgreementModal />
+          <TwoFaPrompt />
+          <GoalNotificationModal />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

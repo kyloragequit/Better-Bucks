@@ -52,13 +52,21 @@ process.on("uncaughtException", (err) => {
   console.error("Uncaught exception:", err.stack || err);
 });
 
-process.on("SIGTERM", () => {
-  console.log("Received SIGTERM signal");
+process.on("SIGTERM", async () => {
+  console.log("Received SIGTERM signal — draining DB pool…");
+  try {
+    const { pool } = await import("./db");
+    await pool.end();
+  } catch {}
   process.exit(0);
 });
 
-process.on("SIGINT", () => {
-  console.log("Received SIGINT signal");
+process.on("SIGINT", async () => {
+  console.log("Received SIGINT signal — draining DB pool…");
+  try {
+    const { pool } = await import("./db");
+    await pool.end();
+  } catch {}
   process.exit(0);
 });
 
@@ -188,6 +196,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const compression = (await import("compression")).default;
+  app.use(compression({ level: 6, threshold: 1024 }));
+
   await registerRoutes(httpServer, app);
 
   // Global error handler — scrubs internal details from 500 responses in production
@@ -202,9 +213,6 @@ app.use((req, res, next) => {
       res.status(status).json({ message });
     }
   });
-
-  const compression = (await import("compression")).default;
-  app.use(compression({ level: 6, threshold: 1024 }));
 
   if (process.env.NODE_ENV === "production") {
     const { serveStatic } = await import("./static");

@@ -193,6 +193,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
       queryClient.invalidateQueries({ queryKey: ["/api/stats/leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/org/admin-credits"] });
       queryClient.invalidateQueries({ queryKey: ["/api/org/manager-employee-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org/budget-settings"] });
       toast({ title: "Auto allocation complete!", description: `${data.total.toLocaleString()} bucks distributed to ${data.allocated} admin${data.allocated !== 1 ? "s" : ""}.` });
       setAutoAllocAmounts(null);
       setSelectedAdmins([]);
@@ -213,6 +214,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
       const data = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/stats/leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["/api/org/admin-credits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/org/budget-settings"] });
       toast({ title: "Budget allocated!", description: `${data.total.toLocaleString()} bucks sent to ${data.allocated} admin${data.allocated !== 1 ? "s" : ""}.` });
       setSelectedAdmins([]);
       setBucksEach("");

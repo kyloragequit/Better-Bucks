@@ -73,12 +73,12 @@ export function useUpdateBalance() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, amount, reason }: { id: number; amount: number; reason: string }) => {
+    mutationFn: async ({ id, amount, reason, categoryId }: { id: number; amount: number; reason: string; categoryId?: number }) => {
       const url = buildUrl(api.users.updateBalance.path, { id });
       const res = await fetch(url, {
         method: api.users.updateBalance.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, reason }),
+        body: JSON.stringify({ amount, reason, ...(categoryId ? { categoryId } : {}) }),
         credentials: "include",
       });
       

@@ -454,7 +454,6 @@ function BulkCreditDialog({
   onComplete: () => void;
 }) {
   const [amount, setAmount] = useState("");
-  const [reason, setReason] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -464,14 +463,14 @@ function BulkCreditDialog({
   const totalCost = parsedAmount * selectedUsers.length;
   const isPrime = currentUser.role === "prime_admin";
   const hasCategory = categoryId && categoryId !== "none";
-  const hasReason = reason.trim().length > 0;
 
   const bulkCreditMutation = useMutation({
     mutationFn: async () => {
+      const selectedCat = categories.find(c => String(c.id) === categoryId);
       const res = await apiRequest("POST", "/api/users/bulk-credit", {
         userIds: selectedUserIds,
         amount: parsedAmount,
-        reason: reason.trim() || (hasCategory ? categories.find(c => String(c.id) === categoryId)?.name ?? "Bulk credit" : "Bulk credit"),
+        reason: selectedCat?.name ?? "Bulk credit",
         ...(hasCategory ? { categoryId: parseInt(categoryId) } : {}),
       });
       return await res.json();
@@ -481,7 +480,6 @@ function BulkCreditDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       setAmount("");
-      setReason("");
       setCategoryId("");
       onComplete();
     },
@@ -495,8 +493,8 @@ function BulkCreditDialog({
       toast({ title: "Invalid", description: "Please enter a valid amount.", variant: "destructive" });
       return;
     }
-    if (!hasCategory && !hasReason) {
-      toast({ title: "Missing Info", description: "Please select a category or write a reason.", variant: "destructive" });
+    if (!hasCategory) {
+      toast({ title: "Missing Category", description: "Please select a category.", variant: "destructive" });
       return;
     }
     if (!isPrime && currentUser.balance < totalCost) {
@@ -509,7 +507,6 @@ function BulkCreditDialog({
   function handleOpenChange(v: boolean) {
     if (!v) {
       setAmount("");
-      setReason("");
       setCategoryId("");
     }
     onOpenChange(v);
@@ -552,37 +549,28 @@ function BulkCreditDialog({
             )}
           </div>
           <div className="space-y-1">
-            <Label htmlFor="bulk-reason">{hasCategory ? "Reason (optional)" : "Reason (required if no category)"}</Label>
-            <Textarea
-              id="bulk-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Great performance this week"
-              rows={2}
-              data-testid="input-bulk-credit-reason"
-            />
+            <Label htmlFor="bulk-category">Category</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger id="bulk-category" data-testid="select-bulk-credit-category">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.length > 0 ? categories.map(cat => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                      {cat.name}
+                    </span>
+                  </SelectItem>
+                )) : (
+                  <SelectItem value="none" disabled>No categories set up</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {categories.length === 0 && (
+              <p className="text-xs text-muted-foreground">Ask your Organization Owner to set up categories in Settings.</p>
+            )}
           </div>
-          {categories.length > 0 && (
-            <div className="space-y-1">
-              <Label htmlFor="bulk-category">{hasReason ? "Category (optional)" : "Category (required if no reason)"}</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger id="bulk-category" data-testid="select-bulk-credit-category">
-                  <SelectValue placeholder="No category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No category</SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      <span className="flex items-center gap-2">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                        {cat.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} data-testid="button-cancel-bulk-credit">

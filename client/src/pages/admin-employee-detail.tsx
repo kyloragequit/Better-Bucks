@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { useRoleLabels } from "@/hooks/use-role-labels";
-import type { Department } from "@shared/schema";
+import type { Department, TransactionCategory } from "@shared/schema";
 import {
   ResponsiveContainer,
   LineChart,
@@ -664,7 +664,13 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
   const { data: adminUser } = useUser();
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState<"credit" | "debit">("credit");
+
+  const { data: categories } = useQuery<TransactionCategory[]>({
+    queryKey: [`/api/organizations/${adminUser?.organizationId}/categories`],
+    enabled: !!adminUser?.organizationId,
+  });
 
   const numAmount = parseInt(amount) || 0;
   const isPrime = adminUser?.role === "prime_admin";
@@ -675,17 +681,28 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
     e.preventDefault();
     if (isNaN(numAmount) || numAmount <= 0) return;
     if (wouldOverspend) return;
-    
-    const finalAmount = type === "credit" ? numAmount : -numAmount;
 
-    updateBalance({ id: userId, amount: finalAmount, reason }, {
-      onSuccess: () => {
-        setOpen(false);
-        setAmount("");
-        setReason("");
-        setType("credit");
-      }
-    });
+    if (type === "credit") {
+      if (!categoryId || categoryId === "none") return;
+      const selectedCat = categories?.find(c => String(c.id) === categoryId);
+      updateBalance({ id: userId, amount: numAmount, reason: selectedCat?.name ?? "Credit", categoryId: parseInt(categoryId) }, {
+        onSuccess: () => {
+          setOpen(false);
+          setAmount("");
+          setCategoryId("");
+          setType("credit");
+        }
+      });
+    } else {
+      updateBalance({ id: userId, amount: -numAmount, reason: reason || "Debit" }, {
+        onSuccess: () => {
+          setOpen(false);
+          setAmount("");
+          setReason("");
+          setType("credit");
+        }
+      });
+    }
   };
 
   return (
@@ -714,6 +731,7 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
               variant={type === "credit" ? "default" : "outline"}
               className={type === "credit" ? "bg-green-600 hover:bg-green-700" : ""}
               onClick={() => setType("credit")}
+              data-testid="button-credit-type"
             >
               <TrendingUp className="mr-2 h-4 w-4" /> Credit (Add)
             </Button>
@@ -721,6 +739,7 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
               type="button"
               variant={type === "debit" ? "destructive" : "outline"}
               onClick={() => setType("debit")}
+              data-testid="button-debit-type"
             >
               <TrendingDown className="mr-2 h-4 w-4" /> Debit (Remove)
             </Button>
@@ -735,7 +754,8 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
               required
               placeholder="e.g. 500"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)} 
+              onChange={(e) => setAmount(e.target.value)}
+              data-testid="input-adjust-amount"
             />
             {wouldOverspend && (
               <p className="text-xs text-destructive">
@@ -743,20 +763,46 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
               </p>
             )}
           </div>
-          
-          <div className="grid gap-2">
-            <Label htmlFor="reason">Reason</Label>
-            <Input 
-              id="reason" 
-              required
-              placeholder={type === "credit" ? "Performance Bonus" : "Cafeteria Purchase"}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)} 
-            />
-          </div>
+
+          {type === "credit" ? (
+            <div className="grid gap-2">
+              <Label htmlFor="adjust-category">Category</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger id="adjust-category" data-testid="select-adjust-category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories && categories.length > 0 ? categories.map(cat => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                        {cat.name}
+                      </span>
+                    </SelectItem>
+                  )) : (
+                    <SelectItem value="none" disabled>No categories set up</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {(!categories || categories.length === 0) && (
+                <p className="text-xs text-muted-foreground">Ask your Organization Owner to set up categories in Settings.</p>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              <Label htmlFor="reason">Reason (optional)</Label>
+              <Input 
+                id="reason" 
+                placeholder="e.g. Cafeteria Purchase"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                data-testid="input-adjust-reason"
+              />
+            </div>
+          )}
 
           <DialogFooter className="mt-4">
-            <Button type="submit" disabled={isPending || wouldOverspend}>
+            <Button type="submit" disabled={isPending || wouldOverspend || (type === "credit" && (!categoryId || categoryId === "none"))} data-testid="button-confirm-adjust">
               {isPending ? "Updating..." : "Confirm Adjustment"}
             </Button>
           </DialogFooter>

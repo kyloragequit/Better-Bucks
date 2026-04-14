@@ -182,19 +182,26 @@ export default function AdminInstantTransactionPage() {
       toast({ title: "Invalid", description: "Please enter a valid amount.", variant: "destructive" });
       return;
     }
-    const hasCategory = txType === "credit" && categoryId && categoryId !== "none";
-    const hasReason = reason.trim().length > 0;
-    if (txType === "credit" && !hasCategory && !hasReason) {
-      toast({ title: "Missing Info", description: "Please select a category or write a reason.", variant: "destructive" });
-      return;
+    if (txType === "credit") {
+      if (!categoryId || categoryId === "none") {
+        toast({ title: "Missing Category", description: "Please select a category.", variant: "destructive" });
+        return;
+      }
+      const selectedCat = categories?.find(c => String(c.id) === categoryId);
+      const catName = selectedCat?.name ?? "Instant credit";
+      transactionMutation.mutate({
+        userId: scannedUser.id,
+        amount: parseInt(amount),
+        reason: catName,
+        categoryId: parseInt(categoryId),
+      });
+    } else {
+      transactionMutation.mutate({
+        userId: scannedUser.id,
+        amount: -parseInt(amount),
+        reason: reason || "Instant debit",
+      });
     }
-    const signedAmount = txType === "credit" ? parseInt(amount) : -parseInt(amount);
-    transactionMutation.mutate({
-      userId: scannedUser.id,
-      amount: signedAmount,
-      reason: reason || (txType === "credit" ? "Instant credit" : "Instant debit"),
-      categoryId: hasCategory ? parseInt(categoryId) : undefined,
-    });
   };
 
   const resetToScan = () => {
@@ -275,36 +282,41 @@ export default function AdminInstantTransactionPage() {
                     data-testid="input-tx-amount"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="tx-reason">{txType === "credit" ? "Reason (required if no category)" : "Reason (optional)"}</Label>
-                  <Textarea
-                    id="tx-reason"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="e.g. Great performance this week"
-                    rows={2}
-                    data-testid="input-tx-reason"
-                  />
-                </div>
-                {txType === "credit" && categories && categories.length > 0 && (
+                {txType === "credit" ? (
                   <div className="space-y-1">
-                    <Label htmlFor="tx-category">{reason.trim() ? "Category (optional)" : "Category (required if no reason)"}</Label>
+                    <Label htmlFor="tx-category">Category</Label>
                     <Select value={categoryId} onValueChange={setCategoryId}>
                       <SelectTrigger id="tx-category" data-testid="select-tx-category">
-                        <SelectValue placeholder="No category" />
+                        <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">No category</SelectItem>
-                        {categories.map(cat => (
+                        {categories && categories.length > 0 ? categories.map(cat => (
                           <SelectItem key={cat.id} value={String(cat.id)}>
                             <span className="flex items-center gap-2">
                               <span className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
                               {cat.name}
                             </span>
                           </SelectItem>
-                        ))}
+                        )) : (
+                          <SelectItem value="none" disabled>No categories set up</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {(!categories || categories.length === 0) && (
+                      <p className="text-xs text-muted-foreground">Ask your Organization Owner to set up categories in Settings.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Label htmlFor="tx-reason">Reason (optional)</Label>
+                    <Textarea
+                      id="tx-reason"
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="e.g. Cafeteria purchase"
+                      rows={2}
+                      data-testid="input-tx-reason"
+                    />
                   </div>
                 )}
                 <Button

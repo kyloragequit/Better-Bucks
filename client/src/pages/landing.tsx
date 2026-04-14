@@ -88,8 +88,19 @@ export default function LandingPage() {
       }
       // Mark as demo visitor so an expired session redirects home rather than to login
       try { sessionStorage.setItem("bb_demo_visitor", "1"); } catch {}
-      // Flush stale unauthenticated cache so ProtectedRoute sees the new session
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      // Fetch fresh user + demo status and set directly in cache before navigating
+      // (invalidateQueries alone won't refetch without an active observer,
+      //  and stale demoStatus={inDemo:false} causes email-verification redirect)
+      const [userRes, demoRes] = await Promise.all([
+        fetch("/api/user", { credentials: "include" }),
+        fetch("/api/demo/status", { credentials: "include" }),
+      ]);
+      if (userRes.ok) {
+        queryClient.setQueryData(["/api/user"], await userRes.json());
+      }
+      if (demoRes.ok) {
+        queryClient.setQueryData(["/api/demo/status"], await demoRes.json());
+      }
       setLocation("/admin/dashboard");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });

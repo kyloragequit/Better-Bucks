@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppLogo } from "@/components/app-logo";
 import { FullPageLoader } from "@/components/ui/loader";
 
 export default function DemoPage() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let cancelled = false;
@@ -17,6 +19,17 @@ export default function DemoPage() {
         if (cancelled) return;
         if (!res.ok) throw new Error(data.message || "Failed to start demo");
         try { sessionStorage.setItem("bb_demo_visitor", "1"); } catch {}
+        const [userRes, demoRes] = await Promise.all([
+          fetch("/api/user", { credentials: "include" }),
+          fetch("/api/demo/status", { credentials: "include" }),
+        ]);
+        if (cancelled) return;
+        if (userRes.ok) {
+          queryClient.setQueryData(["/api/user"], await userRes.json());
+        }
+        if (demoRes.ok) {
+          queryClient.setQueryData(["/api/demo/status"], await demoRes.json());
+        }
         const role = data.role;
         if (role === "employee") {
           setLocation("/dashboard");
@@ -30,7 +43,7 @@ export default function DemoPage() {
 
     startDemo();
     return () => { cancelled = true; };
-  }, [setLocation]);
+  }, [setLocation, queryClient]);
 
   if (error) {
     return (

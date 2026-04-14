@@ -751,6 +751,32 @@ export default function AdminDashboardPage() {
             </Card>
           )}
 
+          {/* Admin balance card — shows the admin's own bucks balance */}
+          {!isPrime && currentUser && (
+            <Card className="border shadow-sm border-green-200 mb-8" data-testid="card-admin-balance">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-600">
+                    <BadgeDollarSign className="h-4 w-4" />
+                  </div>
+                  Your Bucks Balance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="text-3xl font-bold text-green-700" data-testid="text-admin-balance">{(currentUser.balance ?? 0).toLocaleString()}</span>
+                    <span className="text-sm font-medium text-green-600">bucks available to distribute</span>
+                    {bpd > 0 && (
+                      <span className="text-sm text-green-500">≈ ${((currentUser.balance ?? 0) / bpd).toFixed(2)}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">This is the amount you can award to employees. Your organization admin allocates bucks to you from the monthly budget.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Category Analytics Card — always visible for admin/prime_admin */}
           {(currentUser?.role === "admin" || currentUser?.role === "prime_admin") && (
             <Card className="border shadow-sm border-purple-200 mb-8" data-testid="card-analytics">

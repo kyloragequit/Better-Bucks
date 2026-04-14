@@ -864,9 +864,6 @@ export async function registerRoutes(
       return res.json([]);
     }
     let allUsers = await storage.getUsersByOrganization(user.organizationId);
-    if (user.role === "admin") {
-      allUsers = allUsers.filter(u => u.departmentId === user.departmentId);
-    }
     res.json(sanitizeUsers(allUsers));
   });
 
@@ -1454,11 +1451,7 @@ export async function registerRoutes(
     }
 
     const userResult = await storage.getUser(id);
-    if (!userResult) return res.status(404).send("User not found");
-
-    if (user.role === "admin" && user.id !== id && userResult.departmentId !== user.departmentId) {
-      return res.status(403).send("Forbidden");
-    }
+    if (!userResult || userResult.organizationId !== user.organizationId) return res.status(404).send("User not found");
 
     const transactions = await storage.getTransactionsByUser(id);
     res.json({ ...userResult, transactions });
@@ -1493,9 +1486,6 @@ export async function registerRoutes(
 
       // Cannot credit yourself
       if (targetUser.id === user.id) continue;
-
-      // Department isolation for non-prime admins
-      if (user.role === "admin" && targetUser.departmentId !== user.departmentId) continue;
 
       // Deduct from admin balance (non-prime) or just record transaction (prime)
       if (user.role !== "prime_admin") {
@@ -1544,7 +1534,6 @@ export async function registerRoutes(
       const targetUser = targetUserMap.get(targetId);
       if (!targetUser) continue;
       if (targetUser.id === user.id) continue;
-      if (user.role === "admin" && targetUser.departmentId !== user.departmentId) continue;
 
       const deductAmount = Math.min(amount, Math.max(0, targetUser.balance));
       if (deductAmount === 0) continue;
@@ -1782,11 +1771,7 @@ export async function registerRoutes(
     const { amount, reason, categoryId } = api.users.updateBalance.input.parse(req.body);
 
     const targetUser = await storage.getUser(id);
-    if (!targetUser) return res.status(404).send("User not found");
-
-    if (user.role === "admin" && targetUser.departmentId !== user.departmentId) {
-      return res.status(403).send("Forbidden");
-    }
+    if (!targetUser || targetUser.organizationId !== user.organizationId) return res.status(404).send("User not found");
 
     // If not prime admin, deduct from current admin balance
     if (user.role !== "prime_admin") {
@@ -4824,9 +4809,6 @@ export async function registerRoutes(
     if (!target || target.organizationId !== user.organizationId) {
       return res.status(404).json({ message: "Employee not found" });
     }
-    if (user.role === "admin" && target.departmentId !== user.departmentId) {
-      return res.status(403).json({ message: "Cannot access users in other departments" });
-    }
     res.json({ id: target.id, fullName: target.fullName, username: target.username, balance: target.balance, role: target.role, departmentId: target.departmentId });
   });
 
@@ -5944,10 +5926,6 @@ export async function registerRoutes(
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
     let orgUsers = await storage.getUsersByOrganization(user.organizationId);
-    // Regular admins only see their department
-    if (user.role === "admin" && user.departmentId) {
-      orgUsers = orgUsers.filter(u => u.departmentId === user.departmentId || u.id === user.id);
-    }
     res.json(orgUsers.map(u => ({
       id: u.id,
       fullName: u.fullName,

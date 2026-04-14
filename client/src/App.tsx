@@ -9,8 +9,8 @@ import { useUser } from "@/hooks/use-auth";
 import { FullPageLoader } from "@/components/ui/loader";
 import { initGA } from "@/lib/analytics";
 import { useAnalytics } from "@/hooks/use-analytics";
-import { TutorialModal } from "@/components/tutorial-modal";
-import { FullTutorialOverlay } from "@/components/full-tutorial";
+const TutorialModal = lazy(() => import("@/components/tutorial-modal").then(m => ({ default: m.TutorialModal })));
+const FullTutorialOverlay = lazy(() => import("@/components/full-tutorial").then(m => ({ default: m.FullTutorialOverlay })));
 import { TermsAgreementModal } from "@/components/terms-agreement-modal";
 import { TwoFaPrompt } from "@/components/two-fa-prompt";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -348,8 +348,8 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
-          <TutorialModal />
-          <FullTutorialOverlay />
+          <Suspense fallback={null}><TutorialModal /></Suspense>
+          <Suspense fallback={null}><FullTutorialOverlay /></Suspense>
           <TermsAgreementModal />
           <TwoFaPrompt />
           <GoalNotificationModal />

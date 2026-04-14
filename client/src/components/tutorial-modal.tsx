@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useTutorial } from "@/hooks/use-tutorial";
 import { useUser } from "@/hooks/use-auth";
@@ -8,7 +8,8 @@ import {
   Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
   ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
   ArrowRight, Heart, ExternalLink, Target, Timer, Hash, KeyRound,
-  ChevronDown, FileSpreadsheet, Upload, Download, PieChart,
+  ChevronDown, FileSpreadsheet, Upload, Download, PieChart, BarChart3,
+  MessageSquare, FileText, UserCheck, Tag,
 } from "lucide-react";
 
 const NAVY = "#162A4A";
@@ -20,6 +21,222 @@ const tutorialProducts = [
   { icon: PersonStanding, name: "Action Figure", price: 75, tag: "New", stars: 5 },
 ];
 
+function useAnimatedNumber(target: number, duration = 800, delay = 300) {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      const start = performance.now();
+      const step = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(target * eased));
+        if (progress < 1) rafRef.current = requestAnimationFrame(step);
+      };
+      rafRef.current = requestAnimationFrame(step);
+    }, delay);
+    return () => { clearTimeout(t1); cancelAnimationFrame(rafRef.current); };
+  }, [target, duration, delay]);
+  return value;
+}
+
+function AnimatedBar({ pct, color, delay = 0 }: { pct: number; color: string; delay?: number }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), delay);
+    return () => clearTimeout(t);
+  }, [pct, delay]);
+  return (
+    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${width}%`, background: color }} />
+    </div>
+  );
+}
+
+function MiniTeamAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 400),
+      setTimeout(() => setStep(2), 800),
+      setTimeout(() => setStep(3), 1200),
+      setTimeout(() => setStep(4), 1800),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const members = [
+    { name: "Sarah C.", dept: "Warehouse" },
+    { name: "Marcus H.", dept: "Logistics" },
+    { name: "Priya P.", dept: "Shipping" },
+  ];
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> My Team</span>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${GREEN}30`, color: GREEN }}>3 selected</span>
+      </div>
+      <div className="bg-white">
+        {members.map((m, i) => (
+          <div key={m.name} className="flex items-center gap-2 px-3 py-2 border-b last:border-0 transition-all duration-400" style={{ opacity: step > i ? 1 : 0.3 }}>
+            <div className="w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-300" style={{ borderColor: step > i ? GREEN : "#d1d5db", background: step > i ? GREEN : "transparent" }}>
+              {step > i && <CheckCircle2 className="h-2.5 w-2.5 text-white" />}
+            </div>
+            <div>
+              <p className="text-xs font-semibold" style={{ color: NAVY }}>{m.name}</p>
+              <p className="text-[10px] text-gray-400">{m.dept}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t transition-all duration-500" style={{ opacity: step >= 4 ? 1 : 0, transform: step >= 4 ? "translateY(0)" : "translateY(4px)" }}>
+        <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: GREEN }}>
+          <Coins className="h-3 w-3" />
+          <span>+50 Bucks awarded to 3 members!</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCategoryAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 500),
+      setTimeout(() => setStep(2), 1200),
+      setTimeout(() => setStep(3), 2000),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const cats = [
+    { name: "Safety", color: "#4E9F3D" },
+    { name: "Performance", color: "#3B82F6" },
+    { name: "Attendance", color: "#F59E0B" },
+  ];
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Select Category</span>
+      </div>
+      <div className="bg-white p-2 space-y-1">
+        {cats.map((c, i) => (
+          <div
+            key={c.name}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-300 cursor-default"
+            style={{ background: step === i + 1 ? `${c.color}12` : "transparent", transform: step === i + 1 ? "scale(1.02)" : "scale(1)" }}
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />
+            <span className="text-xs font-semibold" style={{ color: step === i + 1 ? c.color : NAVY }}>{c.name}</span>
+            {step === i + 1 && <CheckCircle2 className="h-3 w-3 ml-auto" style={{ color: c.color }} />}
+          </div>
+        ))}
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t transition-all duration-500" style={{ opacity: step >= 3 ? 1 : 0 }}>
+        <p className="text-[10px] text-gray-500">Category tags appear in your analytics breakdown.</p>
+      </div>
+    </div>
+  );
+}
+
+function MiniSurveyAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 400),
+      setTimeout(() => setStep(2), 1000),
+      setTimeout(() => setStep(3), 1600),
+      setTimeout(() => setStep(4), 2200),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> Weekly Check-In</span>
+        <span className="text-[10px] text-white/60">2 questions</span>
+      </div>
+      <div className="bg-white p-3 space-y-3">
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold" style={{ color: NAVY }}>How was your week?</p>
+          <div className="flex gap-1">
+            {["Great", "Good", "Okay"].map((opt, i) => (
+              <div
+                key={opt}
+                className="flex-1 py-1 rounded-md text-center text-[10px] font-semibold border transition-all duration-300"
+                style={{
+                  borderColor: step >= 1 && i === 0 ? GREEN : "#e5e7eb",
+                  background: step >= 1 && i === 0 ? `${GREEN}12` : "white",
+                  color: step >= 1 && i === 0 ? GREEN : "#6b7280",
+                }}
+              >{opt}</div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold" style={{ color: NAVY }}>Any suggestions?</p>
+          <div className="rounded-md border px-2 py-1 text-[10px] text-gray-400 transition-all duration-500" style={{ borderColor: step >= 2 ? GREEN : "#e5e7eb" }}>
+            {step >= 2 ? <span className="text-gray-600">More team activities would be fun!</span> : "Type your answer..."}
+          </div>
+        </div>
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t flex items-center justify-between transition-all duration-500" style={{ opacity: step >= 3 ? 1 : 0 }}>
+        <span className="text-[10px] text-gray-400">Anonymous response</span>
+        <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: step >= 4 ? GREEN : "#6b7280" }}>
+          {step >= 4 ? <><CheckCircle2 className="h-3 w-3" /> Submitted!</> : "Submit"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniDocAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 300),
+      setTimeout(() => setStep(2), 900),
+      setTimeout(() => setStep(3), 1500),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const awarded = useAnimatedNumber(6200, 800, 400);
+  const spent = useAnimatedNumber(3100, 800, 600);
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Monthly Report</span>
+        <span className="text-[10px] text-white/60">April 2026</span>
+      </div>
+      <div className="bg-white p-3 space-y-2.5">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg p-2 text-center" style={{ background: `${GREEN}08` }}>
+            <p className="text-lg font-black" style={{ color: GREEN }}>{awarded.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-400">Awarded</p>
+          </div>
+          <div className="rounded-lg p-2 text-center bg-blue-50">
+            <p className="text-lg font-black text-blue-600">{spent.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-400">Spent</p>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-gray-500">Budget Used</span>
+            <span className="font-bold" style={{ color: GREEN }}>62%</span>
+          </div>
+          <AnimatedBar pct={62} color={GREEN} delay={600} />
+        </div>
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t flex items-center justify-between transition-all duration-500" style={{ opacity: step >= 3 ? 1 : 0 }}>
+        <span className="text-[10px] text-gray-400">PDF ready</span>
+        <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: GREEN }}>
+          <Download className="h-3 w-3" /> Download
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MiniShop({
   balance,
   onOrderComplete,
@@ -30,20 +247,22 @@ function MiniShop({
   const [selected, setSelected] = useState<number | null>(null);
   const [orderStep, setOrderStep] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    return () => timersRef.current.forEach(clearTimeout);
+  }, []);
 
   const handleSelect = (i: number) => {
     setSelected(i);
     setOrderStep(1);
-    setTimeout(() => setOrderStep(2), 1400);
-    setTimeout(() => {
-      setOrderStep(3);
-      setCompleted(true);
-      onOrderComplete();
-    }, 2800);
+    timersRef.current.push(
+      setTimeout(() => setOrderStep(2), 1400),
+      setTimeout(() => { setOrderStep(3); setCompleted(true); onOrderComplete(); }, 2800)
+    );
   };
 
   const product = selected !== null ? tutorialProducts[selected] : null;
-  const ProductIcon = product ? product.icon : Gamepad2;
 
   if (orderStep === 0) {
     return (
@@ -58,7 +277,7 @@ function MiniShop({
             return (
               <div
                 key={p.name}
-                className="rounded-xl border border-gray-100 p-3 flex flex-col items-center gap-2 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all duration-150 text-center"
+                className="rounded-xl border border-gray-100 p-3 flex flex-col items-center gap-2 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all duration-200 text-center"
                 onClick={() => canAfford && handleSelect(i)}
                 style={{ opacity: canAfford ? 1 : 0.5, cursor: canAfford ? "pointer" : "not-allowed" }}
               >
@@ -68,7 +287,7 @@ function MiniShop({
                 <p className="text-xs font-bold leading-tight" style={{ color: NAVY }}>{p.name}</p>
                 <span className="text-xs font-black" style={{ color: GREEN }}>{p.price} Bucks</span>
                 <button
-                  className="w-full py-1 rounded-lg text-xs font-semibold text-white"
+                  className="w-full py-1 rounded-lg text-xs font-semibold text-white transition-all duration-200"
                   style={{ background: canAfford ? GREEN : "#d1d5db" }}
                   disabled={!canAfford}
                 >
@@ -84,7 +303,7 @@ function MiniShop({
 
   if (orderStep === 1) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-6">
+      <div className="flex flex-col items-center justify-center gap-3 py-6 slide-up">
         <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: `${GREEN}33`, borderTopColor: GREEN }} />
         <p className="text-sm font-semibold text-gray-600">Processing order…</p>
       </div>
@@ -93,8 +312,8 @@ function MiniShop({
 
   if (orderStep === 2 || orderStep === 3) {
     return (
-      <div className="flex flex-col items-center gap-3 py-4 text-center" style={{ animation: "fadeUp 0.5s ease" }}>
-        <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: `${GREEN}18` }}>
+      <div className="flex flex-col items-center gap-3 py-4 text-center slide-up">
+        <div className="w-14 h-14 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
           <CheckCircle2 className="h-7 w-7" style={{ color: GREEN }} />
         </div>
         <p className="font-black text-lg" style={{ color: NAVY }}>Order Placed!</p>
@@ -322,12 +541,18 @@ function buildSlides(role: string, name: string): Slide[] {
       ),
     },
     {
+      id: "surveys",
+      title: "Surveys & Feedback",
+      subtitle: "Your organization may send surveys to collect feedback. Share your thoughts anonymously.",
+      body: <MiniSurveyAnim />,
+    },
+    {
       id: "done",
       title: "You're All Set! 🎉",
       subtitle: "Start earning Bucks and spend them on what you love.",
       body: (
         <div className="flex flex-col items-center gap-5">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: `${GREEN}18` }}>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
             <CheckCircle2 className="h-10 w-10" style={{ color: GREEN }} />
           </div>
           <div className="space-y-2 text-center max-w-xs">
@@ -336,6 +561,7 @@ function buildSlides(role: string, name: string): Slide[] {
               { icon: LayoutDashboard, text: "Dashboard — Your Bucks balance & history" },
               { icon: ShoppingBag, text: "Store — Browse & redeem items" },
               { icon: ShoppingCart, text: "Orders — Track your redeemed items" },
+              { icon: MessageSquare, text: "Surveys — Share your feedback" },
               { icon: Settings, text: "Settings — Update your email & password" },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-2.5 text-left">
@@ -375,9 +601,7 @@ function buildSlides(role: string, name: string): Slide[] {
                   <span className="text-gray-600"><span className="font-bold text-gray-800">6,200</span> of 10,000 bucks used</span>
                   <span className="font-bold text-green-600">62%</span>
                 </div>
-                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-green-500" style={{ width: "62%" }} />
-                </div>
+                <AnimatedBar pct={62} color={GREEN} delay={300} />
                 <div className="flex justify-between mt-1 text-xs text-gray-400">
                   <span>0</span><span>5,000</span><span>10,000</span>
                 </div>
@@ -388,7 +612,7 @@ function buildSlides(role: string, name: string): Slide[] {
                   { name: "Safety", color: "#4E9F3D", pct: 42 },
                   { name: "Performance", color: "#3B82F6", pct: 33 },
                   { name: "Attendance", color: "#F59E0B", pct: 25 },
-                ].map(c => (
+                ].map((c, i) => (
                   <div key={c.name} className="mb-2">
                     <div className="flex justify-between text-xs mb-0.5">
                       <span className="flex items-center gap-1.5">
@@ -397,23 +621,27 @@ function buildSlides(role: string, name: string): Slide[] {
                       </span>
                       <span className="font-semibold text-gray-700">{c.pct}%</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${c.pct}%`, background: c.color }} />
-                    </div>
+                    <AnimatedBar pct={c.pct} color={c.color} delay={400 + i * 200} />
                   </div>
                 ))}
               </div>
             </div>
           </div>
           <p className="text-xs text-gray-400 text-center">
-            Tag each Bucks transaction with a category (Safety, Attendance, etc.) to see the breakdown here.
+            When awarding Bucks, select a category (Safety, Attendance, etc.) to see the breakdown here.
           </p>
         </div>
       ),
     },
     {
+      id: "team",
+      title: "My Team",
+      subtitle: "View employees assigned to you. Select members and award Bucks in bulk with a single click.",
+      body: <MiniTeamAnim />,
+    },
+    {
       id: "employees",
-      title: "Manage Your Team",
+      title: "Manage Your Employees",
       subtitle: "View, approve, and manage employees. Award Bucks directly from the employee list.",
       body: (
         <div className="space-y-3">
@@ -455,7 +683,7 @@ function buildSlides(role: string, name: string): Slide[] {
         <div className="space-y-3">
           <div className="rounded-xl border overflow-hidden">
             <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
-              <span className="text-white font-bold text-sm flex items-center gap-1.5"><FileSpreadsheet className="h-4 w-4" /> Import Spreadsheet</span>
+              <span className="text-white font-bold text-xs flex items-center gap-1.5"><FileSpreadsheet className="h-4 w-4" /> Import Spreadsheet</span>
               <div className="flex gap-2">
                 <button className="px-3 py-1 rounded text-xs font-semibold" style={{ background: "white", color: NAVY }}>
                   <Download className="inline h-3 w-3 mr-1" />Template
@@ -532,7 +760,7 @@ function buildSlides(role: string, name: string): Slide[] {
     {
       id: "instant-tx",
       title: "Instant Transaction",
-      subtitle: "Award Bucks to employees in seconds — perfect for real-time recognition on the floor.",
+      subtitle: "Scan a QR code or search for an employee, pick a category, and award Bucks in seconds.",
       body: (
         <div className="space-y-3">
           <div className="rounded-xl border p-4 bg-white space-y-3">
@@ -544,20 +772,21 @@ function buildSlides(role: string, name: string): Slide[] {
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-gray-600">Reason</p>
-              <div className="border rounded-lg px-3 py-2 bg-gray-50">
-                <span className="text-sm text-gray-400">Safety Compliance</span>
-              </div>
+              <p className="text-xs font-semibold text-gray-600">Category</p>
+              <MiniCategoryAnim />
             </div>
-            <button className="w-full py-2 rounded-lg text-sm font-bold text-white" style={{ background: GREEN }}>
-              Credit 250 Bucks
-            </button>
           </div>
           <p className="text-xs text-gray-400 text-center">
             Find Instant Transaction in the navigation dropdown at the top of the page.
           </p>
         </div>
       ),
+    },
+    {
+      id: "surveys",
+      title: "Employee Surveys",
+      subtitle: "Create surveys to gather team feedback — multiple choice or open-ended. View results in real time.",
+      body: <MiniSurveyAnim />,
     },
     {
       id: "goals",
@@ -573,7 +802,7 @@ function buildSlides(role: string, name: string): Slide[] {
               {[
                 { icon: Hash, label: "Units Shipped This Month", type: "Quantity", current: 74, target: 100, reward: 250 },
                 { icon: Timer, label: "Days Without an Incident", type: "Time", current: 18, target: 30, reward: 500 },
-              ].map(({ icon: Icon, label, type, current, target, reward }) => (
+              ].map(({ icon: Icon, label, type, current, target, reward }, i) => (
                 <div key={label} className="rounded-lg border bg-white p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: NAVY }}>
@@ -582,9 +811,7 @@ function buildSlides(role: string, name: string): Slide[] {
                     </div>
                     <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${GREEN}18`, color: GREEN }}>{reward} bcks</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full" style={{ width: `${Math.round((current / target) * 100)}%`, background: GREEN }} />
-                  </div>
+                  <AnimatedBar pct={Math.round((current / target) * 100)} color={GREEN} delay={300 + i * 300} />
                   <div className="flex justify-between text-xs text-gray-400">
                     <span>{current} / {target} {type === "Quantity" ? "units" : "days"}</span>
                     <span>{Math.round((current / target) * 100)}%</span>
@@ -607,16 +834,18 @@ function buildSlides(role: string, name: string): Slide[] {
       subtitle: "Your team is counting on you. Here's a quick recap:",
       body: (
         <div className="flex flex-col items-center gap-5">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: `${GREEN}18` }}>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
             <CheckCircle2 className="h-10 w-10" style={{ color: GREEN }} />
           </div>
           <div className="space-y-2 text-center max-w-xs w-full">
             {[
               { icon: LayoutDashboard, text: "Dashboard — Org-wide stats and charts" },
               { icon: PieChart, text: "Analytics — Budget tracking & category breakdown" },
+              { icon: Users, text: "Team — Your assigned employees & bulk awards" },
               { icon: Users, text: "Employees — Add, manage & award your team" },
               { icon: ShoppingCart, text: "Orders — Review and fulfill requests" },
-              { icon: Zap, text: "Instant Transaction — Quick awards to team members" },
+              { icon: Zap, text: "Instant Transaction — Quick category-based awards" },
+              { icon: MessageSquare, text: "Surveys — Collect team feedback" },
               { icon: Target, text: "Goals — Add progress to quantity goals" },
               { icon: Package, text: "Items — Give and redeem custom non-Bucks tokens" },
             ].map(({ icon: Icon, text }) => (
@@ -676,6 +905,12 @@ function buildSlides(role: string, name: string): Slide[] {
       ),
     },
     {
+      id: "documents",
+      title: "Monthly Reports & Documents",
+      subtitle: "Generate detailed monthly reports with charts, breakdowns, and downloadable PDFs.",
+      body: <MiniDocAnim />,
+    },
+    {
       id: "settings",
       title: "Organization Settings",
       subtitle: "Configure your org code, Universal Passkey, billing plan, role labels, and more.",
@@ -719,17 +954,20 @@ function buildSlides(role: string, name: string): Slide[] {
         subtitle: "Full control. Let's make your team's day.",
         body: (
           <div className="flex flex-col items-center gap-5">
-            <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: `${GREEN}18` }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
               <CheckCircle2 className="h-10 w-10" style={{ color: GREEN }} />
             </div>
             <div className="space-y-2 text-center max-w-xs w-full">
               {[
                 { icon: LayoutDashboard, text: "Dashboard — Full platform analytics" },
+                { icon: Users, text: "Team — Your assigned employees & bulk awards" },
                 { icon: Users, text: "Employees — Add, manage & award your team" },
                 { icon: ShoppingCart, text: "Orders — Approve and fulfill requests" },
-                { icon: Zap, text: "Instant Transaction — Quick awards to team members" },
+                { icon: Zap, text: "Instant Transaction — Quick category-based awards" },
+                { icon: MessageSquare, text: "Surveys — Create surveys & view responses" },
                 { icon: Target, text: "Goals — Create goals & distribute Bucks" },
                 { icon: Package, text: "Items — Custom non-Bucks token system" },
+                { icon: FileText, text: "Documents — Monthly reports & PDF downloads" },
                 { icon: ShoppingBag, text: "Store — Curate what employees can redeem" },
                 { icon: Settings, text: "Settings — Org config, Universal Passkey & billing" },
               ].map(({ icon: Icon, text }) => (
@@ -750,7 +988,7 @@ function buildSlides(role: string, name: string): Slide[] {
   return adminSlides;
 }
 
-const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/admin/"];
+const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/admin/", "/surveys"];
 
 export function TutorialModal() {
   const { data: user } = useUser();
@@ -760,11 +998,12 @@ export function TutorialModal() {
   const [shopDone, setShopDone] = useState(false);
   const [shopBalance] = useState(850);
   const [forceHide, setForceHide] = useState(false);
+  const [slideDir, setSlideDir] = useState<"next" | "prev">("next");
+  const [animating, setAnimating] = useState(false);
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
   const isActive = !forceHide && (showChoice || shouldShow) && !!user && isOnAppPage && user?.role !== "developer" && !!user?.termsAcceptedAt;
 
-  // Lock body scroll while the modal is visible; always restore on exit or unmount
   useEffect(() => {
     if (isActive) {
       document.body.style.overflow = "hidden";
@@ -779,13 +1018,25 @@ export function TutorialModal() {
     skipTutorial();
   };
 
+  const slideTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(slideTimerRef.current), []);
+
+  const animateSlide = useCallback((direction: "next" | "prev", newIndex: number) => {
+    if (animating) return;
+    setSlideDir(direction);
+    setAnimating(true);
+    slideTimerRef.current = setTimeout(() => {
+      setCurrentSlide(newIndex);
+      setAnimating(false);
+    }, 250);
+  }, [animating]);
+
   if (!isActive) return null;
 
-  // Show tutorial type choice screen
   if (showChoice) {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(22,42,74,0.85)", backdropFilter: "blur(4px)" }}>
-        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden slide-up">
           <div className="flex items-center justify-between px-6 py-4 border-b" style={{ background: NAVY }}>
             <div className="flex items-center gap-2">
               <AppLogo size="sm" />
@@ -802,7 +1053,7 @@ export function TutorialModal() {
           </div>
 
           <div className="px-7 py-8 text-center">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: `${GREEN}15` }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 scale-in" style={{ background: `${GREEN}15` }}>
               <Star className="h-7 w-7" style={{ color: GREEN }} />
             </div>
             <h2 className="text-xl font-black font-display mb-2" style={{ color: NAVY }}>
@@ -816,7 +1067,7 @@ export function TutorialModal() {
               <button
                 onClick={() => chooseTutorial("quick")}
                 data-testid="button-choose-quick-tour"
-                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-primary/30 bg-gray-50 hover:bg-primary/5 transition-all text-left group"
+                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-primary/30 bg-gray-50 hover:bg-primary/5 transition-all duration-200 text-left group"
               >
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${NAVY}10` }}>
                   <Zap className="h-5 w-5" style={{ color: NAVY }} />
@@ -831,7 +1082,7 @@ export function TutorialModal() {
               <button
                 onClick={() => chooseTutorial("full")}
                 data-testid="button-choose-full-tour"
-                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-green-300 bg-gray-50 hover:bg-green-50 transition-all text-left group"
+                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-green-300 bg-gray-50 hover:bg-green-50 transition-all duration-200 text-left group"
               >
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${GREEN}15` }}>
                   <Target className="h-5 w-5" style={{ color: GREEN }} />
@@ -862,17 +1113,18 @@ export function TutorialModal() {
       else if (user.role === "prime_admin") setLocation("/admin/dashboard");
       else setLocation("/admin/dashboard");
     } else {
-      setCurrentSlide(s => s + 1);
+      animateSlide("next", currentSlide + 1);
     }
   };
 
-  const handlePrev = () => { if (currentSlide > 0) setCurrentSlide(s => s - 1); };
+  const handlePrev = () => {
+    if (currentSlide > 0) animateSlide("prev", currentSlide - 1);
+  };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(22,42,74,0.85)", backdropFilter: "blur(4px)" }}>
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "90vh" }}>
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden slide-up" style={{ maxHeight: "90vh" }}>
 
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ background: NAVY }}>
           <div className="flex items-center gap-2">
             <AppLogo size="sm" />
@@ -891,7 +1143,6 @@ export function TutorialModal() {
           </button>
         </div>
 
-        {/* Progress dots */}
         <div className="flex items-center justify-center gap-1.5 py-3 border-b bg-gray-50 shrink-0">
           {slides.map((_, i) => (
             <div
@@ -906,25 +1157,28 @@ export function TutorialModal() {
           ))}
         </div>
 
-        {/* Slide content */}
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
-          <div className="mb-5 text-center">
-            <h2 className="text-xl font-black font-display" style={{ color: NAVY }}>{slide.title}</h2>
-            {slide.subtitle && <p className="text-sm text-gray-500 mt-1">{slide.subtitle}</p>}
-          </div>
+          <div
+            key={currentSlide}
+            className={animating ? (slideDir === "next" ? "slide-out-left" : "slide-out-right") : "slide-in"}
+          >
+            <div className="mb-5 text-center">
+              <h2 className="text-xl font-black font-display" style={{ color: NAVY }}>{slide.title}</h2>
+              {slide.subtitle && <p className="text-sm text-gray-500 mt-1">{slide.subtitle}</p>}
+            </div>
 
-          {isTrySlide ? (
-            <MiniShop balance={shopBalance} onOrderComplete={() => setShopDone(true)} />
-          ) : (
-            slide.body
-          )}
+            {isTrySlide ? (
+              <MiniShop balance={shopBalance} onOrderComplete={() => setShopDone(true)} />
+            ) : (
+              slide.body
+            )}
+          </div>
         </div>
 
-        {/* Footer nav */}
         <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between shrink-0">
           <button
             onClick={handlePrev}
-            disabled={currentSlide === 0}
+            disabled={currentSlide === 0 || animating}
             className="flex items-center gap-1 text-sm font-semibold text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors"
             data-testid="button-tutorial-prev"
           >
@@ -935,8 +1189,8 @@ export function TutorialModal() {
 
           <button
             onClick={handleNext}
-            disabled={!canAdvance}
-            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:opacity-40"
+            disabled={!canAdvance || animating}
+            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:opacity-40 hover:scale-105"
             style={{ background: GREEN }}
             data-testid="button-tutorial-next"
           >
@@ -948,9 +1202,40 @@ export function TutorialModal() {
       </div>
 
       <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(0); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideOutLeft {
+          from { opacity: 1; transform: translateX(0); }
+          to { opacity: 0; transform: translateX(-20px); }
+        }
+        @keyframes slideOutRight {
+          from { opacity: 1; transform: translateX(0); }
+          to { opacity: 0; transform: translateX(20px); }
+        }
+        .slide-up {
+          animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .scale-in {
+          animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .slide-in {
+          animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .slide-out-left {
+          animation: slideOutLeft 0.25s ease-in both;
+        }
+        .slide-out-right {
+          animation: slideOutRight 0.25s ease-in both;
         }
       `}</style>
     </div>

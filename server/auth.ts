@@ -235,14 +235,16 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (req.isAuthenticated()) {
-      // For public demo sessions, overlay the session-tracked tutorial state
-      // so the tutorial hook reflects completion without any DB write
       const isPublicDemo = (req.session as any)?.isPublicDemo === true;
-      if (isPublicDemo && (req.session as any)?.demoTutorialCompleted !== undefined) {
-        return res.json({
-          ...(req.user as object),
-          tutorialCompleted: (req.session as any).demoTutorialCompleted,
-        });
+      const user = req.user as User;
+      if (isPublicDemo) {
+        const tutorialMap = (req.session as any)?.demoTutorialMap as Record<string, boolean> | undefined;
+        if (tutorialMap && tutorialMap[user.id] !== undefined) {
+          return res.json({
+            ...(user as object),
+            tutorialCompleted: tutorialMap[user.id],
+          });
+        }
       }
       res.json(req.user);
     } else {

@@ -55,7 +55,9 @@ export function useTutorial() {
     queryClient.setQueryData(["/api/user"], { ...user, tutorialCompleted: true });
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
-    await apiRequest("POST", "/api/users/complete-tutorial");
+    try {
+      await apiRequest("POST", "/api/users/complete-tutorial");
+    } catch {}
     queryClient.invalidateQueries({ queryKey: ["/api/user"] });
   };
 

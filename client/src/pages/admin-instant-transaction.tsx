@@ -97,6 +97,7 @@ export default function AdminInstantTransactionPage() {
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       const bcks = Math.abs(vars.amount).toLocaleString();
       toast({ title: "Transaction Complete", description: `Successfully ${vars.amount > 0 ? "credited" : "debited"} ${bcks} Bucks.` });
       setScannedUser(null);
@@ -177,6 +178,11 @@ export default function AdminInstantTransactionPage() {
     setMode("transaction");
   };
 
+  const parsedAmount = parseInt(amount) || 0;
+  const isPrime = currentUser?.role === "prime_admin";
+  const adminBalance = currentUser?.balance ?? 0;
+  const wouldOverspend = txType === "credit" && !isPrime && parsedAmount > adminBalance;
+
   const handleSubmitTransaction = () => {
     if (!scannedUser || !amount || parseInt(amount) <= 0) {
       toast({ title: "Invalid", description: "Please enter a valid amount.", variant: "destructive" });
@@ -185,6 +191,10 @@ export default function AdminInstantTransactionPage() {
     if (txType === "credit") {
       if (!categoryId || categoryId === "none") {
         toast({ title: "Missing Category", description: "Please select a category.", variant: "destructive" });
+        return;
+      }
+      if (wouldOverspend) {
+        toast({ title: "Insufficient Balance", description: `You need ${parsedAmount.toLocaleString()} bucks but only have ${adminBalance.toLocaleString()}.`, variant: "destructive" });
         return;
       }
       const selectedCat = categories?.find(c => String(c.id) === categoryId);
@@ -252,6 +262,12 @@ export default function AdminInstantTransactionPage() {
                 <CardTitle className="text-lg">Transaction Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {!isPrime && (
+                  <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2 text-sm" data-testid="admin-balance-display">
+                    <span className="text-muted-foreground">Your Bucks balance</span>
+                    <span className="font-bold text-primary tabular-nums">{adminBalance.toLocaleString()} bcks</span>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button
                     variant={txType === "credit" ? "default" : "outline"}
@@ -281,6 +297,11 @@ export default function AdminInstantTransactionPage() {
                     placeholder="Enter Bucks amount"
                     data-testid="input-tx-amount"
                   />
+                  {wouldOverspend && (
+                    <p className="text-xs text-destructive" data-testid="text-insufficient-balance">
+                      Insufficient balance — you only have {adminBalance.toLocaleString()} bcks available.
+                    </p>
+                  )}
                 </div>
                 {txType === "credit" ? (
                   <div className="space-y-1">
@@ -322,7 +343,7 @@ export default function AdminInstantTransactionPage() {
                 <Button
                   className="w-full"
                   onClick={handleSubmitTransaction}
-                  disabled={isPublicDemo || transactionMutation.isPending || !amount || parseInt(amount) <= 0}
+                  disabled={isPublicDemo || transactionMutation.isPending || !amount || parseInt(amount) <= 0 || wouldOverspend}
                   data-testid="button-submit-tx"
                 >
                   {transactionMutation.isPending ? (

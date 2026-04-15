@@ -88,8 +88,8 @@ export function useUpdateBalance() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.users.get.path, variables.id] });
-      // Also update the list view just in case
       queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       
       toast({
         title: "Balance Updated",

@@ -649,6 +649,7 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
     },
     onSuccess: (data: { credited: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/points"] });
       toast({ title: "Bucks Credited", description: `Successfully credited ${data.credited} employee${data.credited !== 1 ? "s" : ""}.` });
       setOpen(false);

@@ -4252,7 +4252,7 @@ export async function registerRoutes(
 
     // Switching back to self
     if (targetId === demoOriginalUserId) {
-      req.login(originalUser, (err) => {
+      req.login(originalUser, { keepSessionInfo: true }, (err) => {
         if (err) return res.status(500).json({ message: "Switch failed" });
         req.session.save((saveErr) => {
           if (saveErr) return res.status(500).json({ message: "Session save failed" });
@@ -4267,7 +4267,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "User not found in your organization" });
     }
 
-    req.login(targetUser, (err) => {
+    req.login(targetUser, { keepSessionInfo: true }, (err) => {
       if (err) return res.status(500).json({ message: "Switch failed" });
       (req.session as any).demoOriginalUserId = demoOriginalUserId;
       req.session.save((saveErr) => {
@@ -4720,9 +4720,9 @@ export async function registerRoutes(
   app.post("/api/users/complete-tutorial", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
-    // In public demo mode, track completion in the session only — no DB write
     if ((req.session as any)?.isPublicDemo) {
-      (req.session as any).demoTutorialCompleted = true;
+      if (!(req.session as any).demoTutorialMap) (req.session as any).demoTutorialMap = {};
+      (req.session as any).demoTutorialMap[user.id] = true;
       return res.json({ ...user, tutorialCompleted: true });
     }
     const updated = await storage.setTutorialCompleted(user.id, true);
@@ -4733,9 +4733,9 @@ export async function registerRoutes(
   app.post("/api/users/reset-tutorial", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
-    // In public demo mode, track in session only — no DB write
     if ((req.session as any)?.isPublicDemo) {
-      (req.session as any).demoTutorialCompleted = false;
+      if (!(req.session as any).demoTutorialMap) (req.session as any).demoTutorialMap = {};
+      (req.session as any).demoTutorialMap[user.id] = false;
       return res.json({ ...user, tutorialCompleted: false });
     }
     const updated = await storage.setTutorialCompleted(user.id, false);

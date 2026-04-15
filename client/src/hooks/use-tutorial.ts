@@ -41,10 +41,17 @@ export function useTutorial() {
     broadcastChange();
   };
 
+  const restoreScroll = () => {
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
+    document.documentElement.style.overflow = "";
+  };
+
   const completeTutorial = async () => {
     if (!user) return;
-    // Mark completed in cache first so dbCompleted=true before localStorage is cleared,
-    // preventing the choice modal from flashing open during the async API call.
+    restoreScroll();
     queryClient.setQueryData(["/api/user"], { ...user, tutorialCompleted: true });
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
@@ -56,6 +63,7 @@ export function useTutorial() {
 
   const restartTutorial = async () => {
     if (!user) return;
+    restoreScroll();
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
     await apiRequest("POST", "/api/users/reset-tutorial");

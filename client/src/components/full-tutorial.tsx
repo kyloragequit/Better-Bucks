@@ -475,6 +475,14 @@ export function FullTutorialOverlay() {
   const locating = useRef(false);
   const [animKey, setAnimKey] = useState(0);
 
+  const dbCompleted = !!user && user.tutorialCompleted;
+  useEffect(() => {
+    if (!dbCompleted && forceHide) {
+      setForceHide(false);
+      setStepIndex(0);
+    }
+  }, [dbCompleted, forceHide]);
+
   const role = user?.role ?? "employee";
   const steps = useMemo(() => getSteps(role), [role]);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
@@ -523,6 +531,8 @@ export function FullTutorialOverlay() {
     if (stepIndex < steps.length - 1) {
       setStepIndex(s => s + 1);
     } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
       await completeTutorial();
       setLocation(homePath);
     }
@@ -534,6 +544,7 @@ export function FullTutorialOverlay() {
 
   const handleSkip = useCallback(() => {
     document.body.style.overflow = "";
+    document.documentElement.style.overflow = "";
     setForceHide(true);
     setLocation(homePath);
     skipTutorial();
@@ -545,10 +556,11 @@ export function FullTutorialOverlay() {
   useEffect(() => {
     if (isActive) {
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
   }, [isActive]);
 
   useEffect(() => {

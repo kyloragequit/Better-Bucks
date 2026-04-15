@@ -1001,20 +1001,31 @@ export function TutorialModal() {
   const [slideDir, setSlideDir] = useState<"next" | "prev">("next");
   const [animating, setAnimating] = useState(false);
 
+  const dbCompleted = !!user && user.tutorialCompleted;
+  useEffect(() => {
+    if (!dbCompleted && forceHide) {
+      setForceHide(false);
+      setCurrentSlide(0);
+      setShopDone(false);
+    }
+  }, [dbCompleted, forceHide]);
+
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
   const isActive = !forceHide && (showChoice || shouldShow) && !!user && isOnAppPage && user?.role !== "developer" && !!user?.termsAcceptedAt;
 
   useEffect(() => {
     if (isActive) {
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
   }, [isActive]);
 
   const handleSkip = useCallback(() => {
     document.body.style.overflow = "";
+    document.documentElement.style.overflow = "";
     setForceHide(true);
     skipTutorial();
   }, [skipTutorial]);
@@ -1116,6 +1127,8 @@ export function TutorialModal() {
 
   const handleNext = () => {
     if (isLast) {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
       completeTutorial();
       if (user.role === "employee") setLocation("/dashboard");
       else if (user.role === "prime_admin") setLocation("/admin/dashboard");

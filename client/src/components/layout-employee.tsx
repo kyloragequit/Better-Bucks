@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Menu, X, LayoutDashboard, ShoppingCart, Store, User, Home, ClipboardList } from "lucide-react";
+import { LogOut, Menu, X, LayoutDashboard, ShoppingCart, Store, User, Home, ClipboardList, HelpCircle } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
+import { NeedHelpButton } from "@/components/need-help-button";
 import { useQuery } from "@tanstack/react-query";
 import { DemoBanner } from "@/components/demo-banner";
 
@@ -75,6 +76,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline-block text-sm text-white/60">
               {user?.fullName}
             </span>
+            <NeedHelpButton />
             {isPublicDemo ? (
               <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
                 <Home className="h-5 w-5" />
@@ -127,6 +129,20 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
                       @better_bucks
                     </a>
                     <div className="border-t my-1" />
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setTimeout(() => {
+                          const btn = document.querySelector('[data-testid="button-need-help"]') as HTMLButtonElement;
+                          btn?.click();
+                        }, 100);
+                      }}
+                      data-testid="mobile-button-need-help"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                      Need Help?
+                    </button>
                     {isPublicDemo ? (
                       <button
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"

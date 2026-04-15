@@ -3,10 +3,11 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, HelpCircle } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
+import { NeedHelpButton } from "@/components/need-help-button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -176,6 +177,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline-block text-sm text-white/60">
               Hello, {user?.fullName}
             </span>
+            <NeedHelpButton />
             {user?.role === "prime_admin" && !isInDemo && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
@@ -267,6 +269,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       </a>
                     )}
                     <div className="border-t my-1" />
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setTimeout(() => {
+                          const btn = document.querySelector('[data-testid="button-need-help"]') as HTMLButtonElement;
+                          btn?.click();
+                        }, 100);
+                      }}
+                      data-testid="mobile-button-need-help"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                      Need Help?
+                    </button>
                     {isPublicDemo ? (
                       <button
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"

@@ -256,6 +256,23 @@ async function _seedDemoOrg() {
       url: "https://www.apple.com/airpods/",
       imageUrl: "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=400",
     },
+    {
+      organizationId: org.id,
+      name: "Company Hoodie",
+      price: 300,
+      url: "",
+      imageUrl: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400",
+      requiresSize: true,
+      requiresColor: true,
+    },
+    {
+      organizationId: org.id,
+      name: "Running Shoes – Nike",
+      price: 500,
+      url: "https://www.nike.com/",
+      imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400",
+      requiresSize: true,
+    },
   ]);
 
   // 8. Orders + transactions (using the 10 employees)
@@ -333,7 +350,7 @@ async function _seedDemoOrg() {
     { surveyId: demoSurvey.id, orderIndex: 4, questionType: "written", questionText: "Any other feedback or suggestions for leadership?", options: null },
   ]);
 
-  console.log(`[seedDemo] Done — seeded VIEWDEMO org (id=${org.id}) with ${empValues.length} employees, 2 goals, 3 store items, 10 orders, 1 survey.`);
+  console.log(`[seedDemo] Done — seeded VIEWDEMO org (id=${org.id}) with ${empValues.length} employees, 2 goals, 11 store items, 10 orders, 1 survey.`);
 }
 
 // ── Per-session isolated demo org ────────────────────────────────────────────
@@ -521,6 +538,8 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
     { organizationId: org.id, name: "Wireless Bluetooth Earbuds", price: 350, url: "https://www.amazon.com/", imageUrl: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400" },
     { organizationId: org.id, name: "Walmart Gift Card – $50", price: 500, url: "https://www.walmart.com/", imageUrl: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400" },
     { organizationId: org.id, name: "Apple AirPods (3rd Gen)", price: 900, url: "https://www.apple.com/airpods/", imageUrl: "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=400" },
+    { organizationId: org.id, name: "Company Hoodie", price: 300, url: "", imageUrl: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400", requiresSize: true, requiresColor: true },
+    { organizationId: org.id, name: "Running Shoes – Nike", price: 500, url: "https://www.nike.com/", imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400", requiresSize: true },
   ]);
 
   const [demoSurvey] = await db.insert(surveys).values({

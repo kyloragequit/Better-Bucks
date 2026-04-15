@@ -15,6 +15,7 @@ import { z } from "zod";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 import { ensureStripeReady } from "./stripeLazy";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
@@ -108,8 +109,7 @@ function getTransporter() {
   const smtpPort = parseInt(process.env.SMTP_PORT || "587");
   const key = `${smtpHost}:${smtpPort}:${smtpUser}`;
   if (cachedTransporter && cachedSmtpKey === key) return cachedTransporter;
-  const nm = require("nodemailer");
-  cachedTransporter = nm.createTransport({
+  cachedTransporter = nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
     secure: smtpPort === 465,

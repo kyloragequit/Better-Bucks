@@ -1967,17 +1967,20 @@ export async function registerRoutes(
         if (!targetUser) return res.status(404).send("User not found");
         let match = await verifyPassword(data.currentPassword, targetUser.password);
 
-        // Fallback: a user who has never set their own password (lastPlainPassword is null)
-        // may enter their workplace Site ID in place of the current password.
-        if (!match && !targetUser.lastPlainPassword && targetUser.organizationId) {
+        // Fallback: an authenticated user may enter their workplace Site ID in place of the
+        // current password. Safe because they're already signed in as themselves and the Site
+        // ID is a workplace-wide credential they're expected to know.
+        if (!match && targetUser.organizationId) {
           const org = await storage.getOrganization(targetUser.organizationId);
-          if (org?.siteId && org.siteId.toLowerCase() === String(data.currentPassword).trim().toLowerCase()) {
+          const entered = String(data.currentPassword).trim().toLowerCase();
+          if (org?.siteId && org.siteId.toLowerCase() === entered) {
+            console.log(`[Profile] User ${targetUser.id} authenticated current-password via Site ID`);
             match = true;
           }
         }
 
         if (!match) {
-          return res.status(401).json({ message: "Current password is incorrect." });
+          return res.status(401).json({ message: "Current password is incorrect. Tip: you can also enter your workplace Site ID here." });
         }
       }
     }

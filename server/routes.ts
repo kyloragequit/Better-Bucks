@@ -1965,7 +1965,17 @@ export async function registerRoutes(
         }
         const targetUser = await storage.getUser(id);
         if (!targetUser) return res.status(404).send("User not found");
-        const match = await verifyPassword(data.currentPassword, targetUser.password);
+        let match = await verifyPassword(data.currentPassword, targetUser.password);
+
+        // Fallback: a user who has never set their own password (lastPlainPassword is null)
+        // may enter their workplace Site ID in place of the current password.
+        if (!match && !targetUser.lastPlainPassword && targetUser.organizationId) {
+          const org = await storage.getOrganization(targetUser.organizationId);
+          if (org?.siteId && org.siteId.toLowerCase() === String(data.currentPassword).trim().toLowerCase()) {
+            match = true;
+          }
+        }
+
         if (!match) {
           return res.status(401).json({ message: "Current password is incorrect." });
         }
@@ -6474,9 +6484,16 @@ export async function registerRoutes(
           </div>
         `,
       });
+      console.log(`[Invite] Email sent to ${data.email} for org ${user.organizationId}`);
     } catch (err) {
       console.error("[Invite] Email failed:", err);
-      // Don't fail the request — the invite is created, email just didn't send
+      // The invitation record exists, but the recipient will never see it without an email.
+      // Tell the admin so they can fix SMTP or share the link manually.
+      return res.status(500).json({
+        message: `The invitation was created but the email could not be sent. Please contact miles.chase@betterbucks.net or share this link directly with ${data.email}: ${inviteUrl}`,
+        invitation: inv,
+        inviteUrl,
+      });
     }
 
     res.json(inv);

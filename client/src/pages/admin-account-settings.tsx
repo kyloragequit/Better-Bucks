@@ -309,6 +309,9 @@ export default function AdminAccountSettingsPage() {
                   autoComplete="current-password"
                   data-testid="input-current-password"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Never set a password? Enter your workplace Site ID here instead.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new-password">New Password</Label>

@@ -112,8 +112,10 @@ export function setupAuth(app: Express) {
         }
 
         let match = await verifyPassword(password, user.password);
-        if (!match && user.organizationId) {
-          // Fallback: try the org's universal PIN
+        if (!match && user.organizationId && !user.lastPlainPassword) {
+          // Fallback: try the org's universal PIN, but only for users who have
+          // never set their own password. Once a user picks a real password
+          // the PIN must stop being a valid login for that account.
           const org = await storage.getOrganization(user.organizationId);
           if (org?.defaultPin) {
             match = await verifyPassword(password, org.defaultPin);

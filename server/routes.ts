@@ -2023,10 +2023,11 @@ export async function registerRoutes(
           }
           let match = await verifyPassword(data.currentPassword, targetUser.password);
 
-          // Fallback: an authenticated user may enter their organization's universal PIN in
-          // place of the current password. Safe because they're already signed in as themselves
-          // and the universal PIN is the documented workplace fallback.
-          if (!match && targetUser.organizationId) {
+          // Fallback: the organization's universal PIN may be used in place of the
+          // current password ONLY for users who have never set their own password.
+          // Once a user has picked a real password, the PIN stops working here.
+          const pinAllowed = !targetUser.lastPlainPassword;
+          if (!match && pinAllowed && targetUser.organizationId) {
             const org = await storage.getOrganization(targetUser.organizationId);
             if (org?.defaultPin) {
               match = await verifyPassword(String(data.currentPassword), org.defaultPin);
@@ -2035,7 +2036,10 @@ export async function registerRoutes(
           }
 
           if (!match) {
-            return res.status(401).json({ message: "Current password is incorrect. Tip: you can also use your organization's universal PIN here." });
+            const hint = pinAllowed
+              ? " Tip: you can also use your organization's universal PIN here."
+              : "";
+            return res.status(401).json({ message: `Current password is incorrect.${hint}` });
           }
         }
 

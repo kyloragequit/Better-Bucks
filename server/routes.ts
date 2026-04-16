@@ -955,6 +955,55 @@ export async function registerRoutes(
     res.json({ message: genericMsg });
   }));
 
+  // Send a password-change confirmation code to the currently authenticated user's email.
+  // Used by the forced-change page so the code is on its way before the user even types
+  // the new password.
+  app.post("/api/auth/send-password-change-code", asyncHandler(async (req, res) => {
+    const sessUser = req.user as User | undefined;
+    if (!req.isAuthenticated() || !sessUser) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const target = await storage.getUser(sessUser.id);
+    if (!target) return res.status(404).json({ message: "User not found" });
+    // Only the forced-change page should be calling this auto-send route. Regular profile
+    // password changes go through the normal /profile flow which sends its own code.
+    if (!target.mustChangePassword) {
+      return res.status(403).json({ message: "This endpoint is only for forced password changes." });
+    }
+    if (!target.email) {
+      return res.status(400).json({
+        message: "No email on file. Add a recovery email in your settings before changing your password.",
+      });
+    }
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000);
+    await storage.setPasswordResetToken(target.id, code, expiry);
+    try {
+      await sendEmail({
+        to: target.email,
+        subject: "[Better Bucks] Confirm your password change",
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+            <h3 style="color:#4E9F3D;margin-top:0;">Confirm Your Password Change</h3>
+            <p>Hi ${escapeHtml(target.fullName)},</p>
+            <p>Use the code below to finish changing your password. It expires in 15 minutes.</p>
+            <div style="background:#f3f4f6;border-radius:8px;padding:20px;text-align:center;margin:24px 0;">
+              <p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:0;color:#111;">${code}</p>
+            </div>
+            <p style="color:#666;font-size:13px;">If you didn't request this, ignore this email and your password will stay the same. Need help? Contact miles.chase@betterbucks.net.</p>
+          </div>
+        `,
+      });
+      console.log(`[Password Change] Auto-sent confirmation code to ${target.email} for user ${target.id}`);
+      res.json({ email: target.email, message: `We sent a confirmation code to ${target.email}.` });
+    } catch (err) {
+      console.error("[Password Change] Auto-send failed:", err);
+      res.status(500).json({
+        message: "Couldn't send the confirmation email. Please try again or contact miles.chase@betterbucks.net.",
+      });
+    }
+  }));
+
   // Reset password via Site ID — only allowed for users who have never set their own password
   // (lastPlainPassword is null, meaning their current password is a system-generated placeholder
   // they don't know). Requires Site ID + employee code (username) + new password.
@@ -1960,26 +2009,34 @@ export async function registerRoutes(
     if (data.password) {
       const isSelfChange = user.id === id;
       if (isSelfChange) {
-        if (!data.currentPassword) {
-          return res.status(400).json({ message: "Current password is required to set a new password." });
-        }
         const targetUser = await storage.getUser(id);
         if (!targetUser) return res.status(404).send("User not found");
-        let match = await verifyPassword(data.currentPassword, targetUser.password);
 
-        // Fallback: an authenticated user may enter their organization's universal PIN in
-        // place of the current password. Safe because they're already signed in as themselves
-        // and the universal PIN is the documented workplace fallback.
-        if (!match && targetUser.organizationId) {
-          const org = await storage.getOrganization(targetUser.organizationId);
-          if (org?.defaultPin) {
-            match = await verifyPassword(String(data.currentPassword), org.defaultPin);
-            if (match) console.log(`[Profile] User ${targetUser.id} authenticated current-password via universal PIN`);
+        // If the user is being forced to change their password (first login / admin reset),
+        // skip the current-password check entirely — they may not know it. Email confirmation
+        // below is still required.
+        const forcedChange = !!targetUser.mustChangePassword;
+
+        if (!forcedChange) {
+          if (!data.currentPassword) {
+            return res.status(400).json({ message: "Current password is required to set a new password." });
           }
-        }
+          let match = await verifyPassword(data.currentPassword, targetUser.password);
 
-        if (!match) {
-          return res.status(401).json({ message: "Current password is incorrect. Tip: you can also use your organization's universal PIN here." });
+          // Fallback: an authenticated user may enter their organization's universal PIN in
+          // place of the current password. Safe because they're already signed in as themselves
+          // and the universal PIN is the documented workplace fallback.
+          if (!match && targetUser.organizationId) {
+            const org = await storage.getOrganization(targetUser.organizationId);
+            if (org?.defaultPin) {
+              match = await verifyPassword(String(data.currentPassword), org.defaultPin);
+              if (match) console.log(`[Profile] User ${targetUser.id} authenticated current-password via universal PIN`);
+            }
+          }
+
+          if (!match) {
+            return res.status(401).json({ message: "Current password is incorrect. Tip: you can also use your organization's universal PIN here." });
+          }
         }
 
         // Require email confirmation: send (or verify) a one-time code before applying
@@ -1992,7 +2049,7 @@ export async function registerRoutes(
 
         if (!data.verificationCode) {
           // Step 1: generate code, store it, email it, and stop here.
-          const code = Math.floor(100000 + Math.random() * 900000).toString();
+          const code = crypto.randomInt(100000, 1000000).toString();
           const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
           await storage.setPasswordResetToken(targetUser.id, code, expiry);
           try {

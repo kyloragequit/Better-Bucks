@@ -26,9 +26,9 @@ async function getStripeClient() {
 async function getStripePubKey() {
   return getStripePublishableKey();
 }
-import { sql, eq, and, gte, lte, gt, lt, inArray } from "drizzle-orm";
+import { sql, eq, and, gte, lte, gt, lt, inArray, isNull } from "drizzle-orm";
 import { db } from "./db";
-import { organizations, users, infoRequests, transactions, orders } from "@shared/schema";
+import { organizations, users, infoRequests, transactions, orders, customItemTransactions } from "@shared/schema";
 import cron from "node-cron";
 import type { User } from "@shared/schema";
 
@@ -5925,50 +5925,118 @@ export async function registerRoutes(
     }
   });
 
-  // ── Custom Items ────────────────────────────────────────────────────────────
+  // ── Custom Items (multi-item type) ──────────────────────────────────────────
 
-  // Get custom item config for the org (name + current user's balance)
-  app.get("/api/admin/custom-items/config", async (req, res) => {
+  // Helper: ensure backwards-compat — migrate org's single-item config into the new tables
+  async function ensureCustomItemsMigrated(orgId: number) {
+    const items = await storage.getCustomItemsByOrg(orgId);
+    if (items.length > 0) return items;
+    const org = await storage.getOrganization(orgId);
+    if (!org?.customItemName) return [];
+    // Create the item from the legacy name
+    const item = await storage.createCustomItem({ orgId, name: org.customItemName });
+    // Migrate per-user balances from users.customItemBalance
+    const orgUsers = await storage.getUsersByOrganization(orgId);
+    for (const u of orgUsers) {
+      if (u.customItemBalance && u.customItemBalance !== 0) {
+        await storage.updateCustomItemBalanceFor(u.id, item.id, u.customItemBalance);
+      }
+    }
+    // Tag any existing transactions with the new item id
+    try {
+      await db.update(customItemTransactions)
+        .set({ customItemId: item.id })
+        .where(and(eq(customItemTransactions.orgId, orgId), isNull(customItemTransactions.customItemId)));
+    } catch {}
+    // Clear legacy field so we don't re-migrate
+    await storage.updateOrgCustomItemName(orgId, null);
+    return [item];
+  }
+
+  // Helper: returns the user's balance for the given item id
+  async function balanceFor(userId: number, itemId: number): Promise<number> {
+    return storage.getCustomItemBalance(userId, itemId);
+  }
+
+  // List all custom items for the org
+  app.get("/api/admin/custom-items/items", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const org = await storage.getOrganization(user.organizationId);
-    res.json({ itemName: org?.customItemName ?? null });
+    const items = await ensureCustomItemsMigrated(user.organizationId);
+    res.json(items);
   });
 
-  // Set/update custom item name (prime_admin only)
-  app.patch("/api/admin/custom-items/config", async (req, res) => {
+  // Create a new custom item (prime_admin only)
+  app.post("/api/admin/custom-items/items", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
-      return res.status(403).json({ message: "Only the Organization Owner can configure custom items." });
+      return res.status(403).json({ message: "Only the Organization Owner can create custom items." });
     }
-    const parsed = z.object({ itemName: z.string().min(1).max(64).nullable() }).safeParse(req.body);
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const parsed = z.object({ name: z.string().trim().min(1).max(64) }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
-    const updated = await storage.updateOrgCustomItemName(user.organizationId!, parsed.data.itemName);
-    res.json({ itemName: updated.customItemName });
+    const item = await storage.createCustomItem({ orgId: user.organizationId, name: parsed.data.name });
+    res.json(item);
   });
 
-  // List all users in org with their custom item balances
+  // Rename a custom item (prime_admin only)
+  app.patch("/api/admin/custom-items/items/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Only the Organization Owner can rename custom items." });
+    }
+    const id = parseInt(req.params.id);
+    const item = await storage.getCustomItem(id);
+    if (!item || item.orgId !== user.organizationId) return res.status(404).send("Not found");
+    const parsed = z.object({ name: z.string().trim().min(1).max(64) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    const updated = await storage.updateCustomItem(id, parsed.data.name);
+    res.json(updated);
+  });
+
+  // Delete a custom item (prime_admin only)
+  app.delete("/api/admin/custom-items/items/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Only the Organization Owner can delete custom items." });
+    }
+    const id = parseInt(req.params.id);
+    const item = await storage.getCustomItem(id);
+    if (!item || item.orgId !== user.organizationId) return res.status(404).send("Not found");
+    await storage.deleteCustomItem(id);
+    res.json({ success: true });
+  });
+
+  // List users in org with their balances for a specific item
   app.get("/api/admin/custom-items/users", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    let orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const itemId = parseInt(String(req.query.itemId || "0"));
+    if (!itemId) return res.status(400).json({ message: "itemId is required" });
+    const item = await storage.getCustomItem(itemId);
+    if (!item || item.orgId !== user.organizationId) return res.status(404).send("Item not found");
+
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const balances = await storage.getCustomItemBalancesForItem(itemId);
+    const balMap = new Map<number, number>();
+    for (const b of balances) balMap.set(b.userId, b.balance);
     res.json(orgUsers.map(u => ({
       id: u.id,
       fullName: u.fullName,
       username: u.username,
       role: u.role,
       departmentId: u.departmentId,
-      customItemBalance: u.customItemBalance,
+      customItemBalance: balMap.get(u.id) ?? 0,
     })));
   });
 
-  // Give custom items to a user
+  // Give items to a user
   app.post("/api/admin/custom-items/give", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
@@ -5978,30 +6046,32 @@ export async function registerRoutes(
 
     const parsed = z.object({
       userId: z.number().int().positive(),
+      customItemId: z.number().int().positive(),
       amount: z.number().int().min(1, "Amount must be at least 1"),
       reason: z.string().optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
 
-    const { userId, amount, reason } = parsed.data;
+    const { userId, customItemId, amount, reason } = parsed.data;
+
+    const item = await storage.getCustomItem(customItemId);
+    if (!item || item.orgId !== user.organizationId) return res.status(404).json({ message: "Item not found" });
 
     const target = await storage.getUser(userId);
     if (!target || target.organizationId !== user.organizationId) {
       return res.status(404).send("User not found");
     }
-    // Admin cannot give to prime_admin or themselves (unless prime_admin)
     if (user.role === "admin") {
       if (target.role === "prime_admin") return res.status(403).json({ message: "Cannot give items to the Organization Owner." });
       if (target.role !== "employee") return res.status(403).json({ message: "Admins can only give items to employees." });
-      // Reload admin from DB to get fresh balance (session balance can be stale)
-      const freshAdmin = await storage.getUser(user.id);
-      const currentBalance = freshAdmin?.customItemBalance ?? 0;
+      const currentBalance = await balanceFor(user.id, customItemId);
       if (currentBalance < amount) {
-        return res.status(400).json({ message: `Insufficient item balance. You have ${currentBalance} available.` });
+        return res.status(400).json({ message: `Insufficient ${item.name} balance. You have ${currentBalance} available.` });
       }
-      await storage.updateUserCustomItemBalance(user.id, -amount);
+      await storage.updateCustomItemBalanceFor(user.id, customItemId, -amount);
       await storage.createCustomItemTransaction({
         orgId: user.organizationId,
+        customItemId,
         userId: user.id,
         amount: -amount,
         reason: `Given to ${target.fullName}`,
@@ -6009,9 +6079,10 @@ export async function registerRoutes(
       });
     }
 
-    await storage.updateUserCustomItemBalance(userId, amount);
+    await storage.updateCustomItemBalanceFor(userId, customItemId, amount);
     await storage.createCustomItemTransaction({
       orgId: user.organizationId,
+      customItemId,
       userId,
       amount,
       reason: reason || null,
@@ -6021,7 +6092,7 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  // Redeem (take back) custom items from a user
+  // Redeem items from a user
   app.post("/api/admin/custom-items/redeem", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
@@ -6031,26 +6102,36 @@ export async function registerRoutes(
 
     const parsed = z.object({
       userId: z.number().int().positive(),
+      customItemId: z.number().int().positive(),
       amount: z.number().int().min(1, "Amount must be at least 1"),
       reason: z.string().optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
 
-    const { userId, amount, reason } = parsed.data;
+    const { userId, customItemId, amount, reason } = parsed.data;
+
+    const item = await storage.getCustomItem(customItemId);
+    if (!item || item.orgId !== user.organizationId) return res.status(404).json({ message: "Item not found" });
 
     const target = await storage.getUser(userId);
     if (!target || target.organizationId !== user.organizationId) {
       return res.status(404).send("User not found");
     }
-    if (target.customItemBalance < amount) {
-      return res.status(400).json({ message: `Employee only has ${target.customItemBalance} items to redeem.` });
+    if (user.role === "admin") {
+      if (target.role === "prime_admin") return res.status(403).json({ message: "Cannot redeem from the Organization Owner." });
+      if (target.role !== "employee") return res.status(403).json({ message: "Admins can only redeem from employees." });
+    }
+    const targetBalance = await balanceFor(userId, customItemId);
+    if (targetBalance < amount) {
+      return res.status(400).json({ message: `${target.fullName} only has ${targetBalance} ${item.name} to redeem.` });
     }
 
-    await storage.updateUserCustomItemBalance(userId, -amount);
+    await storage.updateCustomItemBalanceFor(userId, customItemId, -amount);
     if (user.role === "admin") {
-      await storage.updateUserCustomItemBalance(user.id, amount);
+      await storage.updateCustomItemBalanceFor(user.id, customItemId, amount);
       await storage.createCustomItemTransaction({
         orgId: user.organizationId,
+        customItemId,
         userId: user.id,
         amount,
         reason: `Redeemed from ${target.fullName}`,
@@ -6060,6 +6141,7 @@ export async function registerRoutes(
 
     await storage.createCustomItemTransaction({
       orgId: user.organizationId,
+      customItemId,
       userId,
       amount: -amount,
       reason: reason || null,
@@ -6069,7 +6151,7 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  // Bulk give custom items to multiple users at once
+  // Bulk give items to multiple users at once
   app.post("/api/admin/custom-items/give-bulk", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
@@ -6079,20 +6161,22 @@ export async function registerRoutes(
 
     const parsed = z.object({
       userIds: z.array(z.number().int().positive()).min(1),
+      customItemId: z.number().int().positive(),
       amount: z.number().int().min(1, "Amount must be at least 1"),
       reason: z.string().optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
 
-    const { userIds, amount, reason } = parsed.data;
+    const { userIds, customItemId, amount, reason } = parsed.data;
 
-    // For non-prime admins, check they have enough balance
+    const item = await storage.getCustomItem(customItemId);
+    if (!item || item.orgId !== user.organizationId) return res.status(404).json({ message: "Item not found" });
+
     if (user.role === "admin") {
-      const freshAdmin = await storage.getUser(user.id);
-      const currentBalance = freshAdmin?.customItemBalance ?? 0;
+      const currentBalance = await balanceFor(user.id, customItemId);
       const totalNeeded = amount * userIds.length;
       if (currentBalance < totalNeeded) {
-        return res.status(400).json({ message: `Insufficient item balance. You have ${currentBalance} but need ${totalNeeded} total.` });
+        return res.status(400).json({ message: `Insufficient ${item.name} balance. You have ${currentBalance} but need ${totalNeeded} total.` });
       }
     }
 
@@ -6103,15 +6187,16 @@ export async function registerRoutes(
         errors.push(`User ${userId} not found`);
         continue;
       }
-      if (user.role === "admin" && target.role === "prime_admin") {
-        errors.push(`Cannot give to Organization Owner`);
+      if (user.role === "admin" && target.role !== "employee") {
+        errors.push(`Admins can only give to employees (skipped ${target.fullName})`);
         continue;
       }
-      await storage.updateUserCustomItemBalance(userId, amount);
+      await storage.updateCustomItemBalanceFor(userId, customItemId, amount);
       if (user.role === "admin") {
-        await storage.updateUserCustomItemBalance(user.id, -amount);
+        await storage.updateCustomItemBalanceFor(user.id, customItemId, -amount);
         await storage.createCustomItemTransaction({
           orgId: user.organizationId,
+          customItemId,
           userId: user.id,
           amount: -amount,
           reason: `Given to ${target.fullName}`,
@@ -6120,6 +6205,7 @@ export async function registerRoutes(
       }
       await storage.createCustomItemTransaction({
         orgId: user.organizationId,
+        customItemId,
         userId,
         amount,
         reason: reason || null,
@@ -6130,14 +6216,18 @@ export async function registerRoutes(
     res.json({ success: true, errors });
   });
 
-  // Get custom item transactions for the org
+  // Get transactions for the org filtered by item
   app.get("/api/admin/custom-items/transactions", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
       return res.status(401).send("Unauthorized");
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const txs = await storage.getCustomItemTransactionsByOrg(user.organizationId);
+    const itemId = parseInt(String(req.query.itemId || "0"));
+    if (!itemId) return res.status(400).json({ message: "itemId is required" });
+    const item = await storage.getCustomItem(itemId);
+    if (!item || item.orgId !== user.organizationId) return res.status(404).send("Item not found");
+    const txs = await storage.getCustomItemTransactionsForItem(user.organizationId, itemId);
     res.json(txs);
   });
 

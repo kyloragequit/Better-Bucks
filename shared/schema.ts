@@ -98,9 +98,24 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const customItems = pgTable("custom_items", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const customItemBalances = pgTable("custom_item_balances", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  customItemId: integer("custom_item_id").notNull(),
+  balance: integer("balance").default(0).notNull(),
+});
+
 export const customItemTransactions = pgTable("custom_item_transactions", {
   id: serial("id").primaryKey(),
   orgId: integer("org_id").notNull(),
+  customItemId: integer("custom_item_id"),
   userId: integer("user_id").notNull(),
   amount: integer("amount").notNull(),
   reason: text("reason"),
@@ -112,6 +127,12 @@ export const customItemTransactionsRelations = relations(customItemTransactions,
   user: one(users, { fields: [customItemTransactions.userId], references: [users.id] }),
   performer: one(users, { fields: [customItemTransactions.performedBy], references: [users.id] }),
 }));
+
+export const insertCustomItemSchema = createInsertSchema(customItems).omit({ id: true, createdAt: true });
+export type CustomItem = typeof customItems.$inferSelect;
+export type InsertCustomItem = z.infer<typeof insertCustomItemSchema>;
+
+export type CustomItemBalance = typeof customItemBalances.$inferSelect;
 
 export const insertCustomItemTransactionSchema = createInsertSchema(customItemTransactions).omit({ id: true, createdAt: true });
 export type CustomItemTransaction = typeof customItemTransactions.$inferSelect;

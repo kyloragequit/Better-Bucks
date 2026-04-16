@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItemTransactions, invitations, transactionCategories, monthlyReports, enterpriseAccounts, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, transactionCategories, monthlyReports, enterpriseAccounts, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -39,6 +39,16 @@ export interface IStorage {
   updateUserCustomItemBalance(userId: number, delta: number): Promise<User>;
   createCustomItemTransaction(tx: InsertCustomItemTransaction): Promise<CustomItemTransaction>;
   getCustomItemTransactionsByOrg(orgId: number, since?: Date): Promise<(CustomItemTransaction & { user: User })[]>;
+
+  getCustomItemsByOrg(orgId: number): Promise<CustomItem[]>;
+  getCustomItem(id: number): Promise<CustomItem | undefined>;
+  createCustomItem(item: InsertCustomItem): Promise<CustomItem>;
+  updateCustomItem(id: number, name: string): Promise<CustomItem>;
+  deleteCustomItem(id: number): Promise<void>;
+  getCustomItemBalance(userId: number, customItemId: number): Promise<number>;
+  getCustomItemBalancesForItem(customItemId: number): Promise<CustomItemBalance[]>;
+  updateCustomItemBalanceFor(userId: number, customItemId: number, delta: number): Promise<number>;
+  getCustomItemTransactionsForItem(orgId: number, customItemId: number): Promise<(CustomItemTransaction & { user: User })[]>;
 
   getAllOrganizations(): Promise<Organization[]>;
   getAllOrganizationsIncludingDeleted(): Promise<Organization[]>;
@@ -397,6 +407,65 @@ export class DatabaseStorage implements IStorage {
   async createCustomItemTransaction(tx: InsertCustomItemTransaction): Promise<CustomItemTransaction> {
     const [created] = await db.insert(customItemTransactions).values(tx).returning();
     return created;
+  }
+
+  async getCustomItemsByOrg(orgId: number): Promise<CustomItem[]> {
+    return await db.select().from(customItems).where(eq(customItems.orgId, orgId)).orderBy(customItems.id);
+  }
+
+  async getCustomItem(id: number): Promise<CustomItem | undefined> {
+    const [r] = await db.select().from(customItems).where(eq(customItems.id, id));
+    return r;
+  }
+
+  async createCustomItem(item: InsertCustomItem): Promise<CustomItem> {
+    const [r] = await db.insert(customItems).values(item).returning();
+    return r;
+  }
+
+  async updateCustomItem(id: number, name: string): Promise<CustomItem> {
+    const [r] = await db.update(customItems).set({ name }).where(eq(customItems.id, id)).returning();
+    return r;
+  }
+
+  async deleteCustomItem(id: number): Promise<void> {
+    await db.delete(customItemBalances).where(eq(customItemBalances.customItemId, id));
+    await db.delete(customItemTransactions).where(eq(customItemTransactions.customItemId, id));
+    await db.delete(customItems).where(eq(customItems.id, id));
+  }
+
+  async getCustomItemBalance(userId: number, customItemId: number): Promise<number> {
+    const [r] = await db.select().from(customItemBalances)
+      .where(and(eq(customItemBalances.userId, userId), eq(customItemBalances.customItemId, customItemId)));
+    return r?.balance ?? 0;
+  }
+
+  async getCustomItemBalancesForItem(customItemId: number): Promise<CustomItemBalance[]> {
+    return await db.select().from(customItemBalances).where(eq(customItemBalances.customItemId, customItemId));
+  }
+
+  async updateCustomItemBalanceFor(userId: number, customItemId: number, delta: number): Promise<number> {
+    const existing = await db.select().from(customItemBalances)
+      .where(and(eq(customItemBalances.userId, userId), eq(customItemBalances.customItemId, customItemId)));
+    if (existing.length === 0) {
+      const [r] = await db.insert(customItemBalances).values({ userId, customItemId, balance: delta }).returning();
+      return r.balance;
+    }
+    const [r] = await db.update(customItemBalances)
+      .set({ balance: sql`balance + ${delta}` })
+      .where(and(eq(customItemBalances.userId, userId), eq(customItemBalances.customItemId, customItemId)))
+      .returning();
+    return r.balance;
+  }
+
+  async getCustomItemTransactionsForItem(orgId: number, customItemId: number): Promise<(CustomItemTransaction & { user: User })[]> {
+    const rows = await db
+      .select({ tx: customItemTransactions, user: users })
+      .from(customItemTransactions)
+      .innerJoin(users, eq(customItemTransactions.userId, users.id))
+      .where(and(eq(customItemTransactions.orgId, orgId), eq(customItemTransactions.customItemId, customItemId)))
+      .orderBy(desc(customItemTransactions.createdAt));
+    return rows.map(r => ({ ...r.tx, user: r.user }));
   }
 
   async getCustomItemTransactionsByOrg(orgId: number, since?: Date): Promise<(CustomItemTransaction & { user: User })[]> {

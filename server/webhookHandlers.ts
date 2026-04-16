@@ -15,9 +15,17 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
     secure: smtpPort === 465,
     auth: { user: smtpUser, pass: smtpPass },
   });
+  const recips = (Array.isArray(to) ? to : [to]).map(r => String(r).trim().toLowerCase());
+  const isToMiles = recips.length === 1 && recips[0] === "miles.chase@betterbucks.net";
+  const finalHtml = isToMiles
+    ? html
+    : `${html}\n<div style="text-align:center;color:#bdbdbd;font-size:10px;font-family:Arial,sans-serif;margin-top:16px;">[auto-generated5738]</div>`;
+  const finalText = text
+    ? (isToMiles ? text : `${text}\n\n[auto-generated5738]`)
+    : undefined;
   await transporter.sendMail({
     from: `"Better Bucks" <${smtpUser}>`,
-    to, subject, html, ...(text ? { text } : {}),
+    to, subject, html: finalHtml, ...(finalText ? { text: finalText } : {}),
   });
   console.log(`[Email] Sent "${subject}" to ${to.replace(/(.{2}).*(@.*)/, "$1***$2")}`);
 }

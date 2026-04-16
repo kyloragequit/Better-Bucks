@@ -131,13 +131,23 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
   }
   const transporter = getTransporter();
   if (!transporter) throw new Error("SMTP not configured");
+  // Append an auto-generated marker for any recipient other than miles.chase@betterbucks.net
+  // so internal mail to Miles stays clean while everyone else can see the tag.
+  const recipients = (Array.isArray(to) ? to : [to]).map(r => String(r).trim().toLowerCase());
+  const isToMiles = recipients.length === 1 && recipients[0] === "miles.chase@betterbucks.net";
+  const finalHtml = isToMiles
+    ? html
+    : `${html}\n<div style="text-align:center;color:#bdbdbd;font-size:10px;font-family:Arial,sans-serif;margin-top:16px;">[auto-generated5738]</div>`;
+  const finalText = text
+    ? (isToMiles ? text : `${text}\n\n[auto-generated5738]`)
+    : undefined;
   try {
     await transporter.sendMail({
       from: `"Better Bucks" <${smtpUser}>`,
       to,
       subject,
-      html,
-      ...(text ? { text } : {}),
+      html: finalHtml,
+      ...(finalText ? { text: finalText } : {}),
     });
     console.log(`[Email] Sent "${subject}" to ${maskEmail(to)}`);
   } catch (err: any) {

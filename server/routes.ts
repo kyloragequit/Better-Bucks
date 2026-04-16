@@ -1967,21 +1967,79 @@ export async function registerRoutes(
         if (!targetUser) return res.status(404).send("User not found");
         let match = await verifyPassword(data.currentPassword, targetUser.password);
 
-        // Fallback: an authenticated user may enter their workplace Site ID in place of the
-        // current password. Safe because they're already signed in as themselves and the Site
-        // ID is a workplace-wide credential they're expected to know.
+        // Fallback: an authenticated user may enter their organization's universal PIN in
+        // place of the current password. Safe because they're already signed in as themselves
+        // and the universal PIN is the documented workplace fallback.
         if (!match && targetUser.organizationId) {
           const org = await storage.getOrganization(targetUser.organizationId);
-          const entered = String(data.currentPassword).trim().toLowerCase();
-          if (org?.siteId && org.siteId.toLowerCase() === entered) {
-            console.log(`[Profile] User ${targetUser.id} authenticated current-password via Site ID`);
-            match = true;
+          if (org?.defaultPin) {
+            match = await verifyPassword(String(data.currentPassword), org.defaultPin);
+            if (match) console.log(`[Profile] User ${targetUser.id} authenticated current-password via universal PIN`);
           }
         }
 
         if (!match) {
-          return res.status(401).json({ message: "Current password is incorrect. Tip: you can also enter your workplace Site ID here." });
+          return res.status(401).json({ message: "Current password is incorrect. Tip: you can also use your organization's universal PIN here." });
         }
+
+        // Require email confirmation: send (or verify) a one-time code before applying
+        // the password change. The user's account must have a verified email on file.
+        if (!targetUser.email) {
+          return res.status(400).json({
+            message: "Add an email address to your account first — we send a confirmation code there to protect password changes.",
+          });
+        }
+
+        if (!data.verificationCode) {
+          // Step 1: generate code, store it, email it, and stop here.
+          const code = Math.floor(100000 + Math.random() * 900000).toString();
+          const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+          await storage.setPasswordResetToken(targetUser.id, code, expiry);
+          try {
+            await sendEmail({
+              to: targetUser.email,
+              subject: "[Better Bucks] Confirm your password change",
+              html: `
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+                  <h3 style="color:#4E9F3D;margin-top:0;">Confirm Your Password Change</h3>
+                  <p>Hi ${escapeHtml(targetUser.fullName)},</p>
+                  <p>Use the code below to finish changing your password. It expires in 15 minutes.</p>
+                  <div style="background:#f3f4f6;border-radius:8px;padding:20px;text-align:center;margin:24px 0;">
+                    <p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:0;color:#111;">${code}</p>
+                  </div>
+                  <p style="color:#666;font-size:13px;">If you didn't request this change, ignore this email and your password will stay the same. For help contact miles.chase@betterbucks.net.</p>
+                </div>
+              `,
+            });
+            console.log(`[Profile] Password change confirmation code sent to ${targetUser.email} for user ${targetUser.id}`);
+          } catch (err) {
+            console.error("[Profile] Failed to send password change confirmation:", err);
+            return res.status(500).json({
+              message: "We couldn't send the confirmation email. Please try again or contact miles.chase@betterbucks.net.",
+            });
+          }
+          return res.status(202).json({
+            needsEmailVerification: true,
+            email: targetUser.email,
+            message: `We sent a 6-digit confirmation code to ${targetUser.email}. Enter it below to finish changing your password.`,
+          });
+        }
+
+        // Step 2: validate the code provided by the client.
+        if (
+          !targetUser.passwordResetToken ||
+          targetUser.passwordResetToken !== String(data.verificationCode).trim()
+        ) {
+          return res.status(400).json({ message: "That confirmation code is incorrect." });
+        }
+        if (
+          !targetUser.passwordResetExpiry ||
+          new Date() > new Date(targetUser.passwordResetExpiry)
+        ) {
+          return res.status(400).json({ message: "Confirmation code has expired. Please start over." });
+        }
+        // Code valid — clear it before we apply the password update below.
+        await storage.setPasswordResetToken(targetUser.id, null, null);
       }
     }
 

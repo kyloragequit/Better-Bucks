@@ -34,6 +34,9 @@ export default function AdminAccountSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [awaitingCode, setAwaitingCode] = useState(false);
+  const [codeSentTo, setCodeSentTo] = useState("");
   const [email, setEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -65,16 +68,28 @@ export default function AdminAccountSettingsPage() {
 
   const passwordMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("PATCH", `/api/users/${user!.id}/profile`, {
+      const res = await apiRequest("PATCH", `/api/users/${user!.id}/profile`, {
         currentPassword,
         password: newPassword,
+        ...(awaitingCode ? { verificationCode } : {}),
       });
+      return res.json().catch(() => ({}));
     },
-    onSuccess: () => {
+    onSuccess: (body: any) => {
+      if (body?.needsEmailVerification) {
+        setAwaitingCode(true);
+        setCodeSentTo(body.email || "");
+        setVerificationCode("");
+        toast({ title: "Check your email", description: body.message || "We sent you a confirmation code." });
+        return;
+      }
       toast({ title: "Password updated", description: "Your password has been changed successfully." });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setVerificationCode("");
+      setAwaitingCode(false);
+      setCodeSentTo("");
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/my-password"] });
     },
@@ -147,7 +162,17 @@ export default function AdminAccountSettingsPage() {
       toast({ title: "Mismatch", description: "Passwords do not match.", variant: "destructive" });
       return;
     }
+    if (awaitingCode && verificationCode.trim().length < 4) {
+      toast({ title: "Code required", description: "Enter the confirmation code from your email.", variant: "destructive" });
+      return;
+    }
     passwordMutation.mutate();
+  };
+
+  const handleCancelPasswordChange = () => {
+    setAwaitingCode(false);
+    setVerificationCode("");
+    setCodeSentTo("");
   };
 
   const handleEmailSubmit = (e: React.FormEvent) => {
@@ -307,10 +332,11 @@ export default function AdminAccountSettingsPage() {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter your current password"
                   autoComplete="current-password"
+                  disabled={awaitingCode}
                   data-testid="input-current-password"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Never set a password? Enter your workplace Site ID here instead.
+                  Never set a password? Enter your organization's universal PIN here instead.
                 </p>
               </div>
               <div className="space-y-2">
@@ -322,6 +348,7 @@ export default function AdminAccountSettingsPage() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
                   autoComplete="new-password"
+                  disabled={awaitingCode}
                   data-testid="input-new-password"
                 />
               </div>
@@ -334,18 +361,50 @@ export default function AdminAccountSettingsPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
                   autoComplete="new-password"
+                  disabled={awaitingCode}
                   data-testid="input-confirm-password"
                 />
               </div>
-              <Button
-                type="submit"
-                disabled={passwordMutation.isPending || !currentPassword || !newPassword || !confirmPassword}
-                className="w-full"
-                data-testid="button-change-password"
-              >
-                {passwordMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
-                Update Password
-              </Button>
+              {awaitingCode && (
+                <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <Label htmlFor="verification-code">Email Confirmation Code</Label>
+                  <p className="text-xs text-muted-foreground">
+                    We sent a 6-digit code to <strong>{codeSentTo}</strong>. Enter it below to finish changing your password.
+                  </p>
+                  <Input
+                    id="verification-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    maxLength={6}
+                    autoFocus
+                    data-testid="input-password-verification-code"
+                  />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  disabled={passwordMutation.isPending || !currentPassword || !newPassword || !confirmPassword || (awaitingCode && verificationCode.length < 4)}
+                  className="flex-1"
+                  data-testid="button-change-password"
+                >
+                  {passwordMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
+                  {awaitingCode ? "Confirm & Update" : "Send Confirmation Code"}
+                </Button>
+                {awaitingCode && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancelPasswordChange}
+                    data-testid="button-cancel-password-change"
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
             </form>
             <div className="mt-4 pt-4 border-t">
               <p className="text-sm text-muted-foreground mb-2">Forgot your current password?</p>

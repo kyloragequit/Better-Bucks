@@ -870,60 +870,85 @@ export async function registerRoutes(
   // Forgot password — send 6-digit reset code via email or phone
   app.post("/api/auth/forgot-password", asyncHandler(async (req, res) => {
     const { contact } = z.object({ contact: z.string().min(1) }).parse(req.body);
-    const isEmail = contact.includes("@");
+    const trimmed = contact.trim();
+    const isEmail = trimmed.includes("@");
+    const lookup = isEmail ? trimmed.toLowerCase() : trimmed;
     const user = isEmail
-      ? await storage.getUserByEmailGlobal(contact.toLowerCase().trim())
-      : await storage.getUserByPhoneGlobal(contact.trim());
+      ? await storage.getUserByEmailGlobal(lookup)
+      : await storage.getUserByPhoneGlobal(lookup);
 
-    // Always return success to avoid account enumeration
     const genericMsg = "If an account with that contact exists, a reset code has been sent.";
-    if (!user) return res.json({ message: genericMsg });
+
+    if (!user) {
+      console.log(`[Password Reset] No account found for ${isEmail ? maskEmail(lookup) : maskPhone(lookup)}`);
+      // Pretend a delay similar to the real email send so we don't reveal existence by timing.
+      await new Promise(resolve => setTimeout(resolve, 250));
+      return res.json({ message: genericMsg });
+    }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await storage.setPasswordResetToken(user.id, code, expiry);
 
-    if (isEmail && user.email) {
+    if (isEmail) {
+      const targetEmail = user.email || lookup;
       try {
         await sendEmail({
-          to: user.email,
+          to: targetEmail,
           subject: "Reset your Better Bucks password",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
               ${emailLogoHeader}
               <p>Hi ${escapeHtml(user.fullName)},</p>
-              <p>We received a request to reset your password. Your reset code is:</p>
+              <p>We received a request to reset your Better Bucks password. Your 6-digit reset code is:</p>
               <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #162A4A;">${code}</div>
-              <p style="margin-top: 16px; color: #666;">This code expires in 1 hour. If you did not request a password reset, please ignore this email.</p>
+              <p style="margin-top: 16px; color: #666;">This code expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+              <p style="margin-top: 16px; color: #666; font-size: 12px;">Need help? Contact <a href="mailto:miles.chase@betterbucks.net">miles.chase@betterbucks.net</a>.</p>
             </div>
           `,
+          text: `Hi ${user.fullName},\n\nYour Better Bucks password reset code is: ${code}\n\nThis code expires in 1 hour. If you didn't request this, ignore this email.`,
         });
-      } catch (err) {
-        console.error("[Password Reset] Email failed:", err);
+        console.log(`[Password Reset] Email sent to ${maskEmail(targetEmail)} for user ${user.id}`);
+      } catch (err: any) {
+        console.error(`[Password Reset] Email send FAILED for user ${user.id} (${maskEmail(targetEmail)}):`, err?.message ?? err);
+        return res.status(500).json({
+          message: "We couldn't send the reset email. Please try again in a moment, or contact miles.chase@betterbucks.net.",
+        });
       }
-    } else if (!isEmail && user.phone) {
+    } else {
+      const targetPhone = user.phone || lookup;
       const accountSid = process.env.TWILIO_ACCOUNT_SID;
       const authToken = process.env.TWILIO_AUTH_TOKEN;
       const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-      if (accountSid && authToken && fromNumber) {
-        try {
-          await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-            method: "POST",
-            headers: {
-              "Authorization": "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({
-              To: user.phone,
-              From: fromNumber,
-              Body: `Your Better Bucks password reset code is: ${code}. It expires in 1 hour.`,
-            }),
-          });
-        } catch (err) {
-          console.error("[Password Reset] SMS failed:", err);
+      if (!accountSid || !authToken || !fromNumber) {
+        console.error(`[Password Reset] Twilio not configured — cannot send SMS to ${maskPhone(targetPhone)}`);
+        return res.status(500).json({
+          message: "SMS reset isn't available right now. Please use the email option, or contact miles.chase@betterbucks.net.",
+        });
+      }
+      try {
+        const twResp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+          method: "POST",
+          headers: {
+            "Authorization": "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            To: targetPhone,
+            From: fromNumber,
+            Body: `Your Better Bucks password reset code is: ${code}. It expires in 1 hour.`,
+          }),
+        });
+        if (!twResp.ok) {
+          const body = await twResp.text();
+          throw new Error(`Twilio responded ${twResp.status}: ${body.slice(0, 200)}`);
         }
-      } else {
-        console.log(`[Password Reset] Twilio not configured. Code for ${maskPhone(user.phone || "")}: [REDACTED]`);
+        console.log(`[Password Reset] SMS sent to ${maskPhone(targetPhone)} for user ${user.id}`);
+      } catch (err: any) {
+        console.error(`[Password Reset] SMS send FAILED for user ${user.id}:`, err?.message ?? err);
+        return res.status(500).json({
+          message: "We couldn't send the reset text message. Please try again, or contact miles.chase@betterbucks.net.",
+        });
       }
     }
 
@@ -3810,7 +3835,15 @@ export async function registerRoutes(
       if (!freshUser || freshUser.emailVerificationCode !== code) {
         return res.status(400).json({ message: "Invalid verification code" });
       }
-      const updated = await storage.updateUserEmailVerification(user.id, null, true);
+      let updated = await storage.updateUserEmailVerification(user.id, null, true);
+      // After verifying their contact, admins must immediately set their own password.
+      if (updated.role === "admin" || updated.role === "prime_admin") {
+        const [withFlag] = await db.update(users)
+          .set({ mustChangePassword: true })
+          .where(eq(users.id, user.id))
+          .returning();
+        if (withFlag) updated = withFlag;
+      }
       invalidateUserCache(user.id);
       res.json(updated);
     } catch (e) {

@@ -32,8 +32,9 @@ export default function ChangePasswordPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      toast({ title: "Password updated successfully" });
-      setLocation("/");
+      toast({ title: "Password updated", description: "Your new password is now active." });
+      const dest = (user?.role === "admin" || user?.role === "prime_admin") ? "/admin/dashboard" : "/dashboard";
+      setLocation(dest);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });

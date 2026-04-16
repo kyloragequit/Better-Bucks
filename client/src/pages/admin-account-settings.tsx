@@ -392,7 +392,7 @@ export default function AdminAccountSettingsPage() {
                   data-testid="button-change-password"
                 >
                   {passwordMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
-                  {awaitingCode ? "Confirm & Update" : "Send Confirmation Code"}
+                  {awaitingCode ? "Confirm & Update" : "Change Password"}
                 </Button>
                 {awaitingCode && (
                   <Button

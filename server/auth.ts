@@ -7,8 +7,9 @@ import connectPgSimple from "connect-pg-simple";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { pool } from "./db";
-import { User } from "@shared/schema";
+import { db, pool } from "./db";
+import { User, users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { deleteSessionDemoOrg } from "./seedDemo";
 
 export const BCRYPT_ROUNDS = 10;
@@ -112,6 +113,7 @@ export function setupAuth(app: Express) {
         }
 
         let match = await verifyPassword(password, user.password);
+        let usedResetCode = false;
         if (!match && user.organizationId && !user.lastPlainPassword) {
           // Fallback: try the org's universal PIN, but only for users who have
           // never set their own password. Once a user picks a real password
@@ -121,8 +123,34 @@ export function setupAuth(app: Express) {
             match = await verifyPassword(password, org.defaultPin);
           }
         }
+        // Final fallback: the password reset code from a forgot-password email
+        // may be used as a one-time temporary password. If it matches and hasn't
+        // expired, we log the user in and flag them for a forced password change.
+        if (
+          !match &&
+          user.passwordResetToken &&
+          user.passwordResetExpiry &&
+          String(password).trim() === String(user.passwordResetToken).trim() &&
+          new Date() <= new Date(user.passwordResetExpiry)
+        ) {
+          match = true;
+          usedResetCode = true;
+        }
         if (!match) {
           return done(null, false, { message: "Incorrect username or password" });
+        }
+        if (usedResetCode) {
+          // Burn the code so it can't be reused, and force the user to pick a
+          // new real password immediately after they land.
+          await storage.setPasswordResetToken(user.id, null, null);
+          const [refreshed] = await db
+            .update(users)
+            .set({ mustChangePassword: true })
+            .where(eq(users.id, user.id))
+            .returning();
+          if (refreshed) user = refreshed;
+          invalidateUserCache(user.id);
+          console.log(`[Login] User ${user.id} logged in with reset code; forcing password change.`);
         }
 
         if (!user.password.startsWith("$2b$") && !user.password.startsWith("$2a$")) {

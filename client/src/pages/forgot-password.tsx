@@ -7,19 +7,29 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LogoBackground } from "@/components/logo-background";
 import { AppLogo } from "@/components/app-logo";
-import { ArrowLeft, Mail, Phone, Send, CheckCircle } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Send, CheckCircle, KeyRound, Building2, Eye, EyeOff, Lock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+type Method = "email" | "phone" | "siteid";
 
 export default function ForgotPasswordPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [method, setMethod] = useState<"email" | "phone">("email");
+  const [method, setMethod] = useState<Method>("email");
   const [contact, setContact] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Site ID flow state
+  const [siteId, setSiteId] = useState(localStorage.getItem("bb_last_site_id") || "");
+  const [username, setUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [siteIdSuccess, setSiteIdSuccess] = useState(false);
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contact.trim()) return;
     setIsPending(true);
@@ -28,6 +38,37 @@ export default function ForgotPasswordPage() {
       setSent(true);
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Something went wrong.", variant: "destructive" });
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  const handleSiteIdSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!siteId.trim() || !username.trim() || !newPassword) return;
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Make sure both password fields are the same.", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "Password too short", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    setIsPending(true);
+    try {
+      const res = await apiRequest("POST", "/api/auth/reset-password-via-site-id", {
+        siteId: siteId.trim().toLowerCase(),
+        username: username.trim(),
+        newPassword,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Could not set password.");
+      }
+      localStorage.setItem("bb_last_site_id", siteId.trim().toLowerCase());
+      setSiteIdSuccess(true);
+    } catch (err: any) {
+      toast({ title: "Reset failed", description: err.message || "Something went wrong.", variant: "destructive" });
     } finally {
       setIsPending(false);
     }
@@ -55,13 +96,34 @@ export default function ForgotPasswordPage() {
           <CardHeader className="text-center pb-3">
             <CardTitle className="text-xl font-bold">Reset Your Password</CardTitle>
             <CardDescription>
-              {sent
-                ? "Check your contact method for the reset code."
-                : "Enter the email or phone number associated with your account."}
+              {siteIdSuccess
+                ? "Your new password is ready to use."
+                : sent
+                  ? "Check your contact method for the reset code."
+                  : method === "siteid"
+                    ? "Set a new password using your workplace Site ID."
+                    : "Enter the email or phone number associated with your account."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {sent ? (
+            {/* Success: Site ID reset completed */}
+            {siteIdSuccess ? (
+              <div className="text-center py-4 space-y-4">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle className="h-7 w-7 text-green-600" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Password set successfully. You can now log in with your new password.
+                </p>
+                <Button
+                  className="w-full"
+                  onClick={() => setLocation("/login")}
+                  data-testid="button-siteid-go-login"
+                >
+                  Go to Login
+                </Button>
+              </div>
+            ) : sent ? (
               <div className="text-center py-4 space-y-4">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
                   <CheckCircle className="h-7 w-7 text-green-600" />
@@ -85,64 +147,162 @@ export default function ForgotPasswordPage() {
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="flex gap-2">
+              <>
+                {/* Method tabs */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
                   <Button
                     type="button"
                     variant={method === "email" ? "default" : "outline"}
                     size="sm"
-                    className="flex-1"
                     onClick={() => { setMethod("email"); setContact(""); }}
                     data-testid="button-method-email"
                   >
-                    <Mail className="mr-1.5 h-3.5 w-3.5" />
+                    <Mail className="mr-1 h-3.5 w-3.5" />
                     Email
                   </Button>
                   <Button
                     type="button"
                     variant={method === "phone" ? "default" : "outline"}
                     size="sm"
-                    className="flex-1"
                     onClick={() => { setMethod("phone"); setContact(""); }}
                     data-testid="button-method-phone"
                   >
-                    <Phone className="mr-1.5 h-3.5 w-3.5" />
+                    <Phone className="mr-1 h-3.5 w-3.5" />
                     Phone
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={method === "siteid" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => { setMethod("siteid"); }}
+                    data-testid="button-method-siteid"
+                  >
+                    <KeyRound className="mr-1 h-3.5 w-3.5" />
+                    Site ID
                   </Button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="contact-input">
-                    {method === "email" ? "Email Address" : "Phone Number"}
-                  </Label>
-                  <Input
-                    id="contact-input"
-                    type={method === "email" ? "email" : "tel"}
-                    placeholder={method === "email" ? "you@example.com" : "+1 (555) 000-0000"}
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    required
-                    autoComplete={method === "email" ? "email" : "tel"}
-                    data-testid="input-contact"
-                  />
-                </div>
+                {method === "siteid" ? (
+                  <form onSubmit={handleSiteIdSubmit} className="space-y-4">
+                    <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      Only works if you've never set your own password. If you've changed your password before, use Email or Phone above.
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="site-id">Workplace Site ID</Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="site-id"
+                          className="pl-9"
+                          placeholder="e.g. acme-warehouse"
+                          value={siteId}
+                          onChange={(e) => setSiteId(e.target.value.toLowerCase())}
+                          required
+                          autoCapitalize="none"
+                          autoComplete="off"
+                          data-testid="input-siteid"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="username-input">Employee Code</Label>
+                      <Input
+                        id="username-input"
+                        placeholder="Your employee code"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                        autoComplete="username"
+                        data-testid="input-siteid-username"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="siteid-new-password">New Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="siteid-new-password"
+                          type={showPassword ? "text" : "password"}
+                          className="pl-9 pr-9"
+                          placeholder="At least 6 characters"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                          autoComplete="new-password"
+                          data-testid="input-siteid-new-password"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowPassword(!showPassword)}
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="siteid-confirm-password">Confirm New Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="siteid-confirm-password"
+                          type={showPassword ? "text" : "password"}
+                          className="pl-9"
+                          placeholder="Repeat your new password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          autoComplete="new-password"
+                          data-testid="input-siteid-confirm-password"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isPending || !siteId.trim() || !username.trim() || !newPassword}
+                      data-testid="button-siteid-reset"
+                    >
+                      {isPending ? "Setting password..." : <><KeyRound className="mr-2 h-4 w-4" /> Set New Password</>}
+                    </Button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleContactSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="contact-input">
+                        {method === "email" ? "Email Address" : "Phone Number"}
+                      </Label>
+                      <Input
+                        id="contact-input"
+                        type={method === "email" ? "email" : "tel"}
+                        placeholder={method === "email" ? "you@example.com" : "+1 (555) 000-0000"}
+                        value={contact}
+                        onChange={(e) => setContact(e.target.value)}
+                        required
+                        autoComplete={method === "email" ? "email" : "tel"}
+                        data-testid="input-contact"
+                      />
+                    </div>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isPending || !contact.trim()}
-                  data-testid="button-send-code"
-                >
-                  {isPending ? (
-                    "Sending..."
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Reset Code
-                    </>
-                  )}
-                </Button>
-              </form>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isPending || !contact.trim()}
+                      data-testid="button-send-code"
+                    >
+                      {isPending ? (
+                        "Sending..."
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Send Reset Code
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

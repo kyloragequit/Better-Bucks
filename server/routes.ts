@@ -955,6 +955,45 @@ export async function registerRoutes(
     res.json({ message: genericMsg });
   }));
 
+  // Reset password via Site ID — only allowed for users who have never set their own password
+  // (lastPlainPassword is null, meaning their current password is a system-generated placeholder
+  // they don't know). Requires Site ID + employee code (username) + new password.
+  app.post("/api/auth/reset-password-via-site-id", asyncHandler(async (req, res) => {
+    const { siteId, username, newPassword } = z.object({
+      siteId: z.string().trim().min(1),
+      username: z.string().trim().min(1),
+      newPassword: z.string().min(6, "Password must be at least 6 characters"),
+    }).parse(req.body);
+
+    const org = await storage.getOrganizationBySiteId(siteId.toLowerCase());
+    if (!org || org.status !== "active") {
+      return res.status(404).json({ message: "Invalid or inactive Site ID." });
+    }
+
+    const user = await storage.getUserByUsernameAndOrg(username, org.id);
+    if (!user) {
+      return res.status(404).json({ message: "No account found with that employee code at this Site ID." });
+    }
+
+    if (user.status !== "approved") {
+      return res.status(403).json({ message: "Your account is not approved yet. Contact your administrator." });
+    }
+
+    // Only allow this shortcut when the user has never set their own password.
+    if (user.lastPlainPassword && user.lastPlainPassword.length > 0) {
+      return res.status(403).json({
+        message: "You already have a password set. Use the email or phone reset option instead.",
+      });
+    }
+
+    await storage.updateUserPassword(user.id, newPassword);
+    await storage.setPasswordResetToken(user.id, null, null);
+    invalidateUserCache(user.id);
+    console.log(`[Password Reset] Site ID reset succeeded for user ${user.id} at org ${org.id}`);
+
+    res.json({ message: "Password set successfully. You can now log in with your new password." });
+  }));
+
   // Reset password — validate code and set new password
   app.post("/api/auth/reset-password", asyncHandler(async (req, res) => {
     const { contact, code, newPassword } = z.object({

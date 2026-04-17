@@ -221,7 +221,7 @@ function ProgramPreview() {
   const [cursor, setCursor] = useState<{ x: number; y: number; visible: boolean; clicking: boolean }>(
     { x: 320, y: 360, visible: false, clicking: false }
   );
-  const [caption, setCaption] = useState<string | null>(null);
+  const [caption, setCaption] = useState<{ text: string; benefit?: string } | null>(null);
 
   const moveCursorTo = (el: HTMLElement | null) => {
     if (!el || !containerRef.current) return;
@@ -256,7 +256,7 @@ function ProgramPreview() {
     }, 200));
     timers.push(setTimeout(() => {
       moveCursorTo(employeeRefs.current["SK"]);
-      setCaption("Pick an employee to reward");
+      setCaption({ text: "Pick an employee to reward" });
     }, 700));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
@@ -270,7 +270,7 @@ function ProgramPreview() {
     // Move to reason chip
     timers.push(setTimeout(() => {
       moveCursorTo(reasonRefs.current[REASONS[1]]);
-      setCaption("Tag the reason — reinforces the behavior");
+      setCaption({ text: "Tag the reason", benefit: "Reinforces what 'good' looks like" });
     }, 2400));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
@@ -284,7 +284,7 @@ function ProgramPreview() {
     // Move to send
     timers.push(setTimeout(() => {
       moveCursorTo(sendRef.current);
-      setCaption("One click to send the reward");
+      setCaption({ text: "One click to send", benefit: "30 seconds vs. a spreadsheet entry" });
     }, 3850));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
@@ -294,7 +294,7 @@ function ProgramPreview() {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setSendHighlight(false);
       setRewardStep(2);
-      setCaption("Sarah is notified instantly");
+      setCaption({ text: "Sarah is notified instantly", benefit: "Builds a habit of daily recognition" });
     }, 4950));
     timers.push(setTimeout(() => advanceTo("goals"), 6800));
     return () => timers.forEach(clearTimeout);
@@ -314,7 +314,7 @@ function ProgramPreview() {
       if (!containerRef.current) return;
       const c = containerRef.current.getBoundingClientRect();
       setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
-      setCaption("Track team goals in real time");
+      setCaption({ text: "Set goals everyone can see", benefit: "Aligns the whole team around outcomes" });
     }, 250));
     // Animate progress filling 78 → 100
     [85, 92, 100].forEach((pct, i) =>
@@ -323,7 +323,7 @@ function ProgramPreview() {
     // Cursor moves to "Distribute Bucks" button
     timers.push(setTimeout(() => {
       moveCursorTo(goalCompleteRef.current);
-      setCaption("Goal hit — reward the whole team at once");
+      setCaption({ text: "Goal hit — reward the whole team", benefit: "Group wins drive lasting motivation" });
     }, 2000));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
@@ -333,7 +333,7 @@ function ProgramPreview() {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setGoalCompleteHighlight(false);
       setGoalDistributed(true);
-      setCaption("Bucks distributed automatically");
+      setCaption({ text: "Bucks distributed automatically", benefit: "No spreadsheets, no payroll work" });
     }, 3500));
     timers.push(setTimeout(() => advanceTo("store"), 5400));
     return () => timers.forEach(clearTimeout);
@@ -352,11 +352,11 @@ function ProgramPreview() {
       if (!containerRef.current) return;
       const c = containerRef.current.getBoundingClientRect();
       setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
-      setCaption("Employees spend Bucks on real rewards");
+      setCaption({ text: "Employees spend Bucks on real rewards", benefit: "Bucks have real value — not just points" });
     }, 250));
     timers.push(setTimeout(() => {
       moveCursorTo(productRefs.current["Gaming Headset"]);
-      setCaption("Tap any item to redeem");
+      setCaption({ text: "Tap any item to redeem" });
     }, 700));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
@@ -365,7 +365,7 @@ function ProgramPreview() {
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setStoreRedeemed(true);
-      setCaption("We handle fulfillment & shipping");
+      setCaption({ text: "We handle fulfillment & shipping", benefit: "Zero work for you, real reward for them" });
     }, 2200));
     timers.push(setTimeout(() => advanceTo("poll"), 4200));
     return () => timers.forEach(clearTimeout);
@@ -386,11 +386,11 @@ function ProgramPreview() {
       if (!containerRef.current) return;
       const c = containerRef.current.getBoundingClientRect();
       setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
-      setCaption("Send anonymous pulse polls to your team");
+      setCaption({ text: "Send anonymous pulse polls", benefit: "Honest feedback without awkward 1-on-1s" });
     }, 250));
     timers.push(setTimeout(() => {
       moveCursorTo(pollOptionRefs.current[target]);
-      setCaption("Employees vote in seconds");
+      setCaption({ text: "Employees vote in seconds" });
     }, 700));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
@@ -404,7 +404,7 @@ function ProgramPreview() {
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, visible: false }));
       setPollResults(true);
-      setCaption("See live results — know what your team thinks");
+      setCaption({ text: "See live results", benefit: "Spot turnover risks before they happen" });
     }, 2700));
     timers.push(setTimeout(() => advanceTo("reward"), 5400));
     return () => timers.forEach(clearTimeout);
@@ -781,7 +781,7 @@ function ProgramPreview() {
         style={{ bottom: 12 }}
       >
         <div
-          className="px-3 py-1.5 rounded-full shadow-lg text-[11px] font-semibold flex items-center gap-1.5 max-w-[92%]"
+          className="px-3 py-2 rounded-xl shadow-lg max-w-[92%]"
           style={{
             background: NAVY,
             color: "white",
@@ -791,11 +791,22 @@ function ProgramPreview() {
           }}
           data-testid="program-preview-caption"
         >
-          <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ background: BUCKS_COLOR }}
-          />
-          <span className="truncate">{caption ?? "\u00A0"}</span>
+          <div className="flex items-center gap-1.5 text-[11px] font-bold">
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: BUCKS_COLOR }}
+            />
+            <span className="truncate">{caption?.text ?? "\u00A0"}</span>
+          </div>
+          {caption?.benefit && (
+            <div
+              className="text-[10px] font-medium mt-0.5 pl-3 leading-tight"
+              style={{ color: "#a7c4f0" }}
+              data-testid="program-preview-caption-benefit"
+            >
+              {caption.benefit}
+            </div>
+          )}
         </div>
       </div>
 

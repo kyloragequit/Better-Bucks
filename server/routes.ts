@@ -28,7 +28,7 @@ async function getStripePubKey() {
 }
 import { sql, eq, and, gte, lte, gt, lt, inArray, isNull } from "drizzle-orm";
 import { db } from "./db";
-import { organizations, users, infoRequests, transactions, orders, customItemTransactions } from "@shared/schema";
+import { organizations, users, infoRequests, transactions, orders, customItemTransactions, transactionCategories } from "@shared/schema";
 import cron from "node-cron";
 import type { User } from "@shared/schema";
 
@@ -5771,6 +5771,89 @@ export async function registerRoutes(
     const updated = await storage.distributeGoalBucks(goalId, user.organizationId, user.id);
     await storage.createGoalNotificationsForOrg(goalId, user.organizationId, "distributed");
     res.json(updated);
+  }));
+
+  // GET /api/leaderboard/top-rewarded — top 3 employees rewarded last calendar month.
+  // Excludes admins/prime_admins (employees only). Returns category percentage breakdown
+  // for each, never the raw bucks amount. Visible to every authenticated user (incl. demo).
+  app.get("/api/leaderboard/top-rewarded", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || !user.organizationId) {
+      return res.status(401).send("Unauthorized");
+    }
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodLabel = monthStart.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+    // Top 3 employees (by positive bucks given) in the prior calendar month.
+    const totals = await db.execute(sql`
+      SELECT u.id AS user_id, u.full_name, COALESCE(SUM(t.amount), 0)::int AS total_bucks
+      FROM ${transactions} t
+      JOIN ${users} u ON u.id = t.user_id
+      WHERE u.organization_id = ${user.organizationId}
+        AND u.role = 'employee'
+        AND u.status = 'approved'
+        AND t.amount > 0
+        AND t.created_at >= ${monthStart}
+        AND t.created_at < ${monthEnd}
+      GROUP BY u.id, u.full_name
+      HAVING SUM(t.amount) > 0
+      ORDER BY SUM(t.amount) DESC, u.id ASC
+      LIMIT 3
+    `);
+    const rows = (totals as any).rows as Array<{ user_id: number; full_name: string; total_bucks: number }>;
+    if (rows.length === 0) {
+      return res.json({ period: { start: monthStart.toISOString(), end: monthEnd.toISOString(), label: periodLabel }, entries: [] });
+    }
+
+    const userIds = rows.map(r => r.user_id);
+    // Per-user category breakdown for the same window.
+    const breakdown = await db.execute(sql`
+      SELECT t.user_id,
+             COALESCE(c.id, 0) AS category_id,
+             COALESCE(c.name, 'Uncategorized') AS category_name,
+             COALESCE(c.color, '#9ca3af') AS category_color,
+             COALESCE(SUM(t.amount), 0)::int AS bucks
+      FROM ${transactions} t
+      LEFT JOIN ${transactionCategories} c ON c.id = t.category_id
+      WHERE t.user_id IN (${sql.join(userIds, sql`, `)})
+        AND t.amount > 0
+        AND t.created_at >= ${monthStart}
+        AND t.created_at < ${monthEnd}
+      GROUP BY t.user_id, c.id, c.name, c.color
+    `);
+    const breakdownRows = (breakdown as any).rows as Array<{
+      user_id: number; category_id: number; category_name: string; category_color: string; bucks: number;
+    }>;
+
+    const entries = rows.map((row, idx) => {
+      const userBreakdown = breakdownRows.filter(b => b.user_id === row.user_id);
+      const totalForPct = userBreakdown.reduce((s, b) => s + b.bucks, 0) || 1;
+      const categories = userBreakdown
+        .map(b => ({
+          name: b.category_name,
+          color: b.category_color,
+          percent: Math.round((b.bucks / totalForPct) * 100),
+        }))
+        .sort((a, b) => b.percent - a.percent);
+      // Normalize so percentages sum to 100 even after rounding (adjust the largest one).
+      const sum = categories.reduce((s, c) => s + c.percent, 0);
+      if (categories.length > 0 && sum !== 100) {
+        categories[0] = { ...categories[0], percent: categories[0].percent + (100 - sum) };
+      }
+      return {
+        rank: idx + 1,
+        userId: row.user_id,
+        fullName: row.full_name,
+        categories,
+      };
+    });
+
+    res.json({
+      period: { start: monthStart.toISOString(), end: monthEnd.toISOString(), label: periodLabel },
+      entries,
+    });
   }));
 
   // GET /api/goals/notifications — unseen notifications for current user

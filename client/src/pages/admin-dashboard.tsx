@@ -24,6 +24,7 @@ import { Progress } from "@/components/ui/progress";
 import { Loader } from "@/components/ui/loader";
 import { useUser } from "@/hooks/use-auth";
 import { PasskeyFirstTimePrompt } from "@/components/passkey-manager";
+import { TopRewardedLeaderboard } from "@/components/top-rewarded-leaderboard";
 import { useTutorial } from "@/hooks/use-tutorial";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -659,6 +660,8 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       {currentUser && <div className="mb-4"><PasskeyFirstTimePrompt userId={currentUser.id} /></div>}
+
+      <TopRewardedLeaderboard />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>

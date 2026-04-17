@@ -2133,9 +2133,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
           let match = await verifyPassword(data.currentPassword, targetUser.password);
 
           // Fallback: the organization's universal PIN may be used in place of the
-          // current password ONLY for users who have never set their own password.
-          // Once a user has picked a real password, the PIN stops working here.
-          const pinAllowed = !targetUser.lastPlainPassword;
+          // current password ONLY for users who have never had their own password
+          // (no admin-set plaintext on file AND they've never changed it themselves).
+          // Once either is true, the PIN stops working for this account.
+          const pinAllowed = !targetUser.lastPlainPassword && !targetUser.passwordLastChanged;
           if (!match && pinAllowed && targetUser.organizationId) {
             const org = await storage.getOrganization(targetUser.organizationId);
             if (org?.defaultPin) {

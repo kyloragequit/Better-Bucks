@@ -5655,7 +5655,7 @@ export async function registerRoutes(
   // POST /api/admin/goals — create goal (prime_admin)
   app.post("/api/admin/goals", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(400).send("No organization");
     const { title, type, bucksReward, targetQuantity, targetDays, durationUnit, targetHours, targetMinutes, endDate } = req.body;
     if (!title || !type || !bucksReward) return res.status(400).json({ message: "title, type, and bucksReward are required" });
@@ -5684,7 +5684,7 @@ export async function registerRoutes(
   // PATCH /api/admin/goals/:id — edit goal (prime_admin)
   app.patch("/api/admin/goals/:id", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     const goalId = parseInt(req.params.id);
     const goal = await storage.getGoal(goalId);
     if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
@@ -5706,7 +5706,7 @@ export async function registerRoutes(
   // DELETE /api/admin/goals/:id — delete goal (prime_admin)
   app.delete("/api/admin/goals/:id", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     const goalId = parseInt(req.params.id);
     const goal = await storage.getGoal(goalId);
     if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
@@ -5734,7 +5734,7 @@ export async function registerRoutes(
   // POST /api/admin/goals/:id/fail — stop timer / fail a time goal (prime_admin)
   app.post("/api/admin/goals/:id/fail", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     const goalId = parseInt(req.params.id);
     const goal = await storage.getGoal(goalId);
     if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
@@ -5749,7 +5749,7 @@ export async function registerRoutes(
   // POST /api/admin/goals/:id/complete — manually complete a time goal (prime_admin)
   app.post("/api/admin/goals/:id/complete", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     const goalId = parseInt(req.params.id);
     const goal = await storage.getGoal(goalId);
     if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
@@ -5761,7 +5761,7 @@ export async function registerRoutes(
   // POST /api/admin/goals/:id/distribute — distribute bucks to all employees (prime_admin)
   app.post("/api/admin/goals/:id/distribute", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(400).send("No organization");
     const goalId = parseInt(req.params.id);
     const goal = await storage.getGoal(goalId);
@@ -6600,7 +6600,7 @@ export async function registerRoutes(
   // Create invite (prime_admin only)
   app.post("/api/invitations", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
 
     const schema = z.object({
@@ -6717,7 +6717,7 @@ export async function registerRoutes(
   // List pending invites for org (prime_admin only)
   app.get("/api/invitations", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(200).json([]);
     const list = await storage.getInvitationsByOrganization(user.organizationId);
     // Filter out expired ones from the result
@@ -6728,7 +6728,7 @@ export async function registerRoutes(
   // Revoke invite (prime_admin only)
   app.delete("/api/invitations/:id", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
     await storage.revokeInvitation(id);

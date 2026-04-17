@@ -78,7 +78,7 @@ const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", 
 export default function AdminGoalsPage() {
   const isPublicDemo = usePublicDemo();
   const { data: user } = useUser();
-  const isPrimeAdmin = user?.role === "prime_admin";
+  const isPrimeAdmin = user?.role === "prime_admin" || user?.role === "admin";
   const { toast } = useToast();
   const qc = useQueryClient();
 

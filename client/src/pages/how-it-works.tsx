@@ -21,6 +21,10 @@ import {
   ThumbsUp,
   HeartHandshake,
   MousePointer2,
+  Target,
+  ShoppingBag,
+  Coins,
+  ClipboardList,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -154,18 +158,65 @@ function MiniCalculator() {
   );
 }
 
+const PRODUCTS = [
+  { name: "Gaming Headset", price: 350, emoji: "🎧" },
+  { name: "Smart TV 55\"", price: 1800, emoji: "📺" },
+  { name: "$50 Gift Card", price: 200, emoji: "💳" },
+];
+
+const GOALS = [
+  { title: "Zero safety incidents", progress: 78, target: 100, dept: "Warehouse · 14 days left" },
+  { title: "Hit 95% on-time shipping", progress: 92, target: 100, dept: "Logistics · 6 days left" },
+];
+
+const POLL_QUESTION = "What motivates you most at work?";
+const POLL_OPTIONS = [
+  { label: "Recognition from my manager", pct: 42 },
+  { label: "Earning Bucks rewards", pct: 33 },
+  { label: "Clear goals and targets", pct: 17 },
+  { label: "Team camaraderie", pct: 8 },
+];
+
+type Scene = "reward" | "goals" | "store" | "poll";
+const SCENES: { id: Scene; label: string }[] = [
+  { id: "reward", label: "Reward" },
+  { id: "goals", label: "Goals" },
+  { id: "store", label: "Store" },
+  { id: "poll", label: "Polls" },
+];
+
 function ProgramPreview() {
-  const [step, setStep] = useState<0 | 1 | 2>(0);
-  const [employee, setEmployee] = useState(REWARD_EMPLOYEES[0]);
-  const [reason, setReason] = useState(REASONS[0]);
-  const [reasonHighlight, setReasonHighlight] = useState<string | null>(null);
+  const [scene, setScene] = useState<Scene>("reward");
+
+  // Reward scene
+  const [rewardStep, setRewardStep] = useState<0 | 1 | 2>(0);
   const [pickHighlight, setPickHighlight] = useState<string | null>(null);
+  const [reasonHighlight, setReasonHighlight] = useState<string | null>(null);
+  const [reason, setReason] = useState(REASONS[0]);
   const [sendHighlight, setSendHighlight] = useState(false);
 
+  // Goals scene
+  const [goalProgress, setGoalProgress] = useState(78);
+  const [goalCompleteHighlight, setGoalCompleteHighlight] = useState(false);
+  const [goalDistributed, setGoalDistributed] = useState(false);
+
+  // Store scene
+  const [storePickHighlight, setStorePickHighlight] = useState<string | null>(null);
+  const [storeRedeemed, setStoreRedeemed] = useState(false);
+
+  // Poll scene
+  const [pollPick, setPollPick] = useState<string | null>(null);
+  const [pollPickHighlight, setPollPickHighlight] = useState<string | null>(null);
+  const [pollResults, setPollResults] = useState(false);
+
+  // Refs for cursor targeting
   const containerRef = useRef<HTMLDivElement>(null);
   const employeeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const reasonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const sendRef = useRef<HTMLButtonElement>(null);
+  const goalCompleteRef = useRef<HTMLButtonElement>(null);
+  const productRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const pollOptionRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const [cursor, setCursor] = useState<{ x: number; y: number; visible: boolean; clicking: boolean }>(
     { x: 320, y: 360, visible: false, clicking: false }
@@ -183,107 +234,175 @@ function ProgramPreview() {
     }));
   };
 
-  // Step 0: cursor enters → moves to Sarah K. → clicks → advance
-  useEffect(() => {
-    if (step !== 0) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    // Reset cursor to a starting position off the list
-    timers.push(
-      setTimeout(() => {
-        if (!containerRef.current) return;
-        const c = containerRef.current.getBoundingClientRect();
-        setCursor({ x: c.width - 40, y: c.height - 30, visible: true, clicking: false });
-      }, 250)
-    );
-    // Glide to Sarah K.
-    timers.push(
-      setTimeout(() => moveCursorTo(employeeRefs.current["SK"]), 800)
-    );
-    // Click
-    timers.push(
-      setTimeout(() => {
-        setCursor((s) => ({ ...s, clicking: true }));
-        setPickHighlight("SK");
-      }, 2100)
-    );
-    timers.push(
-      setTimeout(() => {
-        setCursor((s) => ({ ...s, clicking: false }));
-        setEmployee(REWARD_EMPLOYEES[1]);
-        setPickHighlight(null);
-        setStep(1);
-      }, 2350)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [step]);
+  const advanceTo = (next: Scene) => setScene(next);
 
-  // Step 1: cursor → reason chip → Send Reward → advance
+  // Scene: REWARD
   useEffect(() => {
-    if (step !== 1) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const targetReason = REASONS[1]; // "Safety milestone"
-    // After form mount, glide cursor to the reason chip
-    timers.push(
-      setTimeout(() => moveCursorTo(reasonRefs.current[targetReason]), 500)
-    );
-    // Click reason chip
-    timers.push(
-      setTimeout(() => {
-        setCursor((s) => ({ ...s, clicking: true }));
-        setReasonHighlight(targetReason);
-      }, 1500)
-    );
-    timers.push(
-      setTimeout(() => {
-        setCursor((s) => ({ ...s, clicking: false }));
-        setReason(targetReason);
-        setReasonHighlight(null);
-      }, 1700)
-    );
-    // Glide to Send Reward
-    timers.push(
-      setTimeout(() => moveCursorTo(sendRef.current), 2000)
-    );
-    // Click Send
-    timers.push(
-      setTimeout(() => {
-        setCursor((s) => ({ ...s, clicking: true }));
-        setSendHighlight(true);
-      }, 3000)
-    );
-    timers.push(
-      setTimeout(() => {
-        setCursor((s) => ({ ...s, clicking: false, visible: false }));
-        setSendHighlight(false);
-        setStep(2);
-      }, 3250)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [step]);
+    if (scene !== "reward") return;
+    // reset reward state
+    setRewardStep(0);
+    setPickHighlight(null);
+    setReasonHighlight(null);
+    setReason(REASONS[0]);
+    setSendHighlight(false);
 
-  // Step 2: brief pause then reset
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      if (!containerRef.current) return;
+      const c = containerRef.current.getBoundingClientRect();
+      setCursor({ x: c.width - 40, y: c.height - 30, visible: true, clicking: false });
+    }, 200));
+    timers.push(setTimeout(() => moveCursorTo(employeeRefs.current["SK"]), 700));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: true }));
+      setPickHighlight("SK");
+    }, 1900));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: false }));
+      setRewardStep(1);
+      setPickHighlight(null);
+    }, 2150));
+    // Move to reason chip
+    timers.push(setTimeout(() => moveCursorTo(reasonRefs.current[REASONS[1]]), 2400));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: true }));
+      setReasonHighlight(REASONS[1]);
+    }, 3400));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: false }));
+      setReason(REASONS[1]);
+      setReasonHighlight(null);
+    }, 3600));
+    // Move to send
+    timers.push(setTimeout(() => moveCursorTo(sendRef.current), 3850));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: true }));
+      setSendHighlight(true);
+    }, 4750));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: false, visible: false }));
+      setSendHighlight(false);
+      setRewardStep(2);
+    }, 4950));
+    timers.push(setTimeout(() => advanceTo("goals"), 6800));
+    return () => timers.forEach(clearTimeout);
+  }, [scene]);
+
+  // Scene: GOALS
   useEffect(() => {
-    if (step !== 2) return;
-    const t = setTimeout(() => {
-      setStep(0);
-      setEmployee(REWARD_EMPLOYEES[0]);
-      setReason(REASONS[0]);
-    }, 2200);
-    return () => clearTimeout(t);
-  }, [step]);
+    if (scene !== "goals") return;
+    setGoalProgress(78);
+    setGoalCompleteHighlight(false);
+    setGoalDistributed(false);
+    setCursor((s) => ({ ...s, visible: false }));
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      if (!containerRef.current) return;
+      const c = containerRef.current.getBoundingClientRect();
+      setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
+    }, 250));
+    // Animate progress filling 78 → 100
+    [85, 92, 100].forEach((pct, i) =>
+      timers.push(setTimeout(() => setGoalProgress(pct), 700 + i * 350))
+    );
+    // Cursor moves to "Distribute Bucks" button
+    timers.push(setTimeout(() => moveCursorTo(goalCompleteRef.current), 2000));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: true }));
+      setGoalCompleteHighlight(true);
+    }, 3300));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: false, visible: false }));
+      setGoalCompleteHighlight(false);
+      setGoalDistributed(true);
+    }, 3500));
+    timers.push(setTimeout(() => advanceTo("store"), 5400));
+    return () => timers.forEach(clearTimeout);
+  }, [scene]);
+
+  // Scene: STORE
+  useEffect(() => {
+    if (scene !== "store") return;
+    setStorePickHighlight(null);
+    setStoreRedeemed(false);
+    setCursor((s) => ({ ...s, visible: false }));
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      if (!containerRef.current) return;
+      const c = containerRef.current.getBoundingClientRect();
+      setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
+    }, 250));
+    timers.push(setTimeout(() => moveCursorTo(productRefs.current["Gaming Headset"]), 700));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: true }));
+      setStorePickHighlight("Gaming Headset");
+    }, 2000));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: false, visible: false }));
+      setStoreRedeemed(true);
+    }, 2200));
+    timers.push(setTimeout(() => advanceTo("poll"), 4200));
+    return () => timers.forEach(clearTimeout);
+  }, [scene]);
+
+  // Scene: POLL
+  useEffect(() => {
+    if (scene !== "poll") return;
+    setPollPick(null);
+    setPollPickHighlight(null);
+    setPollResults(false);
+    setCursor((s) => ({ ...s, visible: false }));
+
+    const target = POLL_OPTIONS[0].label;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      if (!containerRef.current) return;
+      const c = containerRef.current.getBoundingClientRect();
+      setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
+    }, 250));
+    timers.push(setTimeout(() => moveCursorTo(pollOptionRefs.current[target]), 700));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: true }));
+      setPollPickHighlight(target);
+    }, 1900));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, clicking: false }));
+      setPollPick(target);
+      setPollPickHighlight(null);
+    }, 2100));
+    timers.push(setTimeout(() => {
+      setCursor((s) => ({ ...s, visible: false }));
+      setPollResults(true);
+    }, 2700));
+    timers.push(setTimeout(() => advanceTo("reward"), 5400));
+    return () => timers.forEach(clearTimeout);
+  }, [scene]);
+
+  const headerLabels: Record<Scene, { title: string; pill: string; pillIcon: typeof Zap }> = {
+    reward: { title: "Better Bucks Admin", pill: "Quick Reward", pillIcon: Zap },
+    goals: { title: "Team Goals", pill: "Active Goal", pillIcon: Target },
+    store: { title: "Rewards Store", pill: "Employee View", pillIcon: ShoppingBag },
+    poll: { title: "Team Pulse", pill: "Anonymous", pillIcon: ClipboardList },
+  };
+  const HeaderIcon = headerLabels[scene].pillIcon;
 
   return (
     <div
       ref={containerRef}
       className="relative rounded-2xl shadow-2xl border border-white/60 overflow-hidden bg-white w-full"
-      style={{ minHeight: 380 }}
+      style={{ minHeight: 420 }}
       data-testid="program-preview"
     >
+      {/* App header */}
       <div className="flex items-center justify-between px-4 py-2.5" style={{ background: NAVY }}>
         <div className="flex items-center gap-2">
           <AppLogo size="sm" />
           <div>
-            <p className="text-white font-bold text-xs leading-tight">Better Bucks Admin</p>
+            <p className="text-white font-bold text-xs leading-tight" data-testid="text-preview-title">
+              {headerLabels[scene].title}
+            </p>
             <p className="text-white/50 text-xs">Acme Corp</p>
           </div>
         </div>
@@ -291,144 +410,337 @@ function ProgramPreview() {
           className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
           style={{ background: `${BUCKS_COLOR}40`, color: "white" }}
         >
-          <Zap className="h-3 w-3" />
-          <span>Quick Reward</span>
+          <HeaderIcon className="h-3 w-3" />
+          <span>{headerLabels[scene].pill}</span>
         </div>
       </div>
 
-      <div className="p-4">
-        {step === 0 && (
+      {/* Scene tabs */}
+      <div className="flex gap-1 px-3 py-2 border-b border-gray-100 bg-gray-50/50">
+        {SCENES.map((s) => (
+          <div
+            key={s.id}
+            className="flex-1 flex flex-col items-center gap-1"
+            data-testid={`tab-indicator-${s.id}`}
+          >
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide transition-colors"
+              style={{ color: scene === s.id ? NAVY : "#9ca3af" }}
+            >
+              {s.label}
+            </span>
+            <div
+              className="h-0.5 w-full rounded-full transition-colors"
+              style={{ background: scene === s.id ? BUCKS_COLOR : "#e5e7eb" }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="p-4 min-h-[300px]">
+        {/* ── REWARD SCENE ───────────────────────────────────────── */}
+        {scene === "reward" && (
+          <>
+            {rewardStep === 0 && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <Users className="h-3.5 w-3.5" style={{ color: NAVY }} />
+                  <p className="font-bold text-xs" style={{ color: NAVY }}>
+                    Select an employee to reward
+                  </p>
+                </div>
+                {REWARD_EMPLOYEES.map((emp) => (
+                  <button
+                    key={emp.name}
+                    ref={(el) => { employeeRefs.current[emp.initials] = el; }}
+                    onClick={() => setRewardStep(1)}
+                    className="flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left"
+                    style={{
+                      borderColor: pickHighlight === emp.initials ? BUCKS_COLOR : "#f3f4f6",
+                      background: pickHighlight === emp.initials ? `${BUCKS_COLOR}10` : "#fff",
+                      transform: pickHighlight === emp.initials ? "scale(0.98)" : "scale(1)",
+                    }}
+                    data-testid={`button-pick-${emp.initials}`}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                      style={{ background: BUCKS_COLOR }}
+                    >
+                      {emp.initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm" style={{ color: NAVY }}>{emp.name}</p>
+                      <p className="text-xs text-gray-500">{emp.dept} · {emp.balance} Bucks</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-gray-300" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {rewardStep === 1 && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                    style={{ background: BUCKS_COLOR }}
+                  >
+                    SK
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm" style={{ color: NAVY }}>Sarah K.</p>
+                    <p className="text-xs text-gray-500">Logistics</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Reward amount</p>
+                  <div
+                    className="flex items-baseline gap-1 px-3 py-2 rounded-lg"
+                    style={{ background: `${BUCKS_COLOR}15` }}
+                  >
+                    <span className="text-2xl font-black" style={{ color: BUCKS_COLOR }}>100</span>
+                    <span className="text-xs font-bold" style={{ color: BUCKS_COLOR }}>Bucks</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Reason</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {REASONS.map((r) => {
+                      const active = reason === r || reasonHighlight === r;
+                      return (
+                        <button
+                          key={r}
+                          ref={(el) => { reasonRefs.current[r] = el; }}
+                          onClick={() => setReason(r)}
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                          style={{
+                            borderColor: active ? BUCKS_COLOR : "#e5e7eb",
+                            background: active ? `${BUCKS_COLOR}15` : "#fff",
+                            color: active ? BUCKS_COLOR : "#475569",
+                            transform: reasonHighlight === r ? "scale(0.96)" : "scale(1)",
+                          }}
+                          data-testid={`button-reason-${r.replace(/\s+/g, "-").toLowerCase()}`}
+                        >
+                          {r}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <button
+                  ref={sendRef}
+                  onClick={() => setRewardStep(2)}
+                  className="mt-1 w-full py-2.5 rounded-lg font-bold text-white text-sm flex items-center justify-center gap-2 transition-all"
+                  style={{
+                    background: BUCKS_COLOR,
+                    transform: sendHighlight ? "scale(0.97)" : "scale(1)",
+                    boxShadow: sendHighlight ? `0 0 0 4px ${BUCKS_COLOR}33` : "none",
+                  }}
+                  data-testid="button-send-reward"
+                >
+                  <Send className="h-4 w-4" />
+                  Send Reward
+                </button>
+              </div>
+            )}
+
+            {rewardStep === 2 && (
+              <div className="flex flex-col items-center justify-center text-center py-10 gap-3">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}20` }}>
+                  <CheckCircle2 className="h-7 w-7" style={{ color: BUCKS_COLOR }} />
+                </div>
+                <div>
+                  <p className="font-black text-base" style={{ color: NAVY }}>Sent!</p>
+                  <p className="text-xs text-gray-500 mt-0.5 max-w-[220px]">
+                    Sarah K. earned <span className="font-bold" style={{ color: BUCKS_COLOR }}>100 Bucks</span> for {reason.toLowerCase()}.
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── GOALS SCENE ────────────────────────────────────────── */}
+        {scene === "goals" && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <Users className="h-3.5 w-3.5" style={{ color: NAVY }} />
-              <p className="font-bold text-xs" style={{ color: NAVY }}>
-                Select an employee to reward
-              </p>
+              <Target className="h-3.5 w-3.5" style={{ color: NAVY }} />
+              <p className="font-bold text-xs" style={{ color: NAVY }}>Active team goals</p>
             </div>
-            {REWARD_EMPLOYEES.map((emp) => (
+
+            {GOALS.map((g, idx) => {
+              const isLive = idx === 0;
+              const pct = isLive ? goalProgress : g.progress;
+              return (
+                <div key={g.title} className="rounded-lg border border-gray-100 p-3" style={{ background: "#F8FAFC" }}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs" style={{ color: NAVY }}>{g.title}</p>
+                      <p className="text-[10px] text-gray-500">{g.dept}</p>
+                    </div>
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
+                      style={{
+                        background: pct >= 100 ? `${BUCKS_COLOR}20` : "#e5e7eb",
+                        color: pct >= 100 ? BUCKS_COLOR : "#475569",
+                      }}
+                    >
+                      {pct >= 100 ? "Complete" : `${pct}%`}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "#e5e7eb" }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${pct}%`,
+                        background: BUCKS_COLOR,
+                        transition: "width 0.6s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            {!goalDistributed ? (
               <button
-                key={emp.name}
-                ref={(el) => { employeeRefs.current[emp.initials] = el; }}
-                onClick={() => {
-                  setEmployee(emp);
-                  setStep(1);
-                }}
-                className="flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left"
+                ref={goalCompleteRef}
+                onClick={() => setGoalDistributed(true)}
+                disabled={goalProgress < 100}
+                className="mt-1 w-full py-2.5 rounded-lg font-bold text-white text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                 style={{
-                  borderColor: pickHighlight === emp.initials ? BUCKS_COLOR : "#f3f4f6",
-                  background: pickHighlight === emp.initials ? `${BUCKS_COLOR}10` : "#fff",
-                  transform: pickHighlight === emp.initials ? "scale(0.98)" : "scale(1)",
+                  background: BUCKS_COLOR,
+                  transform: goalCompleteHighlight ? "scale(0.97)" : "scale(1)",
+                  boxShadow: goalCompleteHighlight ? `0 0 0 4px ${BUCKS_COLOR}33` : "none",
                 }}
-                data-testid={`button-pick-${emp.initials}`}
+                data-testid="button-distribute-goal"
               >
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ background: BUCKS_COLOR }}
-                >
-                  {emp.initials}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm" style={{ color: NAVY }}>
-                    {emp.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {emp.dept} · {emp.balance} Bucks
-                  </p>
-                </div>
-                <ArrowRight className="h-4 w-4 text-gray-300" />
+                <Coins className="h-4 w-4" />
+                Distribute 50 Bucks to each
               </button>
-            ))}
+            ) : (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg" style={{ background: `${BUCKS_COLOR}15` }}>
+                <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: BUCKS_COLOR }} />
+                <p className="text-xs font-semibold" style={{ color: BUCKS_COLOR }}>
+                  12 employees received 50 Bucks each
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {step === 1 && (
+        {/* ── STORE SCENE ────────────────────────────────────────── */}
+        {scene === "store" && (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                style={{ background: BUCKS_COLOR }}
-              >
-                {employee.initials}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-3.5 w-3.5" style={{ color: NAVY }} />
+                <p className="font-bold text-xs" style={{ color: NAVY }}>Spend your Bucks</p>
               </div>
-              <div className="flex-1">
-                <p className="font-bold text-sm" style={{ color: NAVY }}>
-                  {employee.name}
-                </p>
-                <p className="text-xs text-gray-500">{employee.dept}</p>
-              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${BUCKS_COLOR}20`, color: BUCKS_COLOR }}>
+                Balance: 1,240
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1.5">Reward amount</p>
-              <div
-                className="flex items-baseline gap-1 px-3 py-2 rounded-lg"
-                style={{ background: `${BUCKS_COLOR}15` }}
-              >
-                <span className="text-2xl font-black" style={{ color: BUCKS_COLOR }}>
-                  100
-                </span>
-                <span className="text-xs font-bold" style={{ color: BUCKS_COLOR }}>
-                  Bucks
-                </span>
+
+            {!storeRedeemed ? (
+              <div className="grid grid-cols-3 gap-2">
+                {PRODUCTS.map((p) => (
+                  <button
+                    key={p.name}
+                    ref={(el) => { productRefs.current[p.name] = el; }}
+                    onClick={() => setStoreRedeemed(true)}
+                    className="rounded-lg border p-2 flex flex-col items-center gap-1 text-center transition-all"
+                    style={{
+                      borderColor: storePickHighlight === p.name ? BUCKS_COLOR : "#f3f4f6",
+                      background: storePickHighlight === p.name ? `${BUCKS_COLOR}10` : "#fff",
+                      transform: storePickHighlight === p.name ? "scale(0.97)" : "scale(1)",
+                    }}
+                    data-testid={`button-product-${p.name.replace(/\s+/g, "-").toLowerCase()}`}
+                  >
+                    <div className="text-2xl">{p.emoji}</div>
+                    <p className="text-[10px] font-semibold leading-tight" style={{ color: NAVY }}>{p.name}</p>
+                    <p className="text-[10px] font-bold" style={{ color: BUCKS_COLOR }}>{p.price} B</p>
+                  </button>
+                ))}
               </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8 gap-3">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: `${BUCKS_COLOR}20` }}>
+                  <CheckCircle2 className="h-7 w-7" style={{ color: BUCKS_COLOR }} />
+                </div>
+                <div>
+                  <p className="font-black text-base" style={{ color: NAVY }}>Order placed!</p>
+                  <p className="text-xs text-gray-500 mt-0.5 max-w-[240px]">
+                    Gaming Headset · 350 Bucks · Ships in 3–5 days
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── POLL SCENE ─────────────────────────────────────────── */}
+        {scene === "poll" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-3.5 w-3.5" style={{ color: NAVY }} />
+              <p className="font-bold text-xs" style={{ color: NAVY }}>Q3 Team Pulse Check</p>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1.5">Reason</p>
-              <div className="flex flex-wrap gap-1.5">
-                {REASONS.map((r) => {
-                  const active = reason === r || reasonHighlight === r;
+            <p className="text-xs font-semibold" style={{ color: NAVY }}>{POLL_QUESTION}</p>
+
+            {!pollResults ? (
+              <div className="flex flex-col gap-1.5">
+                {POLL_OPTIONS.map((opt) => {
+                  const active = pollPick === opt.label || pollPickHighlight === opt.label;
                   return (
                     <button
-                      key={r}
-                      ref={(el) => { reasonRefs.current[r] = el; }}
-                      onClick={() => setReason(r)}
-                      className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                      key={opt.label}
+                      ref={(el) => { pollOptionRefs.current[opt.label] = el; }}
+                      onClick={() => setPollPick(opt.label)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-xs transition-all"
                       style={{
                         borderColor: active ? BUCKS_COLOR : "#e5e7eb",
-                        background: active ? `${BUCKS_COLOR}15` : "#fff",
-                        color: active ? BUCKS_COLOR : "#475569",
-                        transform: reasonHighlight === r ? "scale(0.96)" : "scale(1)",
+                        background: active ? `${BUCKS_COLOR}10` : "#fff",
+                        color: NAVY,
+                        fontWeight: active ? 600 : 400,
+                        transform: pollPickHighlight === opt.label ? "scale(0.98)" : "scale(1)",
                       }}
-                      data-testid={`button-reason-${r.replace(/\s+/g, "-").toLowerCase()}`}
+                      data-testid={`button-poll-${opt.label.replace(/\s+/g, "-").toLowerCase()}`}
                     >
-                      {r}
+                      <div
+                        className="w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center"
+                        style={{ borderColor: active ? BUCKS_COLOR : "#d1d5db" }}
+                      >
+                        {active && <div className="w-1.5 h-1.5 rounded-full" style={{ background: BUCKS_COLOR }} />}
+                      </div>
+                      {opt.label}
                     </button>
                   );
                 })}
               </div>
-            </div>
-            <button
-              ref={sendRef}
-              onClick={() => setStep(2)}
-              className="mt-1 w-full py-2.5 rounded-lg font-bold text-white text-sm flex items-center justify-center gap-2 transition-all"
-              style={{
-                background: BUCKS_COLOR,
-                transform: sendHighlight ? "scale(0.97)" : "scale(1)",
-                boxShadow: sendHighlight ? `0 0 0 4px ${BUCKS_COLOR}33` : "none",
-              }}
-              data-testid="button-send-reward"
-            >
-              <Send className="h-4 w-4" />
-              Send Reward
-            </button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="flex flex-col items-center justify-center text-center py-10 gap-3">
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ background: `${BUCKS_COLOR}20` }}
-            >
-              <CheckCircle2 className="h-7 w-7" style={{ color: BUCKS_COLOR }} />
-            </div>
-            <div>
-              <p className="font-black text-base" style={{ color: NAVY }}>
-                Sent!
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5 max-w-[220px]">
-                {employee.name} earned <span className="font-bold" style={{ color: BUCKS_COLOR }}>100 Bucks</span> for {reason.toLowerCase()}.
-              </p>
-            </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-[10px] uppercase tracking-wide font-bold text-gray-400">Live results · 47 responses</p>
+                {POLL_OPTIONS.map((opt) => (
+                  <div key={opt.label}>
+                    <div className="flex items-center justify-between text-[11px] mb-0.5">
+                      <span style={{ color: NAVY, fontWeight: opt.label === pollPick ? 700 : 500 }}>{opt.label}</span>
+                      <span className="font-bold" style={{ color: opt.label === pollPick ? BUCKS_COLOR : "#64748b" }}>{opt.pct}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#f1f5f9" }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${opt.pct}%`,
+                          background: opt.label === pollPick ? BUCKS_COLOR : "#cbd5e1",
+                          transition: "width 0.7s ease",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -477,7 +789,6 @@ function ProgramPreview() {
     </div>
   );
 }
-
 export default function HowItWorksPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();

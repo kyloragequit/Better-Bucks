@@ -2113,6 +2113,21 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       delete (data as any).departmentId;
     }
 
+    // If the username is being changed, make sure it isn't already taken by
+    // another account (case-insensitive). This prevents two users from ending
+    // up with effectively the same login name.
+    if (data.username) {
+      const trimmedUsername = String(data.username).trim();
+      if (trimmedUsername.length === 0) {
+        return res.status(400).json({ message: "Username cannot be empty." });
+      }
+      const conflict = await storage.getUserByUsername(trimmedUsername);
+      if (conflict && conflict.id !== id) {
+        return res.status(409).json({ message: "That username is already taken. Please choose another." });
+      }
+      data.username = trimmedUsername;
+    }
+
     // If a new password is being set and the user is changing their own password
     // (not a prime admin resetting someone else's), verify the current password first.
     if (data.password) {

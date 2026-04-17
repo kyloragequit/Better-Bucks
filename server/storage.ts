@@ -188,7 +188,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.username}) = lower(${username})`);
     return user;
   }
 
@@ -274,7 +277,10 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByUsernameAndOrg(username: string, organizationId: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(
-      and(eq(users.username, username), eq(users.organizationId, organizationId))
+      and(
+        sql`lower(${users.username}) = lower(${username})`,
+        eq(users.organizationId, organizationId),
+      )
     );
     return user;
   }

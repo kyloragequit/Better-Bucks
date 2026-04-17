@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { useLocation } from "wouter";
@@ -74,6 +74,13 @@ export default function VerifyEmailPage({ user }: VerifyEmailPageProps) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  const autoSentRef = useRef(false);
+  useEffect(() => {
+    if (autoSentRef.current) return;
+    autoSentRef.current = true;
+    resend();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

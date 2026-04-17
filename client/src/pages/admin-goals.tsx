@@ -171,9 +171,6 @@ export default function AdminGoalsPage() {
                 : "Track team goals and add progress to quantity-based goals."}
             </p>
           </div>
-          {isPrimeAdmin && !isPublicDemo && (
-            <Button onClick={openCreate} data-testid="button-create-goal"><Plus className="mr-2 h-4 w-4" />New Goal</Button>
-          )}
         </div>
 
         {isLoading && <Loader />}
@@ -195,6 +192,11 @@ export default function AdminGoalsPage() {
             </p>
           )}
           {activeGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+          {isPrimeAdmin && !isPublicDemo && (
+            <div className="pt-2">
+              <Button onClick={openCreate} data-testid="button-create-goal"><Plus className="mr-2 h-4 w-4" />New Goal</Button>
+            </div>
+          )}
         </div>
 
         {/* Completed */}

@@ -221,6 +221,7 @@ function ProgramPreview() {
   const [cursor, setCursor] = useState<{ x: number; y: number; visible: boolean; clicking: boolean }>(
     { x: 320, y: 360, visible: false, clicking: false }
   );
+  const [caption, setCaption] = useState<string | null>(null);
 
   const moveCursorTo = (el: HTMLElement | null) => {
     if (!el || !containerRef.current) return;
@@ -245,6 +246,7 @@ function ProgramPreview() {
     setReasonHighlight(null);
     setReason(REASONS[0]);
     setSendHighlight(false);
+    setCaption(null);
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => {
@@ -252,7 +254,10 @@ function ProgramPreview() {
       const c = containerRef.current.getBoundingClientRect();
       setCursor({ x: c.width - 40, y: c.height - 30, visible: true, clicking: false });
     }, 200));
-    timers.push(setTimeout(() => moveCursorTo(employeeRefs.current["SK"]), 700));
+    timers.push(setTimeout(() => {
+      moveCursorTo(employeeRefs.current["SK"]);
+      setCaption("Pick an employee to reward");
+    }, 700));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
       setPickHighlight("SK");
@@ -263,7 +268,10 @@ function ProgramPreview() {
       setPickHighlight(null);
     }, 2150));
     // Move to reason chip
-    timers.push(setTimeout(() => moveCursorTo(reasonRefs.current[REASONS[1]]), 2400));
+    timers.push(setTimeout(() => {
+      moveCursorTo(reasonRefs.current[REASONS[1]]);
+      setCaption("Tag the reason — reinforces the behavior");
+    }, 2400));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
       setReasonHighlight(REASONS[1]);
@@ -274,7 +282,10 @@ function ProgramPreview() {
       setReasonHighlight(null);
     }, 3600));
     // Move to send
-    timers.push(setTimeout(() => moveCursorTo(sendRef.current), 3850));
+    timers.push(setTimeout(() => {
+      moveCursorTo(sendRef.current);
+      setCaption("One click to send the reward");
+    }, 3850));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
       setSendHighlight(true);
@@ -283,6 +294,7 @@ function ProgramPreview() {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setSendHighlight(false);
       setRewardStep(2);
+      setCaption("Sarah is notified instantly");
     }, 4950));
     timers.push(setTimeout(() => advanceTo("goals"), 6800));
     return () => timers.forEach(clearTimeout);
@@ -295,19 +307,24 @@ function ProgramPreview() {
     setGoalCompleteHighlight(false);
     setGoalDistributed(false);
     setCursor((s) => ({ ...s, visible: false }));
+    setCaption(null);
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => {
       if (!containerRef.current) return;
       const c = containerRef.current.getBoundingClientRect();
       setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
+      setCaption("Track team goals in real time");
     }, 250));
     // Animate progress filling 78 → 100
     [85, 92, 100].forEach((pct, i) =>
       timers.push(setTimeout(() => setGoalProgress(pct), 700 + i * 350))
     );
     // Cursor moves to "Distribute Bucks" button
-    timers.push(setTimeout(() => moveCursorTo(goalCompleteRef.current), 2000));
+    timers.push(setTimeout(() => {
+      moveCursorTo(goalCompleteRef.current);
+      setCaption("Goal hit — reward the whole team at once");
+    }, 2000));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
       setGoalCompleteHighlight(true);
@@ -316,6 +333,7 @@ function ProgramPreview() {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setGoalCompleteHighlight(false);
       setGoalDistributed(true);
+      setCaption("Bucks distributed automatically");
     }, 3500));
     timers.push(setTimeout(() => advanceTo("store"), 5400));
     return () => timers.forEach(clearTimeout);
@@ -327,14 +345,19 @@ function ProgramPreview() {
     setStorePickHighlight(null);
     setStoreRedeemed(false);
     setCursor((s) => ({ ...s, visible: false }));
+    setCaption(null);
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => {
       if (!containerRef.current) return;
       const c = containerRef.current.getBoundingClientRect();
       setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
+      setCaption("Employees spend Bucks on real rewards");
     }, 250));
-    timers.push(setTimeout(() => moveCursorTo(productRefs.current["Gaming Headset"]), 700));
+    timers.push(setTimeout(() => {
+      moveCursorTo(productRefs.current["Gaming Headset"]);
+      setCaption("Tap any item to redeem");
+    }, 700));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
       setStorePickHighlight("Gaming Headset");
@@ -342,6 +365,7 @@ function ProgramPreview() {
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setStoreRedeemed(true);
+      setCaption("We handle fulfillment & shipping");
     }, 2200));
     timers.push(setTimeout(() => advanceTo("poll"), 4200));
     return () => timers.forEach(clearTimeout);
@@ -354,6 +378,7 @@ function ProgramPreview() {
     setPollPickHighlight(null);
     setPollResults(false);
     setCursor((s) => ({ ...s, visible: false }));
+    setCaption(null);
 
     const target = POLL_OPTIONS[0].label;
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -361,8 +386,12 @@ function ProgramPreview() {
       if (!containerRef.current) return;
       const c = containerRef.current.getBoundingClientRect();
       setCursor({ x: c.width - 50, y: c.height - 30, visible: true, clicking: false });
+      setCaption("Send anonymous pulse polls to your team");
     }, 250));
-    timers.push(setTimeout(() => moveCursorTo(pollOptionRefs.current[target]), 700));
+    timers.push(setTimeout(() => {
+      moveCursorTo(pollOptionRefs.current[target]);
+      setCaption("Employees vote in seconds");
+    }, 700));
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: true }));
       setPollPickHighlight(target);
@@ -375,6 +404,7 @@ function ProgramPreview() {
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, visible: false }));
       setPollResults(true);
+      setCaption("See live results — know what your team thinks");
     }, 2700));
     timers.push(setTimeout(() => advanceTo("reward"), 5400));
     return () => timers.forEach(clearTimeout);
@@ -743,6 +773,30 @@ function ProgramPreview() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Step caption banner */}
+      <div
+        className="pointer-events-none absolute left-3 right-3 z-40 flex justify-center"
+        style={{ bottom: 12 }}
+      >
+        <div
+          className="px-3 py-1.5 rounded-full shadow-lg text-[11px] font-semibold flex items-center gap-1.5 max-w-[92%]"
+          style={{
+            background: NAVY,
+            color: "white",
+            opacity: caption ? 1 : 0,
+            transform: caption ? "translateY(0)" : "translateY(6px)",
+            transition: "opacity 0.25s ease, transform 0.25s ease",
+          }}
+          data-testid="program-preview-caption"
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: BUCKS_COLOR }}
+          />
+          <span className="truncate">{caption ?? "\u00A0"}</span>
+        </div>
       </div>
 
       {/* Animated cursor overlay */}

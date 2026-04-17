@@ -2241,7 +2241,21 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (data.fullName?.trim() && (isPrime || user.id === id)) {
       profileData.fullName = data.fullName.trim();
     }
-    const updatedUser = await storage.updateUserProfile(id, profileData);
+    let updatedUser = await storage.updateUserProfile(id, profileData);
+
+    // If an admin/prime_admin changed someone ELSE'S password, force that user
+    // to change it on their next login so the temporary password isn't
+    // permanent. updateUserProfile sets mustChangePassword=false on any password
+    // update, so we flip it back here for admin-on-other-user changes.
+    if (data.password && user.id !== id) {
+      const [refreshed] = await db
+        .update(users)
+        .set({ mustChangePassword: true })
+        .where(eq(users.id, id))
+        .returning();
+      if (refreshed) updatedUser = refreshed;
+    }
+
     invalidateUserCache(id);
     res.json(sanitizeUser(updatedUser));
   });

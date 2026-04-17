@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   ThumbsUp,
   HeartHandshake,
+  MousePointer2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -157,41 +158,124 @@ function ProgramPreview() {
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [employee, setEmployee] = useState(REWARD_EMPLOYEES[0]);
   const [reason, setReason] = useState(REASONS[0]);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [reasonHighlight, setReasonHighlight] = useState<string | null>(null);
+  const [pickHighlight, setPickHighlight] = useState<string | null>(null);
+  const [sendHighlight, setSendHighlight] = useState(false);
 
-  useEffect(() => {
-    return () => clearTimeout(timerRef.current);
-  }, []);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const employeeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const reasonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const sendRef = useRef<HTMLButtonElement>(null);
 
-  // Auto-cycle gently so the example feels alive
+  const [cursor, setCursor] = useState<{ x: number; y: number; visible: boolean; clicking: boolean }>(
+    { x: 320, y: 360, visible: false, clicking: false }
+  );
+
+  const moveCursorTo = (el: HTMLElement | null) => {
+    if (!el || !containerRef.current) return;
+    const c = containerRef.current.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    setCursor((s) => ({
+      ...s,
+      x: r.left - c.left + r.width / 2 - 6,
+      y: r.top - c.top + r.height / 2 - 4,
+      visible: true,
+    }));
+  };
+
+  // Step 0: cursor enters → moves to Sarah K. → clicks → advance
   useEffect(() => {
     if (step !== 0) return;
-    const t = setTimeout(() => {
-      setEmployee(REWARD_EMPLOYEES[1]);
-      setStep(1);
-    }, 2400);
-    return () => clearTimeout(t);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    // Reset cursor to a starting position off the list
+    timers.push(
+      setTimeout(() => {
+        if (!containerRef.current) return;
+        const c = containerRef.current.getBoundingClientRect();
+        setCursor({ x: c.width - 40, y: c.height - 30, visible: true, clicking: false });
+      }, 250)
+    );
+    // Glide to Sarah K.
+    timers.push(
+      setTimeout(() => moveCursorTo(employeeRefs.current["SK"]), 800)
+    );
+    // Click
+    timers.push(
+      setTimeout(() => {
+        setCursor((s) => ({ ...s, clicking: true }));
+        setPickHighlight("SK");
+      }, 2100)
+    );
+    timers.push(
+      setTimeout(() => {
+        setCursor((s) => ({ ...s, clicking: false }));
+        setEmployee(REWARD_EMPLOYEES[1]);
+        setPickHighlight(null);
+        setStep(1);
+      }, 2350)
+    );
+    return () => timers.forEach(clearTimeout);
   }, [step]);
 
+  // Step 1: cursor → reason chip → Send Reward → advance
   useEffect(() => {
     if (step !== 1) return;
-    const t = setTimeout(() => setStep(2), 2200);
-    return () => clearTimeout(t);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const targetReason = REASONS[1]; // "Safety milestone"
+    // After form mount, glide cursor to the reason chip
+    timers.push(
+      setTimeout(() => moveCursorTo(reasonRefs.current[targetReason]), 500)
+    );
+    // Click reason chip
+    timers.push(
+      setTimeout(() => {
+        setCursor((s) => ({ ...s, clicking: true }));
+        setReasonHighlight(targetReason);
+      }, 1500)
+    );
+    timers.push(
+      setTimeout(() => {
+        setCursor((s) => ({ ...s, clicking: false }));
+        setReason(targetReason);
+        setReasonHighlight(null);
+      }, 1700)
+    );
+    // Glide to Send Reward
+    timers.push(
+      setTimeout(() => moveCursorTo(sendRef.current), 2000)
+    );
+    // Click Send
+    timers.push(
+      setTimeout(() => {
+        setCursor((s) => ({ ...s, clicking: true }));
+        setSendHighlight(true);
+      }, 3000)
+    );
+    timers.push(
+      setTimeout(() => {
+        setCursor((s) => ({ ...s, clicking: false, visible: false }));
+        setSendHighlight(false);
+        setStep(2);
+      }, 3250)
+    );
+    return () => timers.forEach(clearTimeout);
   }, [step]);
 
+  // Step 2: brief pause then reset
   useEffect(() => {
     if (step !== 2) return;
     const t = setTimeout(() => {
       setStep(0);
       setEmployee(REWARD_EMPLOYEES[0]);
       setReason(REASONS[0]);
-    }, 2400);
+    }, 2200);
     return () => clearTimeout(t);
   }, [step]);
 
   return (
     <div
-      className="rounded-2xl shadow-2xl border border-white/60 overflow-hidden bg-white w-full"
+      ref={containerRef}
+      className="relative rounded-2xl shadow-2xl border border-white/60 overflow-hidden bg-white w-full"
       style={{ minHeight: 380 }}
       data-testid="program-preview"
     >
@@ -224,11 +308,17 @@ function ProgramPreview() {
             {REWARD_EMPLOYEES.map((emp) => (
               <button
                 key={emp.name}
+                ref={(el) => { employeeRefs.current[emp.initials] = el; }}
                 onClick={() => {
                   setEmployee(emp);
                   setStep(1);
                 }}
-                className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100 hover:border-gray-300 transition-colors text-left"
+                className="flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left"
+                style={{
+                  borderColor: pickHighlight === emp.initials ? BUCKS_COLOR : "#f3f4f6",
+                  background: pickHighlight === emp.initials ? `${BUCKS_COLOR}10` : "#fff",
+                  transform: pickHighlight === emp.initials ? "scale(0.98)" : "scale(1)",
+                }}
                 data-testid={`button-pick-${emp.initials}`}
               >
                 <div
@@ -284,27 +374,37 @@ function ProgramPreview() {
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-1.5">Reason</p>
               <div className="flex flex-wrap gap-1.5">
-                {REASONS.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setReason(r)}
-                    className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors"
-                    style={{
-                      borderColor: reason === r ? BUCKS_COLOR : "#e5e7eb",
-                      background: reason === r ? `${BUCKS_COLOR}15` : "#fff",
-                      color: reason === r ? BUCKS_COLOR : "#475569",
-                    }}
-                    data-testid={`button-reason-${r.replace(/\s+/g, "-").toLowerCase()}`}
-                  >
-                    {r}
-                  </button>
-                ))}
+                {REASONS.map((r) => {
+                  const active = reason === r || reasonHighlight === r;
+                  return (
+                    <button
+                      key={r}
+                      ref={(el) => { reasonRefs.current[r] = el; }}
+                      onClick={() => setReason(r)}
+                      className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                      style={{
+                        borderColor: active ? BUCKS_COLOR : "#e5e7eb",
+                        background: active ? `${BUCKS_COLOR}15` : "#fff",
+                        color: active ? BUCKS_COLOR : "#475569",
+                        transform: reasonHighlight === r ? "scale(0.96)" : "scale(1)",
+                      }}
+                      data-testid={`button-reason-${r.replace(/\s+/g, "-").toLowerCase()}`}
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <button
+              ref={sendRef}
               onClick={() => setStep(2)}
-              className="mt-1 w-full py-2.5 rounded-lg font-bold text-white text-sm flex items-center justify-center gap-2"
-              style={{ background: BUCKS_COLOR }}
+              className="mt-1 w-full py-2.5 rounded-lg font-bold text-white text-sm flex items-center justify-center gap-2 transition-all"
+              style={{
+                background: BUCKS_COLOR,
+                transform: sendHighlight ? "scale(0.97)" : "scale(1)",
+                boxShadow: sendHighlight ? `0 0 0 4px ${BUCKS_COLOR}33` : "none",
+              }}
               data-testid="button-send-reward"
             >
               <Send className="h-4 w-4" />
@@ -332,6 +432,48 @@ function ProgramPreview() {
           </div>
         )}
       </div>
+
+      {/* Animated cursor overlay */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute z-50"
+        style={{
+          left: 0,
+          top: 0,
+          transform: `translate(${cursor.x}px, ${cursor.y}px) scale(${cursor.clicking ? 0.85 : 1})`,
+          transition: "transform 1.1s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease",
+          opacity: cursor.visible ? 1 : 0,
+          willChange: "transform",
+        }}
+        data-testid="program-preview-cursor"
+      >
+        <div className="relative">
+          <MousePointer2
+            className="h-5 w-5"
+            style={{
+              color: NAVY,
+              fill: "#fff",
+              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.25))",
+            }}
+          />
+          {cursor.clicking && (
+            <span
+              className="absolute -inset-2 rounded-full"
+              style={{
+                background: `${BUCKS_COLOR}40`,
+                animation: "preview-click-pulse 0.4s ease-out",
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes preview-click-pulse {
+          0%   { transform: scale(0.4); opacity: 0.9; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -517,7 +659,7 @@ export default function HowItWorksPage() {
           style={{ background: `radial-gradient(ellipse at 80% 30%, ${BUCKS_COLOR}18 0%, transparent 60%)` }}
         />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-20 grid gap-10 lg:gap-16 lg:grid-cols-2 items-center">
-          <div>
+          <div className="text-center lg:text-left flex flex-col items-center lg:items-start">
             <div
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-4 text-xs font-bold tracking-wide uppercase"
               style={{ background: `${BUCKS_COLOR}15`, color: BUCKS_COLOR }}
@@ -533,10 +675,13 @@ export default function HowItWorksPage() {
               Reward what's Important —{" "}
               <span style={{ color: BUCKS_COLOR }}>Faster.</span>
             </h1>
-            <p className="mt-5 text-lg text-gray-600 max-w-xl leading-relaxed" data-testid="text-hero-subheadline">
+            <p
+              className="mt-5 text-lg text-gray-600 max-w-xl leading-relaxed"
+              data-testid="text-hero-subheadline"
+            >
               A simple platform that helps managers recognize performance, encourage good habits, and turn everyday wins into rewards your employees actually feel.
             </p>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col items-center lg:items-start">
               <Button
                 size="lg"
                 onClick={() => setLocation("/signup")}

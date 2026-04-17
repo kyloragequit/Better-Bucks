@@ -2168,9 +2168,13 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
           }
         }
 
-        // Require email confirmation: send (or verify) a one-time code before applying
-        // the password change. The user's account must have a verified email on file.
-        if (!targetUser.email) {
+        // For forced first-time changes (new user / admin reset), the user is
+        // already authenticated in this session and may not even have an email
+        // on file yet. Requiring an email confirmation here would block them
+        // from finishing setup, so we skip the email-code step in that case.
+        if (forcedChange) {
+          // fall through to apply the new password below
+        } else if (!targetUser.email) {
           return res.status(400).json({
             message: "Add an email address to your account first — we send a confirmation code there to protect password changes.",
           });

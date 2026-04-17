@@ -1065,7 +1065,6 @@ export default function HowItWorksPage() {
                 Sign Up for Your Organization
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <p className="mt-3 text-xs text-gray-400">No credit card required.</p>
             </div>
           </div>
 

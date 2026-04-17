@@ -1162,7 +1162,6 @@ export default function HowItWorksPage() {
                 <ArrowRight className="h-5 w-5" />
               </button>
             </div>
-            <p className="mt-3 text-white/40 text-xs">View our plans — no credit card required.</p>
           </div>
 
           <form

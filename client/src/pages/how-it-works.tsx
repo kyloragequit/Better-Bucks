@@ -419,6 +419,7 @@ function ProgramPreview() {
   const HeaderIcon = headerLabels[scene].pillIcon;
 
   return (
+    <div className="w-full flex flex-col gap-3" data-testid="program-preview-wrapper">
     <div
       ref={containerRef}
       className="relative rounded-2xl shadow-2xl border border-white/60 overflow-hidden bg-white w-full"
@@ -775,41 +776,6 @@ function ProgramPreview() {
         )}
       </div>
 
-      {/* Step caption banner */}
-      <div
-        className="pointer-events-none absolute left-3 right-3 z-40 flex justify-center"
-        style={{ bottom: 12 }}
-      >
-        <div
-          className="px-3 py-2 rounded-xl shadow-lg max-w-[92%]"
-          style={{
-            background: NAVY,
-            color: "white",
-            opacity: caption ? 1 : 0,
-            transform: caption ? "translateY(0)" : "translateY(6px)",
-            transition: "opacity 0.25s ease, transform 0.25s ease",
-          }}
-          data-testid="program-preview-caption"
-        >
-          <div className="flex items-center gap-1.5 text-[11px] font-bold">
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: BUCKS_COLOR }}
-            />
-            <span className="truncate">{caption?.text ?? "\u00A0"}</span>
-          </div>
-          {caption?.benefit && (
-            <div
-              className="text-[10px] font-medium mt-0.5 pl-3 leading-tight"
-              style={{ color: "#a7c4f0" }}
-              data-testid="program-preview-caption-benefit"
-            >
-              {caption.benefit}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Animated cursor overlay */}
       <div
         aria-hidden
@@ -851,6 +817,38 @@ function ProgramPreview() {
           100% { transform: scale(1.6); opacity: 0; }
         }
       `}</style>
+    </div>
+
+    {/* Step caption — sits underneath the preview */}
+    <div
+      className="rounded-xl px-4 py-3 shadow-md"
+      style={{
+        background: NAVY,
+        color: "white",
+        opacity: caption ? 1 : 0,
+        transform: caption ? "translateY(0)" : "translateY(-4px)",
+        transition: "opacity 0.25s ease, transform 0.25s ease",
+        minHeight: 58,
+      }}
+      data-testid="program-preview-caption"
+    >
+      <div className="flex items-center gap-2 text-sm font-bold">
+        <span
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ background: BUCKS_COLOR }}
+        />
+        <span className="truncate">{caption?.text ?? "\u00A0"}</span>
+      </div>
+      {caption?.benefit && (
+        <div
+          className="text-xs font-medium mt-1 pl-4 leading-snug"
+          style={{ color: "#a7c4f0" }}
+          data-testid="program-preview-caption-benefit"
+        >
+          {caption.benefit}
+        </div>
+      )}
+    </div>
     </div>
   );
 }

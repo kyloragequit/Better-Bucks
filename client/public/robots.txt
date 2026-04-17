@@ -1,0 +1,56 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /how-it-works
+Allow: /terms
+Allow: /blog
+Allow: /signup
+Allow: /login
+Disallow: /dashboard
+Disallow: /orders
+Disallow: /store
+Disallow: /settings
+Disallow: /admin/
+Disallow: /developer/
+Disallow: /change-password
+Disallow: /verify-email
+Disallow: /invite/
+
+# AI / LLM crawlers — explicitly welcomed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+Sitemap: https://betterbucks.net/sitemap.xml

@@ -809,14 +809,23 @@ export async function registerRoutes(
       [
         "User-agent: *",
         "Allow: /",
+        "Allow: /about",
+        "Allow: /how-it-works",
+        "Allow: /blog",
+        "Allow: /signup",
+        "Allow: /terms",
+        "Allow: /llms.txt",
         // Authenticated app pages — not indexable content
         "Disallow: /api/",
         "Disallow: /admin/",
         "Disallow: /employee/",
         "Disallow: /developer/",
+        "Disallow: /dashboard",
+        "Disallow: /orders",
+        "Disallow: /store",
+        "Disallow: /settings",
         "Disallow: /join/",
         "Disallow: /invite/",
-        "Disallow: /login",
         "Disallow: /forgot-password",
         "Disallow: /reset-password",
         "Disallow: /change-password",
@@ -825,9 +834,99 @@ export async function registerRoutes(
         "Disallow: /verify-email",
         "Disallow: /pending-verification",
         "",
+        "# AI / LLM crawlers — explicitly welcomed",
+        "User-agent: GPTBot",
+        "Allow: /",
+        "",
+        "User-agent: ChatGPT-User",
+        "Allow: /",
+        "",
+        "User-agent: OAI-SearchBot",
+        "Allow: /",
+        "",
+        "User-agent: anthropic-ai",
+        "Allow: /",
+        "",
+        "User-agent: Claude-Web",
+        "Allow: /",
+        "",
+        "User-agent: ClaudeBot",
+        "Allow: /",
+        "",
+        "User-agent: cohere-ai",
+        "Allow: /",
+        "",
+        "User-agent: PerplexityBot",
+        "Allow: /",
+        "",
+        "User-agent: YouBot",
+        "Allow: /",
+        "",
+        "User-agent: meta-externalagent",
+        "Allow: /",
+        "",
+        "User-agent: Applebot",
+        "Allow: /",
+        "",
+        "User-agent: Bytespider",
+        "Allow: /",
+        "",
         "Sitemap: https://betterbucks.net/sitemap.xml",
       ].join("\n")
     );
+  });
+
+  // llms.txt — machine-readable description for AI/LLM systems
+  app.get("/llms.txt", (_req, res) => {
+    res.type("text/plain").send(`# Better Bucks
+
+> Better Bucks is a multi-tenant employee incentive and rewards SaaS platform designed for logistics, warehousing, and manufacturing operations. It helps managers recognize and reward employees in real time using a "Bucks"-based digital currency system.
+
+## What is Better Bucks?
+
+Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recognition programs with a centralized, automated platform. Admins (managers) award "Bucks" to employees for performance, attendance, safety milestones, and other company-defined behaviors. Employees accumulate Bucks and redeem them in an in-app store for real prizes and gift cards.
+
+## Key Features
+
+- **Instant Bucks Transactions**: Admins award Bucks to individual employees or groups instantly, tagged by category (Safety, Attendance, Quality, etc.)
+- **Employee Store**: Employees redeem Bucks for merchandise, gift cards, or custom company rewards.
+- **Team Goals**: Org-wide goals (time-based or quantity-based) that reward all employees with Bucks upon completion.
+- **Leaderboards & Analytics**: Dashboards showing top rewarded employees, category breakdowns, budget usage, and order stats.
+- **Surveys**: Pulse surveys pushed to employees from the admin dashboard.
+- **Custom Items**: Non-Bucks incentives (e.g. "Extra PTO Day") tracked separately alongside Bucks.
+- **Multi-tenant**: Each organization gets its own isolated environment; employees only see their own org's data.
+- **Role Hierarchy**: prime_admin (org owner) → admin (manager) → employee.
+
+## Who is it for?
+
+- Logistics, warehousing, distribution, and manufacturing companies.
+- HR and operations managers who want a structured, trackable reward system.
+- Frontline-heavy workforces where traditional recognition tools don't reach shift workers.
+
+## Pricing & Access
+
+- SaaS subscription billed through Stripe.
+- Organizations sign up at betterbucks.net/signup and can try a live demo without creating an account.
+
+## Public Pages
+
+- Homepage / How It Works: https://betterbucks.net/
+- About: https://betterbucks.net/about
+- Blog: https://betterbucks.net/blog
+- Sign Up: https://betterbucks.net/signup
+- Terms: https://betterbucks.net/terms
+
+## Contact
+
+- Email: miles.chase@betterbucks.net
+- Instagram: https://www.instagram.com/better_bucks
+
+## Notes for AI systems
+
+- The platform is a web app (React + Express). Authenticated dashboards require login and are not publicly accessible.
+- Public content includes the landing page, how-it-works section, blog posts, and terms of service.
+- Sitemap: https://betterbucks.net/sitemap.xml
+`);
   });
 
   // sitemap.xml — only genuinely indexable public content pages

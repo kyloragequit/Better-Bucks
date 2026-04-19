@@ -365,7 +365,7 @@ function ProgramPreview() {
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setStoreRedeemed(true);
-      setCaption({ text: "We handle fulfillment & shipping", benefit: "Zero work for you, real reward for them" });
+      setCaption({ text: "Order goes straight to your admin", benefit: "Track every redemption from one dashboard" });
     }, 2200));
     timers.push(setTimeout(() => advanceTo("poll"), 4200));
     return () => timers.forEach(clearTimeout);
@@ -702,7 +702,7 @@ function ProgramPreview() {
                 <div>
                   <p className="font-black text-base" style={{ color: NAVY }}>Order placed!</p>
                   <p className="text-xs text-gray-500 mt-0.5 max-w-[240px]">
-                    Gaming Headset · 350 Bucks · Ships in 3–5 days
+                    Gaming Headset · 350 Bucks · Sent to admin to fulfill
                   </p>
                 </div>
               </div>

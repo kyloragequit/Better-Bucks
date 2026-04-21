@@ -10,11 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, QrCode, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send, UserCheck, TrendingUp, Loader2 } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, Link2, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send, UserCheck, TrendingUp, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { QRCodeSVG } from "qrcode.react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Organization, ShopWebsite, Department, TransactionCategory } from "@shared/schema";
 
@@ -327,11 +326,11 @@ export default function AdminSettingsPage() {
             <Card data-testid="card-site-id">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5" />
+                  <Link2 className="h-5 w-5" />
                   Site ID & Employee Access
                 </CardTitle>
                 <CardDescription>
-                  Set a unique Site ID so employees can join without a password by scanning a QR code. Email and phone are not required.
+                  Set a unique Site ID and share its join link so employees can sign up or sign in with just their name. Email and phone are not required.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -355,31 +354,21 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-3 pt-2">
-                      <div className="bg-white p-4 rounded-xl border shadow-sm" data-testid="qr-site-id">
-                        <QRCodeSVG
-                          value={`${window.location.origin}/join/${org.siteId}`}
-                          size={200}
-                          fgColor="#162A4A"
-                          level="M"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground text-center max-w-xs">
-                        Print this QR code and post it at your worksite. Employees scan it to sign up or sign in — no password or email required.
-                      </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground max-w-md">
+                      Share this join link with your team. Employees open it and sign up or sign in with just their name — no password or email required.
+                    </p>
                   </>
                 ) : (
                   <div className="flex flex-col items-center gap-3 py-4 text-center">
-                    <QrCode className="h-12 w-12 text-muted-foreground/40" />
+                    <Link2 className="h-12 w-12 text-muted-foreground/40" />
                     <div>
                       <p className="font-medium text-sm">No Site ID set yet</p>
                       <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                        Set a Site ID to generate a QR code that employees can scan to create accounts and sign in without passwords.
+                        Set a Site ID to create a join link your employees can use to sign up or sign in without passwords.
                       </p>
                     </div>
                     <Button onClick={() => { setSiteIdValue(""); setEditingSiteId(true); setSiteIdAvailable(null); }} data-testid="button-set-site-id">
-                      <QrCode className="mr-2 h-4 w-4" />
+                      <Link2 className="mr-2 h-4 w-4" />
                       Set Site ID
                     </Button>
                   </div>

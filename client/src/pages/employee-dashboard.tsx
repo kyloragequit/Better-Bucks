@@ -12,11 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Wallet, History, CreditCard, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins } from "lucide-react";
+import { Wallet, History, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins } from "lucide-react";
 import type { StoreItem, Wishlist, Goal } from "@shared/schema";
 import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
-import { QRCodeSVG } from "qrcode.react";
 import { differenceInDays, differenceInMinutes, format, formatDistanceToNow } from "date-fns";
 import { useTutorial } from "@/hooks/use-tutorial";
 
@@ -127,9 +126,9 @@ export default function EmployeeDashboard() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="mb-8">
         {/* Balance Card - Main Focus */}
-        <Card className="md:col-span-2 shadow-lg border-primary/20 bg-gradient-to-br from-primary/10 via-white to-white overflow-hidden relative" data-testid="card-balance">
+        <Card className="shadow-lg border-primary/20 bg-gradient-to-br from-primary/10 via-white to-white overflow-hidden relative" data-testid="card-balance">
           <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-primary font-bold">
@@ -158,29 +157,10 @@ export default function EmployeeDashboard() {
               </div>
             )}
             <p className="mt-3 text-sm text-muted-foreground max-w-md">
-              Use your Bucks to redeem rewards or make purchases at authorized locations using your QR code.
+              Use your Bucks to redeem rewards or make purchases at authorized locations.
             </p>
-          </CardContent>
-        </Card>
-
-        {/* QR Code Card */}
-        <Card className="shadow-lg border-primary/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-foreground font-bold">
-              <CreditCard className="h-5 w-5" /> Your ID
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center pt-4 pb-8">
-            <div className="bg-white p-4 rounded-lg border shadow-sm" data-testid="qr-code-container">
-              <QRCodeSVG
-                value={JSON.stringify({ id: userDetails.id, username: userDetails.username, barcode: userDetails.barcode })}
-                size={140}
-                level="M"
-                fgColor="#162A4A"
-              />
-            </div>
-            <p className="mt-4 text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
-              {userDetails.username}
+            <p className="mt-2 text-xs font-mono text-muted-foreground bg-muted inline-block px-2 py-1 rounded" data-testid="text-employee-code">
+              ID: {userDetails.username}
             </p>
           </CardContent>
         </Card>

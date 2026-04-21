@@ -19,7 +19,6 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { QRCodeSVG } from "qrcode.react";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { useRoleLabels } from "@/hooks/use-role-labels";
 import type { Department, TransactionCategory } from "@shared/schema";
@@ -566,27 +565,9 @@ export default function AdminEmployeeDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* QR Code Card */}
-        <Card className="md:col-span-1 shadow-md border-primary/10">
-          <CardHeader>
-            <CardTitle className="text-lg">Employee ID</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center pt-2 pb-6">
-             <div className="overflow-hidden rounded bg-white p-4 border">
-               <QRCodeSVG
-                 value={JSON.stringify({ id: user.id, username: user.username, barcode: user.barcode })}
-                 size={120}
-                 level="M"
-                 fgColor="#162A4A"
-               />
-             </div>
-             <p className="mt-4 text-sm text-muted-foreground font-mono">Code: {user.username}</p>
-          </CardContent>
-        </Card>
-
+      <div className="mb-8">
         {/* Balance Card */}
-        <Card className="md:col-span-2 shadow-md bg-gradient-to-br from-white to-primary/5 border-primary/10">
+        <Card className="shadow-md bg-gradient-to-br from-white to-primary/5 border-primary/10">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-lg font-medium">Current Balance</CardTitle>
             <Wallet className="h-5 w-5 text-primary" />

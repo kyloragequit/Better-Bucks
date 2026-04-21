@@ -330,8 +330,7 @@ function AddToTeamDialog({
 
   const availableUsers = users.filter(u =>
     u.id !== currentUserId &&
-    u.managerId !== currentUserId &&
-    u.role === "employee"
+    u.managerId !== currentUserId
   );
 
   const filteredAvailable = availableUsers.filter(u =>
@@ -370,12 +369,12 @@ function AddToTeamDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md" data-testid="dialog-add-to-team">
         <DialogHeader>
-          <DialogTitle>Add Employees to Your Team</DialogTitle>
+          <DialogTitle>Add Members to Your Team</DialogTitle>
         </DialogHeader>
         <div className="relative mb-3">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search employees..."
+            placeholder="Search people..."
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -386,8 +385,8 @@ function AddToTeamDialog({
           {filteredAvailable.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               {availableUsers.length === 0
-                ? "All employees are already on your team."
-                : "No employees match your search."}
+                ? "Everyone is already on your team."
+                : "No matches found."}
             </div>
           ) : (
             <div className="divide-y">

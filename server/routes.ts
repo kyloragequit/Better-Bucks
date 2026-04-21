@@ -5040,9 +5040,25 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       }
     }
     if (managerId !== null) {
+      if (managerId === id) {
+        return res.status(400).json({ message: "A user cannot be their own manager" });
+      }
       const manager = await storage.getUser(managerId);
       if (!manager || manager.organizationId !== user.organizationId || (manager.role !== "admin" && manager.role !== "prime_admin")) {
         return res.status(400).json({ message: "Invalid manager" });
+      }
+      // Walk the proposed manager's chain — if it leads back to the target, the assignment would form a cycle.
+      const orgUsers = await storage.getUsersByOrganization(user.organizationId!);
+      const byId = new Map(orgUsers.map(u => [u.id, u]));
+      let cursor: number | null = manager.managerId;
+      const seen = new Set<number>([manager.id]);
+      while (cursor !== null) {
+        if (cursor === id) {
+          return res.status(400).json({ message: "This assignment would create a circular manager chain" });
+        }
+        if (seen.has(cursor)) break;
+        seen.add(cursor);
+        cursor = byId.get(cursor)?.managerId ?? null;
       }
     }
     const updated = await storage.updateUserManager(id, managerId);

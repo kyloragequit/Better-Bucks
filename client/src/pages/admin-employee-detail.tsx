@@ -299,7 +299,7 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
 
   const adminMap = new Map(admins?.map(a => [a.id, a.fullName]) || []);
   const deptMap = new Map(departments?.map(d => [d.id, d.name]) || []);
-  const employees = allUsers?.filter(u => u.role === "employee") || [];
+  const employees = allUsers?.filter(u => u.id !== adminId) || [];
   const filtered = employees.filter(e => {
     const matchesSearch = !search || e.fullName.toLowerCase().includes(search.toLowerCase()) || e.username.toLowerCase().includes(search.toLowerCase());
     const matchesDept = deptFilter === "all" || (deptFilter === "none" && !e.departmentId) || e.departmentId?.toString() === deptFilter;
@@ -385,16 +385,16 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
         </DialogTrigger>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Manage Employees for {adminName}</DialogTitle>
+            <DialogTitle>Manage Team for {adminName}</DialogTitle>
             <DialogDescription>
-              Select which employees report to this manager. Click Done to review and save your changes.
+              Select which people report to this manager. Click Done to review and save your changes.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search employees..."
+                placeholder="Search people..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"

@@ -388,7 +388,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4" /> Allocate Bucks to Administrators</p>
                 <div className="flex items-center gap-2">
-                  {mgrCounts && mgrCounts.totalEmployees > 0 && serverBudget > 0 && (
+                  {mgrCounts && mgrCounts.counts.length > 0 && serverBudget > 0 && (
                     <button
                       type="button"
                       className="text-xs text-blue-600 hover:underline font-medium"
@@ -398,28 +398,30 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                           toast({ title: "Budget fully allocated", description: "The entire monthly budget has already been credited.", variant: "destructive" });
                           return;
                         }
-                        const assignedAdmins = mgrCounts.counts.filter(c => c.employeeCount > 0);
-                        if (assignedAdmins.length === 0) {
-                          toast({ title: "No employees assigned", description: "Assign employees to managers first on the Team page.", variant: "destructive" });
-                          return;
-                        }
-                        const assignedEmpCount = assignedAdmins.reduce((sum, c) => sum + c.employeeCount, 0);
+                        // Weighted share: every admin gets a base "+1" so admins with no
+                        // employees still receive a portion, while admins with more
+                        // employees receive proportionally more.
+                        const allAdmins = mgrCounts.counts;
+                        const totalWeight = allAdmins.reduce((sum, c) => sum + c.employeeCount + 1, 0);
                         const autoAmounts: Record<number, number> = {};
                         let totalUsed = 0;
-                        for (const c of assignedAdmins) {
-                          const share = Math.floor((c.employeeCount / assignedEmpCount) * remaining);
+                        for (const c of allAdmins) {
+                          const weight = c.employeeCount + 1;
+                          const share = Math.floor((weight / totalWeight) * remaining);
                           autoAmounts[c.adminId] = share;
                           totalUsed += share;
                         }
+                        // Distribute leftover bucks (from rounding) to the admins with
+                        // the most employees first, so weight is preserved.
                         let remainder = remaining - totalUsed;
-                        const sorted = [...assignedAdmins].sort((a, b) => b.employeeCount - a.employeeCount);
+                        const sorted = [...allAdmins].sort((a, b) => b.employeeCount - a.employeeCount);
                         for (const c of sorted) {
                           if (remainder <= 0) break;
                           autoAmounts[c.adminId]++;
                           remainder--;
                         }
                         setAutoAllocAmounts(autoAmounts);
-                        setSelectedAdmins(assignedAdmins.map(c => c.adminId));
+                        setSelectedAdmins(allAdmins.map(c => c.adminId));
                         setBucksEach("");
                       }}
                       data-testid="button-auto-allocate"

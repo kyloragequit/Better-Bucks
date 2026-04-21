@@ -1558,7 +1558,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         emailVerified: (!hasEmail && !hasPhone) || isEmployee,
         emailVerificationCode: verificationCode,
         status: "approved",
-        mustChangePassword: !!(userData.password && userData.password.length >= 6),
+        // Employees never go through the forced-change flow — only admins/prime_admins
+        // are required to set their own password on first login.
+        mustChangePassword: !isEmployee && !!(userData.password && userData.password.length >= 6),
         organizationId: user.organizationId,
       });
 
@@ -1908,7 +1910,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
               role,
               barcode: row.username.trim(),
               status: "approved",
-              mustChangePassword: !!(rawPassword && rawPassword.length >= 6),
+              // Employees never go through forced password change.
+              mustChangePassword: role !== "employee" && !!(rawPassword && rawPassword.length >= 6),
               organizationId: job.orgId,
               departmentId: deptId,
             });
@@ -2248,7 +2251,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     // to change it on their next login so the temporary password isn't
     // permanent. updateUserProfile sets mustChangePassword=false on any password
     // update, so we flip it back here for admin-on-other-user changes.
-    if (data.password && user.id !== id) {
+    // Employees are exempt — they're not asked to change their password on login.
+    if (data.password && user.id !== id && updatedUser.role !== "employee") {
       const [refreshed] = await db
         .update(users)
         .set({ mustChangePassword: true })

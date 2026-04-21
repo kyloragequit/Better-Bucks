@@ -194,7 +194,8 @@ function ProtectedRoute({
     if (!bypassVerification) return <Redirect to="/verify-email" />;
   }
 
-  if (user.mustChangePassword && window.location.pathname !== '/change-password') {
+  // Employees are never asked to change their password on login.
+  if (user.mustChangePassword && user.role !== 'employee' && window.location.pathname !== '/change-password') {
     return <Redirect to="/change-password" />;
   }
 

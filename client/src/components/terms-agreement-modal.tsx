@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useUser } from "@/hooks/use-auth";
+import { usePublicDemo } from "@/hooks/use-demo";
 import { apiRequest } from "@/lib/queryClient";
 
 const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/admin/"];
@@ -13,6 +14,7 @@ const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/adm
 export function TermsAgreementModal() {
   const [location] = useLocation();
   const { data: user } = useUser();
+  const isPublicDemo = usePublicDemo();
   const queryClient = useQueryClient();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [marketingAgreed, setMarketingAgreed] = useState(false);
@@ -26,6 +28,10 @@ export function TermsAgreementModal() {
   });
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
+
+  // In the public/full-service view, viewers may not accept terms and the modal
+  // should never appear (it would otherwise re-render on every nav).
+  if (isPublicDemo) return null;
 
   if (!user || user.termsAcceptedAt || !isOnAppPage) return null;
 

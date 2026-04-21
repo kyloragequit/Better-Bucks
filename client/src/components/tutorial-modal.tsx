@@ -1063,11 +1063,13 @@ export function TutorialModal() {
             </div>
             <button
               onClick={handleSkip}
-              className="text-white/50 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
               data-testid="button-tutorial-choice-skip"
               title="Skip for now"
+              aria-label="Skip tutorial"
             >
               <X className="h-5 w-5" />
+              <span>Skip</span>
             </button>
           </div>
 
@@ -1156,11 +1158,13 @@ export function TutorialModal() {
           </div>
           <button
             onClick={handleSkip}
-            className="text-white/50 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
             data-testid="button-tutorial-skip"
             title="Skip tutorial"
+            aria-label="Skip tutorial"
           >
             <X className="h-5 w-5" />
+            <span>Skip</span>
           </button>
         </div>
 

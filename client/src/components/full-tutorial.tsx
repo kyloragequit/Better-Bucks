@@ -406,8 +406,15 @@ function TooltipCard({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-white/50 text-xs">{stepIndex + 1}/{totalSteps}</span>
-          <button onClick={onSkip} className="text-white/40 hover:text-white transition-colors" title="Exit tour" data-testid="button-tutorial-close">
+          <button
+            onClick={onSkip}
+            className="flex items-center gap-1 px-2.5 py-1.5 min-h-[36px] rounded-md bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition-colors"
+            title="Exit tour"
+            data-testid="button-tutorial-close"
+            aria-label="Exit tour"
+          >
             <X className="h-4 w-4" />
+            <span>Exit</span>
           </button>
         </div>
       </div>
@@ -578,12 +585,14 @@ export function FullTutorialOverlay() {
     <>
       <button
         onClick={handleSkip}
-        className="fixed flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white shadow-lg transition-all duration-200 hover:opacity-80 hover:scale-105 animate-tooltip-enter"
+        className="fixed flex items-center gap-2 px-4 py-3 min-h-[44px] rounded-full text-sm font-bold text-white shadow-lg transition-all duration-200 hover:opacity-90 hover:scale-105 animate-tooltip-enter"
         style={{ top: 12, right: 12, zIndex: 10002, background: NAVY, pointerEvents: "auto" }}
         title="Exit tour"
         data-testid="button-exit-tour"
+        aria-label="Exit tour"
       >
-        <X className="h-3 w-3" /> Exit Tour
+        <X className="h-5 w-5" />
+        <span>Exit Tour</span>
       </button>
 
       <div

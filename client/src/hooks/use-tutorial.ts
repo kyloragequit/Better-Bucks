@@ -5,6 +5,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 // Scoped to user ID so a stale choice from one account never affects another
 const storageKey = (userId: number) => `bb_tutorial_type_${userId}`;
 const CHANGE_EVENT = "bb_tutorial_choice_change";
+// Fired ONLY when the user explicitly restarts the tutorial from settings.
+// Tutorial overlays listen for this to clear their local "force hide" flag so
+// the choice modal re-appears. We can't use a generic re-render for this
+// because the user may have already skipped the tutorial earlier — we don't
+// want the "skip" to be undone by an unrelated re-render of user data.
+export const TUTORIAL_RESET_EVENT = "bb_tutorial_reset";
 
 function readChoice(userId: number | undefined): "quick" | "full" | null {
   if (!userId || typeof window === "undefined") return null;
@@ -13,6 +19,10 @@ function readChoice(userId: number | undefined): "quick" | "full" | null {
 
 function broadcastChange() {
   window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+function broadcastReset() {
+  window.dispatchEvent(new Event(TUTORIAL_RESET_EVENT));
 }
 
 export function useTutorial() {
@@ -56,9 +66,17 @@ export function useTutorial() {
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
     try {
-      await apiRequest("POST", "/api/users/complete-tutorial");
-    } catch {}
-    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      const res = await apiRequest("POST", "/api/users/complete-tutorial");
+      const updated = await res.json().catch(() => null);
+      // Use the server's authoritative response so we don't race with a generic
+      // invalidation that could refetch stale data and re-open the tutorial.
+      if (updated && typeof updated === "object") {
+        queryClient.setQueryData(["/api/user"], updated);
+      }
+    } catch {
+      // If the server call failed, keep the optimistic update so the user
+      // isn't yanked back into the tutorial. They can restart from settings.
+    }
   };
 
   const skipTutorial = completeTutorial;
@@ -68,8 +86,19 @@ export function useTutorial() {
     restoreScroll();
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
-    await apiRequest("POST", "/api/users/reset-tutorial");
-    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    try {
+      const res = await apiRequest("POST", "/api/users/reset-tutorial");
+      const updated = await res.json().catch(() => null);
+      if (updated && typeof updated === "object") {
+        queryClient.setQueryData(["/api/user"], updated);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      }
+    } catch {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    }
+    // Tell any tutorial overlay that previously force-hid itself to reset.
+    broadcastReset();
   };
 
   return { showChoice, shouldShow, showFullTutorial, tutorialChoice, chooseTutorial, completeTutorial, skipTutorial, restartTutorial };

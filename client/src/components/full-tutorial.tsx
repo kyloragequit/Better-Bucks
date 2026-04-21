@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
-import { useTutorial } from "@/hooks/use-tutorial";
+import { useTutorial, TUTORIAL_RESET_EVENT } from "@/hooks/use-tutorial";
 import { useUser } from "@/hooks/use-auth";
 import { AppLogo } from "@/components/app-logo";
 import { ChevronLeft, ChevronRight, X, MapPin, ArrowRight, Sparkles } from "lucide-react";
@@ -483,12 +483,17 @@ export function FullTutorialOverlay() {
   const [animKey, setAnimKey] = useState(0);
 
   const dbCompleted = !!user && user.tutorialCompleted;
+  // Only clear forceHide when the user explicitly restarts the tutorial.
+  // (Watching [dbCompleted, forceHide] caused a race where a refetched user
+  // with tutorialCompleted=false would re-open the tutorial after Skip.)
   useEffect(() => {
-    if (!dbCompleted && forceHide) {
+    const handler = () => {
       setForceHide(false);
       setStepIndex(0);
-    }
-  }, [dbCompleted, forceHide]);
+    };
+    window.addEventListener(TUTORIAL_RESET_EVENT, handler);
+    return () => window.removeEventListener(TUTORIAL_RESET_EVENT, handler);
+  }, []);
 
   const role = user?.role ?? "employee";
   const steps = useMemo(() => getSteps(role), [role]);

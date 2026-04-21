@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { useTutorial } from "@/hooks/use-tutorial";
+import { useTutorial, TUTORIAL_RESET_EVENT } from "@/hooks/use-tutorial";
 import { useUser } from "@/hooks/use-auth";
 import { AppLogo } from "@/components/app-logo";
 import {
@@ -1002,13 +1002,19 @@ export function TutorialModal() {
   const [animating, setAnimating] = useState(false);
 
   const dbCompleted = !!user && user.tutorialCompleted;
+  // Only clear forceHide when the user explicitly restarts the tutorial.
+  // (Previously this watched [dbCompleted, forceHide] which created a race:
+  // a refetched user with tutorialCompleted=false would re-open the modal
+  // immediately after Skip, making the page appear frozen.)
   useEffect(() => {
-    if (!dbCompleted && forceHide) {
+    const handler = () => {
       setForceHide(false);
       setCurrentSlide(0);
       setShopDone(false);
-    }
-  }, [dbCompleted, forceHide]);
+    };
+    window.addEventListener(TUTORIAL_RESET_EVENT, handler);
+    return () => window.removeEventListener(TUTORIAL_RESET_EVENT, handler);
+  }, []);
 
   const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
   const isActive = !forceHide && (showChoice || shouldShow) && !!user && isOnAppPage && user?.role !== "developer" && !!user?.termsAcceptedAt;

@@ -2,6 +2,11 @@ User-agent: *
 Allow: /
 Allow: /about
 Allow: /how-it-works
+Allow: /website-services
+Allow: /web-design
+Allow: /website-design
+Allow: /website-builder
+Allow: /hire-a-web-developer
 Allow: /terms
 Allow: /blog
 Allow: /signup

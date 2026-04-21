@@ -4098,26 +4098,33 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         email: z.string().email("Valid email is required"),
         phone: z.string().min(1, "Phone number is required"),
         needs: z.string().min(1, "Please describe your needs"),
+        inquiryType: z.enum(["betterbucks", "website"]).optional(),
       });
 
-      const data = schema.parse(req.body);
+      const parsed = schema.parse(req.body);
+      const data = { ...parsed, inquiryType: parsed.inquiryType ?? "betterbucks" };
+      const isWebsite = data.inquiryType === "website";
 
       await db.insert(infoRequests).values(data);
 
       const dateStr = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
-      const subject = `RFI Better Bucks ${data.name} ${dateStr}`;
+      const subject = isWebsite
+        ? `Website Inquiry ${data.name} ${dateStr}`
+        : `RFI Better Bucks ${data.name} ${dateStr}`;
+      const heading = isWebsite ? "New Website Project Inquiry" : "New Information Request";
+      const detailsLabel = isWebsite ? "Project Details" : "Employee Incentive Needs";
 
       try {
         await sendEmail({
           to: ADMIN_NOTIFY_EMAIL,
           subject,
-          text: `New Information Request\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\nEmployee Incentive Needs:\n${data.needs}`,
+          text: `${heading}\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\n\n${detailsLabel}:\n${data.needs}`,
           html: `
-            <h2>New Information Request</h2>
+            <h2>${heading}</h2>
             <p><strong>Name:</strong> ${escapeHtml(data.name)}</p>
             <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
             <p><strong>Phone:</strong> ${escapeHtml(data.phone)}</p>
-            <h3>Employee Incentive Needs:</h3>
+            <h3>${detailsLabel}:</h3>
             <p>${escapeHtml(data.needs).replace(/\n/g, "<br>")}</p>
           `,
         });
@@ -4125,7 +4132,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         console.error("[RFI] Email failed:", err);
       }
 
-      res.json({ message: "Your request has been submitted. We'll be in touch!" });
+      res.json({ message: isWebsite
+        ? "Thanks! Miles will reach out shortly to talk about your project."
+        : "Your request has been submitted. We'll be in touch!" });
     } catch (error: any) {
       console.error("RFI submission error:", error);
       if (error.name === "ZodError") {

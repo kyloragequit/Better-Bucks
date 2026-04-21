@@ -1065,6 +1065,17 @@ export default function HowItWorksPage() {
                 Sign Up for Your Organization
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
+              <button
+                type="button"
+                onClick={() => setLocation("/website-services")}
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold rounded-full px-4 py-2 transition-colors hover:bg-gray-50"
+                style={{ color: NAVY, border: `1px dashed ${NAVY}40` }}
+                data-testid="link-website-services"
+              >
+                <span aria-hidden>✨</span>
+                Want a website like this? I build them too.
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
 

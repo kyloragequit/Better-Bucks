@@ -50,6 +50,7 @@ const AdminInstantTransactionPage = lazy(() => import("@/pages/admin-instant-tra
 const EmployeeSettingsPage = lazy(() => import("@/pages/employee-settings"));
 const AboutPage = lazy(() => import("@/pages/about"));
 const HowItWorksPage = lazy(() => import("@/pages/how-it-works"));
+const WebsiteServicesPage = lazy(() => import("@/pages/website-services"));
 const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const TermsPage = lazy(() => import("@/pages/terms"));
@@ -242,6 +243,11 @@ function Router() {
         <Route path="/" component={HowItWorksPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/how-it-works" component={HowItWorksPage} />
+        <Route path="/website-services" component={WebsiteServicesPage} />
+        <Route path="/web-design" component={WebsiteServicesPage} />
+        <Route path="/website-design" component={WebsiteServicesPage} />
+        <Route path="/website-builder" component={WebsiteServicesPage} />
+        <Route path="/hire-a-web-developer" component={WebsiteServicesPage} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/signup" component={SignupPage} />
         <Route path="/signup/success" component={SignupSuccessPage} />

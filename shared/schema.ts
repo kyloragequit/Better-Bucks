@@ -264,6 +264,7 @@ export const infoRequests = pgTable("info_requests", {
   email: text("email").notNull(),
   phone: text("phone").notNull(),
   needs: text("needs").notNull(),
+  inquiryType: text("inquiry_type").default("betterbucks").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

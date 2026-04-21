@@ -32,11 +32,20 @@ export default function ChangePasswordPage() {
       const res = await apiRequest("PATCH", `/api/users/${user?.id}/profile`, {
         password: newPassword,
       });
-      return res.json();
+      const body = await res.json().catch(() => ({}));
+      // Defensive: if the server ever asks for an extra confirmation code on
+      // the forced-change path, surface it as an error instead of silently
+      // navigating away with an unsaved password.
+      if (body?.needsEmailVerification) {
+        throw new Error(body.message || "Additional verification required");
+      }
+      return body;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      toast({ title: "Password updated", description: "Your new password is now active." });
+    onSuccess: async () => {
+      // Refetch the user so routing sees mustChangePassword=false before we navigate.
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+      toast({ title: "Password updated", description: "You're all set — welcome in." });
       const dest = (user?.role === "admin" || user?.role === "prime_admin") ? "/admin/dashboard" : "/dashboard";
       setLocation(dest);
     },

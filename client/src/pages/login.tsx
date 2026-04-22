@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { SiteFooter } from "@/components/site-footer";
 import { PageSEO } from "@/components/page-seo";
@@ -12,7 +12,7 @@ import { AppLogo } from "@/components/app-logo";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { startAuthentication } from "@simplewebauthn/browser";
+import { startAuthentication, browserSupportsWebAuthnAutofill } from "@simplewebauthn/browser";
 import { PasskeySetupPrompt } from "@/components/passkey-manager";
 import { Link } from "wouter";
 import { TurnstileWidget, TurnstileStep } from "@/components/turnstile-captcha";
@@ -135,6 +135,16 @@ function useLoginFlow() {
   return { submitLogin, isPending, captchaState, setCaptchaState };
 }
 
+// Shared controller so the manual "Sign in with Passkey" button can cancel
+// any in-flight Conditional UI request. Without this, two concurrent calls
+// to /api/passkeys/authenticate/start would race for the single per-session
+// challenge, and whichever request resolved last would invalidate the other.
+let conditionalPasskeyAbort: AbortController | null = null;
+function cancelConditionalPasskey() {
+  conditionalPasskeyAbort?.abort();
+  conditionalPasskeyAbort = null;
+}
+
 function usePasskeySignIn() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -143,6 +153,7 @@ function usePasskeySignIn() {
 
   async function signInWithPasskey(): Promise<boolean> {
     setIsPending(true);
+    cancelConditionalPasskey();
     try {
       const startRes = await fetch("/api/passkeys/authenticate/start", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
       if (!startRes.ok) throw new Error("Could not start passkey authentication");
@@ -220,6 +231,55 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { submitLogin, isPending: adminPending, captchaState, setCaptchaState } = useLoginFlow();
+  const conditionalStartedRef = useRef(false);
+
+  // iOS / Android Conditional UI: when supported, request a passkey assertion in
+  // the background so the platform shows Face ID / Touch ID / Windows Hello as
+  // an autofill suggestion on the username field.
+  useEffect(() => {
+    const ac = new AbortController();
+    conditionalPasskeyAbort = ac;
+    (async () => {
+      try {
+        if (conditionalStartedRef.current) return;
+        if (!(await browserSupportsWebAuthnAutofill())) return;
+        conditionalStartedRef.current = true;
+        const startRes = await fetch("/api/passkeys/authenticate/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          signal: ac.signal,
+        });
+        if (!startRes.ok || ac.signal.aborted) return;
+        const options = await startRes.json();
+        const credential = await startAuthentication({
+          optionsJSON: options,
+          useBrowserAutofill: true,
+        });
+        if (ac.signal.aborted) return;
+        const finishRes = await fetch("/api/passkeys/authenticate/finish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credential),
+          credentials: "include",
+          signal: ac.signal,
+        });
+        if (!finishRes.ok) return;
+        const user = await finishRes.json();
+        queryClient.setQueryData(["/api/user"], user);
+        toast({ title: "Signed in!", description: `Welcome back, ${user.fullName}` });
+        redirectAfterLogin(user.role, setLocation);
+      } catch {
+        // Silent — user may have ignored the autofill suggestion or the
+        // request was aborted because the manual passkey button took over.
+      }
+    })();
+    return () => {
+      ac.abort();
+      if (conditionalPasskeyAbort === ac) conditionalPasskeyAbort = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,7 +479,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
-            autoComplete="off"
+            autoComplete="username webauthn"
             data-testid="input-employee-code"
           />
         </div>

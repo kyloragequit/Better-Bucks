@@ -6079,8 +6079,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         transports: (pk.transports ?? []) as any,
       })),
       authenticatorSelection: {
-        residentKey: "preferred",
-        userVerification: "preferred",
+        residentKey: "required",
+        userVerification: "required",
+        requireResidentKey: true,
       },
     });
     (req.session as any).passkeyChallenge = options.challenge;
@@ -6127,7 +6128,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const { rpID } = getWebAuthnConfig(req);
     const options = await generateAuthenticationOptions({
       rpID,
-      userVerification: "preferred",
+      userVerification: "required",
       allowCredentials: [],
     });
     (req.session as any).passkeyChallenge = options.challenge;

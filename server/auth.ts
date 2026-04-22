@@ -267,6 +267,13 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
+    // Mobile Safari/Chrome will aggressively cache GET responses. Without
+    // these headers the client can replay a stale "terms not accepted" or
+    // "tutorial not completed" response after the user finished those flows,
+    // causing the modals to reappear on every page load.
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     if (req.isAuthenticated()) {
       const isPublicDemo = (req.session as any)?.isPublicDemo === true;
       const user = req.user as User;

@@ -18,12 +18,38 @@ export function TermsAgreementModal() {
   const queryClient = useQueryClient();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [marketingAgreed, setMarketingAgreed] = useState(false);
+  const [optimisticallyAccepted, setOptimisticallyAccepted] = useState(false);
 
   const { mutate: acceptTerms, isPending } = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/user/accept-terms", { marketingOptIn: marketingAgreed }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/user/accept-terms", { marketingOptIn: marketingAgreed });
+      return res.json().catch(() => null);
+    },
+    onMutate: () => {
+      // Hide the modal immediately so the user gets instant feedback on
+      // slow mobile networks. Optimistically mark terms as accepted in
+      // the cached user so dependent UI (tutorial, etc.) can proceed.
+      setOptimisticallyAccepted(true);
+      const prev = queryClient.getQueryData<any>(["/api/user"]);
+      if (prev) {
+        queryClient.setQueryData(["/api/user"], {
+          ...prev,
+          termsAcceptedAt: new Date().toISOString(),
+          marketingOptIn: marketingAgreed,
+        });
+      }
+      return { prev };
+    },
+    onSuccess: (updated) => {
+      if (updated && typeof updated === "object") {
+        // Use the server's authoritative value if available.
+        queryClient.setQueryData(["/api/user"], updated);
+      }
+    },
+    onError: (_err, _vars, ctx) => {
+      // Roll back the optimistic update so the user can retry.
+      setOptimisticallyAccepted(false);
+      if (ctx?.prev) queryClient.setQueryData(["/api/user"], ctx.prev);
     },
   });
 
@@ -33,7 +59,7 @@ export function TermsAgreementModal() {
   // should never appear (it would otherwise re-render on every nav).
   if (isPublicDemo) return null;
 
-  if (!user || user.termsAcceptedAt || !isOnAppPage) return null;
+  if (!user || user.termsAcceptedAt || optimisticallyAccepted || !isOnAppPage) return null;
 
   return (
     /* z-[10000] puts this above the tutorial modal at z-[9999] */

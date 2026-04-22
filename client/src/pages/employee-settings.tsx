@@ -9,7 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
-import { Lock, Mail, Trash2, KeyRound, User } from "lucide-react";
+import { Lock, Mail, Trash2, KeyRound, User, Gift } from "lucide-react";
+import { useUserDetails } from "@/hooks/use-users";
 import { useLocation } from "wouter";
 import { PasskeyManager } from "@/components/passkey-manager";
 import {
@@ -26,6 +27,7 @@ import {
 
 export default function EmployeeSettingsPage() {
   const { data: user } = useUser();
+  const { data: userDetails } = useUserDetails(user?.id || 0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -176,6 +178,46 @@ export default function EmployeeSettingsPage() {
     <EmployeeLayout>
       <div className="max-w-lg mx-auto space-y-6">
         <h1 className="text-2xl font-bold" data-testid="text-settings-title">My Profile</h1>
+
+        {userDetails?.customItems && userDetails.customItems.length > 0 && (
+          <Card data-testid="section-account-items">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Gift className="h-5 w-5 text-primary" />
+                My Items
+              </CardTitle>
+              <CardDescription>
+                Items you've been given by your team.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y">
+                {userDetails.customItems.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between py-3"
+                    data-testid={`account-item-${item.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Gift className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="font-medium" data-testid={`account-item-name-${item.id}`}>
+                        {item.name}
+                      </span>
+                    </div>
+                    <span
+                      className="font-bold tabular-nums text-primary"
+                      data-testid={`account-item-balance-${item.id}`}
+                    >
+                      {item.balance.toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

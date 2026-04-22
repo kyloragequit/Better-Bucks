@@ -1678,7 +1678,24 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (!userResult || userResult.organizationId !== user.organizationId) return res.status(404).send("User not found");
 
     const transactions = await storage.getTransactionsByUser(id);
-    res.json({ ...userResult, transactions });
+
+    // Include any custom items the user has been given (with current balance > 0).
+    // Surfaced on the employee dashboard and account details so people can see
+    // what they currently hold.
+    let customItems: { id: number; name: string; balance: number }[] = [];
+    if (userResult.organizationId) {
+      const orgItems = await storage.getCustomItemsByOrg(userResult.organizationId);
+      const balances = await Promise.all(
+        orgItems.map(item => storage.getCustomItemBalance(id, item.id).then(balance => ({
+          id: item.id,
+          name: item.name,
+          balance,
+        })))
+      );
+      customItems = balances.filter(b => b.balance > 0);
+    }
+
+    res.json({ ...userResult, transactions, customItems });
   });
 
   app.post(api.users.bulkCredit.path, async (req, res) => {

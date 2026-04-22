@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Wallet, History, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins } from "lucide-react";
+import { Wallet, History, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins, Gift } from "lucide-react";
 import type { StoreItem, Wishlist, Goal } from "@shared/schema";
 import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
@@ -165,6 +165,39 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Items I've been given */}
+      {userDetails.customItems && userDetails.customItems.length > 0 && (
+        <Card className="shadow-md border-border/60 mb-8" data-testid="section-my-items">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-primary" /> My Items
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Items you've received from your team. Show these on your account when redeeming.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {userDetails.customItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-white p-4 flex flex-col items-center text-center"
+                  data-testid={`my-item-${item.id}`}
+                >
+                  <Gift className="h-8 w-8 text-primary mb-2" />
+                  <p className="text-sm font-semibold text-foreground" data-testid={`my-item-name-${item.id}`}>
+                    {item.name}
+                  </p>
+                  <p className="text-2xl font-bold font-display text-primary mt-1" data-testid={`my-item-balance-${item.id}`}>
+                    {item.balance.toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Email for Updates */}
       <EmailUpdateSection userId={userDetails.id} currentEmail={userDetails.email} />

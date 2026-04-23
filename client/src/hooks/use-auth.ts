@@ -14,7 +14,15 @@ export function useUser() {
       return api.auth.check.responses[200].parse(await res.json());
     },
     retry: false,
-    staleTime: Infinity, // User data rarely changes without action
+    // Balances can change at any moment when an admin credits/debits the user
+    // (or distributes goal bucks, refunds an order, etc.), so we treat the
+    // cached user as fresh for only a short window and refetch on focus and
+    // periodically while the tab is open.
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 }
 

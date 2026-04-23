@@ -307,16 +307,18 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
       variant={variant === "destructive" ? "destructive" : "default"}
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
+      aria-label={label}
+      className="h-9 w-9 p-0 sm:w-auto sm:px-3"
       data-testid={`button-${action}-order-${orderId}`}
     >
       {mutation.isPending ? (
         <SpinningLogo className="h-4 w-4" />
       ) : action === "approved" ? (
-        <><Check className="mr-1 h-4 w-4" /> {label}</>
+        <><Check className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">{label}</span></>
       ) : action === "rejected" ? (
-        <><X className="mr-1 h-4 w-4" /> {label}</>
+        <><X className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">{label}</span></>
       ) : (
-        label
+        <><Check className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">{label}</span></>
       )}
     </Button>
   );

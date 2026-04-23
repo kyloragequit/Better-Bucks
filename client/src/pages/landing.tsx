@@ -237,9 +237,9 @@ export default function LandingPage() {
 
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <AppLogo size="sm" />
-            <span className="text-lg font-bold text-gray-900" data-testid="text-brand-name">Better Bucks</span>
+            <span className="text-base sm:text-lg font-bold text-gray-900 truncate" data-testid="text-brand-name">Better Bucks</span>
           </div>
           <div className="hidden sm:flex items-center gap-2">
             <Button
@@ -278,37 +278,46 @@ export default function LandingPage() {
               Sign Up
             </Button>
           </div>
-          <div className="sm:hidden flex items-center gap-2">
+          <div className="sm:hidden flex items-center gap-1.5 shrink-0">
             <Button
               variant="outline"
               size="sm"
+              className="px-2.5"
               onClick={() => setLocation("/login")}
               data-testid="button-header-login-mobile"
             >
-              <LogIn className="mr-1.5 h-4 w-4" />
               Log In
             </Button>
             <Button
               size="sm"
+              className="px-2.5"
               onClick={() => setLocation("/signup")}
               data-testid="button-header-signup-mobile"
             >
-              <Building2 className="mr-1.5 h-4 w-4" />
               Sign Up
             </Button>
             <div className="relative">
               <Button
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 data-testid="button-mobile-menu"
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-5 w-5" />
               </Button>
               {mobileMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                    <button
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => { setLocation("/about"); setMobileMenuOpen(false); }}
+                      data-testid="button-mobile-about"
+                    >
+                      <Info className="h-4 w-4" />
+                      About
+                    </button>
                     <button
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => { setLocation("/blog"); setMobileMenuOpen(false); }}
@@ -323,14 +332,6 @@ export default function LandingPage() {
                       data-testid="button-mobile-affiliate"
                     >
                       Affiliate Marketing
-                    </button>
-                    <button
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => { setLocation("/login"); setMobileMenuOpen(false); }}
-                      data-testid="button-mobile-login"
-                    >
-                      <LogIn className="h-4 w-4" />
-                      Log In
                     </button>
                   </div>
                 </>

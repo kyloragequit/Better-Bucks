@@ -93,8 +93,8 @@ export default function AdminOrdersPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(order.createdAt), "MMM d")}</span>
-                      <Button variant="ghost" size="sm" className="min-h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
-                        <Eye className="mr-1 h-3 w-3" />View
+                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setSelectedOrder(order)} aria-label={`View order from ${order.user?.fullName || "Unknown"}`} data-testid={`button-view-order-${order.id}`}>
+                        <Eye className="h-4 w-4" />
                       </Button>
                     </div>
                     {isPrime && !isPublicDemo && (
@@ -187,8 +187,8 @@ export default function AdminOrdersPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
-                        <Button variant="ghost" size="sm" className="min-h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-${order.id}`}>
-                          <Eye className="mr-1 h-3 w-3" />View
+                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setSelectedOrder(order)} aria-label={`View order from ${order.user?.fullName || "Unknown"}`} data-testid={`button-view-photos-${order.id}`}>
+                          <Eye className="h-4 w-4" />
                         </Button>
                       </div>
                       <div className="flex gap-1.5">

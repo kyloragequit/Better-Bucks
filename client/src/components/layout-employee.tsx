@@ -171,12 +171,19 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="container max-w-5xl mx-auto px-4 py-8 pb-24 md:pb-8 animate-in">
+      <main className="container max-w-5xl mx-auto px-4 py-8 pb-24 sm:pb-8 animate-in">
         {children}
       </main>
       <SiteFooter />
       <PaymentPausedDialog />
-      <MobileBottomNav items={navItems.slice(0, 4) as MobileNavItem[]} />
+      <MobileBottomNav
+        items={[
+          { href: "/dashboard", label: "Home", icon: Home, testId: "link-home" },
+          ...(features?.storeEnabled !== false ? [{ href: "/store", label: "Store", icon: Store, testId: "link-store" }] : []),
+          ...(features?.ordersEnabled !== false ? [{ href: "/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" }] : []),
+          { href: "/settings", label: "Settings", icon: User, testId: "link-settings" },
+        ].slice(0, 4) as MobileNavItem[]}
+      />
     </div>
   );
 }

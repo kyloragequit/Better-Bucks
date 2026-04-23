@@ -312,7 +312,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="container py-8 px-4 pb-24 md:pb-8 animate-in">
+      <main className="container py-8 px-4 pb-24 sm:pb-8 animate-in">
         {children}
       </main>
       <SiteFooter />
@@ -322,7 +322,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
           { href: "/admin/employees", label: "Employees", icon: Users, testId: "link-employees" },
           { href: "/admin/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
-          { href: "/admin/instant-transaction", label: "Quick TX", icon: Zap, testId: "link-instant-tx" },
+          {
+            href: user?.role === "prime_admin" ? "/admin/settings" : "/admin/account-settings",
+            label: "Settings",
+            icon: Settings,
+            testId: "link-settings",
+          },
         ] as MobileNavItem[]}
       />
     </div>

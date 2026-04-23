@@ -1029,12 +1029,28 @@ export function TutorialModal() {
     };
   }, [isActive]);
 
+  // iOS Safari quirk: when the modal swaps or unmounts in response to a tap,
+  // the synthesized click can land on an element underneath and (if it is an
+  // input) open the on-screen keyboard. Always blur the focused element first
+  // so the keyboard never appears. This also fixes the "have to tap twice
+  // to skip" bug where the first tap was being absorbed by keyboard dismiss.
+  const blurActive = () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && typeof el.blur === "function") el.blur();
+  };
+
   const handleSkip = useCallback(() => {
+    blurActive();
     document.body.style.overflow = "";
     document.documentElement.style.overflow = "";
     setForceHide(true);
     skipTutorial();
   }, [skipTutorial]);
+
+  const handleChoose = useCallback((type: "quick" | "full") => {
+    blurActive();
+    chooseTutorial(type);
+  }, [chooseTutorial]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -1068,7 +1084,9 @@ export function TutorialModal() {
               <span className="text-white font-bold text-sm">Welcome to Better Bucks!</span>
             </div>
             <button
+              type="button"
               onClick={handleSkip}
+              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
               className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
               data-testid="button-tutorial-choice-skip"
               title="Skip for now"
@@ -1092,7 +1110,9 @@ export function TutorialModal() {
 
             <div className="grid grid-cols-1 gap-3 text-left">
               <button
-                onClick={() => chooseTutorial("quick")}
+                type="button"
+                onClick={() => handleChoose("quick")}
+                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 data-testid="button-choose-quick-tour"
                 className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-primary/30 bg-gray-50 hover:bg-primary/5 transition-all duration-200 text-left group"
               >
@@ -1107,7 +1127,9 @@ export function TutorialModal() {
               </button>
 
               <button
-                onClick={() => chooseTutorial("full")}
+                type="button"
+                onClick={() => handleChoose("full")}
+                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 data-testid="button-choose-full-tour"
                 className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-green-300 bg-gray-50 hover:bg-green-50 transition-all duration-200 text-left group"
               >
@@ -1163,7 +1185,9 @@ export function TutorialModal() {
             </span>
           </div>
           <button
+            type="button"
             onClick={handleSkip}
+            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
             className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
             data-testid="button-tutorial-skip"
             title="Skip tutorial"

@@ -4,6 +4,7 @@ import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
 import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, HelpCircle, Store as StoreIcon } from "lucide-react";
+import { MobileBottomNav, type MobileNavItem } from "@/components/mobile-bottom-nav";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -123,7 +124,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
 
-          <nav className="hidden md:block">
+          <nav className="hidden sm:block">
             {(() => {
               const allItems = [
                 ...navItems.filter(item => item.href !== "/admin/instant-transaction"),
@@ -186,7 +187,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10"
+                      className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10"
                       onClick={() => startDemoMutation.mutate()}
                       disabled={startDemoMutation.isPending}
                       data-testid="button-start-demo"
@@ -202,11 +203,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   {isPublicDemo ? (
-                    <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
+                    <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
                       <Home className="h-5 w-5" />
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
+                    <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
                       <LogOut className="h-5 w-5" />
                     </Button>
                   )}
@@ -215,7 +216,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </Tooltip>
             </TooltipProvider>
 
-            <div className="md:hidden relative">
+            <div className="sm:hidden relative">
               <Button
                 variant="outline"
                 size="sm"
@@ -311,11 +312,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="container py-8 px-4 animate-in">
+      <main className="container py-8 px-4 pb-24 md:pb-8 animate-in">
         {children}
       </main>
       <SiteFooter />
       <PaymentPausedDialog />
+      <MobileBottomNav
+        items={[
+          { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
+          { href: "/admin/employees", label: "Employees", icon: Users, testId: "link-employees" },
+          { href: "/admin/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
+          { href: "/admin/instant-transaction", label: "Quick TX", icon: Zap, testId: "link-instant-tx" },
+        ] as MobileNavItem[]}
+      />
     </div>
   );
 }

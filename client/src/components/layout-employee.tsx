@@ -3,6 +3,7 @@ import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
 import { LogOut, Menu, X, LayoutDashboard, ShoppingCart, Store, User, Home, ClipboardList, HelpCircle } from "lucide-react";
+import { MobileBottomNav, type MobileNavItem } from "@/components/mobile-bottom-nav";
 import { SiInstagram } from "react-icons/si";
 import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
@@ -45,7 +46,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden sm:inline">Better Bucks</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden sm:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -78,16 +79,16 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
             </span>
             <NeedHelpButton />
             {isPublicDemo ? (
-              <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
+              <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
                 <Home className="h-5 w-5" />
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" className="hidden md:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
+              <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
                 <LogOut className="h-5 w-5" />
               </Button>
             )}
 
-            <div className="md:hidden relative">
+            <div className="sm:hidden relative">
               <Button
                 variant="outline"
                 size="sm"
@@ -170,11 +171,12 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="container max-w-5xl mx-auto px-4 py-8 animate-in">
+      <main className="container max-w-5xl mx-auto px-4 py-8 pb-24 md:pb-8 animate-in">
         {children}
       </main>
       <SiteFooter />
       <PaymentPausedDialog />
+      <MobileBottomNav items={navItems.slice(0, 4) as MobileNavItem[]} />
     </div>
   );
 }

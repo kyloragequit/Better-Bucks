@@ -424,16 +424,19 @@ export default function AdminStorePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs"
+                            className="h-8 text-xs"
                             onClick={() => openEdit(item)}
+                            aria-label={`Edit ${item.name}`}
                             data-testid={`button-edit-store-item-${item.id}`}
                           >
-                            <Pencil className="h-3 w-3 mr-1" /> Edit
+                            <Pencil className="h-3.5 w-3.5 sm:mr-1" />
+                            <span className="hidden sm:inline">Edit</span>
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive border-destructive/30" data-testid={`button-delete-store-item-${item.id}`}>
-                                <Trash2 className="h-3 w-3 mr-1" /> Remove
+                              <Button size="sm" variant="outline" className="h-8 text-xs text-destructive hover:text-destructive border-destructive/30" aria-label={`Remove ${item.name}`} data-testid={`button-delete-store-item-${item.id}`}>
+                                <Trash2 className="h-3.5 w-3.5 sm:mr-1" />
+                                <span className="hidden sm:inline">Remove</span>
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>

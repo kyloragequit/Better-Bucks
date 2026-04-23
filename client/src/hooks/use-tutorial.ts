@@ -12,6 +12,17 @@ const CHANGE_EVENT = "bb_tutorial_choice_change";
 // want the "skip" to be undone by an unrelated re-render of user data.
 export const TUTORIAL_RESET_EVENT = "bb_tutorial_reset";
 
+// Module-level, in-memory set of user IDs who dismissed the tutorial during
+// the current page session. This guards against a real race: the global
+// PageRefresher in App.tsx invalidates ALL queries on every route change.
+// If Skip triggers a navigation (full-tutorial does setLocation(homePath)),
+// /api/user is refetched and may return tutorialCompleted=false before the
+// POST /api/users/complete-tutorial settles, which would briefly re-open
+// the overlay. Any module reading this set is guaranteed to see the
+// dismissal regardless of what the server cache currently says, until the
+// user explicitly restarts the tutorial.
+const dismissedThisSession = new Set<number>();
+
 function readChoice(userId: number | undefined): "quick" | "full" | null {
   if (!userId || typeof window === "undefined") return null;
   return localStorage.getItem(storageKey(userId)) as "quick" | "full" | null;
@@ -40,10 +51,11 @@ export function useTutorial() {
   // Always read fresh from localStorage (never stale state)
   const tutorialChoice = readChoice(userId);
   const dbCompleted = !!user && user.tutorialCompleted;
+  const sessionDismissed = !!userId && dismissedThisSession.has(userId);
 
-  const showChoice = !!user && !dbCompleted && !tutorialChoice;
-  const shouldShow = !!user && !dbCompleted && tutorialChoice === "quick";
-  const showFullTutorial = !!user && !dbCompleted && tutorialChoice === "full";
+  const showChoice = !!user && !dbCompleted && !sessionDismissed && !tutorialChoice;
+  const shouldShow = !!user && !dbCompleted && !sessionDismissed && tutorialChoice === "quick";
+  const showFullTutorial = !!user && !dbCompleted && !sessionDismissed && tutorialChoice === "full";
 
   const chooseTutorial = (type: "quick" | "full") => {
     if (!userId) return;
@@ -61,7 +73,17 @@ export function useTutorial() {
 
   const completeTutorial = async () => {
     if (!user) return;
+    // Mark dismissed for this page session SYNCHRONOUSLY before any awaits or
+    // navigation. Both overlay components read this through the shouldShow /
+    // showFullTutorial / showChoice flags and will stay hidden even if a
+    // subsequent /api/user refetch lands with stale tutorialCompleted=false
+    // (e.g. PageRefresher invalidating queries on route change after Skip).
+    if (userId) dismissedThisSession.add(userId);
     restoreScroll();
+    // Cancel any in-flight /api/user refetch first — without this, a refetch
+    // started just before the POST resolves can land with the stale
+    // tutorialCompleted=false value and re-open the tutorial overlay.
+    await queryClient.cancelQueries({ queryKey: ["/api/user"] });
     queryClient.setQueryData(["/api/user"], { ...user, tutorialCompleted: true });
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
@@ -79,11 +101,18 @@ export function useTutorial() {
     }
   };
 
+  // skipTutorial is functionally identical to completeTutorial — both mark
+  // the tutorial as done and prevent it from re-opening. Keep them as a single
+  // implementation so any future change applies to both paths.
   const skipTutorial = completeTutorial;
 
   const restartTutorial = async () => {
     if (!user) return;
     restoreScroll();
+    // Explicit restart from Settings is the ONLY way to re-show the tutorial
+    // after dismissal — clear the session guard so the choice modal can
+    // re-appear once the server reset lands.
+    if (userId) dismissedThisSession.delete(userId);
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
     try {

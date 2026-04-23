@@ -1041,9 +1041,20 @@ export function TutorialModal() {
 
   const handleSkip = useCallback(() => {
     blurActive();
+    // Cancel any pending slide-animation timer so a queued setCurrentSlide
+    // can't fire after the modal has been dismissed.
+    if (slideTimerRef.current) {
+      clearTimeout(slideTimerRef.current);
+      slideTimerRef.current = undefined;
+    }
     document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
     document.documentElement.style.overflow = "";
     setForceHide(true);
+    // Fire the completion mutation AFTER local teardown so unmount can't
+    // cancel the optimistic setQueryData. completeTutorial is fire-and-forget.
     skipTutorial();
   }, [skipTutorial]);
 
@@ -1059,7 +1070,7 @@ export function TutorialModal() {
     return () => window.removeEventListener("keydown", onKey);
   }, [isActive, handleSkip]);
 
-  const slideTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const slideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>();
   useEffect(() => () => clearTimeout(slideTimerRef.current), []);
 
   const animateSlide = useCallback((direction: "next" | "prev", newIndex: number) => {
@@ -1157,8 +1168,16 @@ export function TutorialModal() {
 
   const handleNext = () => {
     if (isLast) {
+      if (slideTimerRef.current) {
+        clearTimeout(slideTimerRef.current);
+        slideTimerRef.current = undefined;
+      }
       document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
       document.documentElement.style.overflow = "";
+      setForceHide(true);
       completeTutorial();
       if (user.role === "employee") setLocation("/dashboard");
       else if (user.role === "prime_admin") setLocation("/admin/dashboard");

@@ -560,10 +560,19 @@ export function FullTutorialOverlay() {
   };
 
   const handleSkip = useCallback(() => {
+    // iOS Safari: blur any focused control so the "tap to skip" isn't
+    // absorbed by the on-screen keyboard dismiss gesture.
+    const el = document.activeElement as HTMLElement | null;
+    if (el && typeof el.blur === "function") el.blur();
     document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
     document.documentElement.style.overflow = "";
     setForceHide(true);
     setLocation(homePath);
+    // Fire the completion mutation AFTER local teardown so unmount can't
+    // cancel the optimistic setQueryData inside completeTutorial.
     skipTutorial();
   }, [homePath, setLocation, skipTutorial]);
 
@@ -594,9 +603,18 @@ export function FullTutorialOverlay() {
   return createPortal(
     <>
       <button
+        type="button"
         onClick={handleSkip}
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          zIndex: 10002,
+          background: NAVY,
+          pointerEvents: "auto",
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+        }}
         className="fixed flex items-center gap-2 px-4 py-3 min-h-[44px] rounded-full text-sm font-bold text-white shadow-lg transition-all duration-200 hover:opacity-90 hover:scale-105 animate-tooltip-enter"
-        style={{ top: 12, right: 12, zIndex: 10002, background: NAVY, pointerEvents: "auto" }}
         title="Exit tour"
         data-testid="button-exit-tour"
         aria-label="Exit tour"

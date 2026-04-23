@@ -110,54 +110,12 @@ export default function AdminEmployeesPage() {
             </>
           )}
         </div>
-        {/* Mobile: keep dialog triggers mounted but hidden, expose via overflow menu */}
-        <div className="sm:hidden flex items-center gap-2 w-full">
-          <div className="hidden" aria-hidden="true">
-            <BulkImportDialog departments={departments ?? []} demoMode={isPublicDemo} />
-            {!isPublicDemo && (
-              <>
-                <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
-                <BulkDebitDialog users={users ?? []} departments={departments ?? []} />
-                {isPrimeAdmin && <InviteUserDialog departments={departments ?? []} />}
-                <CreateEmployeeDialog />
-              </>
-            )}
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex-1 justify-start gap-2" data-testid="button-mobile-actions" aria-label="Employee actions menu">
-                <MoreVertical className="h-4 w-4" /> Actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Employee actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {!isPublicDemo && (
-                <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-add-employee"]') as HTMLButtonElement | null)?.click()} data-testid="menu-add-employee">
-                  <UserPlus className="h-4 w-4 mr-2" /> Add Employee
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-bulk-import"]') as HTMLButtonElement | null)?.click()} data-testid="menu-bulk-import">
-                <Upload className="h-4 w-4 mr-2" /> Bulk Import
-              </DropdownMenuItem>
-              {!isPublicDemo && (
-                <>
-                  <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-bulk-credit"]') as HTMLButtonElement | null)?.click()} data-testid="menu-bulk-credit">
-                    <TrendingUp className="h-4 w-4 mr-2" /> Bulk Credit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-bulk-debit"]') as HTMLButtonElement | null)?.click()} data-testid="menu-bulk-debit">
-                    <TrendingDown className="h-4 w-4 mr-2" /> Bulk Debit
-                  </DropdownMenuItem>
-                  {isPrimeAdmin && (
-                    <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-invite-user"]') as HTMLButtonElement | null)?.click()} data-testid="menu-invite-user">
-                      <Send className="h-4 w-4 mr-2" /> Invite User
-                    </DropdownMenuItem>
-                  )}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <MobileActionsMenu
+          isPublicDemo={isPublicDemo}
+          isPrimeAdmin={!!isPrimeAdmin}
+          departments={departments ?? []}
+          users={users ?? []}
+        />
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">
@@ -1878,5 +1836,63 @@ function BulkImportDialog({ departments, demoMode = false }: { departments: Depa
       </DialogContent>
       )}
     </Dialog>
+  );
+}
+
+function MobileActionsMenu({ isPublicDemo, isPrimeAdmin, departments, users }: { isPublicDemo: boolean; isPrimeAdmin: boolean; departments: Department[]; users: User[] }) {
+  const addRef = useRef<HTMLDivElement>(null);
+  const importRef = useRef<HTMLDivElement>(null);
+  const creditRef = useRef<HTMLDivElement>(null);
+  const debitRef = useRef<HTMLDivElement>(null);
+  const inviteRef = useRef<HTMLDivElement>(null);
+  const click = (ref: React.RefObject<HTMLDivElement>) => ref.current?.querySelector("button")?.click();
+  return (
+    <div className="sm:hidden flex items-center gap-2 w-full">
+      <div className="hidden" aria-hidden="true">
+        <div ref={importRef}><BulkImportDialog departments={departments} demoMode={isPublicDemo} /></div>
+        {!isPublicDemo && (
+          <>
+            <div ref={creditRef}><BulkCreditDialog users={users} departments={departments} /></div>
+            <div ref={debitRef}><BulkDebitDialog users={users} departments={departments} /></div>
+            {isPrimeAdmin && <div ref={inviteRef}><InviteUserDialog departments={departments} /></div>}
+            <div ref={addRef}><CreateEmployeeDialog /></div>
+          </>
+        )}
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="flex-1 justify-start gap-2" data-testid="button-mobile-actions" aria-label="Employee actions menu">
+            <MoreVertical className="h-4 w-4" /> Actions
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>Employee actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {!isPublicDemo && (
+            <DropdownMenuItem onSelect={() => click(addRef)} data-testid="menu-add-employee">
+              <UserPlus className="h-4 w-4 mr-2" /> Add Employee
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={() => click(importRef)} data-testid="menu-bulk-import">
+            <Upload className="h-4 w-4 mr-2" /> Bulk Import
+          </DropdownMenuItem>
+          {!isPublicDemo && (
+            <>
+              <DropdownMenuItem onSelect={() => click(creditRef)} data-testid="menu-bulk-credit">
+                <TrendingUp className="h-4 w-4 mr-2" /> Bulk Credit
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => click(debitRef)} data-testid="menu-bulk-debit">
+                <TrendingDown className="h-4 w-4 mr-2" /> Bulk Debit
+              </DropdownMenuItem>
+              {isPrimeAdmin && (
+                <DropdownMenuItem onSelect={() => click(inviteRef)} data-testid="menu-invite-user">
+                  <Send className="h-4 w-4 mr-2" /> Invite User
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

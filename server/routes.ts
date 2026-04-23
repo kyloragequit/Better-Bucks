@@ -1796,6 +1796,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if ("error" in result) return res.status(400).json({ message: result.error });
       invalidateUserCache(user.id);
       for (const targetId of validTargetIds) {
+        invalidateUserCache(targetId);
         void notifyEmployeeBalanceChange(targetId, amount, reason);
       }
       return res.json(result);
@@ -1813,9 +1814,11 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         userId: targetId, amount, reason, performedBy: user.id,
         ...(categoryId ? { categoryId } : {}),
       });
+      invalidateUserCache(targetId);
       void notifyEmployeeBalanceChange(targetId, amount, reason);
       credited++;
     }
+    invalidateUserCache(user.id);
 
     res.json({ credited });
   });
@@ -1847,6 +1850,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         reason,
         performedBy: user.id,
       });
+      invalidateUserCache(targetId);
       void notifyEmployeeBalanceChange(targetId, -deductAmount, reason);
       debited++;
     }
@@ -2108,6 +2112,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       });
       if ("error" in result) return res.status(400).json({ message: result.error });
       invalidateUserCache(user.id);
+      invalidateUserCache(id);
       void notifyEmployeeBalanceChange(id, amount, reason);
       return res.json(result.user);
     }
@@ -2129,6 +2134,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       performedBy: user.id,
       categoryId: (amount > 0 && categoryId) ? categoryId : null,
     });
+    invalidateUserCache(id);
+    invalidateUserCache(user.id);
     void notifyEmployeeBalanceChange(id, amount, reason);
 
     res.json(updatedUser);
@@ -2659,6 +2666,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         amount: -pointsCost,
         reason: `Order #${order.id}: ${description}`,
       });
+      invalidateUserCache(user.id);
       void notifyEmployeeBalanceChange(user.id, -pointsCost, `Order #${order.id}: ${description}`);
 
       res.status(201).json(order);
@@ -2716,6 +2724,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         amount: order.pointsCost,
         reason: `Order #${order.id} rejected - Bucks refunded`,
       });
+      invalidateUserCache(order.userId);
       void notifyEmployeeBalanceChange(order.userId, order.pointsCost, `Order #${order.id} rejected - Bucks refunded`);
     }
 
@@ -2763,6 +2772,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         reason: adjReason,
         performedBy: user.id,
       });
+      invalidateUserCache(order.userId);
       void notifyEmployeeBalanceChange(order.userId, -diff, adjReason);
     }
 
@@ -3645,6 +3655,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     for (const adminId of validAdminIds) {
       await storage.updateUserBalance(adminId, bucksEach);
       await storage.createTransaction({ userId: adminId, amount: bucksEach, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
+      invalidateUserCache(adminId);
     }
     res.json({ allocated: validAdminIds.length, bucksEach, total: validAdminIds.length * bucksEach });
   });
@@ -3664,6 +3675,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (!validAdminIds.has(adminId) || bucks <= 0) continue;
       await storage.updateUserBalance(adminId, bucks);
       await storage.createTransaction({ userId: adminId, amount: bucks, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
+      invalidateUserCache(adminId);
       totalAllocated += bucks;
       adminsAllocated++;
     }
@@ -4973,6 +4985,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       reason: purchaseReason,
       performedBy: user.id,
     });
+    invalidateUserCache(user.id);
     void notifyEmployeeBalanceChange(user.id, -totalCost, purchaseReason);
 
     let storeConvertedValue: string | null = null;
@@ -6018,12 +6031,15 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (goal.bucksDistributedAt) return res.status(400).json({ message: "Bucks already distributed" });
     const updated = await storage.distributeGoalBucks(goalId, user.organizationId, user.id);
     await storage.createGoalNotificationsForOrg(goalId, user.organizationId, "distributed");
-    // Notify each employee in the org that bucks landed in their balance.
+    // Notify each employee in the org that bucks landed in their balance,
+    // and invalidate their cached user record so the new balance is visible
+    // immediately on their next /api/user request.
     try {
       const orgUsers = await storage.getUsersByOrganization(user.organizationId);
       const reason = `Goal achieved: ${goal.title}`;
       for (const u of orgUsers) {
         if (u.role === "employee" && u.status === "approved") {
+          invalidateUserCache(u.id);
           void notifyEmployeeBalanceChange(u.id, goal.bucksReward, reason);
         }
       }

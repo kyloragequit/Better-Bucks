@@ -280,6 +280,15 @@ export default function LandingPage() {
           </div>
           <div className="sm:hidden flex items-center gap-2">
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/login")}
+              data-testid="button-header-login-mobile"
+            >
+              <LogIn className="mr-1.5 h-4 w-4" />
+              Log In
+            </Button>
+            <Button
               size="sm"
               onClick={() => setLocation("/signup")}
               data-testid="button-header-signup-mobile"

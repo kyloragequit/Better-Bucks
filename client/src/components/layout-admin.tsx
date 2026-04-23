@@ -232,7 +232,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     {navItems.map((item) => {
                       const Icon = item.icon;
                       return (
-                        <button
+                        <button type="button"
                           key={item.href}
                           className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm transition-colors ${
                             isActive(item.href) ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
@@ -246,7 +246,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       );
                     })}
                     {(user?.role === "admin" || user?.role === "prime_admin") ? (
-                      <button
+                      <button type="button"
                         className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm transition-colors ${
                           isActive("/admin/account-settings") ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
                         }`}
@@ -270,7 +270,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       </a>
                     )}
                     <div className="border-t my-1" />
-                    <button
+                    <button type="button"
                       className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => {
                         setMobileMenuOpen(false);
@@ -285,7 +285,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       Need Help?
                     </button>
                     {isPublicDemo ? (
-                      <button
+                      <button type="button"
                         className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); setMobileMenuOpen(false); }}
                         data-testid="mobile-button-home"
@@ -294,7 +294,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         Back to Home
                       </button>
                     ) : (
-                      <button
+                      <button type="button"
                         className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => { logout(); setMobileMenuOpen(false); }}
                         data-testid="mobile-button-logout"

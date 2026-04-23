@@ -342,7 +342,9 @@ export default function LandingPage() {
       </header>
 
       <section className="relative overflow-hidden">
-        <LogoBackground />
+        <div className="hidden sm:block">
+          <LogoBackground />
+        </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
           <div className="flex justify-center mb-6">

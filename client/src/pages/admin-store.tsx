@@ -246,14 +246,14 @@ export default function AdminStorePage() {
       {showHelp && <NeedHelpPanel onClose={() => setShowHelp(false)} />}
 
       <div className="max-w-3xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-display font-bold" data-testid="text-admin-store-title">Employee Store</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold truncate" data-testid="text-admin-store-title">Employee Store</h1>
             <p className="text-muted-foreground mt-1 text-sm">
               Add items that employees can browse and purchase with their Bucks.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               onClick={() => setShowHelp(true)}
@@ -261,7 +261,8 @@ export default function AdminStorePage() {
               data-testid="button-need-help"
             >
               <HelpCircle className="h-4 w-4" />
-              Need help?
+              <span className="hidden sm:inline">Need help?</span>
+              <span className="sm:hidden">Help</span>
             </Button>
             {!isPublicDemo && !showAddForm && !editingItem && (
               <Button onClick={() => setShowAddForm(true)} data-testid="button-add-store-item">

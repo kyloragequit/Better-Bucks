@@ -424,10 +424,11 @@ function CreateOrderDialog({ balance }: { balance: number }) {
                     <button
                       type="button"
                       onClick={() => removePhoto(idx)}
-                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-6 sm:min-w-6 bg-destructive text-destructive-foreground rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                       data-testid={`button-remove-photo-${idx}`}
+                      aria-label="Remove photo"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-4 w-4 sm:h-3 sm:w-3" />
                     </button>
                   </div>
                 ))}

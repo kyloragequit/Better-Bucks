@@ -396,12 +396,14 @@ function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; o
                 {order.pointsCost.toLocaleString()}
                 {canAdjustBucks && (
                   <button
+                    type="button"
                     onClick={() => setEditingBucks(true)}
-                    className="text-muted-foreground hover:text-primary transition-colors"
+                    className="inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-5 sm:min-w-5 text-muted-foreground hover:text-primary transition-colors"
                     title="Adjust Bucks"
+                    aria-label="Adjust Bucks"
                     data-testid="button-edit-bucks"
                   >
-                    <Pencil className="h-3 w-3" />
+                    <Pencil className="h-4 w-4 sm:h-3 sm:w-3" />
                   </button>
                 )}
               </span>

@@ -391,7 +391,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                   {mgrCounts && mgrCounts.counts.length > 0 && serverBudget > 0 && (
                     <button
                       type="button"
-                      className="text-xs text-blue-600 hover:underline font-medium"
+                      className="inline-flex items-center min-h-11 sm:min-h-0 px-2 -mx-2 sm:px-0 sm:mx-0 text-xs text-blue-600 hover:underline font-medium"
                       onClick={() => {
                         const remaining = Math.max(0, serverBudget - currentCredited);
                         if (remaining <= 0) {
@@ -431,7 +431,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                   )}
                   <button
                     type="button"
-                    className="text-xs text-primary hover:underline"
+                    className="inline-flex items-center min-h-11 sm:min-h-0 px-2 -mx-2 sm:px-0 sm:mx-0 text-xs text-primary hover:underline"
                     onClick={() => { setSelectedAdmins(selectedAdmins.length === regularAdmins.length ? [] : regularAdmins.map(a => a.id)); setAutoAllocAmounts(null); }}
                     data-testid="button-admins-select-all"
                   >
@@ -672,8 +672,9 @@ export default function AdminDashboardPage() {
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
           <button
+            type="button"
             onClick={restartTutorial}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 px-3 py-1.5 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 px-3 py-3 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5"
             data-testid="button-replay-tutorial"
           >
             <BookOpen className="h-3.5 w-3.5" />

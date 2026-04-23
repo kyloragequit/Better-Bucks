@@ -421,7 +421,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
                   autoComplete="new-password"
                   data-testid="input-emp-reg-password"
                 />
-                <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowRegPassword(v => !v)} tabIndex={-1}>
+                <button type="button" aria-label={showRegPassword ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 text-muted-foreground hover:text-foreground" onClick={() => setShowRegPassword(v => !v)} tabIndex={-1}>
                   {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -440,7 +440,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
                     autoComplete="new-password"
                     data-testid="input-emp-reg-confirm-password"
                   />
-                  <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowRegConfirmPassword(v => !v)} tabIndex={-1}>
+                  <button type="button" aria-label={showRegConfirmPassword ? "Hide password" : "Show password"} className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 text-muted-foreground hover:text-foreground" onClick={() => setShowRegConfirmPassword(v => !v)} tabIndex={-1}>
                     {showRegConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -490,7 +490,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
           <Label htmlFor="credential">Password or Site ID</Label>
           <button
             type="button"
-            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+            className="inline-flex items-center min-h-11 sm:min-h-0 px-2 -mx-2 sm:px-0 sm:mx-0 text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
             onClick={() => setLocation("/forgot-password")}
             data-testid="link-forgot-password"
           >
@@ -511,7 +511,8 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
           />
           <button
             type="button"
-            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={showCredential ? "Hide password" : "Show password"}
+            className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setShowCredential(v => !v)}
             tabIndex={-1}
             data-testid="button-toggle-password"

@@ -129,12 +129,13 @@ export function MobileWalletPrompt() {
           </div>
         </div>
         <button
+          type="button"
           aria-label="Dismiss"
           onClick={dismiss}
-          className="shrink-0 -mt-1 -mr-1 p-1 rounded-md text-muted-foreground hover:text-foreground"
+          className="shrink-0 -mt-1 -mr-1 inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 rounded-md text-muted-foreground hover:text-foreground"
           data-testid="button-mobile-wallet-close"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5 sm:h-4 sm:w-4" />
         </button>
       </div>
     </div>

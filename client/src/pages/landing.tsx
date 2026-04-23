@@ -311,7 +311,7 @@ export default function LandingPage() {
                   <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
                     <button
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full flex items-center gap-2 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => { setLocation("/about"); setMobileMenuOpen(false); }}
                       data-testid="button-mobile-about"
                     >
@@ -319,7 +319,7 @@ export default function LandingPage() {
                       About
                     </button>
                     <button
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full flex items-center gap-2 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => { setLocation("/blog"); setMobileMenuOpen(false); }}
                       data-testid="button-mobile-blog"
                     >
@@ -327,7 +327,7 @@ export default function LandingPage() {
                       Blog
                     </button>
                     <button
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full flex items-center gap-2 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => { setLocation("/affiliate"); setMobileMenuOpen(false); }}
                       data-testid="button-mobile-affiliate"
                     >

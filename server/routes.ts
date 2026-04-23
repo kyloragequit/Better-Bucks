@@ -18,6 +18,7 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { ensureStripeReady } from "./stripeLazy";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { pushPassUpdateForEmployee as _pushPassUpdateForEmployee } from "./walletPass";
 
 async function getStripeClient() {
   return getUncachableStripeClient();
@@ -30,7 +31,7 @@ import { sql, eq, and, gte, lte, gt, lt, inArray, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { organizations, users, infoRequests, transactions, orders, customItemTransactions, transactionCategories } from "@shared/schema";
 import cron from "node-cron";
-import type { User } from "@shared/schema";
+import type { User, Merchant } from "@shared/schema";
 
 function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -131,6 +132,8 @@ function getTransporter() {
  */
 async function notifyEmployeeBalanceChange(userId: number, change: number, reason: string): Promise<void> {
   if (!change) return;
+  // Always push the live balance to Apple Wallet whenever an employee's balance changes (no-op if pass/APNs not configured).
+  void _pushPassUpdateForEmployee(userId);
   try {
     const target = await storage.getUser(userId);
     if (!target) return;
@@ -7155,6 +7158,320 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const { year, month } = parsed.data;
     const report = await generateMonthlyReport(orgId, year, month);
     res.json(report);
+  });
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Apple Wallet tap-to-pay (closed loop) — Task #2
+  // ────────────────────────────────────────────────────────────────────────────
+  const { buildPassForEmployee, ensureWalletPassForEmployee, pushPassUpdateForEmployee, PassConfigError } =
+    await import("./walletPass");
+  const { signWalletQr, verifyWalletQr } = await import("./walletQrToken");
+
+  function requireMerchant(req: any, res: any, next: any) {
+    const id = req.session?.merchantId;
+    if (!id) return res.status(401).json({ message: "Merchant authentication required" });
+    next();
+  }
+  async function loadMerchant(req: any) {
+    const id = req.session?.merchantId;
+    if (!id) return null;
+    const m = await storage.getMerchant(id);
+    if (!m || m.status !== "active") return null;
+    return m;
+  }
+
+  // ── Merchant auth (separate session) ───────────────────────────────────────
+  app.post("/api/merchant/login", async (req, res) => {
+    try {
+      const schema = z.object({ email: z.string().email(), password: z.string().min(1) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid email or password" });
+      const m = await storage.getMerchantByEmail(parsed.data.email);
+      if (!m || m.status !== "active") return res.status(401).json({ message: "Invalid credentials" });
+      const ok = await verifyPassword(parsed.data.password, m.passwordHash);
+      if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+      (req.session as any).merchantId = m.id;
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Failed to start session" });
+        res.json({ id: m.id, name: m.name, email: m.email, orgId: m.orgId });
+      });
+    } catch (e: any) {
+      console.error("[merchant/login]", e);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/merchant/logout", (req, res) => {
+    if (req.session) (req.session as any).merchantId = undefined;
+    req.session?.save?.(() => res.json({ ok: true }));
+  });
+
+  app.get("/api/merchant/me", async (req, res) => {
+    const m = await loadMerchant(req);
+    if (!m) return res.status(401).json({ message: "Not logged in" });
+    res.json({ id: m.id, name: m.name, email: m.email, orgId: m.orgId });
+  });
+
+  app.get("/api/merchant/transactions", requireMerchant, async (req, res) => {
+    const m = await loadMerchant(req);
+    if (!m) return res.status(401).json({ message: "Not logged in" });
+    const txs = await storage.getMerchantTransactions(m.id, 100);
+    res.json(txs.map((t) => ({
+      id: t.id,
+      bucksAmount: t.bucksAmount,
+      createdAt: t.createdAt,
+      employee: t.employee ? { id: t.employee.id, fullName: t.employee.fullName, email: t.employee.email } : null,
+    })));
+  });
+
+  // ── Redemption (the merchant scans a QR) ──────────────────────────────────
+  app.post("/api/merchant/redeem", requireMerchant, async (req, res) => {
+    const m = await loadMerchant(req);
+    if (!m) return res.status(401).json({ message: "Not logged in" });
+    const schema = z.object({ token: z.string().min(10), amount: z.number().int().positive() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid scan data" });
+    const payload = verifyWalletQr(parsed.data.token);
+    if (!payload) return res.status(400).json({ message: "QR code is invalid or expired. Ask member to refresh their pass." });
+    if (payload.o !== m.orgId) return res.status(403).json({ message: "This member does not belong to your organization." });
+    // Validate the serial against an active wallet pass — rejects revoked / re-issued / forged serials.
+    if (!payload.s) return res.status(400).json({ message: "QR code is missing pass identifier. Ask member to refresh their pass." });
+    const pass = await storage.getWalletPassBySerial(payload.s);
+    if (!pass || !pass.active || pass.employeeId !== payload.e) {
+      return res.status(400).json({ message: "This pass is no longer valid. Ask the member to re-add their pass to Apple Wallet." });
+    }
+    const employee = await storage.getUser(payload.e);
+    if (!employee || employee.organizationId !== m.orgId) {
+      return res.status(404).json({ message: "Member not found in your organization." });
+    }
+    const reason = `Redeemed at merchant: ${m.name}`;
+    // Single DB transaction: conditional balance decrement + ledger transaction + merchant transaction.
+    // All three commit together or none of them do. Concurrent scans cannot overspend.
+    const result = await storage.redeemForMerchant({
+      employeeId: employee.id,
+      merchantId: m.id,
+      amount: parsed.data.amount,
+      reason,
+    });
+    if (!result.ok) {
+      if (result.reason === "missing") return res.status(404).json({ message: "Member not found." });
+      return res.status(400).json({ message: `Insufficient balance — member has ${result.currentBalance} Bucks.` });
+    }
+    void notifyEmployeeBalanceChange(employee.id, -parsed.data.amount, reason);
+    res.json({
+      ok: true,
+      employee: { id: employee.id, fullName: employee.fullName, email: employee.email },
+      deducted: parsed.data.amount,
+      newBalance: result.newBalance,
+    });
+  });
+
+  // ── Re-issue a wallet pass (invalidates the prior serial) ─────────────────
+  app.post("/api/wallet/reissue", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    const newPass = await ensureWalletPassForEmployee(u.id, { forceReissue: true });
+    res.json({ ok: true, serialNumber: newPass.serialNumber });
+  });
+
+  // ── Admin merchant management ─────────────────────────────────────────────
+  function requireAdmin(req: any, res: any, next: any) {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u || (u.role !== "admin" && u.role !== "prime_admin")) {
+      return res.status(403).json({ message: "Admin only" });
+    }
+    next();
+  }
+
+  app.get("/api/admin/merchants", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    if (!u.organizationId) return res.json([]);
+    const list = await storage.getMerchantsByOrg(u.organizationId);
+    res.json(list.map((m) => ({ id: m.id, name: m.name, email: m.email, status: m.status, createdAt: m.createdAt })));
+  });
+
+  app.post("/api/admin/merchants", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    if (!u.organizationId) return res.status(400).json({ message: "No organization" });
+    const schema = z.object({ name: z.string().min(1), email: z.string().email(), password: z.string().min(6) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid data" });
+    const dupe = await storage.getMerchantByEmail(parsed.data.email);
+    if (dupe) return res.status(400).json({ message: "A merchant with that email already exists." });
+    const passwordHash = await hashPassword(parsed.data.password);
+    const created = await storage.createMerchant({ orgId: u.organizationId, name: parsed.data.name, email: parsed.data.email, passwordHash });
+    res.status(201).json({ id: created.id, name: created.name, email: created.email, status: created.status });
+  });
+
+  app.patch("/api/admin/merchants/:id", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    const id = parseInt(req.params.id);
+    const merch = await storage.getMerchant(id);
+    if (!merch || merch.orgId !== u.organizationId) return res.status(404).json({ message: "Not found" });
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      email: z.string().email().optional(),
+      password: z.string().min(6).optional(),
+      status: z.enum(["active", "disabled"]).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+    const update: Partial<Pick<Merchant, "name" | "email" | "status" | "passwordHash">> = {};
+    if (parsed.data.name) update.name = parsed.data.name;
+    if (parsed.data.email) update.email = parsed.data.email;
+    if (parsed.data.status) update.status = parsed.data.status;
+    if (parsed.data.password) update.passwordHash = await hashPassword(parsed.data.password);
+    const updated = await storage.updateMerchant(id, update);
+    res.json({ id: updated.id, name: updated.name, email: updated.email, status: updated.status });
+  });
+
+  app.delete("/api/admin/merchants/:id", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    const id = parseInt(req.params.id);
+    const merch = await storage.getMerchant(id);
+    if (!merch || merch.orgId !== u.organizationId) return res.status(404).json({ message: "Not found" });
+    await storage.deleteMerchant(id);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/admin/merchants/:id/transactions", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    const id = parseInt(req.params.id);
+    const merch = await storage.getMerchant(id);
+    if (!merch || merch.orgId !== u.organizationId) return res.status(404).json({ message: "Not found" });
+    const txs = await storage.getMerchantTransactions(id, 200);
+    res.json(txs.map((t) => ({
+      id: t.id, bucksAmount: t.bucksAmount, createdAt: t.createdAt,
+      employee: t.employee ? { id: t.employee.id, fullName: t.employee.fullName, email: t.employee.email } : null,
+    })));
+  });
+
+  // ── Wallet pass: employee-facing ──────────────────────────────────────────
+  app.get("/api/wallet/qr-token", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    const pass = await ensureWalletPassForEmployee(u.id);
+    const token = signWalletQr({ e: u.id, o: u.organizationId || 0, s: pass.serialNumber }, 300);
+    res.json({ token, expiresInSec: 300, serialNumber: pass.serialNumber });
+  });
+
+  app.get("/api/wallet/status", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    const configured = !!(process.env.APPLE_PASS_TYPE_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_PASS_CERT_P12 && process.env.APPLE_WWDR_CERT);
+    const pushConfigured = !!(process.env.APPLE_APN_KEY && process.env.APPLE_APN_KEY_ID);
+    res.json({ configured, pushConfigured });
+  });
+
+  app.get("/api/wallet/pass.pkpass", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    try {
+      const built = await buildPassForEmployee(u.id, req);
+      res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+      res.setHeader("Content-Disposition", `attachment; filename="better-bucks-${u.id}.pkpass"`);
+      res.send(built.buffer);
+    } catch (err: any) {
+      if (err instanceof PassConfigError) return res.status(503).json({ message: err.message });
+      console.error("[wallet/pass]", err);
+      res.status(500).json({ message: err?.message || "Failed to build pass" });
+    }
+  });
+
+  // ── Apple PassKit web service ─────────────────────────────────────────────
+  // Spec: https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html
+
+  function checkPassAuth(req: any, pass: { authToken: string }): boolean {
+    const auth = String(req.headers.authorization || "");
+    const m = /^ApplePass\s+(.+)$/.exec(auth);
+    if (!m) return false;
+    try { return crypto.timingSafeEqual(Buffer.from(m[1]), Buffer.from(pass.authToken)); }
+    catch { return false; }
+  }
+
+  app.post("/api/wallet/v1/devices/:deviceLibraryIdentifier/registrations/:passTypeIdentifier/:serialNumber", async (req, res) => {
+    const { deviceLibraryIdentifier, serialNumber } = req.params;
+    const pass = await storage.getWalletPassBySerial(serialNumber);
+    if (!pass) return res.status(404).end();
+    if (!checkPassAuth(req, pass)) return res.status(401).end();
+    if (!pass.active) return res.status(401).end();
+    const pushToken = String((req.body && req.body.pushToken) || "");
+    if (!pushToken) return res.status(400).end();
+    const existing = await storage.listWalletDevicesForSerial(serialNumber);
+    const already = existing.find((d) => d.deviceLibraryIdentifier === deviceLibraryIdentifier);
+    await storage.registerWalletDevice({ serialNumber, deviceLibraryIdentifier, pushToken });
+    res.status(already ? 200 : 201).end();
+  });
+
+  app.delete("/api/wallet/v1/devices/:deviceLibraryIdentifier/registrations/:passTypeIdentifier/:serialNumber", async (req, res) => {
+    const { deviceLibraryIdentifier, serialNumber } = req.params;
+    const pass = await storage.getWalletPassBySerial(serialNumber);
+    if (!pass) return res.status(200).end();
+    if (!checkPassAuth(req, pass)) return res.status(401).end();
+    await storage.unregisterWalletDevice(deviceLibraryIdentifier, serialNumber);
+    res.status(200).end();
+  });
+
+  app.get("/api/wallet/v1/devices/:deviceLibraryIdentifier/registrations/:passTypeIdentifier", async (req, res) => {
+    const { deviceLibraryIdentifier, passTypeIdentifier } = req.params;
+    // Reject calls for any pass type other than ours so other clients can't enumerate registrations.
+    const expectedPassTypeId = process.env.APPLE_PASS_TYPE_ID;
+    if (expectedPassTypeId && passTypeIdentifier !== expectedPassTypeId) {
+      return res.status(404).end();
+    }
+    const serials = await storage.listWalletSerialsForDevice(deviceLibraryIdentifier, passTypeIdentifier);
+    if (!serials.length) return res.status(204).end();
+    const all = await Promise.all(serials.map((s) => storage.getWalletPassBySerial(s)));
+    // Authorize: caller must present `Authorization: ApplePass <token>` matching one of the device's
+    // registered passes. This binds the response to the same secret a real Apple Wallet client already
+    // holds (it stored it from pass.json's authenticationToken when registering).
+    const authHeader = String(req.headers.authorization || "");
+    const m = /^ApplePass\s+(.+)$/.exec(authHeader);
+    if (!m) return res.status(401).end();
+    const presented = Buffer.from(m[1]);
+    const ok = all.some((p) => {
+      if (!p) return false;
+      const expected = Buffer.from(p.authToken);
+      if (expected.length !== presented.length) return false;
+      try { return crypto.timingSafeEqual(expected, presented); } catch { return false; }
+    });
+    if (!ok) return res.status(401).end();
+    const since = req.query.passesUpdatedSince ? String(req.query.passesUpdatedSince) : null;
+    let lastUpdated = "0";
+    const out: string[] = [];
+    for (const p of all) {
+      if (!p) continue;
+      const tag = p.lastUpdatedTag || "0";
+      if (since && tag <= since) continue;
+      out.push(p.serialNumber);
+      if (tag > lastUpdated) lastUpdated = tag;
+    }
+    if (!out.length) return res.status(204).end();
+    res.json({ serialNumbers: out, lastUpdated });
+  });
+
+  app.get("/api/wallet/v1/passes/:passTypeIdentifier/:serialNumber", async (req, res) => {
+    const { serialNumber } = req.params;
+    const pass = await storage.getWalletPassBySerial(serialNumber);
+    if (!pass) return res.status(404).end();
+    if (!checkPassAuth(req, pass)) return res.status(401).end();
+    if (!pass.active) return res.status(401).end();
+    try {
+      const built = await buildPassForEmployee(pass.employeeId, req, { serialNumber: pass.serialNumber });
+      res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+      res.setHeader("Last-Modified", new Date().toUTCString());
+      res.send(built.buffer);
+    } catch (err: any) {
+      if (err instanceof PassConfigError) return res.status(503).json({ message: err.message });
+      console.error("[wallet/passes]", err);
+      res.status(500).end();
+    }
+  });
+
+  app.post("/api/wallet/v1/log", (req, res) => {
+    const logs = (req.body && req.body.logs) || [];
+    if (Array.isArray(logs) && logs.length) console.warn("[apple-wallet-log]", JSON.stringify(logs).slice(0, 1000));
+    res.status(200).end();
   });
 
   return httpServer;

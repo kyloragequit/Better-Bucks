@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, HelpCircle } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, HelpCircle, Store as StoreIcon } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
@@ -103,6 +103,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/goals", label: "Goals", icon: Target },
     { href: "/admin/surveys", label: "Surveys", icon: ClipboardList },
     { href: "/admin/items", label: "Items", icon: Package },
+    { href: "/admin/merchants", label: "Merchants", icon: StoreIcon },
     { href: "/admin/documents", label: "Documents", icon: FileText },
     ...(user?.role === "prime_admin" ? [
       { href: "/admin/pending", label: "Pending Accounts", icon: ClipboardCheck },

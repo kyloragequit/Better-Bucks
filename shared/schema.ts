@@ -486,3 +486,54 @@ export const enterpriseAccounts = pgTable("enterprise_accounts", {
 export const insertEnterpriseAccountSchema = createInsertSchema(enterpriseAccounts).omit({ id: true, createdAt: true, cancelledAt: true, stripeCustomerId: true, stripeSubscriptionId: true, organizationId: true, status: true });
 export type EnterpriseAccount = typeof enterpriseAccounts.$inferSelect;
 export type InsertEnterpriseAccount = z.infer<typeof insertEnterpriseAccountSchema>;
+
+// ── Merchants (Apple Wallet tap-to-pay closed-loop) ──────────────────────────
+export const merchants = pgTable("merchants", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  status: text("status", { enum: ["active", "disabled"] }).default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const merchantTransactions = pgTable("merchant_transactions", {
+  id: serial("id").primaryKey(),
+  merchantId: integer("merchant_id").notNull(),
+  employeeId: integer("employee_id").notNull(),
+  bucksAmount: integer("bucks_amount").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const walletPasses = pgTable("wallet_passes", {
+  serialNumber: text("serial_number").primaryKey(),
+  employeeId: integer("employee_id").notNull(),
+  authToken: text("auth_token").notNull(),
+  active: boolean("active").default(true).notNull(),
+  lastUpdatedTag: text("last_updated_tag"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const walletPassDevices = pgTable("wallet_pass_devices", {
+  id: serial("id").primaryKey(),
+  serialNumber: text("serial_number").notNull(),
+  deviceLibraryIdentifier: text("device_library_identifier").notNull(),
+  pushToken: text("push_token").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMerchantSchema = createInsertSchema(merchants).omit({ id: true, createdAt: true, passwordHash: true }).extend({
+  password: z.string().min(6),
+});
+export type Merchant = typeof merchants.$inferSelect;
+export type InsertMerchant = z.infer<typeof insertMerchantSchema>;
+
+export const insertMerchantTransactionSchema = createInsertSchema(merchantTransactions).omit({ id: true, createdAt: true });
+export type MerchantTransaction = typeof merchantTransactions.$inferSelect;
+export type InsertMerchantTransaction = z.infer<typeof insertMerchantTransactionSchema>;
+
+export type WalletPass = typeof walletPasses.$inferSelect;
+export type InsertWalletPass = typeof walletPasses.$inferInsert;
+export type WalletPassDevice = typeof walletPassDevices.$inferSelect;
+export type InsertWalletPassDevice = typeof walletPassDevices.$inferInsert;

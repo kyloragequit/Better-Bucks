@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, transactionCategories, monthlyReports, enterpriseAccounts, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, walletPasses, walletPassDevices, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -8,6 +8,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserBalance(userId: number, amount: number): Promise<User>;
+  tryDeductBalance(userId: number, amount: number): Promise<User | null>;
   updateUserRole(userId: number, role: "admin" | "employee" | "prime_admin"): Promise<User>;
   approveAdminUser(userId: number): Promise<User>;
   getPendingAdmins(): Promise<User[]>;
@@ -179,6 +180,30 @@ export interface IStorage {
   getEnterpriseAccount(id: number): Promise<EnterpriseAccount | undefined>;
   updateEnterpriseAccount(id: number, data: Partial<EnterpriseAccount>): Promise<EnterpriseAccount>;
   deleteEnterpriseAccount(id: number): Promise<void>;
+
+  // Merchants
+  createMerchant(data: { orgId: number; name: string; email: string; passwordHash: string; status?: "active" | "disabled" }): Promise<Merchant>;
+  getMerchant(id: number): Promise<Merchant | undefined>;
+  getMerchantsByOrg(orgId: number): Promise<Merchant[]>;
+  getMerchantByEmail(email: string): Promise<Merchant | undefined>;
+  updateMerchant(id: number, data: Partial<{ name: string; email: string; passwordHash: string; status: "active" | "disabled" }>): Promise<Merchant>;
+  deleteMerchant(id: number): Promise<void>;
+  createMerchantTransaction(data: InsertMerchantTransaction): Promise<MerchantTransaction>;
+  getMerchantTransactions(merchantId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User })[]>;
+  getMerchantTransactionsByOrg(orgId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User; merchant?: Merchant })[]>;
+
+  // Wallet passes
+  createWalletPass(data: InsertWalletPass): Promise<WalletPass>;
+  getWalletPassBySerial(serial: string): Promise<WalletPass | undefined>;
+  getActiveWalletPassForEmployee(employeeId: number): Promise<WalletPass | undefined>;
+  updateWalletPassTag(serial: string, tag: string): Promise<void>;
+  deactivateWalletPass(serial: string): Promise<void>;
+  registerWalletDevice(data: InsertWalletPassDevice): Promise<WalletPassDevice>;
+  unregisterWalletDevice(deviceLibraryIdentifier: string, serial: string): Promise<void>;
+  listWalletDevicesForSerial(serial: string): Promise<WalletPassDevice[]>;
+  listWalletSerialsForDevice(deviceLibraryIdentifier: string, passTypeId: string): Promise<string[]>;
+  redeemForMerchant(args: { employeeId: number; merchantId: number; amount: number; reason: string }):
+    Promise<{ ok: true; newBalance: number; transaction: Transaction; merchantTransaction: MerchantTransaction } | { ok: false; reason: "insufficient"; currentBalance: number } | { ok: false; reason: "missing" }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -208,6 +233,16 @@ export class DatabaseStorage implements IStorage {
       .returning();
     if (!updatedUser) throw new Error("User not found");
     return updatedUser;
+  }
+
+  async tryDeductBalance(userId: number, amount: number): Promise<User | null> {
+    if (amount <= 0) throw new Error("amount must be positive");
+    const [updatedUser] = await db
+      .update(users)
+      .set({ balance: sql`${users.balance} - ${amount}` })
+      .where(sql`${users.id} = ${userId} AND ${users.balance} >= ${amount}`)
+      .returning();
+    return updatedUser ?? null;
   }
 
   async updateUserRole(userId: number, role: "admin" | "employee" | "prime_admin"): Promise<User> {
@@ -1252,4 +1287,150 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// ── Merchant + Wallet Pass methods ────────────────────────────────────────────
+// Declaration merging so TS sees these prototype-attached methods on the class.
+export interface DatabaseStorage {
+  createMerchant: IStorage["createMerchant"];
+  getMerchant: IStorage["getMerchant"];
+  getMerchantsByOrg: IStorage["getMerchantsByOrg"];
+  getMerchantByEmail: IStorage["getMerchantByEmail"];
+  updateMerchant: IStorage["updateMerchant"];
+  deleteMerchant: IStorage["deleteMerchant"];
+  createMerchantTransaction: IStorage["createMerchantTransaction"];
+  getMerchantTransactions: IStorage["getMerchantTransactions"];
+  getMerchantTransactionsByOrg: IStorage["getMerchantTransactionsByOrg"];
+  createWalletPass: IStorage["createWalletPass"];
+  getWalletPassBySerial: IStorage["getWalletPassBySerial"];
+  getActiveWalletPassForEmployee: IStorage["getActiveWalletPassForEmployee"];
+  updateWalletPassTag: IStorage["updateWalletPassTag"];
+  deactivateWalletPass: IStorage["deactivateWalletPass"];
+  registerWalletDevice: IStorage["registerWalletDevice"];
+  unregisterWalletDevice: IStorage["unregisterWalletDevice"];
+  listWalletDevicesForSerial: IStorage["listWalletDevicesForSerial"];
+  listWalletSerialsForDevice: IStorage["listWalletSerialsForDevice"];
+  redeemForMerchant: IStorage["redeemForMerchant"];
+  tryDeductBalance: IStorage["tryDeductBalance"];
+}
+DatabaseStorage.prototype.createMerchant = async function (data) {
+  const [m] = await db.insert(merchants).values(data).returning();
+  return m;
+};
+DatabaseStorage.prototype.getMerchant = async function (id) {
+  const [m] = await db.select().from(merchants).where(eq(merchants.id, id));
+  return m;
+};
+DatabaseStorage.prototype.getMerchantsByOrg = async function (orgId) {
+  return db.select().from(merchants).where(eq(merchants.orgId, orgId)).orderBy(desc(merchants.createdAt));
+};
+DatabaseStorage.prototype.getMerchantByEmail = async function (email) {
+  const [m] = await db.select().from(merchants).where(sql`lower(${merchants.email}) = lower(${email})`);
+  return m;
+};
+DatabaseStorage.prototype.updateMerchant = async function (id, data) {
+  const [m] = await db.update(merchants).set(data).where(eq(merchants.id, id)).returning();
+  return m;
+};
+DatabaseStorage.prototype.deleteMerchant = async function (id) {
+  await db.delete(merchants).where(eq(merchants.id, id));
+};
+DatabaseStorage.prototype.createMerchantTransaction = async function (data) {
+  const [t] = await db.insert(merchantTransactions).values(data).returning();
+  return t;
+};
+DatabaseStorage.prototype.getMerchantTransactions = async function (merchantId, limit = 100) {
+  const rows = await db.select().from(merchantTransactions)
+    .where(eq(merchantTransactions.merchantId, merchantId))
+    .orderBy(desc(merchantTransactions.createdAt))
+    .limit(limit);
+  const empIds = Array.from(new Set(rows.map((r) => r.employeeId)));
+  const emps = empIds.length ? await db.select().from(users).where(inArray(users.id, empIds)) : [];
+  const byId = new Map(emps.map((e) => [e.id, e]));
+  return rows.map((r) => ({ ...r, employee: byId.get(r.employeeId) }));
+};
+DatabaseStorage.prototype.getMerchantTransactionsByOrg = async function (orgId, limit = 200) {
+  const merchList = await db.select().from(merchants).where(eq(merchants.orgId, orgId));
+  if (!merchList.length) return [];
+  const ids = merchList.map((m) => m.id);
+  const rows = await db.select().from(merchantTransactions)
+    .where(inArray(merchantTransactions.merchantId, ids))
+    .orderBy(desc(merchantTransactions.createdAt))
+    .limit(limit);
+  const empIds = Array.from(new Set(rows.map((r) => r.employeeId)));
+  const emps = empIds.length ? await db.select().from(users).where(inArray(users.id, empIds)) : [];
+  const empById = new Map(emps.map((e) => [e.id, e]));
+  const merchById = new Map(merchList.map((m) => [m.id, m]));
+  return rows.map((r) => ({ ...r, employee: empById.get(r.employeeId), merchant: merchById.get(r.merchantId) }));
+};
+
+DatabaseStorage.prototype.createWalletPass = async function (data) {
+  const [p] = await db.insert(walletPasses).values(data).returning();
+  return p;
+};
+
+// Atomic merchant redemption: conditional balance decrement + ledger inserts in one DB transaction.
+// Either all three writes commit together, or none of them do.
+DatabaseStorage.prototype.redeemForMerchant = async function ({ employeeId, merchantId, amount, reason }) {
+  if (amount <= 0) throw new Error("amount must be positive");
+  return db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(users)
+      .set({ balance: sql`${users.balance} - ${amount}` })
+      .where(sql`${users.id} = ${employeeId} AND ${users.balance} >= ${amount}`)
+      .returning();
+    if (!updated) {
+      const [u] = await tx.select().from(users).where(eq(users.id, employeeId));
+      if (!u) return { ok: false as const, reason: "missing" as const };
+      return { ok: false as const, reason: "insufficient" as const, currentBalance: u.balance ?? 0 };
+    }
+    const [transaction] = await tx
+      .insert(transactions)
+      .values({ userId: employeeId, amount: -amount, reason, performedBy: null })
+      .returning();
+    const [merchantTransaction] = await tx
+      .insert(merchantTransactions)
+      .values({ merchantId, employeeId, bucksAmount: amount })
+      .returning();
+    return { ok: true as const, newBalance: updated.balance ?? 0, transaction, merchantTransaction };
+  });
+};
+DatabaseStorage.prototype.getWalletPassBySerial = async function (serial) {
+  const [p] = await db.select().from(walletPasses).where(eq(walletPasses.serialNumber, serial));
+  return p;
+};
+DatabaseStorage.prototype.getActiveWalletPassForEmployee = async function (employeeId) {
+  const [p] = await db.select().from(walletPasses)
+    .where(and(eq(walletPasses.employeeId, employeeId), eq(walletPasses.active, true)))
+    .orderBy(desc(walletPasses.createdAt));
+  return p;
+};
+DatabaseStorage.prototype.updateWalletPassTag = async function (serial, tag) {
+  await db.update(walletPasses).set({ lastUpdatedTag: tag }).where(eq(walletPasses.serialNumber, serial));
+};
+DatabaseStorage.prototype.deactivateWalletPass = async function (serial) {
+  await db.update(walletPasses).set({ active: false }).where(eq(walletPasses.serialNumber, serial));
+};
+DatabaseStorage.prototype.registerWalletDevice = async function (data) {
+  const existing = await db.select().from(walletPassDevices)
+    .where(and(eq(walletPassDevices.serialNumber, data.serialNumber), eq(walletPassDevices.deviceLibraryIdentifier, data.deviceLibraryIdentifier)));
+  if (existing.length) {
+    const [u] = await db.update(walletPassDevices).set({ pushToken: data.pushToken })
+      .where(eq(walletPassDevices.id, existing[0].id)).returning();
+    return u;
+  }
+  const [d] = await db.insert(walletPassDevices).values(data).returning();
+  return d;
+};
+DatabaseStorage.prototype.unregisterWalletDevice = async function (deviceLibraryIdentifier, serial) {
+  await db.delete(walletPassDevices)
+    .where(and(eq(walletPassDevices.deviceLibraryIdentifier, deviceLibraryIdentifier), eq(walletPassDevices.serialNumber, serial)));
+};
+DatabaseStorage.prototype.listWalletDevicesForSerial = async function (serial) {
+  return db.select().from(walletPassDevices).where(eq(walletPassDevices.serialNumber, serial));
+};
+DatabaseStorage.prototype.listWalletSerialsForDevice = async function (deviceLibraryIdentifier, _passTypeId) {
+  const rows = await db.select().from(walletPassDevices)
+    .where(eq(walletPassDevices.deviceLibraryIdentifier, deviceLibraryIdentifier));
+  return rows.map((r) => r.serialNumber);
+};
+
+export const storage: IStorage = new DatabaseStorage();

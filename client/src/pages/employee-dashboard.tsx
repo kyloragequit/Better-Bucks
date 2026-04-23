@@ -5,6 +5,8 @@ import { TopRewardedLeaderboard } from "@/components/top-rewarded-leaderboard";
 import { useUserDetails, useUpdateProfile } from "@/hooks/use-users";
 import { useQuery } from "@tanstack/react-query";
 import { EmployeeLayout } from "@/components/layout-employee";
+import { WalletPassCard } from "@/components/wallet-pass-card";
+import { MobileWalletPrompt } from "@/components/mobile-wallet-prompt";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +43,7 @@ export default function EmployeeDashboard() {
 
   return (
     <EmployeeLayout>
+      <MobileWalletPrompt />
       <div className="mb-8 animate-in flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">
@@ -165,6 +168,8 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <WalletPassCard />
 
       {/* Items I've been given */}
       {userDetails.customItems && userDetails.customItems.length > 0 && (

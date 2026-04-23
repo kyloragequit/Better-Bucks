@@ -122,6 +122,57 @@ function getTransporter() {
   return cachedTransporter;
 }
 
+/**
+ * Fire-and-forget email notification to an employee whose balance just changed.
+ * Skips non-employees (admins, prime_admins) and users with no verified email,
+ * so admins do not receive duplicate notifications and unverified addresses are
+ * not pinged. Errors are caught and logged so a failed email never breaks the
+ * underlying balance change.
+ */
+async function notifyEmployeeBalanceChange(userId: number, change: number, reason: string): Promise<void> {
+  if (!change) return;
+  try {
+    const target = await storage.getUser(userId);
+    if (!target) return;
+    if (target.role !== "employee") return;
+    if (!target.email || !target.emailVerified) return;
+    const balance = target.balance;
+    const isCredit = change > 0;
+    const absChange = Math.abs(change);
+    const accent = isCredit ? "#4E9F3D" : "#162A4A";
+    const subject = isCredit
+      ? `[Better Bucks] You earned ${absChange.toLocaleString()} Bucks`
+      : `[Better Bucks] ${absChange.toLocaleString()} Bucks deducted from your balance`;
+    const firstName = (target.fullName || "").split(" ")[0] || target.fullName || "there";
+    const headline = isCredit
+      ? `You just received <strong style="color:${accent};">${absChange.toLocaleString()} Bucks</strong>.`
+      : `<strong style="color:${accent};">${absChange.toLocaleString()} Bucks</strong> were deducted from your balance.`;
+    const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:520px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#162A4A;color:#fff;padding:18px 22px;font-weight:700;font-size:16px;">Better Bucks</div>
+    <div style="padding:24px 22px;color:#111827;">
+      <p style="margin:0 0 14px;font-size:15px;">Hi ${firstName},</p>
+      <p style="margin:0 0 18px;font-size:15px;">${headline}</p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin:0 0 12px;">
+        <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Reason</div>
+        <div style="font-size:14px;color:#111827;">${reason || "(no reason provided)"}</div>
+      </div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin:0 0 18px;">
+        <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">New balance</div>
+        <div style="font-size:20px;font-weight:700;color:#162A4A;">${balance.toLocaleString()} Bucks</div>
+      </div>
+      <a href="https://betterbucks.net/dashboard" style="display:inline-block;background:#4E9F3D;color:#fff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px;font-size:14px;">View dashboard</a>
+    </div>
+    <div style="background:#f9fafb;color:#9CA3AF;padding:12px 22px;text-align:center;font-size:11px;">You're receiving this because you have an account on Better Bucks.</div>
+  </div>
+</body></html>`;
+    await sendEmail({ to: target.email, subject, html });
+  } catch (err: any) {
+    console.error(`[BalanceNotify] Failed for user ${userId}:`, err?.message ?? err);
+  }
+}
+
 async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }): Promise<void> {
   const smtpUser = process.env.SMTP_USER;
   if (!smtpUser || !process.env.SMTP_PASS) {
@@ -1744,6 +1795,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       });
       if ("error" in result) return res.status(400).json({ message: result.error });
       invalidateUserCache(user.id);
+      for (const targetId of validTargetIds) {
+        void notifyEmployeeBalanceChange(targetId, amount, reason);
+      }
       return res.json(result);
     }
 
@@ -1759,6 +1813,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         userId: targetId, amount, reason, performedBy: user.id,
         ...(categoryId ? { categoryId } : {}),
       });
+      void notifyEmployeeBalanceChange(targetId, amount, reason);
       credited++;
     }
 
@@ -1792,6 +1847,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         reason,
         performedBy: user.id,
       });
+      void notifyEmployeeBalanceChange(targetId, -deductAmount, reason);
       debited++;
     }
 
@@ -2052,6 +2108,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       });
       if ("error" in result) return res.status(400).json({ message: result.error });
       invalidateUserCache(user.id);
+      void notifyEmployeeBalanceChange(id, amount, reason);
       return res.json(result.user);
     }
 
@@ -2072,6 +2129,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       performedBy: user.id,
       categoryId: (amount > 0 && categoryId) ? categoryId : null,
     });
+    void notifyEmployeeBalanceChange(id, amount, reason);
 
     res.json(updatedUser);
   });
@@ -2601,6 +2659,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         amount: -pointsCost,
         reason: `Order #${order.id}: ${description}`,
       });
+      void notifyEmployeeBalanceChange(user.id, -pointsCost, `Order #${order.id}: ${description}`);
 
       res.status(201).json(order);
     } catch (e) {
@@ -2657,6 +2716,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         amount: order.pointsCost,
         reason: `Order #${order.id} rejected - Bucks refunded`,
       });
+      void notifyEmployeeBalanceChange(order.userId, order.pointsCost, `Order #${order.id} rejected - Bucks refunded`);
     }
 
     const updated = await storage.updateOrderStatus(id, status, adminNotes);
@@ -2693,15 +2753,17 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
     if (diff !== 0) {
       // Adjust employee balance: negative diff = refund, positive diff = extra charge
+      const adjReason = diff > 0
+        ? `Order #${order.id} Bucks adjusted (+${diff} charged)`
+        : `Order #${order.id} Bucks adjusted (${diff} refunded)`;
       await storage.updateUserBalance(order.userId, -diff);
       await storage.createTransaction({
         userId: order.userId,
         amount: -diff,
-        reason: diff > 0
-          ? `Order #${order.id} Bucks adjusted (+${diff} charged)`
-          : `Order #${order.id} Bucks adjusted (${diff} refunded)`,
+        reason: adjReason,
         performedBy: user.id,
       });
+      void notifyEmployeeBalanceChange(order.userId, -diff, adjReason);
     }
 
     const updated = await storage.updateOrderPointsCost(id, newCost);
@@ -4899,13 +4961,15 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
+    const purchaseReason = quantity > 1 ? `Store purchase: ${item.name} (x${quantity})` : `Store purchase: ${item.name}`;
     await storage.updateUserBalance(user.id, -totalCost);
     await storage.createTransaction({
       userId: user.id,
       amount: -totalCost,
-      reason: quantity > 1 ? `Store purchase: ${item.name} (x${quantity})` : `Store purchase: ${item.name}`,
+      reason: purchaseReason,
       performedBy: user.id,
     });
+    void notifyEmployeeBalanceChange(user.id, -totalCost, purchaseReason);
 
     let storeConvertedValue: string | null = null;
     if (user.organizationId) {
@@ -5950,6 +6014,18 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (goal.bucksDistributedAt) return res.status(400).json({ message: "Bucks already distributed" });
     const updated = await storage.distributeGoalBucks(goalId, user.organizationId, user.id);
     await storage.createGoalNotificationsForOrg(goalId, user.organizationId, "distributed");
+    // Notify each employee in the org that bucks landed in their balance.
+    try {
+      const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+      const reason = `Goal achieved: ${goal.title}`;
+      for (const u of orgUsers) {
+        if (u.role === "employee" && u.status === "approved") {
+          void notifyEmployeeBalanceChange(u.id, goal.bucksReward, reason);
+        }
+      }
+    } catch (err: any) {
+      console.error("[BalanceNotify] goal distribution notify failed:", err?.message ?? err);
+    }
     res.json(updated);
   }));
 

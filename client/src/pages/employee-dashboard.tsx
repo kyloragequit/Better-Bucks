@@ -52,8 +52,9 @@ export default function EmployeeDashboard() {
           <p className="text-muted-foreground mt-1">Here is an overview of your rewards and activity.</p>
         </div>
         <button
+          type="button"
           onClick={restartTutorial}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 mt-1 px-3 py-1.5 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 mt-1 px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5"
           data-testid="button-replay-tutorial"
         >
           <BookOpen className="h-3.5 w-3.5" />
@@ -235,7 +236,7 @@ export default function EmployeeDashboard() {
               ))}
             </div>
             <div className="mt-3 text-right">
-              <Link href="/store" className="text-xs text-primary underline">Go to Store</Link>
+              <Link href="/store" className="inline-flex items-center justify-end min-h-11 sm:min-h-0 px-2 -mr-2 text-xs text-primary underline" data-testid="link-go-to-store">Go to Store</Link>
             </div>
           </CardContent>
         </Card>

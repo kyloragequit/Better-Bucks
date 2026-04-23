@@ -286,13 +286,13 @@ function MiniShop({
                 </div>
                 <p className="text-xs font-bold leading-tight" style={{ color: NAVY }}>{p.name}</p>
                 <span className="text-xs font-black" style={{ color: GREEN }}>{p.price} Bucks</span>
-                <button
-                  className="w-full py-1 rounded-lg text-xs font-semibold text-white transition-all duration-200"
-                  style={{ background: canAfford ? GREEN : "#d1d5db" }}
-                  disabled={!canAfford}
+                <span
+                  aria-hidden="true"
+                  className="w-full py-1 rounded-lg text-xs font-semibold text-white transition-all duration-200 inline-block text-center"
+                  style={{ background: canAfford ? GREEN : "#d1d5db", opacity: canAfford ? 1 : 0.6 }}
                 >
                   Select
-                </button>
+                </span>
               </div>
             );
           })}
@@ -1232,9 +1232,11 @@ export function TutorialModal() {
 
         <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between shrink-0">
           <button
+            type="button"
             onClick={handlePrev}
             disabled={currentSlide === 0 || animating}
-            className="flex items-center gap-1 text-sm font-semibold text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors"
+            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+            className="flex items-center gap-1 px-3 py-2 min-h-[44px] -ml-2 rounded-md text-sm font-semibold text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors"
             data-testid="button-tutorial-prev"
           >
             <ChevronLeft className="h-4 w-4" /> Back
@@ -1243,10 +1245,11 @@ export function TutorialModal() {
           <span className="text-xs text-gray-400">{currentSlide + 1} of {slides.length}</span>
 
           <button
+            type="button"
             onClick={handleNext}
             disabled={!canAdvance || animating}
-            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:opacity-40 hover:scale-105"
-            style={{ background: GREEN }}
+            style={{ background: GREEN, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+            className="flex items-center gap-1.5 px-5 py-2.5 min-h-[44px] rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:opacity-40 hover:scale-105"
             data-testid="button-tutorial-next"
           >
             {isLast ? "Let's Go!" : "Next"}

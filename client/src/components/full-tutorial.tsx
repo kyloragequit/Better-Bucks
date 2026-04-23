@@ -407,8 +407,10 @@ function TooltipCard({
         <div className="flex items-center gap-2">
           <span className="text-white/50 text-xs">{stepIndex + 1}/{totalSteps}</span>
           <button
+            type="button"
             onClick={onSkip}
-            className="flex items-center gap-1 px-2.5 py-1.5 min-h-[36px] rounded-md bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition-colors"
+            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+            className="flex items-center gap-1 px-3 py-2 min-h-[44px] rounded-md bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition-colors"
             title="Exit tour"
             data-testid="button-tutorial-close"
             aria-label="Exit tour"
@@ -435,9 +437,11 @@ function TooltipCard({
 
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-t">
         <button
+          type="button"
           onClick={onPrev}
           disabled={isFirst}
-          className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors"
+          style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+          className="flex items-center gap-1 px-3 py-2 -ml-2 min-h-[44px] rounded-md text-xs font-semibold text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors"
           data-testid="button-tutorial-prev"
         >
           <ChevronLeft className="h-3.5 w-3.5" /> Back
@@ -456,9 +460,10 @@ function TooltipCard({
           ))}
         </div>
         <button
+          type="button"
           onClick={onNext}
-          className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg text-white transition-all duration-200 hover:scale-105"
-          style={{ background: GREEN }}
+          className="flex items-center gap-1 text-xs font-bold px-4 py-2 min-h-[44px] rounded-lg text-white transition-all duration-200 hover:scale-105"
+          style={{ background: GREEN, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
           data-testid="button-tutorial-next"
         >
           {isLast ? "Finish" : "Next"}

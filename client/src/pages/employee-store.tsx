@@ -53,7 +53,7 @@ function SizeSelector({ value, onChange, testIdPrefix }: { value: string; onChan
           <button
             key={size}
             type="button"
-            className={`px-3 py-1.5 text-sm font-medium rounded-md border transition-colors ${
+            className={`min-h-11 sm:min-h-9 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md border transition-colors ${
               value === size
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-background hover:bg-accent border-border"
@@ -67,7 +67,7 @@ function SizeSelector({ value, onChange, testIdPrefix }: { value: string; onChan
       </div>
       <button
         type="button"
-        className="text-xs text-muted-foreground hover:text-foreground underline"
+        className="inline-flex items-center min-h-11 sm:min-h-0 px-1 -mx-1 text-xs text-muted-foreground hover:text-foreground underline"
         onClick={() => { setMode("custom"); onChange(""); }}
         data-testid={`${testIdPrefix}-switch-custom`}
       >
@@ -225,7 +225,7 @@ export default function EmployeeStorePage() {
                     href={browsingItem.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
+                    className="inline-flex items-center gap-2 min-h-11 sm:min-h-0 px-2 -mx-2 sm:px-0 sm:mx-0 text-sm text-primary hover:underline font-medium"
                     data-testid="button-open-external"
                   >
                     <Globe className="h-4 w-4" />
@@ -332,21 +332,24 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+            className="inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
             title="View item"
+            aria-label="View item details"
             data-testid={`link-catalogue-item-url-${item.id}`}
           >
             <ExternalLink className="h-4 w-4" />
           </a>
         )}
         <button
-          className={`p-1.5 rounded-full transition-colors shrink-0 ${
+          type="button"
+          className={`inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 p-1.5 rounded-full transition-colors shrink-0 ${
             isWishlisted ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"
           }`}
           onClick={() => wishlistMutation.mutate()}
           disabled={wishlistMutation.isPending}
           data-testid={`button-catalogue-wishlist-${item.id}`}
           title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
         >
           <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
         </button>
@@ -514,7 +517,8 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
             </div>
           </button>
           <button
-            className={`absolute top-2 right-2 p-1.5 rounded-full shadow transition-colors ${
+            type="button"
+            className={`absolute top-1 right-1 sm:top-2 sm:right-2 inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 p-1.5 rounded-full shadow transition-colors ${
               isWishlisted
                 ? "bg-red-500 text-white"
                 : "bg-white/90 text-muted-foreground hover:text-red-500"
@@ -523,6 +527,7 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
             disabled={wishlistMutation.isPending}
             data-testid={`button-wishlist-${item.id}`}
             title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           >
             <Heart className={`h-4 w-4 ${isWishlisted ? "fill-current" : ""}`} />
           </button>

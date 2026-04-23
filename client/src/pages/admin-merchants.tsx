@@ -120,19 +120,26 @@ export default function AdminMerchantsPage() {
             ) : (
               <ul className="divide-y">
                 {merchants.map((m) => (
-                  <li key={m.id} className="py-3 flex items-center justify-between gap-4 flex-wrap" data-testid={`row-merchant-${m.id}`}>
-                    <div>
-                      <div className="font-medium">{m.name}</div>
-                      <div className="text-xs text-muted-foreground">{m.email}</div>
+                  <li key={m.id} className="py-3 flex items-center justify-between gap-3 flex-wrap" data-testid={`row-merchant-${m.id}`}>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{m.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{m.email}</div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <Badge variant={m.status === "active" ? "default" : "secondary"} data-testid={`badge-status-${m.id}`}>{m.status}</Badge>
-                      <Button size="sm" variant="outline" onClick={() => setTxMerchant(m)} data-testid={`button-tx-${m.id}`}><Eye className="h-3.5 w-3.5 mr-1" /> Transactions</Button>
-                      <Button size="sm" variant="outline" onClick={() => setPwdMerchant(m)} data-testid={`button-pwd-${m.id}`}><KeyRound className="h-3.5 w-3.5 mr-1" /> Reset password</Button>
-                      <Button size="sm" variant="outline" onClick={() => updateMut.mutate({ id: m.id, data: { status: m.status === "active" ? "disabled" : "active" } })} data-testid={`button-toggle-${m.id}`}>
-                        <Power className="h-3.5 w-3.5 mr-1" /> {m.status === "active" ? "Disable" : "Enable"}
+                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => setTxMerchant(m)} aria-label={`Transactions for ${m.name}`} data-testid={`button-tx-${m.id}`}>
+                        <Eye className="h-3.5 w-3.5 sm:mr-1" />
+                        <span className="hidden sm:inline">Transactions</span>
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => { if (confirm(`Delete merchant "${m.name}"?`)) deleteMut.mutate(m.id); }} data-testid={`button-delete-${m.id}`}>
+                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => setPwdMerchant(m)} aria-label={`Reset password for ${m.name}`} data-testid={`button-pwd-${m.id}`}>
+                        <KeyRound className="h-3.5 w-3.5 sm:mr-1" />
+                        <span className="hidden sm:inline">Reset password</span>
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => updateMut.mutate({ id: m.id, data: { status: m.status === "active" ? "disabled" : "active" } })} aria-label={m.status === "active" ? `Disable ${m.name}` : `Enable ${m.name}`} data-testid={`button-toggle-${m.id}`}>
+                        <Power className="h-3.5 w-3.5 sm:mr-1" />
+                        <span className="hidden sm:inline">{m.status === "active" ? "Disable" : "Enable"}</span>
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-9 w-9" onClick={() => { if (confirm(`Delete merchant "${m.name}"?`)) deleteMut.mutate(m.id); }} aria-label={`Delete ${m.name}`} data-testid={`button-delete-${m.id}`}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

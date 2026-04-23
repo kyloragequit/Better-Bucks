@@ -17,7 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleLabels } from "@/hooks/use-role-labels";
@@ -98,7 +99,7 @@ export default function AdminEmployeesPage() {
           <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">{isPrimeAdmin ? "Team Members" : "Employees"}</h1>
           <p className="text-muted-foreground mt-1">{isPrimeAdmin ? "Manage all team member accounts and balances" : "Manage employee accounts and balances"}</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="hidden sm:flex gap-2 flex-wrap">
           <BulkImportDialog departments={departments ?? []} demoMode={isPublicDemo} />
           {!isPublicDemo && (
             <>
@@ -108,6 +109,54 @@ export default function AdminEmployeesPage() {
               <CreateEmployeeDialog />
             </>
           )}
+        </div>
+        {/* Mobile: keep dialog triggers mounted but hidden, expose via overflow menu */}
+        <div className="sm:hidden flex items-center gap-2 w-full">
+          <div className="hidden" aria-hidden="true">
+            <BulkImportDialog departments={departments ?? []} demoMode={isPublicDemo} />
+            {!isPublicDemo && (
+              <>
+                <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
+                <BulkDebitDialog users={users ?? []} departments={departments ?? []} />
+                {isPrimeAdmin && <InviteUserDialog departments={departments ?? []} />}
+                <CreateEmployeeDialog />
+              </>
+            )}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex-1 justify-start gap-2" data-testid="button-mobile-actions" aria-label="Employee actions menu">
+                <MoreVertical className="h-4 w-4" /> Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Employee actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {!isPublicDemo && (
+                <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-add-employee"]') as HTMLButtonElement | null)?.click()} data-testid="menu-add-employee">
+                  <UserPlus className="h-4 w-4 mr-2" /> Add Employee
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-bulk-import"]') as HTMLButtonElement | null)?.click()} data-testid="menu-bulk-import">
+                <Upload className="h-4 w-4 mr-2" /> Bulk Import
+              </DropdownMenuItem>
+              {!isPublicDemo && (
+                <>
+                  <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-bulk-credit"]') as HTMLButtonElement | null)?.click()} data-testid="menu-bulk-credit">
+                    <TrendingUp className="h-4 w-4 mr-2" /> Bulk Credit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-bulk-debit"]') as HTMLButtonElement | null)?.click()} data-testid="menu-bulk-debit">
+                    <TrendingDown className="h-4 w-4 mr-2" /> Bulk Debit
+                  </DropdownMenuItem>
+                  {isPrimeAdmin && (
+                    <DropdownMenuItem onSelect={() => (document.querySelector('[data-testid="button-invite-user"]') as HTMLButtonElement | null)?.click()} data-testid="menu-invite-user">
+                      <Send className="h-4 w-4 mr-2" /> Invite User
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

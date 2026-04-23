@@ -1190,13 +1190,17 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyBudgetUsed(orgId: number, year: number, month: number): Promise<number> {
     const from = new Date(year, month - 1, 1);
     const to = new Date(year, month, 0, 23, 59, 59, 999);
-    const orgUserIds = db.select({ id: users.id }).from(users).where(eq(users.organizationId, orgId));
+    // Only count credits to EMPLOYEE recipients. This excludes the org→admin
+    // monthly budget allocation transactions (which credit admin/prime_admin
+    // users) so "bucks used" reflects bucks actually distributed to staff.
+    const employeeIds = db.select({ id: users.id }).from(users)
+      .where(and(eq(users.organizationId, orgId), eq(users.role, "employee")));
 
     const [row] = await db
       .select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)::int` })
       .from(transactions)
       .where(and(
-        inArray(transactions.userId, orgUserIds),
+        inArray(transactions.userId, employeeIds),
         gte(transactions.createdAt, from),
         lte(transactions.createdAt, to),
         sql`${transactions.amount} > 0`,

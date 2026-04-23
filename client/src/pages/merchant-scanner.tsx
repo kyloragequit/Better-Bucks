@@ -109,12 +109,12 @@ export default function MerchantScannerPage() {
     <div className="min-h-screen bg-muted/20">
       <header className="bg-primary text-white">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
+          <div className="min-w-0 flex-1 pr-3">
             <div className="text-xs text-white/60">Merchant</div>
-            <div className="font-semibold" data-testid="text-merchant-name">{me.name}</div>
+            <div className="font-semibold truncate" data-testid="text-merchant-name" title={me.name}>{me.name}</div>
           </div>
-          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" onClick={() => logoutMut.mutate()} data-testid="button-merchant-logout">
-            <LogOut className="h-4 w-4 mr-1" /> Sign out
+          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 shrink-0" onClick={() => logoutMut.mutate()} data-testid="button-merchant-logout">
+            <LogOut className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Sign out</span><span className="sm:hidden">Out</span>
           </Button>
         </div>
       </header>
@@ -187,12 +187,12 @@ export default function MerchantScannerPage() {
             ) : (
               <ul className="divide-y">
                 {txs.map((t) => (
-                  <li key={t.id} className="py-2 flex items-center justify-between text-sm" data-testid={`row-tx-${t.id}`}>
-                    <div>
-                      <div className="font-medium">{t.employee?.fullName || `Member #${t.employee?.id ?? "?"}`}</div>
-                      <div className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</div>
+                  <li key={t.id} className="py-2 flex items-center justify-between gap-2 text-sm" data-testid={`row-tx-${t.id}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate" title={t.employee?.fullName || `Member #${t.employee?.id ?? "?"}`}>{t.employee?.fullName || `Member #${t.employee?.id ?? "?"}`}</div>
+                      <div className="text-xs text-muted-foreground truncate">{new Date(t.createdAt).toLocaleString()}</div>
                     </div>
-                    <div className="font-semibold">−{t.bucksAmount}</div>
+                    <div className="font-semibold tabular-nums whitespace-nowrap shrink-0">−{t.bucksAmount.toLocaleString()}</div>
                   </li>
                 ))}
               </ul>

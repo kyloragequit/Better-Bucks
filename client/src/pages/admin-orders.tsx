@@ -84,15 +84,15 @@ export default function AdminOrdersPage() {
               {pendingOrders.map((order) => (
                 <div key={order.id} className="border rounded-lg p-3 space-y-2" data-testid={`row-pending-order-${order.id}`}>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm">{order.user?.fullName || "Unknown"}</p>
-                      <p className="text-xs text-muted-foreground truncate">{order.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate" title={order.user?.fullName || "Unknown"}>{order.user?.fullName || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words" title={order.description}>{order.description}</p>
                     </div>
-                    <p className="font-bold tabular-nums text-primary text-sm shrink-0">{order.pointsCost.toLocaleString()} bcks</p>
+                    <p className="font-bold tabular-nums text-primary text-sm shrink-0 whitespace-nowrap">{order.pointsCost.toLocaleString()} bcks</p>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(order.createdAt), "MMM d")}</span>
                       <Button variant="ghost" size="sm" className="min-h-7 text-xs" onClick={() => setSelectedOrder(order)} data-testid={`button-view-order-${order.id}`}>
                         <Eye className="mr-1 h-3 w-3" />View
                       </Button>
@@ -175,12 +175,12 @@ export default function AdminOrdersPage() {
                 {orders.map((order) => (
                   <div key={order.id} className="border rounded-lg p-3 space-y-2" data-testid={`row-order-${order.id}`}>
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm">{order.user?.fullName || "Unknown"}</p>
-                        <p className="text-xs text-muted-foreground truncate">{order.description}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate" title={order.user?.fullName || "Unknown"}>{order.user?.fullName || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 break-words" title={order.description}>{order.description}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-bold tabular-nums text-primary text-sm">{order.pointsCost.toLocaleString()} bcks</p>
+                        <p className="font-bold tabular-nums text-primary text-sm whitespace-nowrap">{order.pointsCost.toLocaleString()} bcks</p>
                         <Badge variant={statusVariant(order.status)} className="capitalize text-xs mt-0.5" data-testid={`badge-status-${order.id}`}>{order.status}</Badge>
                       </div>
                     </div>

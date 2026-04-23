@@ -98,7 +98,26 @@
   }
 }
 
+@layer base {
+  /* Mobile-first three-step type scale baselines (24/16/12 with comfy line-heights).
+     Page-level overrides (e.g. text-2xl sm:text-3xl on h1) win over these defaults. */
+  h1 { line-height: 1.2; }
+  h2 { line-height: 1.25; }
+  h3, h4 { line-height: 1.3; }
+  p, li { line-height: 1.5; }
+  /* Prevent mobile browsers from inflating tiny text on rotation */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+}
+
 @layer utilities {
+  /* Multi-line ellipsis fallback (Tailwind v3 ships line-clamp utilities natively;
+     this guarantees behavior even if the JIT is stripped). */
+  .line-clamp-2-fallback {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   /* Expands an element's effective tap area to >= 44x44px on mobile
      without altering its visual size, via an invisible pseudo-element.
      Apply to small icon-only buttons that must remain visually compact. */

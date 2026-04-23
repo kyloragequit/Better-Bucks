@@ -28,6 +28,7 @@ import { TopRewardedLeaderboard } from "@/components/top-rewarded-leaderboard";
 import { useTutorial } from "@/hooks/use-tutorial";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { formatCompact } from "@/lib/utils";
 import type { Department } from "@shared/schema";
 import {
   ResponsiveContainer,
@@ -678,7 +679,8 @@ export default function AdminDashboardPage() {
             data-testid="button-replay-tutorial"
           >
             <BookOpen className="h-3.5 w-3.5" />
-            Take the tour again
+            <span className="sm:hidden">Tour</span>
+            <span className="hidden sm:inline">Take the tour again</span>
           </button>
           <Select value={selectedDeptId} onValueChange={setSelectedDeptId}>
             <SelectTrigger className="w-full sm:w-48" data-testid="select-dept-filter-dashboard">
@@ -747,7 +749,10 @@ export default function AdminDashboardPage() {
               <CardContent>
                 <div className="p-4 bg-green-50 rounded-lg border border-green-100">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="text-3xl font-bold text-green-700" data-testid="text-admin-balance">{(currentUser.balance ?? 0).toLocaleString()}</span>
+                    <span className="text-2xl sm:text-3xl font-bold text-green-700 tabular-nums whitespace-nowrap" data-testid="text-admin-balance" title={(currentUser.balance ?? 0).toLocaleString()}>
+                      <span className="sm:hidden">{formatCompact(currentUser.balance ?? 0)}</span>
+                      <span className="hidden sm:inline">{(currentUser.balance ?? 0).toLocaleString()}</span>
+                    </span>
                     <span className="text-sm font-medium text-green-600">bucks available to distribute</span>
                     {bpd > 0 && (
                       <span className="text-sm text-green-500">≈ ${((currentUser.balance ?? 0) / bpd).toFixed(2)}</span>

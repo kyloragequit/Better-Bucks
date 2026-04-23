@@ -74,14 +74,18 @@ export function WalletPassCard() {
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={downloadPass} disabled={downloading} data-testid="button-add-to-wallet">
             {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Apple className="h-4 w-4 mr-2" />}
-            Add to Apple Wallet
+            <span className="sm:hidden">Apple Wallet</span>
+            <span className="hidden sm:inline">Add to Apple Wallet</span>
           </Button>
           <Button variant="outline" onClick={() => setShowQr((v) => !v)} data-testid="button-show-qr">
-            <QrCode className="h-4 w-4 mr-2" /> {showQr ? "Hide QR" : "Show QR code"}
+            <QrCode className="h-4 w-4 mr-2" />
+            <span className="sm:hidden">{showQr ? "Hide QR" : "Show QR"}</span>
+            <span className="hidden sm:inline">{showQr ? "Hide QR" : "Show QR code"}</span>
           </Button>
           <Button variant="ghost" onClick={reissuePass} disabled={reissuing} data-testid="button-reissue-pass">
             {reissuing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
-            Re-issue pass
+            <span className="sm:hidden">Re-issue</span>
+            <span className="hidden sm:inline">Re-issue pass</span>
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">

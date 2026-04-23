@@ -3,6 +3,7 @@ import { useUser } from "@/hooks/use-auth";
 import { PasskeyFirstTimePrompt } from "@/components/passkey-manager";
 import { TopRewardedLeaderboard } from "@/components/top-rewarded-leaderboard";
 import { useUserDetails, useUpdateProfile } from "@/hooks/use-users";
+import { formatCompact } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { EmployeeLayout } from "@/components/layout-employee";
 import { WalletPassCard } from "@/components/wallet-pass-card";
@@ -140,9 +141,12 @@ export default function EmployeeDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-5xl md:text-6xl font-bold font-display text-foreground tracking-tight">
-              {userDetails.balance.toLocaleString()}
-              <span className="text-2xl text-muted-foreground ml-2 font-normal">bcks</span>
+            <div className="text-4xl sm:text-5xl md:text-6xl font-bold font-display text-foreground tracking-tight whitespace-nowrap" title={userDetails.balance.toLocaleString()}>
+              <span className="tabular-nums">
+                <span className="sm:hidden">{formatCompact(userDetails.balance)}</span>
+                <span className="hidden sm:inline">{userDetails.balance.toLocaleString()}</span>
+              </span>
+              <span className="text-xl sm:text-2xl text-muted-foreground ml-2 font-normal">bcks</span>
             </div>
             {shops && shops.length > 0 && (
               <div className="mt-4 space-y-1.5">

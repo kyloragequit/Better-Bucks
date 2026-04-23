@@ -2778,17 +2778,21 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
 
-    let orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const allOrgUsers = await storage.getUsersByOrganization(user.organizationId);
+    let scopedOrgUsers = allOrgUsers;
     const deptIdParam = req.query.departmentId ? parseInt(req.query.departmentId as string) : null;
     if (deptIdParam !== null) {
-      orgUsers = orgUsers.filter(u => u.departmentId === deptIdParam);
+      scopedOrgUsers = scopedOrgUsers.filter(u => u.departmentId === deptIdParam);
     }
     const mgrIdParam = req.query.managerId ? parseInt(req.query.managerId as string) : null;
     if (mgrIdParam !== null) {
-      orgUsers = orgUsers.filter(u => u.managerId === mgrIdParam);
+      scopedOrgUsers = scopedOrgUsers.filter(u => u.managerId === mgrIdParam);
     }
-    const employeeIds = orgUsers.filter(u => u.role === "employee").map(u => u.id);
-    const adminIds = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id);
+    const employeeIds = scopedOrgUsers.filter(u => u.role === "employee").map(u => u.id);
+    // adminIds is derived from the FULL org (not the filtered scope) so that
+    // bucks credited from the org owner (prime_admin) — who may sit in no
+    // department — are counted toward employees in any department/manager view.
+    const adminIds = allOrgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id);
 
     if (employeeIds.length === 0 || adminIds.length === 0) {
       return res.json({ week: 0, month: 0, year: 0, weekDebited: 0, monthDebited: 0, yearDebited: 0 });

@@ -177,7 +177,7 @@ export default function EmployeeSettingsPage() {
   return (
     <EmployeeLayout>
       <div className="max-w-lg mx-auto space-y-6">
-        <h1 className="text-2xl font-bold" data-testid="text-settings-title">My Profile</h1>
+        <h1 className="text-2xl sm:text-3xl font-display font-bold" data-testid="text-settings-title">My Profile</h1>
 
         {userDetails?.customItems && userDetails.customItems.length > 0 && (
           <Card data-testid="section-account-items">

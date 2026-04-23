@@ -248,7 +248,7 @@ export default function AdminStorePage() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-display font-bold" data-testid="text-admin-store-title">Employee Store</h1>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold" data-testid="text-admin-store-title">Employee Store</h1>
             <p className="text-muted-foreground mt-1 text-sm">
               Add items that employees can browse and purchase with their Bucks.
             </p>

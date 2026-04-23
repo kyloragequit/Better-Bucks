@@ -79,7 +79,7 @@ export default function AdminItemsPage() {
     return (
       <AdminLayout>
         <div className="mb-8 animate-in">
-          <h1 className="text-3xl font-display font-bold text-foreground">Custom Items</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Custom Items</h1>
           <p className="text-muted-foreground mt-1">Non-Bucks incentive items your organization can give and redeem</p>
         </div>
         <Card className="shadow-md max-w-lg">
@@ -112,7 +112,7 @@ export default function AdminItemsPage() {
     <AdminLayout>
       <div className="mb-6 animate-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground flex items-center gap-2">
             <Package className="h-7 w-7 text-primary" />
             Custom Items
           </h1>

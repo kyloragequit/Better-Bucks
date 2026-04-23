@@ -667,7 +667,7 @@ export default function AdminDashboardPage() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground" data-testid="heading-dashboard">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground" data-testid="heading-dashboard">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Bucks distributed from administrators to employees</p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">

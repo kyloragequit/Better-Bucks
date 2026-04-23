@@ -47,7 +47,7 @@ export default function EmployeeOrdersPage() {
   return (
     <EmployeeLayout>
       <div className="mb-8 animate-in">
-        <h1 className="text-3xl font-display font-bold text-foreground" data-testid="text-orders-title">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground" data-testid="text-orders-title">
           Place an Order
         </h1>
         <p className="text-muted-foreground mt-1">Browse items and submit your order with photos.</p>

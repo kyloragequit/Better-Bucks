@@ -46,7 +46,7 @@ export default function EmployeeDashboard() {
       <MobileWalletPrompt />
       <div className="mb-8 animate-in flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">
             Welcome, {userDetails.fullName.split(' ')[0]}!
           </h1>
           <p className="text-muted-foreground mt-1">Here is an overview of your rewards and activity.</p>

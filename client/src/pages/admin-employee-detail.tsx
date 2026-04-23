@@ -552,7 +552,7 @@ export default function AdminEmployeeDetailPage() {
         </Link>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-display font-bold">{user.fullName}</h1>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold">{user.fullName}</h1>
             <Badge variant={user.role === 'admin' ? "default" : "secondary"}>
               {getRoleLabel(user.role)}
             </Badge>

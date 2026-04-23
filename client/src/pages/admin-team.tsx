@@ -81,7 +81,7 @@ export default function AdminTeamPage() {
     <AdminLayout>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground" data-testid="text-team-title">My Team</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground" data-testid="text-team-title">My Team</h1>
           <p className="text-muted-foreground mt-1">
             Employees assigned to you ({teamMembers?.length ?? 0} members)
           </p>

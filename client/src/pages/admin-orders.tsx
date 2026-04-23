@@ -48,7 +48,7 @@ export default function AdminOrdersPage() {
   return (
     <AdminLayout>
       <div className="mb-8 animate-in">
-        <h1 className="text-3xl font-display font-bold text-foreground" data-testid="text-admin-orders-title">
+        <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground" data-testid="text-admin-orders-title">
           Orders
         </h1>
         <p className="text-muted-foreground mt-1">Review and manage employee orders</p>

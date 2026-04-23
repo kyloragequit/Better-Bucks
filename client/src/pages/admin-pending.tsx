@@ -158,7 +158,7 @@ export default function AdminPendingPage() {
   return (
     <AdminLayout>
       <div className="mb-8">
-        <h1 className="text-3xl font-display font-bold text-foreground">Pending Accounts</h1>
+        <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Pending Accounts</h1>
         <p className="text-muted-foreground mt-1">
           Accounts awaiting approval or that have never logged in. Click a name to view their full balance history.
         </p>

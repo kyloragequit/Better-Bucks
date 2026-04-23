@@ -376,7 +376,8 @@ export default function LandingPage() {
               data-testid="button-hero-signup"
             >
               <Building2 className="mr-2 h-5 w-5" />
-              Sign Up for Your Organization
+              <span className="sm:hidden">Sign Up</span>
+              <span className="hidden sm:inline">Sign Up for Your Organization</span>
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button
@@ -392,7 +393,14 @@ export default function LandingPage() {
               ) : (
                 <Play className="mr-2 h-5 w-5" />
               )}
-              {demoLoading ? "Loading..." : "Try our self guided demo"}
+              {demoLoading ? (
+                "Loading..."
+              ) : (
+                <>
+                  <span className="sm:hidden">Try Demo</span>
+                  <span className="hidden sm:inline">Try our self guided demo</span>
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -558,7 +566,14 @@ export default function LandingPage() {
               ) : (
                 <Play className="mr-2 h-5 w-5" />
               )}
-              {demoLoading ? "Loading..." : "Try our self guided demo"}
+              {demoLoading ? (
+                "Loading..."
+              ) : (
+                <>
+                  <span className="sm:hidden">Try Demo</span>
+                  <span className="hidden sm:inline">Try our self guided demo</span>
+                </>
+              )}
             </Button>
           </div>
           <div className="flex items-center gap-3 mb-6">

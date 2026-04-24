@@ -177,7 +177,7 @@ export default function MerchantScannerPage() {
               <CardTitle className="text-base">Recent redemptions</CardTitle>
               <CardDescription>Your last 100 transactions</CardDescription>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/merchant/transactions"] })} data-testid="button-refresh-tx">
+            <Button variant="ghost" size="icon" aria-label="Refresh transactions" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/merchant/transactions"] })} data-testid="button-refresh-tx">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </CardHeader>

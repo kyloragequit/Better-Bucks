@@ -232,7 +232,7 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
                               data-testid={`input-option-${qi}-${oi}`}
                             />
                             {q.options.length > 2 && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeOption(qi, oi)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove option" onClick={() => removeOption(qi, oi)}>
                                 <X className="h-3 w-3" />
                               </Button>
                             )}
@@ -245,7 +245,7 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
                     )}
                   </div>
                   {questions.length > 1 && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={() => removeQuestion(qi)} data-testid={`button-remove-question-${qi}`}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" aria-label="Remove question" onClick={() => removeQuestion(qi)} data-testid={`button-remove-question-${qi}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
@@ -305,7 +305,7 @@ function SurveyCard({ survey }: { survey: SurveyWithMeta }) {
               </div>
               {survey.description && <p className="text-sm text-muted-foreground mt-1">{survey.description}</p>}
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setExpanded(e => !e)} data-testid={`button-expand-survey-${survey.id}`}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={expanded ? "Collapse survey" : "Expand survey"} aria-expanded={expanded} onClick={() => setExpanded(e => !e)} data-testid={`button-expand-survey-${survey.id}`}>
               {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>

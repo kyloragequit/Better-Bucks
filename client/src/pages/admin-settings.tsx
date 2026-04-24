@@ -1906,6 +1906,7 @@ function CategoryManagementCard() {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7"
+                        aria-label={`Edit category ${cat.name}`}
                         onClick={() => { setEditingId(cat.id); setEditName(cat.name); setEditColor(cat.color); }}
                         data-testid={`button-edit-category-${cat.id}`}
                       >
@@ -1913,7 +1914,7 @@ function CategoryManagementCard() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" data-testid={`button-delete-category-${cat.id}`}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" aria-label={`Delete category ${cat.name}`} data-testid={`button-delete-category-${cat.id}`}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </AlertDialogTrigger>

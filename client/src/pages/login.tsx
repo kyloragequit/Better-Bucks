@@ -25,7 +25,7 @@ export default function LoginPage() {
   const urlOrgCode = params.get("orgCode") || localStorage.getItem("bb_last_site_id") || "";
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
+    <main className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-primary">
       <PageSEO
         title="Log In – Better Bucks Employee Incentive Platform"
         description="Access your Better Bucks portal. Purpose-built reward program management for logistics, warehousing, and manufacturing operations."
@@ -78,7 +78,7 @@ export default function LoginPage() {
       </div>
       <SiteFooter dark absolute />
       <InstagramFloat />
-    </div>
+    </main>
   );
 }
 

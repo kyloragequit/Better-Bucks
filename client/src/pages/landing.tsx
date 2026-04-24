@@ -302,6 +302,8 @@ export default function LandingPage() {
                 size="icon"
                 className="h-9 w-9"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={mobileMenuOpen}
                 data-testid="button-mobile-menu"
               >
                 <Menu className="h-5 w-5" />
@@ -341,6 +343,7 @@ export default function LandingPage() {
         </div>
       </header>
 
+      <main id="main-content">
       <section className="relative overflow-hidden">
         <div className="hidden sm:block">
           <LogoBackground />
@@ -541,6 +544,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </main>
 
       <footer ref={contactRef} className="border-t bg-gray-50" data-testid="section-contact">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16">

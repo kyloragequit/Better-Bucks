@@ -380,11 +380,11 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
             <div className="flex items-center justify-between rounded-lg border px-4 py-3">
               <span className="text-sm font-medium">Quantity</span>
               <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={quantity <= 1} data-testid="button-cat-quantity-decrease">
+                <Button type="button" variant="outline" size="icon" className="h-7 w-7" aria-label="Decrease quantity" onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={quantity <= 1} data-testid="button-cat-quantity-decrease">
                   <Minus className="h-3.5 w-3.5" />
                 </Button>
                 <span className="w-8 text-center font-semibold tabular-nums" data-testid="text-cat-quantity">{quantity}</span>
-                <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(q => q + 1)} data-testid="button-cat-quantity-increase">
+                <Button type="button" variant="outline" size="icon" className="h-7 w-7" aria-label="Increase quantity" onClick={() => setQuantity(q => q + 1)} data-testid="button-cat-quantity-increase">
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -588,6 +588,7 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
                   variant="outline"
                   size="icon"
                   className="h-7 w-7"
+                  aria-label="Decrease quantity"
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
                   disabled={quantity <= 1}
                   data-testid="button-quantity-decrease"
@@ -600,6 +601,7 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
                   variant="outline"
                   size="icon"
                   className="h-7 w-7"
+                  aria-label="Increase quantity"
                   onClick={() => setQuantity(q => q + 1)}
                   data-testid="button-quantity-increase"
                 >

@@ -203,11 +203,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   {isPublicDemo ? (
-                    <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
+                    <Button variant="ghost" size="icon" aria-label="Home" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); }} data-testid="button-home">
                       <Home className="h-5 w-5" />
                     </Button>
                   ) : (
-                    <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
+                    <Button variant="ghost" size="icon" aria-label="Log out" className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout">
                       <LogOut className="h-5 w-5" />
                     </Button>
                   )}
@@ -222,6 +222,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 size="sm"
                 className="border-white/20 text-white hover:bg-white/10 hover:text-white"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={mobileMenuOpen}
                 data-testid="button-admin-mobile-menu"
               >
                 {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}

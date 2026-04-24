@@ -293,6 +293,7 @@ export default function AdminAccountSettingsPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                       data-testid="button-toggle-password-visibility"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

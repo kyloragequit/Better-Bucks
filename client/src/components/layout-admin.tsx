@@ -190,6 +190,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       className="hidden sm:inline-flex text-white/70 hover:text-white hover:bg-white/10"
                       onClick={() => startDemoMutation.mutate()}
                       disabled={startDemoMutation.isPending}
+                      aria-label="Start full service view mode"
                       data-testid="button-start-demo"
                     >
                       <Eye className="h-5 w-5" />

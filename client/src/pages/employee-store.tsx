@@ -199,6 +199,7 @@ export default function EmployeeStorePage() {
                   size="icon"
                   className="absolute top-2 right-2 h-8 w-8 bg-black/40 hover:bg-black/60 text-white rounded-full"
                   onClick={() => setBrowsingItem(null)}
+                  aria-label="Close product preview"
                   data-testid="button-close-browse"
                 >
                   <X className="h-4 w-4" />

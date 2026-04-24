@@ -916,7 +916,7 @@ export default function HowItWorksPage() {
     <div className="min-h-screen bg-white">
       <PageSEO
         title="Better Bucks — Employee Recognition & Rewards Platform"
-        description="Reward what's important — faster. Better Bucks helps managers recognize great work, reduce turnover, and replace spreadsheets with one simple incentive platform."
+        description="Employee Rewards &amp; Recognition That Actually Works. Better Bucks helps managers recognize great work, reduce turnover, and replace spreadsheets with one simple incentive platform."
       />
 
       {/* ─── Top Nav ───────────────────────────────────────────── */}
@@ -1046,8 +1046,7 @@ export default function HowItWorksPage() {
               style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", color: NAVY }}
               data-testid="text-hero-headline"
             >
-              Reward what's Important —{" "}
-              <span style={{ color: BUCKS_COLOR }}>Faster.</span>
+              Employee Rewards &amp; Recognition That Actually Works
             </h1>
             <p
               className="mt-5 text-lg text-gray-600 max-w-xl leading-relaxed"

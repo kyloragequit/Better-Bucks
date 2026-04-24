@@ -92,7 +92,6 @@ function redirectAfterLogin(role: string, setLocation: (path: string) => void) {
 function useLoginFlow() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const scrollOnFocus = useScrollIntoViewOnFocus();
   const [, setLocation] = useLocation();
   const [isPending, setIsPending] = useState(false);
   const [captchaState, setCaptchaState] = useState<CaptchaState | null>(null);
@@ -150,7 +149,6 @@ function cancelConditionalPasskey() {
 function usePasskeySignIn() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const scrollOnFocus = useScrollIntoViewOnFocus();
   const [, setLocation] = useLocation();
   const [isPending, setIsPending] = useState(false);
 

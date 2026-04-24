@@ -1154,6 +1154,17 @@ export function TutorialModal() {
                 <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-green-500 ml-auto mt-3 transition-colors shrink-0" />
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={handleSkip}
+              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+              className="mt-5 w-full py-3 min-h-[44px] rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              data-testid="button-tutorial-choice-maybe-later"
+              aria-label="Skip tutorial and go to the app"
+            >
+              Maybe later — take me to the app
+            </button>
           </div>
         </div>
       </div>

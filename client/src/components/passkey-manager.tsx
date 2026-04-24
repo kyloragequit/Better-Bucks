@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useTutorial } from "@/hooks/use-tutorial";
 import { KeyRound, Trash2, Pencil, Check, X, Plus, Laptop, Smartphone, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -239,9 +240,14 @@ export function PasskeyManager() {
 export function PasskeyFirstTimePrompt({ userId }: { userId: number }) {
   const storageKey = `passkey_prompt_dismissed_${userId}`;
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(storageKey) === "1");
+  // Don't ask the user about passkeys while the onboarding tutorial is open —
+  // it sits behind the modal and reads as "the app is asking for my password
+  // in the background". Defer until the tutorial is dismissed/finished.
+  const { showChoice, shouldShow, showFullTutorial } = useTutorial();
+  const tutorialActive = showChoice || shouldShow || showFullTutorial;
   const { data: passkeys, isLoading } = useQuery<PasskeyInfo[]>({
     queryKey: ["/api/passkeys"],
-    enabled: !dismissed,
+    enabled: !dismissed && !tutorialActive,
   });
 
   function handleDismiss() {
@@ -249,7 +255,7 @@ export function PasskeyFirstTimePrompt({ userId }: { userId: number }) {
     setDismissed(true);
   }
 
-  if (dismissed || isLoading || (passkeys && passkeys.length > 0)) return null;
+  if (tutorialActive || dismissed || isLoading || (passkeys && passkeys.length > 0)) return null;
 
   return <PasskeySetupPrompt onDismiss={handleDismiss} />;
 }

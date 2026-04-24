@@ -21,7 +21,38 @@ export const TUTORIAL_RESET_EVENT = "bb_tutorial_reset";
 // the overlay. Any module reading this set is guaranteed to see the
 // dismissal regardless of what the server cache currently says, until the
 // user explicitly restarts the tutorial.
+//
+// We also mirror the flag to sessionStorage so a module reload (HMR, lazy
+// chunk reload, deferred Suspense remount) doesn't lose the dismissal and
+// re-show the choice modal on the next navigation.
+const dismissedSessionKey = (userId: number) => `bb_tutorial_dismissed_${userId}`;
 const dismissedThisSession = new Set<number>();
+
+function isDismissed(userId: number): boolean {
+  if (dismissedThisSession.has(userId)) return true;
+  if (typeof window === "undefined") return false;
+  try {
+    if (sessionStorage.getItem(dismissedSessionKey(userId)) === "1") {
+      dismissedThisSession.add(userId);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+function markDismissed(userId: number) {
+  dismissedThisSession.add(userId);
+  if (typeof window !== "undefined") {
+    try { sessionStorage.setItem(dismissedSessionKey(userId), "1"); } catch {}
+  }
+}
+
+function clearDismissed(userId: number) {
+  dismissedThisSession.delete(userId);
+  if (typeof window !== "undefined") {
+    try { sessionStorage.removeItem(dismissedSessionKey(userId)); } catch {}
+  }
+}
 
 function readChoice(userId: number | undefined): "quick" | "full" | null {
   if (!userId || typeof window === "undefined") return null;
@@ -51,7 +82,7 @@ export function useTutorial() {
   // Always read fresh from localStorage (never stale state)
   const tutorialChoice = readChoice(userId);
   const dbCompleted = !!user && user.tutorialCompleted;
-  const sessionDismissed = !!userId && dismissedThisSession.has(userId);
+  const sessionDismissed = !!userId && isDismissed(userId);
 
   const showChoice = !!user && !dbCompleted && !sessionDismissed && !tutorialChoice;
   const shouldShow = !!user && !dbCompleted && !sessionDismissed && tutorialChoice === "quick";
@@ -78,7 +109,7 @@ export function useTutorial() {
     // showFullTutorial / showChoice flags and will stay hidden even if a
     // subsequent /api/user refetch lands with stale tutorialCompleted=false
     // (e.g. PageRefresher invalidating queries on route change after Skip).
-    if (userId) dismissedThisSession.add(userId);
+    if (userId) markDismissed(userId);
     restoreScroll();
     // Cancel any in-flight /api/user refetch first — without this, a refetch
     // started just before the POST resolves can land with the stale
@@ -112,7 +143,7 @@ export function useTutorial() {
     // Explicit restart from Settings is the ONLY way to re-show the tutorial
     // after dismissal — clear the session guard so the choice modal can
     // re-appear once the server reset lands.
-    if (userId) dismissedThisSession.delete(userId);
+    if (userId) clearDismissed(userId);
     if (userId) localStorage.removeItem(storageKey(userId));
     broadcastChange();
     try {

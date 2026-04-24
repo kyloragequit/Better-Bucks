@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { apiRequest } from "@/lib/queryClient";
-import { ClipboardList, Plus, Trash2, Eye, Play, Square, Users, ChevronDown, ChevronUp, X } from "lucide-react";
+import { ClipboardList, Plus, Trash2, Eye, Play, Square, Users, ChevronDown, ChevronUp, X, Download, Target } from "lucide-react";
 import type { Survey, SurveyQuestion } from "@shared/schema";
 import { useUser } from "@/hooks/use-auth";
 
-type SurveyWithMeta = Survey & { questions: SurveyQuestion[]; responseCount: number };
+type Goal = { id: number; title: string; type: string; status: string };
+type SurveyWithMeta = Survey & { questions: SurveyQuestion[]; responseCount: number; linkedGoalId?: number | null };
 
 type QuestionDraft = {
   questionType: "multiple_choice" | "written";
@@ -29,7 +30,117 @@ function statusBadge(status: string) {
   return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Draft</Badge>;
 }
 
-function ResultsDialog({ survey, onClose }: { survey: SurveyWithMeta; onClose: () => void }) {
+function exportToPdf(data: {
+  survey: Survey & { questions: SurveyQuestion[] };
+  results: { question: SurveyQuestion; answers: { id: number; selectedOption: number | null; answerText: string | null }[]; respondents: number }[];
+  respondents: { user: { id: number; fullName: string }; submittedAt: string }[];
+}) {
+  import("jspdf").then(({ jsPDF }) => {
+    const doc = new jsPDF();
+    const margin = 14;
+    let y = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const maxWidth = pageWidth - margin * 2;
+
+    const checkPage = (needed = 10) => {
+      if (y + needed > doc.internal.pageSize.getHeight() - 15) {
+        doc.addPage();
+        y = 20;
+      }
+    };
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(data.survey.title, margin, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}  |  Responses: ${data.respondents.length}`, margin, y);
+    y += 6;
+    if (data.survey.description) {
+      const descLines = doc.splitTextToSize(data.survey.description, maxWidth);
+      doc.text(descLines, margin, y);
+      y += descLines.length * 5 + 2;
+    }
+    doc.setTextColor(0);
+
+    y += 6;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    data.results.forEach((r, qi) => {
+      checkPage(20);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      const qLines = doc.splitTextToSize(`Q${qi + 1}. ${r.question.questionText}`, maxWidth);
+      doc.text(qLines, margin, y);
+      y += qLines.length * 5 + 3;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+
+      if (r.question.questionType === "multiple_choice" && r.question.options) {
+        r.question.options.forEach((opt, oi) => {
+          checkPage(7);
+          const count = r.answers.filter(a => a.selectedOption === oi).length;
+          const pct = r.respondents > 0 ? Math.round((count / r.respondents) * 100) : 0;
+          const barWidth = ((maxWidth - 80) * pct) / 100;
+          doc.setTextColor(80);
+          const optTrunc = opt.length > 30 ? opt.slice(0, 28) + "…" : opt;
+          doc.text(optTrunc, margin + 4, y);
+          doc.setFillColor(78, 159, 61);
+          if (barWidth > 0) doc.rect(margin + 70, y - 3.5, barWidth, 4, "F");
+          doc.setTextColor(0);
+          doc.text(`${count} (${pct}%)`, margin + 72 + (maxWidth - 82), y);
+          y += 6;
+        });
+      } else {
+        const written = r.answers.filter(a => a.answerText);
+        if (written.length === 0) {
+          doc.setTextColor(140);
+          doc.text("No written answers yet.", margin + 4, y);
+          doc.setTextColor(0);
+          y += 5;
+        } else {
+          written.forEach(a => {
+            checkPage(10);
+            const lines = doc.splitTextToSize(`"${a.answerText}"`, maxWidth - 8);
+            doc.setTextColor(60);
+            doc.text(lines, margin + 4, y);
+            doc.setTextColor(0);
+            y += lines.length * 4.5 + 2;
+          });
+        }
+      }
+      y += 4;
+    });
+
+    if (data.respondents.length > 0) {
+      checkPage(20);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Respondents", margin, y);
+      y += 6;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      data.respondents.forEach(r => {
+        checkPage(6);
+        doc.text(r.user.fullName, margin + 4, y);
+        doc.setTextColor(120);
+        doc.text(new Date(r.submittedAt).toLocaleDateString(), margin + 80, y);
+        doc.setTextColor(0);
+        y += 5;
+      });
+    }
+
+    doc.save(`survey-results-${data.survey.id}-${Date.now()}.pdf`);
+  });
+}
+
+function ResultsDialog({ survey, goalMap, onClose }: { survey: SurveyWithMeta; goalMap: Record<number, Goal>; onClose: () => void }) {
   const { data, isLoading } = useQuery<{
     survey: Survey & { questions: SurveyQuestion[] };
     results: { question: SurveyQuestion; answers: { id: number; selectedOption: number | null; answerText: string | null }[]; respondents: number }[];
@@ -54,9 +165,16 @@ function ResultsDialog({ survey, onClose }: { survey: SurveyWithMeta; onClose: (
           <div className="py-8 text-center text-muted-foreground">Failed to load results.</div>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="h-4 w-4" />
-              <span>{data.respondents.length} respondent{data.respondents.length !== 1 ? "s" : ""}</span>
+            <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5"><Users className="h-4 w-4" /> {data.respondents.length} respondent{data.respondents.length !== 1 ? "s" : ""}</span>
+              {survey.linkedGoalId && goalMap[survey.linkedGoalId] && (
+                <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-0.5">
+                  <Target className="h-3 w-3" /> Linked: {goalMap[survey.linkedGoalId].title}
+                </span>
+              )}
+              <Button size="sm" variant="outline" onClick={() => data && exportToPdf(data)} data-testid="button-export-pdf">
+                <Download className="h-4 w-4 mr-1.5" /> Export PDF
+              </Button>
             </div>
             {data.results.map((r) => (
               <div key={r.question.id} className="space-y-2" data-testid={`result-question-${r.question.id}`}>
@@ -119,9 +237,15 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"draft" | "active">("draft");
+  const [linkedGoalId, setLinkedGoalId] = useState<string>("");
   const [questions, setQuestions] = useState<QuestionDraft[]>([
     { questionType: "multiple_choice", questionText: "", options: ["", ""] },
   ]);
+
+  const { data: goals = [] } = useQuery<Goal[]>({
+    queryKey: ["/api/admin/goals"],
+  });
+  const quantityActiveGoals = goals.filter(g => g.type === "quantity" && g.status === "active");
 
   const mutation = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/admin/surveys", body),
@@ -136,30 +260,31 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
   function addQuestion() {
     setQuestions(qs => [...qs, { questionType: "multiple_choice", questionText: "", options: ["", ""] }]);
   }
-
   function removeQuestion(i: number) {
     setQuestions(qs => qs.filter((_, idx) => idx !== i));
   }
-
   function updateQuestion(i: number, patch: Partial<QuestionDraft>) {
     setQuestions(qs => qs.map((q, idx) => idx === i ? { ...q, ...patch } : q));
   }
-
   function addOption(qi: number) {
     setQuestions(qs => qs.map((q, idx) => idx === qi ? { ...q, options: [...q.options, ""] } : q));
   }
-
   function updateOption(qi: number, oi: number, val: string) {
     setQuestions(qs => qs.map((q, idx) => idx === qi ? { ...q, options: q.options.map((o, j) => j === oi ? val : o) } : q));
   }
-
   function removeOption(qi: number, oi: number) {
     setQuestions(qs => qs.map((q, idx) => idx === qi ? { ...q, options: q.options.filter((_, j) => j !== oi) } : q));
   }
 
   function handleSubmit() {
     if (!title.trim()) return toast({ title: "Title is required", variant: "destructive" });
-    mutation.mutate({ title: title.trim(), description: description.trim() || undefined, status, questions });
+    mutation.mutate({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      status,
+      questions,
+      linkedGoalId: linkedGoalId && linkedGoalId !== "none" ? Number(linkedGoalId) : null,
+    });
   }
 
   return (
@@ -177,17 +302,38 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
             <label className="text-sm font-medium">Description</label>
             <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" rows={2} data-testid="input-survey-description" />
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Initial Status</label>
-            <Select value={status} onValueChange={v => setStatus(v as any)}>
-              <SelectTrigger data-testid="select-survey-status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="active">Active (visible to employees)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Initial Status</label>
+              <Select value={status} onValueChange={v => setStatus(v as any)}>
+                <SelectTrigger data-testid="select-survey-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Active (visible to employees)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5 text-primary" /> Link to Goal <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Select value={linkedGoalId} onValueChange={setLinkedGoalId}>
+                <SelectTrigger data-testid="select-linked-goal">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {quantityActiveGoals.map(g => (
+                    <SelectItem key={g.id} value={String(g.id)}>{g.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {linkedGoalId && linkedGoalId !== "none" && (
+                <p className="text-xs text-muted-foreground">Each survey submission will count as +1 toward this goal.</p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -198,20 +344,12 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
                   <div className="flex-1 space-y-2">
                     <div className="space-y-1">
                       <label htmlFor={`q-text-${qi}`} className="text-sm font-medium">Question {qi + 1}</label>
-                      <Input
-                        id={`q-text-${qi}`}
-                        value={q.questionText}
-                        onChange={e => updateQuestion(qi, { questionText: e.target.value })}
-                        placeholder={`Type your question here`}
-                        data-testid={`input-question-text-${qi}`}
-                      />
+                      <Input id={`q-text-${qi}`} value={q.questionText} onChange={e => updateQuestion(qi, { questionText: e.target.value })} placeholder="Type your question here" data-testid={`input-question-text-${qi}`} />
                     </div>
                     <div className="space-y-1">
                       <label className="text-sm font-medium">Answer Type</label>
                       <Select value={q.questionType} onValueChange={v => updateQuestion(qi, { questionType: v as any })}>
-                        <SelectTrigger data-testid={`select-question-type-${qi}`}>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger data-testid={`select-question-type-${qi}`}><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                           <SelectItem value="written">Written Answer</SelectItem>
@@ -223,14 +361,7 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
                         <span className="text-xs font-medium text-muted-foreground">Options</span>
                         {q.options.map((opt, oi) => (
                           <div key={oi} className="flex gap-2">
-                            <Input
-                              value={opt}
-                              onChange={e => updateOption(qi, oi, e.target.value)}
-                              placeholder={`Option ${oi + 1}`}
-                              aria-label={`Question ${qi + 1} option ${oi + 1}`}
-                              className="h-8 text-sm"
-                              data-testid={`input-option-${qi}-${oi}`}
-                            />
+                            <Input value={opt} onChange={e => updateOption(qi, oi, e.target.value)} placeholder={`Option ${oi + 1}`} aria-label={`Question ${qi + 1} option ${oi + 1}`} className="h-8 text-sm" data-testid={`input-option-${qi}-${oi}`} />
                             {q.options.length > 2 && (
                               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Remove option" onClick={() => removeOption(qi, oi)}>
                                 <X className="h-3 w-3" />
@@ -268,12 +399,14 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SurveyCard({ survey }: { survey: SurveyWithMeta }) {
+function SurveyCard({ survey, goalMap }: { survey: SurveyWithMeta; goalMap: Record<number, Goal> }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: user } = useUser();
   const [showResults, setShowResults] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const linkedGoal = survey.linkedGoalId ? goalMap[survey.linkedGoalId] : null;
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => apiRequest("PATCH", `/api/admin/surveys/${survey.id}/status`, { status }),
@@ -294,7 +427,7 @@ function SurveyCard({ survey }: { survey: SurveyWithMeta }) {
 
   return (
     <>
-      {showResults && <ResultsDialog survey={survey} onClose={() => setShowResults(false)} />}
+      {showResults && <ResultsDialog survey={survey} goalMap={goalMap} onClose={() => setShowResults(false)} />}
       <Card data-testid={`card-survey-${survey.id}`}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
@@ -302,10 +435,15 @@ function SurveyCard({ survey }: { survey: SurveyWithMeta }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <CardTitle className="text-base">{survey.title}</CardTitle>
                 {statusBadge(survey.status)}
+                {linkedGoal && (
+                  <Badge variant="outline" className="text-xs flex items-center gap-1 text-blue-700 border-blue-300 bg-blue-50" data-testid={`badge-goal-${survey.id}`}>
+                    <Target className="h-3 w-3" /> {linkedGoal.title}
+                  </Badge>
+                )}
               </div>
               {survey.description && <p className="text-sm text-muted-foreground mt-1">{survey.description}</p>}
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={expanded ? "Collapse survey" : "Expand survey"} aria-expanded={expanded} onClick={() => setExpanded(e => !e)} data-testid={`button-expand-survey-${survey.id}`}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={expanded ? "Collapse" : "Expand"} aria-expanded={expanded} onClick={() => setExpanded(e => !e)} data-testid={`button-expand-survey-${survey.id}`}>
               {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
@@ -372,6 +510,12 @@ export default function AdminSurveysPage() {
   const { data: surveys = [], isLoading } = useQuery<SurveyWithMeta[]>({
     queryKey: ["/api/surveys"],
   });
+  const { data: goals = [] } = useQuery<Goal[]>({
+    queryKey: ["/api/admin/goals"],
+  });
+
+  const goalMap: Record<number, Goal> = {};
+  for (const g of goals) goalMap[g.id] = g;
 
   const active = surveys.filter(s => s.status === "active");
   const draft = surveys.filter(s => s.status === "draft");
@@ -403,19 +547,19 @@ export default function AdminSurveysPage() {
             {active.length > 0 && (
               <section>
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Active</h2>
-                <div className="space-y-3">{active.map(s => <SurveyCard key={s.id} survey={s} />)}</div>
+                <div className="space-y-3">{active.map(s => <SurveyCard key={s.id} survey={s} goalMap={goalMap} />)}</div>
               </section>
             )}
             {draft.length > 0 && (
               <section>
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Drafts</h2>
-                <div className="space-y-3">{draft.map(s => <SurveyCard key={s.id} survey={s} />)}</div>
+                <div className="space-y-3">{draft.map(s => <SurveyCard key={s.id} survey={s} goalMap={goalMap} />)}</div>
               </section>
             )}
             {closed.length > 0 && (
               <section>
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Closed</h2>
-                <div className="space-y-3">{closed.map(s => <SurveyCard key={s.id} survey={s} />)}</div>
+                <div className="space-y-3">{closed.map(s => <SurveyCard key={s.id} survey={s} goalMap={goalMap} />)}</div>
               </section>
             )}
           </div>

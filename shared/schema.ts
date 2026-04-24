@@ -396,6 +396,7 @@ export const surveys = pgTable("surveys", {
   title: text("title").notNull(),
   description: text("description"),
   status: text("status", { enum: ["draft", "active", "closed"] }).default("draft").notNull(),
+  linkedGoalId: integer("linked_goal_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ClipboardList, CheckCircle2, ChevronRight } from "lucide-react";
+import { ClipboardList, CheckCircle2, ChevronRight, Target } from "lucide-react";
 import type { Survey, SurveyQuestion } from "@shared/schema";
 
-type SurveyWithMeta = Survey & { questions: SurveyQuestion[]; responseCount: number };
+type Goal = { id: number; title: string; type: string; status: string };
+type SurveyWithMeta = Survey & { questions: SurveyQuestion[]; responseCount: number; responded?: boolean; linkedGoalId?: number | null };
 
 function SurveyTakeModal({
   survey,
@@ -29,6 +30,7 @@ function SurveyTakeModal({
     mutationFn: (body: any) => apiRequest("POST", `/api/surveys/${survey.id}/respond`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/surveys"] });
+      qc.invalidateQueries({ queryKey: ["/api/goals"] });
       toast({ title: "Response submitted!", description: "Thank you for your feedback." });
       onClose();
     },
@@ -97,6 +99,11 @@ export default function EmployeeSurveysPage() {
   const { data: surveys = [], isLoading } = useQuery<SurveyWithMeta[]>({
     queryKey: ["/api/surveys"],
   });
+  const { data: goals = [] } = useQuery<Goal[]>({
+    queryKey: ["/api/goals"],
+  });
+  const goalMap: Record<number, Goal> = {};
+  for (const g of goals) goalMap[g.id] = g;
 
   const activeSurveys = surveys.filter(s => s.status === "active");
 
@@ -120,6 +127,7 @@ export default function EmployeeSurveysPage() {
           <div className="space-y-3">
             {activeSurveys.map(survey => {
               const responded = (survey as any).responded;
+              const linkedGoal = survey.linkedGoalId ? goalMap[survey.linkedGoalId] : null;
               return (
                 <Card key={survey.id} data-testid={`card-survey-${survey.id}`} className={responded ? "opacity-70" : ""}>
                   <CardHeader className="pb-3">
@@ -134,7 +142,14 @@ export default function EmployeeSurveysPage() {
                           )}
                         </div>
                         {survey.description && <p className="text-sm text-muted-foreground mt-1">{survey.description}</p>}
-                        <p className="text-xs text-muted-foreground mt-1">{survey.questions.length} question{survey.questions.length !== 1 ? "s" : ""}</p>
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                          <p className="text-xs text-muted-foreground">{survey.questions.length} question{survey.questions.length !== 1 ? "s" : ""}</p>
+                          {linkedGoal && (
+                            <span className="text-xs flex items-center gap-1 text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5" data-testid={`badge-goal-survey-${survey.id}`}>
+                              <Target className="h-3 w-3" /> Contributes to: <strong>{linkedGoal.title}</strong>
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {!responded && (
                         <Button size="sm" onClick={() => setTaking(survey)} data-testid={`button-take-survey-${survey.id}`}>

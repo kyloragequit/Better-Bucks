@@ -37,7 +37,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Key Features
 - **Goals System**: Prime admins can create time-based or quantity-based goals with Bucks rewards.
-- **Surveys System**: Admins can create multi-question surveys for employees and view results.
+- **Surveys System**: Admins can create multi-question surveys (multiple-choice & written) for employees. Surveys can be optionally linked to an active quantity goal — each submission auto-increments the goal's progress. Results dialog shows response breakdown per question, respondent list, and an "Export PDF" button (client-side jsPDF export). Employee survey cards show "Contributes to: [Goal Name]" when linked. Fixed a query bug where `= ANY()` malformed SQL caused 500 errors on survey listing — replaced with `inArray()` from drizzle-orm throughout.
 - **Employee Store**: Admins curate items for employees to purchase with Bucks, including a wishlist system and customizable order settings (size/color).
 - **Order System**: Employees can submit orders; prime admins are solely responsible for approval/rejection.
 - **Admin Email Requirement**: Admin and prime_admin accounts require a valid email.

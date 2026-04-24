@@ -1093,8 +1093,8 @@ export class DatabaseStorage implements IStorage {
     const rows = await db.select().from(surveys).where(eq(surveys.organizationId, organizationId)).orderBy(desc(surveys.createdAt));
     if (rows.length === 0) return [];
     const ids = rows.map(s => s.id);
-    const qs = await db.select().from(surveyQuestions).where(sql`${surveyQuestions.surveyId} = ANY(${ids})`).orderBy(surveyQuestions.orderIndex);
-    const counts = await db.select({ surveyId: surveyResponses.surveyId, count: sql<number>`COUNT(*)` }).from(surveyResponses).where(sql`${surveyResponses.surveyId} = ANY(${ids})`).groupBy(surveyResponses.surveyId);
+    const qs = await db.select().from(surveyQuestions).where(inArray(surveyQuestions.surveyId, ids)).orderBy(surveyQuestions.orderIndex);
+    const counts = await db.select({ surveyId: surveyResponses.surveyId, count: sql<number>`COUNT(*)` }).from(surveyResponses).where(inArray(surveyResponses.surveyId, ids)).groupBy(surveyResponses.surveyId);
     const qMap: Record<number, SurveyQuestion[]> = {};
     for (const q of qs) { (qMap[q.surveyId] = qMap[q.surveyId] || []).push(q); }
     const cMap: Record<number, number> = {};
@@ -1135,7 +1135,7 @@ export class DatabaseStorage implements IStorage {
     const [{ count }] = await db.select({ count: sql<number>`COUNT(*)` }).from(surveyResponses).where(eq(surveyResponses.surveyId, surveyId));
     const responseIds = (await db.select({ id: surveyResponses.id }).from(surveyResponses).where(eq(surveyResponses.surveyId, surveyId))).map(r => r.id);
     const answers = responseIds.length > 0
-      ? await db.select().from(surveyAnswers).where(sql`${surveyAnswers.responseId} = ANY(${responseIds})`)
+      ? await db.select().from(surveyAnswers).where(inArray(surveyAnswers.responseId, responseIds))
       : [];
     const aByQ: Record<number, SurveyAnswer[]> = {};
     for (const a of answers) { (aByQ[a.questionId] = aByQ[a.questionId] || []).push(a); }
@@ -1146,7 +1146,7 @@ export class DatabaseStorage implements IStorage {
     const rows = await db.select({ userId: surveyResponses.userId, submittedAt: surveyResponses.submittedAt }).from(surveyResponses).where(eq(surveyResponses.surveyId, surveyId)).orderBy(desc(surveyResponses.submittedAt));
     const userIds = rows.map(r => r.userId);
     if (userIds.length === 0) return [];
-    const us = await db.select({ id: users.id, fullName: users.fullName }).from(users).where(sql`${users.id} = ANY(${userIds})`);
+    const us = await db.select({ id: users.id, fullName: users.fullName }).from(users).where(inArray(users.id, userIds));
     const uMap: Record<number, string> = {};
     for (const u of us) uMap[u.id] = u.fullName;
     return rows.map(r => ({ user: { id: r.userId, fullName: uMap[r.userId] ?? "Unknown" }, submittedAt: r.submittedAt }));

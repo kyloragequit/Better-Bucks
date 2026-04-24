@@ -6342,10 +6342,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   app.post("/api/admin/surveys", asyncHandler(async (req, res) => {
     const user = req.user as any;
     if (!user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).json({ message: "Forbidden" });
-    const { title, description, status, questions } = req.body;
+    const { title, description, status, questions, linkedGoalId } = req.body;
     if (!title) return res.status(400).json({ message: "Title is required" });
     const survey = await storage.createSurvey(
-      { organizationId: user.organizationId, createdBy: user.id, title, description: description ?? null, status: status ?? "draft" },
+      { organizationId: user.organizationId, createdBy: user.id, title, description: description ?? null, status: status ?? "draft", linkedGoalId: linkedGoalId ?? null } as any,
       (questions || []).map((q: any, i: number) => ({
         questionType: q.questionType,
         questionText: q.questionText,
@@ -6399,6 +6399,15 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const already = await storage.hasUserRespondedToSurvey(survey.id, user.id);
     if (already) return res.status(400).json({ message: "Already responded" });
     await storage.submitSurveyResponse(survey.id, user.id, req.body.answers || []);
+    // If this survey is linked to a quantity goal, auto-increment the goal progress by 1
+    if ((survey as any).linkedGoalId) {
+      try {
+        const goal = await storage.getGoal((survey as any).linkedGoalId);
+        if (goal && goal.type === "quantity" && goal.status === "active" && goal.organizationId === user.organizationId) {
+          await storage.incrementGoalQuantity(goal.id, 1);
+        }
+      } catch (_) { /* don't block survey submission if goal increment fails */ }
+    }
     res.json({ success: true });
   }));
 

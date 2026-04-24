@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
@@ -29,6 +30,7 @@ export default function EmployeeSettingsPage() {
   const { data: user } = useUser();
   const { data: userDetails } = useUserDetails(user?.id || 0);
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
 
@@ -230,7 +232,7 @@ export default function EmployeeSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleDisplayNameSubmit} className="space-y-4">
+            <form onFocusCapture={scrollOnFocus} onSubmit={handleDisplayNameSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="display-name">New Display Name</Label>
                 <Input
@@ -268,7 +270,7 @@ export default function EmployeeSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <form onFocusCapture={scrollOnFocus} onSubmit={handleEmailSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input
@@ -302,7 +304,7 @@ export default function EmployeeSettingsPage() {
             <CardDescription>Update your account password</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <form onFocusCapture={scrollOnFocus} onSubmit={handlePasswordSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="current-password">Current Password</Label>
                 <Input

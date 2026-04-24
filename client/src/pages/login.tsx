@@ -12,6 +12,7 @@ import { AppLogo } from "@/components/app-logo";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { startAuthentication, browserSupportsWebAuthnAutofill } from "@simplewebauthn/browser";
 import { PasskeySetupPrompt } from "@/components/passkey-manager";
 import { Link } from "wouter";
@@ -91,6 +92,7 @@ function redirectAfterLogin(role: string, setLocation: (path: string) => void) {
 function useLoginFlow() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const [, setLocation] = useLocation();
   const [isPending, setIsPending] = useState(false);
   const [captchaState, setCaptchaState] = useState<CaptchaState | null>(null);
@@ -148,6 +150,7 @@ function cancelConditionalPasskey() {
 function usePasskeySignIn() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const [, setLocation] = useLocation();
   const [isPending, setIsPending] = useState(false);
 
@@ -229,6 +232,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
   const [resolvedSiteId, setResolvedSiteId] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const [, setLocation] = useLocation();
   const { submitLogin, isPending: adminPending, captchaState, setCaptchaState } = useLoginFlow();
   const conditionalStartedRef = useRef(false);
@@ -384,7 +388,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
 
   if (step === "register") {
     return (
-      <form onSubmit={handleRegisterSubmit} className="space-y-4">
+      <form onFocusCapture={scrollOnFocus} onSubmit={handleRegisterSubmit} className="space-y-4">
         <div className="rounded-lg bg-muted/40 border px-4 py-3 text-sm space-y-1">
           <p className="text-muted-foreground text-xs">Employee code</p>
           <p className="font-mono font-semibold">{username}</p>
@@ -467,7 +471,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
   const isLoading = isPending || adminPending;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+    <form onFocusCapture={scrollOnFocus} onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
       <div className="space-y-2">
         <Label htmlFor="username">Username or email</Label>
         <div className="relative">

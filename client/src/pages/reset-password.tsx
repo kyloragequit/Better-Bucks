@@ -10,10 +10,12 @@ import { AppLogo } from "@/components/app-logo";
 import { ArrowLeft, Lock, CheckCircle, Eye, EyeOff } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 
 export default function ResetPasswordPage() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
 
   const params = new URLSearchParams(window.location.search);
   const prefillContact = params.get("contact") || "";
@@ -96,7 +98,7 @@ export default function ResetPasswordPage() {
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onFocusCapture={scrollOnFocus} onSubmit={handleSubmit} className="space-y-4">
                 {!prefillContact && (
                   <div className="space-y-2">
                     <Label htmlFor="reset-contact">Email or Phone</Label>

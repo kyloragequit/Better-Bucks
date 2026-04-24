@@ -10,12 +10,14 @@ import { AppLogo } from "@/components/app-logo";
 import { ArrowLeft, Mail, Phone, Send, CheckCircle, KeyRound, Building2, Eye, EyeOff, Lock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 
 type Method = "email" | "phone" | "siteid";
 
 export default function ForgotPasswordPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const [method, setMethod] = useState<Method>("email");
   const [contact, setContact] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -183,7 +185,7 @@ export default function ForgotPasswordPage() {
                 </div>
 
                 {method === "siteid" ? (
-                  <form onSubmit={handleSiteIdSubmit} className="space-y-4">
+                  <form onFocusCapture={scrollOnFocus} onSubmit={handleSiteIdSubmit} className="space-y-4">
                     <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                       Only works if you've never set your own password. If you've changed your password before, use Email or Phone above.
                     </div>
@@ -268,7 +270,7 @@ export default function ForgotPasswordPage() {
                     </Button>
                   </form>
                 ) : (
-                  <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <form onFocusCapture={scrollOnFocus} onSubmit={handleContactSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="contact-input">
                         {method === "email" ? "Email Address" : "Phone Number"}

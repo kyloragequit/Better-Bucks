@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { Building2, User, UserPlus, LogIn, ArrowLeft, QrCode, Eye, EyeOff, Clock } from "lucide-react";
@@ -20,6 +21,7 @@ export default function JoinPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
 
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
@@ -236,7 +238,7 @@ export default function JoinPage() {
                 </Button>
               </div>
             ) : step === "username" ? (
-              <form onSubmit={handleUsernameSubmit} className="space-y-4">
+              <form onFocusCapture={scrollOnFocus} onSubmit={handleUsernameSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="join-username">Employee Code / Username</Label>
                   <div className="relative">
@@ -272,7 +274,7 @@ export default function JoinPage() {
                 </Button>
               </form>
             ) : (
-              <form onSubmit={handleRegisterSubmit} className="space-y-4">
+              <form onFocusCapture={scrollOnFocus} onSubmit={handleRegisterSubmit} className="space-y-4">
                 <div className="rounded-lg bg-muted/40 border px-4 py-3 text-sm space-y-1">
                   <p className="text-muted-foreground text-xs">Employee code</p>
                   <p className="font-mono font-semibold">{username}</p>

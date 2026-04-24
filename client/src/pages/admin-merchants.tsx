@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { Plus, Trash2, KeyRound, Power, Eye } from "lucide-react";
 
 type Merchant = { id: number; name: string; email: string; status: "active" | "disabled"; createdAt: string };
@@ -16,6 +17,7 @@ type Tx = { id: number; bucksAmount: number; createdAt: string; employee?: { id:
 
 export default function AdminMerchantsPage() {
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const { data: merchants = [], isLoading } = useQuery<Merchant[]>({ queryKey: ["/api/admin/merchants"] });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -86,7 +88,7 @@ export default function AdminMerchantsPage() {
                 <DialogTitle>Add merchant</DialogTitle>
                 <DialogDescription>The merchant will sign in at /merchant/login.</DialogDescription>
               </DialogHeader>
-              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createMut.mutate(); }}>
+              <form onFocusCapture={scrollOnFocus} className="space-y-4" onSubmit={(e) => { e.preventDefault(); createMut.mutate(); }}>
                 <div className="space-y-2">
                   <Label htmlFor="m-name">Name</Label>
                   <Input id="m-name" value={name} onChange={(e) => setName(e.target.value)} required data-testid="input-merchant-create-name" />
@@ -157,7 +159,7 @@ export default function AdminMerchantsPage() {
             <DialogTitle>Reset password</DialogTitle>
             <DialogDescription>Set a new password for {pwdMerchant?.name}.</DialogDescription>
           </DialogHeader>
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (pwdMerchant) updateMut.mutate({ id: pwdMerchant.id, data: { password: newPwd } }); }}>
+          <form onFocusCapture={scrollOnFocus} className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (pwdMerchant) updateMut.mutate({ id: pwdMerchant.id, data: { password: newPwd } }); }}>
             <div className="space-y-2">
               <Label htmlFor="np">New password</Label>
               <Input id="np" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} minLength={6} required data-testid="input-merchant-new-password" />

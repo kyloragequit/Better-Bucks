@@ -11,11 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { AppLogo } from "@/components/app-logo";
 import { LogoBackground } from "@/components/logo-background";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { ArrowLeft, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone, Eye, EyeOff } from "lucide-react";
 
 export default function SetupPrimePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const queryClient = useQueryClient();
 
   const params = new URLSearchParams(window.location.search);
@@ -158,7 +160,7 @@ export default function SetupPrimePage() {
 
           <CardContent>
             {!codeValidated ? (
-              <form onSubmit={handleValidate} className="space-y-4">
+              <form onFocusCapture={scrollOnFocus} onSubmit={handleValidate} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="org-code">Organization Code</Label>
                   <div className="relative">
@@ -191,7 +193,7 @@ export default function SetupPrimePage() {
                 </Button>
               </form>
             ) : (
-              <form onSubmit={handleSetup} className="space-y-4">
+              <form onFocusCapture={scrollOnFocus} onSubmit={handleSetup} className="space-y-4">
                 <div className="rounded-md bg-green-50 border border-green-200 p-3 flex items-center gap-2 text-sm text-green-800">
                   <Check className="h-4 w-4" />
                   Organization verified: {orgName}

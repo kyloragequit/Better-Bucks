@@ -734,7 +734,7 @@ function ItemActionButton({
             <div className="grid gap-1.5">
               <Label>Amount</Label>
               <Input
-                type="number"
+                type="number" inputMode="numeric"
                 min={1}
                 placeholder="e.g. 5"
                 value={amount}
@@ -921,7 +921,7 @@ function BulkGiveDialog({
           <div className="grid gap-1.5">
             <Label>Amount per Employee</Label>
             <Input
-              type="number"
+              type="number" inputMode="numeric"
               min={1}
               placeholder="e.g. 5"
               value={amount}

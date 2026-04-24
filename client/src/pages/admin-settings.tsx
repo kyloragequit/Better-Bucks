@@ -1644,7 +1644,7 @@ function ShopWebsitesSection() {
                 <Label htmlFor="shop-rate">Bucks per $1</Label>
                 <Input
                   id="shop-rate"
-                  type="number"
+                  type="number" inputMode="numeric"
                   min={1}
                   placeholder="e.g. 50"
                   value={newRate}
@@ -1714,7 +1714,7 @@ function ShopWebsitesSection() {
                       <div className="space-y-1">
                         <Label>Bucks per $1</Label>
                         <Input
-                          type="number"
+                          type="number" inputMode="numeric"
                           min={1}
                           value={editRate}
                           onChange={(e) => setEditRate(e.target.value)}

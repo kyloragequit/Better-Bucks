@@ -266,7 +266,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                   <p className="text-xs font-semibold text-blue-600 mb-1.5">Monthly Budget</p>
                   <div className="flex items-baseline gap-1.5">
                     <input
-                      type="number"
+                      type="number" inputMode="numeric"
                       min="0"
                       value={budget}
                       onChange={e => setBudget(e.target.value)}
@@ -287,7 +287,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                   <p className="text-xs font-semibold text-green-600 mb-1.5">Bucks per $1</p>
                   <div className="flex items-baseline gap-1.5">
                     <input
-                      type="number"
+                      type="number" inputMode="numeric"
                       min="1"
                       value={bpd}
                       onChange={e => setBpd(e.target.value)}
@@ -461,7 +461,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                     <Label htmlFor="bucks-each" className="text-sm">Bucks to give each</Label>
                     <Input
                       id="bucks-each"
-                      type="number"
+                      type="number" inputMode="numeric"
                       min="1"
                       value={bucksEach}
                       onChange={e => setBucksEach(e.target.value)}

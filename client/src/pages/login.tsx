@@ -392,7 +392,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
         <div className="space-y-2">
           <Label htmlFor="fullname">Your Full Name</Label>
           <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id="fullname"
               placeholder="First Last"
@@ -471,7 +471,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
       <div className="space-y-2">
         <Label htmlFor="username">Username or email</Label>
         <div className="relative">
-          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             id="username"
             placeholder="Username, email, or employee code"
@@ -498,7 +498,7 @@ function UnifiedLoginForm({ defaultOrgCode = "" }: { defaultOrgCode?: string }) 
           </button>
         </div>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             id="credential"
             type={showCredential ? "text" : "password"}

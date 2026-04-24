@@ -391,7 +391,7 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
           </DialogHeader>
           <div className="flex gap-2 mb-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search people..."
                 value={search}
@@ -730,7 +730,7 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
             <Label htmlFor="amount">Amount</Label>
             <Input 
               id="amount" 
-              type="number" 
+              type="number" inputMode="numeric" 
               min="1"
               required
               placeholder="e.g. 500"

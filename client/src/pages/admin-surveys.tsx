@@ -194,29 +194,38 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
               <div key={qi} className="border rounded-lg p-4 space-y-3 bg-muted/20" data-testid={`question-block-${qi}`}>
                 <div className="flex items-start gap-2">
                   <div className="flex-1 space-y-2">
-                    <Input
-                      value={q.questionText}
-                      onChange={e => updateQuestion(qi, { questionText: e.target.value })}
-                      placeholder={`Question ${qi + 1}`}
-                      data-testid={`input-question-text-${qi}`}
-                    />
-                    <Select value={q.questionType} onValueChange={v => updateQuestion(qi, { questionType: v as any })}>
-                      <SelectTrigger data-testid={`select-question-type-${qi}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                        <SelectItem value="written">Written Answer</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1">
+                      <label htmlFor={`q-text-${qi}`} className="text-sm font-medium">Question {qi + 1}</label>
+                      <Input
+                        id={`q-text-${qi}`}
+                        value={q.questionText}
+                        onChange={e => updateQuestion(qi, { questionText: e.target.value })}
+                        placeholder={`Type your question here`}
+                        data-testid={`input-question-text-${qi}`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">Answer Type</label>
+                      <Select value={q.questionType} onValueChange={v => updateQuestion(qi, { questionType: v as any })}>
+                        <SelectTrigger data-testid={`select-question-type-${qi}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                          <SelectItem value="written">Written Answer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {q.questionType === "multiple_choice" && (
                       <div className="space-y-1.5 pl-2">
+                        <span className="text-xs font-medium text-muted-foreground">Options</span>
                         {q.options.map((opt, oi) => (
                           <div key={oi} className="flex gap-2">
                             <Input
                               value={opt}
                               onChange={e => updateOption(qi, oi, e.target.value)}
                               placeholder={`Option ${oi + 1}`}
+                              aria-label={`Question ${qi + 1} option ${oi + 1}`}
                               className="h-8 text-sm"
                               data-testid={`input-option-${qi}-${oi}`}
                             />

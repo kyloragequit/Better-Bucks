@@ -162,7 +162,7 @@ export default function SetupPrimePage() {
                 <div className="space-y-2">
                   <Label htmlFor="org-code">Organization Code</Label>
                   <div className="relative">
-                    <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="org-code"
                       placeholder="e.g. A1B2C3D4"
@@ -201,7 +201,7 @@ export default function SetupPrimePage() {
                   <Label htmlFor="setup-store-url">Employee Store Website</Label>
                   <p className="text-xs text-muted-foreground">Enter the website where your employees will browse and pick items</p>
                   <div className="relative">
-                    <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="setup-store-url"
                       type="url"
@@ -218,7 +218,7 @@ export default function SetupPrimePage() {
                 <div className="space-y-2">
                   <Label htmlFor="setup-fullname">Full Name</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="setup-fullname"
                       placeholder="John Doe"
@@ -257,7 +257,7 @@ export default function SetupPrimePage() {
                   </div>
                   {contactMethod === "email" ? (
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="setup-email"
                         type="email"
@@ -271,7 +271,7 @@ export default function SetupPrimePage() {
                     </div>
                   ) : (
                     <div className="relative">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="setup-phone"
                         type="tel"
@@ -289,7 +289,7 @@ export default function SetupPrimePage() {
                 <div className="space-y-2">
                   <Label htmlFor="setup-username">Username</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="setup-username"
                       placeholder="Choose a username"
@@ -306,7 +306,7 @@ export default function SetupPrimePage() {
                 <div className="space-y-2">
                   <Label htmlFor="setup-password">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="setup-password"
                       type={showPassword ? "text" : "password"}
@@ -320,7 +320,7 @@ export default function SetupPrimePage() {
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
                       data-testid="button-toggle-password"
                     >
@@ -332,7 +332,7 @@ export default function SetupPrimePage() {
                 <div className="space-y-2">
                   <Label htmlFor="setup-confirm">Confirm Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="setup-confirm"
                       type={showConfirmPassword ? "text" : "password"}
@@ -345,7 +345,7 @@ export default function SetupPrimePage() {
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       data-testid="button-toggle-confirm-password"
                     >

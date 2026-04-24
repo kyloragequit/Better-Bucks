@@ -286,7 +286,7 @@ export default function AdminStorePage() {
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="si-price">Price (Bucks)</Label>
-                  <Input id="si-price" type="number" min="1" value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 500" data-testid="input-store-item-price" />
+                  <Input id="si-price" type="number" inputMode="numeric" min="1" value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 500" data-testid="input-store-item-price" />
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="si-url">Item URL <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>

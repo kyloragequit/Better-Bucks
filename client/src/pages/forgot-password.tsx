@@ -190,7 +190,7 @@ export default function ForgotPasswordPage() {
                     <div className="space-y-2">
                       <Label htmlFor="site-id">Workplace Site ID</Label>
                       <div className="relative">
-                        <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="site-id"
                           className="pl-9"
@@ -219,7 +219,7 @@ export default function ForgotPasswordPage() {
                     <div className="space-y-2">
                       <Label htmlFor="siteid-new-password">New Password</Label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="siteid-new-password"
                           type={showPassword ? "text" : "password"}
@@ -233,7 +233,7 @@ export default function ForgotPasswordPage() {
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                           onClick={() => setShowPassword(!showPassword)}
                           tabIndex={-1}
                         >
@@ -244,7 +244,7 @@ export default function ForgotPasswordPage() {
                     <div className="space-y-2">
                       <Label htmlFor="siteid-confirm-password">Confirm New Password</Label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="siteid-confirm-password"
                           type={showPassword ? "text" : "password"}

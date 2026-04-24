@@ -353,7 +353,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
           <div className="grid gap-2">
             <Label htmlFor="item-url">Item Link (optional)</Label>
             <div className="relative">
-              <Link2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="item-url"
                 type="url"
@@ -370,7 +370,7 @@ function CreateOrderDialog({ balance }: { balance: number }) {
             <Label htmlFor="points">Bucks to spend</Label>
             <Input
               id="points"
-              type="number"
+              type="number" inputMode="numeric"
               min={1}
               max={balance}
               required

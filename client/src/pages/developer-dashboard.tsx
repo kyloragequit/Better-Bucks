@@ -806,7 +806,7 @@ export default function DeveloperDashboardPage() {
                       <Label htmlFor="rc-months">Extra Free Months</Label>
                       <Input
                         id="rc-months"
-                        type="number"
+                        type="number" inputMode="numeric"
                         min={0}
                         max={12}
                         value={refCodeForm.extraMonths}
@@ -1758,7 +1758,7 @@ function EnterpriseAccountsTab() {
                 </div>
                 <div className="space-y-1">
                   <Label>Custom Price ($)</Label>
-                  <Input type="number" step="0.01" min="1" required value={form.customPrice} onChange={e => setForm({...form, customPrice: e.target.value})} placeholder="e.g. 499.99" data-testid="input-ent-price" />
+                  <Input type="number" inputMode="decimal" step="0.01" min="1" required value={form.customPrice} onChange={e => setForm({...form, customPrice: e.target.value})} placeholder="e.g. 499.99" data-testid="input-ent-price" />
                 </div>
                 <div className="space-y-1">
                   <Label>Billing Cycle</Label>
@@ -1770,7 +1770,7 @@ function EnterpriseAccountsTab() {
                 </div>
                 <div className="space-y-1">
                   <Label>Max Logins (Usage Limit)</Label>
-                  <Input type="number" min="1" required value={form.maxLogins} onChange={e => setForm({...form, maxLogins: e.target.value})} placeholder="e.g. 500" data-testid="input-ent-logins" />
+                  <Input type="number" inputMode="numeric" min="1" required value={form.maxLogins} onChange={e => setForm({...form, maxLogins: e.target.value})} placeholder="e.g. 500" data-testid="input-ent-logins" />
                 </div>
               </div>
               <div className="space-y-1">

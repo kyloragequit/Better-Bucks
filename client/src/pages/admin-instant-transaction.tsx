@@ -284,7 +284,7 @@ export default function AdminInstantTransactionPage() {
                   <Label htmlFor="tx-amount">Amount (Bucks)</Label>
                   <Input
                     id="tx-amount"
-                    type="number"
+                    type="number" inputMode="numeric"
                     min={1}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}

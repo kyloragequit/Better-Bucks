@@ -380,7 +380,7 @@ function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; o
             {editingBucks ? (
               <div className="flex items-center gap-2">
                 <Input
-                  type="number"
+                  type="number" inputMode="numeric"
                   min={1}
                   value={newBucks}
                   onChange={(e) => setNewBucks(e.target.value)}

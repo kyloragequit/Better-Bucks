@@ -240,7 +240,7 @@ export default function JoinPage() {
                 <div className="space-y-2">
                   <Label htmlFor="join-username">Employee Code / Username</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="join-username"
                       placeholder="e.g. john.smith or EMP-001"
@@ -281,7 +281,7 @@ export default function JoinPage() {
                 <div className="space-y-2">
                   <Label htmlFor="join-fullname">Your Full Name</Label>
                   <div className="relative">
-                    <UserPlus className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="join-fullname"
                       placeholder="First Last"
@@ -311,7 +311,7 @@ export default function JoinPage() {
                           autoComplete="new-password"
                           data-testid="input-join-password"
                         />
-                        <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
@@ -330,7 +330,7 @@ export default function JoinPage() {
                             autoComplete="new-password"
                             data-testid="input-join-confirm-password"
                           />
-                          <button type="button" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(v => !v)} tabIndex={-1}>
+                          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(v => !v)} tabIndex={-1}>
                             {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>

@@ -102,7 +102,7 @@ export default function AdminTeamPage() {
 
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search team members..."
             className="pl-9 bg-muted/30"
@@ -372,7 +372,7 @@ function AddToTeamDialog({
           <DialogTitle>Add Members to Your Team</DialogTitle>
         </DialogHeader>
         <div className="relative mb-3">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search people..."
             className="pl-9"
@@ -529,7 +529,7 @@ function BulkCreditDialog({
             <Label htmlFor="bulk-amount">Amount per person</Label>
             <Input
               id="bulk-amount"
-              type="number"
+              type="number" inputMode="numeric"
               min="1"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}

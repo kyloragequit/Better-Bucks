@@ -241,12 +241,12 @@ export default function AdminGoalsPage() {
             )}
             <div className="space-y-1.5">
               <Label>Bucks Reward (per employee)</Label>
-              <Input type="number" min="1" placeholder="e.g. 500" value={form.bucksReward} onChange={e => setForm(f => ({ ...f, bucksReward: e.target.value }))} data-testid="input-goal-bucks" />
+              <Input type="number" inputMode="numeric" min="1" placeholder="e.g. 500" value={form.bucksReward} onChange={e => setForm(f => ({ ...f, bucksReward: e.target.value }))} data-testid="input-goal-bucks" />
             </div>
             {form.type === "quantity" && (
               <div className="space-y-1.5">
                 <Label>Target Quantity</Label>
-                <Input type="number" min="1" placeholder="e.g. 100" value={form.targetQuantity} onChange={e => setForm(f => ({ ...f, targetQuantity: e.target.value }))} data-testid="input-goal-target-qty" />
+                <Input type="number" inputMode="numeric" min="1" placeholder="e.g. 100" value={form.targetQuantity} onChange={e => setForm(f => ({ ...f, targetQuantity: e.target.value }))} data-testid="input-goal-target-qty" />
               </div>
             )}
             {form.type === "time" && (
@@ -271,16 +271,16 @@ export default function AdminGoalsPage() {
                   </button>
                 </div>
                 {form.durationUnit === "days" ? (
-                  <Input type="number" min="1" placeholder="e.g. 30" value={form.targetDays} onChange={e => setForm(f => ({ ...f, targetDays: e.target.value }))} data-testid="input-goal-target-days" />
+                  <Input type="number" inputMode="numeric" min="1" placeholder="e.g. 30" value={form.targetDays} onChange={e => setForm(f => ({ ...f, targetDays: e.target.value }))} data-testid="input-goal-target-days" />
                 ) : (
                   <div className="flex gap-2">
                     <div className="flex-1 space-y-1">
                       <Label className="text-xs text-muted-foreground">Hours</Label>
-                      <Input type="number" min="0" placeholder="0" value={form.targetHours} onChange={e => setForm(f => ({ ...f, targetHours: e.target.value }))} data-testid="input-goal-target-hours" />
+                      <Input type="number" inputMode="numeric" min="0" placeholder="0" value={form.targetHours} onChange={e => setForm(f => ({ ...f, targetHours: e.target.value }))} data-testid="input-goal-target-hours" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <Label className="text-xs text-muted-foreground">Minutes</Label>
-                      <Input type="number" min="0" max="59" placeholder="0" value={form.targetMinutes} onChange={e => setForm(f => ({ ...f, targetMinutes: e.target.value }))} data-testid="input-goal-target-minutes" />
+                      <Input type="number" inputMode="numeric" min="0" max="59" placeholder="0" value={form.targetMinutes} onChange={e => setForm(f => ({ ...f, targetMinutes: e.target.value }))} data-testid="input-goal-target-minutes" />
                     </div>
                   </div>
                 )}
@@ -316,7 +316,7 @@ export default function AdminGoalsPage() {
           <DialogHeader><DialogTitle>Add Progress</DialogTitle></DialogHeader>
           <div className="space-y-2">
             <Label>Amount to add</Label>
-            <Input type="number" min="1" value={incrementAmount} onChange={e => setIncrementAmount(e.target.value)} data-testid="input-increment-amount" />
+            <Input type="number" inputMode="numeric" min="1" value={incrementAmount} onChange={e => setIncrementAmount(e.target.value)} data-testid="input-increment-amount" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIncrementGoalId(null)}>Cancel</Button>

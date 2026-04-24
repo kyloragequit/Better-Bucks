@@ -121,7 +121,7 @@ export default function AdminEmployeesPage() {
       <div className="bg-card rounded-xl border shadow-sm p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Search by name or code..." 
               className="pl-9 bg-muted/30"
@@ -743,7 +743,7 @@ function BulkCreditDialog({ users, departments }: { users: User[]; departments: 
             <div className="space-y-1.5">
               <Label>Bucks Per Employee</Label>
               <Input
-                type="number"
+                type="number" inputMode="numeric"
                 min={1}
                 placeholder="e.g. 100"
                 value={amount}
@@ -958,7 +958,7 @@ function BulkDebitDialog({ users, departments }: { users: User[]; departments: D
             <div className="space-y-1.5">
               <Label>Bucks Per Employee</Label>
               <Input
-                type="number"
+                type="number" inputMode="numeric"
                 min={1}
                 placeholder="e.g. 50"
                 value={amount}

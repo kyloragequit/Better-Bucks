@@ -1611,6 +1611,7 @@ type EntAccount = {
 
 function EnterpriseAccountsTab() {
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [contractUploading, setContractUploading] = useState<number | null>(null);
@@ -1725,7 +1726,7 @@ function EnterpriseAccountsTab() {
 
         {showForm && (
           <CardContent className="border-t bg-muted/30">
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            <form onSubmit={handleSubmit} onFocusCapture={scrollOnFocus} className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label>Company Name</Label>

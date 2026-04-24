@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { apiRequest } from "@/lib/queryClient";
 import { ClipboardList, Plus, Trash2, Eye, Play, Square, Users, ChevronDown, ChevronUp, X } from "lucide-react";
 import type { Survey, SurveyQuestion } from "@shared/schema";
@@ -113,6 +114,7 @@ function ResultsDialog({ survey, onClose }: { survey: SurveyWithMeta; onClose: (
 
 function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -162,7 +164,7 @@ function CreateSurveyDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" onFocusCapture={scrollOnFocus}>
         <DialogHeader>
           <DialogTitle>Create Survey</DialogTitle>
         </DialogHeader>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2, Ruler, Palette } from "lucide-react";
@@ -131,6 +132,7 @@ type WishlistEntry = Wishlist & { storeItem: StoreItem; user: User };
 export default function AdminStorePage() {
   const isPublicDemo = usePublicDemo();
   const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useQuery<StoreItem[]>({ queryKey: ["/api/store-items"] });
   const { data: wishlists } = useQuery<WishlistEntry[]>({ queryKey: ["/api/admin/wishlists"] });
@@ -279,7 +281,7 @@ export default function AdminStorePage() {
               <CardDescription>Fill in the details for the item employees can purchase.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} onFocusCapture={scrollOnFocus} className="space-y-4">
                 <div className="grid gap-1.5">
                   <Label htmlFor="si-name">Item Name</Label>
                   <Input id="si-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Company T-Shirt" data-testid="input-store-item-name" />

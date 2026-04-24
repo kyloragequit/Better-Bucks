@@ -179,3 +179,13 @@ input:-webkit-autofill:focus {
   max-width: 100%;
   height: auto;
 }
+
+/* Smoother momentum scrolling on iOS for any horizontal/vertical scroller. */
+[class*="overflow-x-auto"],
+[class*="overflow-y-auto"],
+[class*="overflow-auto"],
+[class*="overflow-x-scroll"],
+[class*="overflow-y-scroll"],
+[class*="overflow-scroll"] {
+  -webkit-overflow-scrolling: touch;
+}

@@ -40,9 +40,19 @@ export default function AffiliatePage() {
   });
 
   useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
+    let rafId = 0;
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        setScrollY(window.scrollY);
+      });
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   const parallaxOffset = scrollY * 0.45;

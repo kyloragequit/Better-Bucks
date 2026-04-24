@@ -506,21 +506,27 @@ export function FullTutorialOverlay() {
 
   const homePath = role === "employee" ? "/dashboard" : "/admin/dashboard";
 
-  const findElement = useCallback(() => {
-    if (!step?.selector) { setRect(null); return; }
+  const measureElement = useCallback(() => {
+    if (!step?.selector) { setRect(null); return null; }
     try {
       const el = document.querySelector(step.selector);
       if (el) {
         const r = el.getBoundingClientRect();
         setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      } else {
-        setRect(null);
+        return el;
       }
+      setRect(null);
+      return null;
     } catch {
       setRect(null);
+      return null;
     }
   }, [step]);
+
+  const findElement = useCallback(() => {
+    const el = measureElement();
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [measureElement]);
 
   useEffect(() => {
     if (!showFullTutorial) return;
@@ -535,14 +541,25 @@ export function FullTutorialOverlay() {
   }, [stepIndex, step?.path, findElement, setLocation, showFullTutorial]);
 
   useEffect(() => {
-    const handleResize = () => { if (locating.current) findElement(); };
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("scroll", handleResize, true);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("scroll", handleResize, true);
+    let rafId = 0;
+    const handleReposition = () => {
+      if (!locating.current) return;
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        // Only re-measure on scroll/resize — never re-trigger scrollIntoView,
+        // which would fight the user's own scrolling and cause jank.
+        measureElement();
+      });
     };
-  }, [findElement]);
+    window.addEventListener("resize", handleReposition, { passive: true });
+    window.addEventListener("scroll", handleReposition, { passive: true, capture: true });
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [measureElement]);
 
   const handleNext = async () => {
     if (stepIndex < steps.length - 1) {

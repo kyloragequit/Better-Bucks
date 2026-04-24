@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, HelpCircle, Store as StoreIcon } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, HelpCircle, Store as StoreIcon, Link2 as LinkIcon } from "lucide-react";
 import { MobileBottomNav, type MobileNavItem } from "@/components/mobile-bottom-nav";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
@@ -99,6 +99,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/team", label: "Team", icon: UsersRound },
     { href: "/admin/employees", label: "Employees", icon: Users },
+    { href: "/admin/invite-links", label: "Invite Links", icon: LinkIcon },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
     { href: "/admin/instant-transaction", label: "Instant Transaction", shortLabel: "Quick TX", icon: Zap, testId: "link-instant-transaction" },
     { href: "/admin/goals", label: "Goals", icon: Target },

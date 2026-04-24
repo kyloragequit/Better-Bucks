@@ -117,3 +117,10 @@ Preferred communication style: Simple, everyday language.
 - Twilio (SMS phone verification)
 - nodemailer (email verification)
 - multer (file uploads)
+
+## Reusable Invite Links
+- Table: `invite_links` (token unique, organization_id, created_by_user_id, role_to_assign 'employee'|'admin', expires_at, is_active, signup_count).
+- Routes: `POST/GET /api/invite-links`, `PATCH /api/invite-links/:id`, public `GET /api/invite-links/:token` and `POST /api/invite-links/:token/accept`.
+- prime_admin can create links granting Manager (admin) or Employee role; admin (manager) can create employee-only links and may only modify links they created.
+- Public URL form: `/join/<64-hex-token>` — `client/src/pages/join.tsx` sniffs the param and dispatches to `JoinLinkPage` for these tokens; otherwise falls back to existing site-id flow.
+- Admin UI: `/admin/invite-links` (`client/src/pages/admin-invite-links.tsx`).

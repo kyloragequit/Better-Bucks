@@ -63,6 +63,7 @@ const DemoPage = lazy(() => import("@/pages/demo"));
 const MerchantLoginPage = lazy(() => import("@/pages/merchant-login"));
 const MerchantScannerPage = lazy(() => import("@/pages/merchant-scanner"));
 const AdminMerchantsPage = lazy(() => import("@/pages/admin-merchants"));
+const AdminInviteLinksPage = lazy(() => import("@/pages/admin-invite-links"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function GoalNotificationModal() {
@@ -341,6 +342,9 @@ function Router() {
         <Route path="/merchant/scanner" component={MerchantScannerPage} />
         <Route path="/admin/merchants">
           <ProtectedRoute component={AdminMerchantsPage} adminOnly />
+        </Route>
+        <Route path="/admin/invite-links">
+          <ProtectedRoute component={AdminInviteLinksPage} adminOnly />
         </Route>
 
         <Route component={NotFound} />

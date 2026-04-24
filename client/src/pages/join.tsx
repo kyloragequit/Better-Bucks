@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useParams, useLocation } from "wouter";
+
+const JoinLinkPage = lazy(() => import("@/pages/join-link").then(m => ({ default: m.JoinLinkPage })));
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLogo } from "@/components/app-logo";
 import { SiteFooter } from "@/components/site-footer";
@@ -18,6 +20,15 @@ type OrgInfo = { orgName: string; siteId: string; employeeRoleLabel: string; all
 
 export default function JoinPage() {
   const { siteId } = useParams<{ siteId: string }>();
+  // If the URL parameter looks like a 64-char hex token, this is a reusable
+  // invite link rather than a site-based signup. Dispatch to the invite-link page.
+  if (siteId && /^[a-f0-9]{64}$/i.test(siteId)) {
+    return (
+      <Suspense fallback={null}>
+        <JoinLinkPage token={siteId} />
+      </Suspense>
+    );
+  }
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();

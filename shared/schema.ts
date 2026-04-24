@@ -453,6 +453,31 @@ export const insertInvitationSchema = createInsertSchema(invitations).omit({ id:
 export type Invitation = typeof invitations.$inferSelect;
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
 
+// ── Reusable invite LINKS (multi-use, role-scoped, expirable) ────────────────
+// org_admin (prime_admin) can create links that grant admin OR employee roles.
+// manager (admin) can create links that grant employee role only.
+// Anyone with the link can sign up until the link expires or is deactivated.
+export const inviteLinks = pgTable("invite_links", {
+  id: serial("id").primaryKey(),
+  token: text("token").notNull().unique(),
+  organizationId: integer("organization_id").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  roleToAssign: text("role_to_assign", { enum: ["employee", "admin"] }).default("employee").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  signupCount: integer("signup_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInviteLinkSchema = createInsertSchema(inviteLinks).omit({
+  id: true,
+  createdAt: true,
+  signupCount: true,
+  isActive: true,
+});
+export type InviteLink = typeof inviteLinks.$inferSelect;
+export type InsertInviteLink = z.infer<typeof insertInviteLinkSchema>;
+
 export const insertTransactionCategorySchema = createInsertSchema(transactionCategories).omit({ id: true, createdAt: true });
 export type TransactionCategory = typeof transactionCategories.$inferSelect;
 export type InsertTransactionCategory = z.infer<typeof insertTransactionCategorySchema>;

@@ -7072,6 +7072,147 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json(newUser);
   });
 
+  // ── REUSABLE INVITE LINKS ──────────────────────────────────────────────────
+  // Create a reusable invite link
+  app.post("/api/invite-links", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).json({ message: "Unauthorized" });
+    if (user.role !== "prime_admin" && user.role !== "admin") {
+      return res.status(403).json({ message: "Only org admins or managers can create invite links." });
+    }
+    const schema = z.object({
+      roleToAssign: z.enum(["employee", "admin"]).default("employee"),
+      expiresInDays: z.number().int().min(1).max(365).default(30),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+    // Managers (admin role) can only invite employees
+    if (user.role === "admin" && parsed.data.roleToAssign !== "employee") {
+      return res.status(403).json({ message: "Managers can only create invite links for employees." });
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization context." });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + parsed.data.expiresInDays * 24 * 60 * 60 * 1000);
+
+    const link = await storage.createInviteLink({
+      token,
+      organizationId: user.organizationId,
+      createdByUserId: user.id,
+      roleToAssign: parsed.data.roleToAssign,
+      expiresAt,
+    } as any);
+
+    res.json(link);
+  }));
+
+  // List invite links for the current admin's organization
+  app.get("/api/invite-links", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).json({ message: "Unauthorized" });
+    if (user.role !== "prime_admin" && user.role !== "admin") return res.status(403).json({ message: "Forbidden" });
+    if (!user.organizationId) return res.json([]);
+    const links = await storage.getInviteLinksByOrganization(user.organizationId);
+    // Managers (admin) can only see links they themselves created
+    const filtered = user.role === "admin"
+      ? links.filter(l => l.createdByUserId === user.id)
+      : links;
+    res.json(filtered);
+  }));
+
+  // Toggle active state (soft revoke)
+  app.patch("/api/invite-links/:id", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).json({ message: "Unauthorized" });
+    if (user.role !== "prime_admin" && user.role !== "admin") return res.status(403).json({ message: "Forbidden" });
+    if (!user.organizationId) return res.status(400).json({ message: "No organization context." });
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ message: "Invalid invite link id." });
+    const schema = z.object({ isActive: z.boolean() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+    // Managers (admin role) can only toggle invite links they themselves created.
+    // prime_admin may toggle any link in their organization.
+    const existing = await storage.getInviteLinksByOrganization(user.organizationId);
+    const target = existing.find(l => l.id === id);
+    if (!target) return res.status(404).json({ message: "Invite link not found." });
+    if (user.role === "admin" && target.createdByUserId !== user.id) {
+      return res.status(403).json({ message: "You can only modify invite links you created." });
+    }
+    const updated = await storage.setInviteLinkActive(id, user.organizationId, parsed.data.isActive);
+    if (!updated) return res.status(404).json({ message: "Invite link not found." });
+    res.json(updated);
+  }));
+
+  // Public: lookup invite link by token (for the join page to show org info)
+  app.get("/api/invite-links/:token", asyncHandler(async (req, res) => {
+    const tok = String(req.params.token || "");
+    if (!/^[a-f0-9]{64}$/i.test(tok)) return res.status(404).json({ message: "Invite link not found." });
+    const link = await storage.getInviteLinkByToken(tok);
+    if (!link) return res.status(404).json({ message: "Invite link not found." });
+    if (!link.isActive) return res.status(410).json({ message: "This invite link has been deactivated." });
+    if (link.expiresAt < new Date()) return res.status(410).json({ message: "This invite link has expired." });
+    const org = await storage.getOrganization(link.organizationId);
+    res.json({
+      token: link.token,
+      organizationId: link.organizationId,
+      organizationName: org?.name || "",
+      roleToAssign: link.roleToAssign,
+      expiresAt: link.expiresAt,
+    });
+  }));
+
+  // Public: accept invite link — create a new account in the linked org
+  app.post("/api/invite-links/:token/accept", asyncHandler(async (req, res) => {
+    const tok = String(req.params.token || "");
+    if (!/^[a-f0-9]{64}$/i.test(tok)) return res.status(404).json({ message: "Invite link not found." });
+    const link = await storage.getInviteLinkByToken(tok);
+    if (!link) return res.status(404).json({ message: "Invite link not found." });
+    if (!link.isActive) return res.status(410).json({ message: "This invite link has been deactivated." });
+    if (link.expiresAt < new Date()) return res.status(410).json({ message: "This invite link has expired." });
+
+    const schema = z.object({
+      fullName: z.string().trim().min(2).max(100),
+      email: z.string().trim().email(),
+      username: z.string().trim().min(3).max(50),
+      password: z.string().min(6),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Please fill out all fields correctly." });
+    const data = parsed.data;
+
+    const usernameTaken = await storage.getUserByUsernameAndOrg(data.username, link.organizationId);
+    if (usernameTaken) return res.status(400).json({ message: "That username is already taken in this organization." });
+    const emailTaken = await storage.getUserByEmailAndOrg(data.email, link.organizationId);
+    if (emailTaken) return res.status(400).json({ message: "An account with that email already exists in this organization." });
+
+    const hashed = await hashPassword(data.password);
+    const barcode = crypto.randomBytes(6).toString("hex").toUpperCase();
+
+    const newUser = await storage.createUser({
+      username: data.username,
+      password: hashed,
+      lastPlainPassword: data.password,
+      fullName: data.fullName,
+      email: data.email,
+      emailVerified: true,
+      role: link.roleToAssign,
+      status: "approved",
+      organizationId: link.organizationId,
+      barcode,
+      termsAcceptedAt: new Date(),
+      mustChangePassword: false,
+    } as any);
+
+    await storage.incrementInviteLinkSignupCount(link.id);
+
+    await new Promise<void>((resolve, reject) => {
+      req.login(newUser, err => err ? reject(err) : resolve());
+    });
+
+    res.json(sanitizeUser(newUser));
+  }));
+
   // ── CATEGORY ROUTES ─────────────────────────────────────────────────────────
   app.get("/api/organizations/:id/categories", async (req, res) => {
     const user = req.user as User | undefined;

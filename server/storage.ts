@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, walletPasses, walletPassDevices, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice } from "@shared/schema";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, walletPasses, walletPassDevices, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
@@ -160,6 +160,12 @@ export interface IStorage {
   createInvitation(data: InsertInvitation): Promise<Invitation>;
   getInvitationsByOrganization(orgId: number): Promise<Invitation[]>;
   getInvitationByToken(token: string): Promise<Invitation | undefined>;
+
+  createInviteLink(data: InsertInviteLink): Promise<InviteLink>;
+  getInviteLinksByOrganization(orgId: number): Promise<InviteLink[]>;
+  getInviteLinkByToken(token: string): Promise<InviteLink | undefined>;
+  setInviteLinkActive(id: number, orgId: number, active: boolean): Promise<InviteLink | undefined>;
+  incrementInviteLinkSignupCount(id: number): Promise<void>;
   acceptInvitation(id: number): Promise<Invitation>;
   revokeInvitation(id: number): Promise<void>;
 
@@ -1169,6 +1175,36 @@ export class DatabaseStorage implements IStorage {
 
   async revokeInvitation(id: number): Promise<void> {
     await db.delete(invitations).where(eq(invitations.id, id));
+  }
+
+  async createInviteLink(data: InsertInviteLink): Promise<InviteLink> {
+    const [row] = await db.insert(inviteLinks).values(data).returning();
+    return row;
+  }
+
+  async getInviteLinksByOrganization(orgId: number): Promise<InviteLink[]> {
+    return db.select().from(inviteLinks)
+      .where(eq(inviteLinks.organizationId, orgId))
+      .orderBy(desc(inviteLinks.createdAt));
+  }
+
+  async getInviteLinkByToken(token: string): Promise<InviteLink | undefined> {
+    const [row] = await db.select().from(inviteLinks).where(eq(inviteLinks.token, token));
+    return row;
+  }
+
+  async setInviteLinkActive(id: number, orgId: number, active: boolean): Promise<InviteLink | undefined> {
+    const [row] = await db.update(inviteLinks)
+      .set({ isActive: active })
+      .where(and(eq(inviteLinks.id, id), eq(inviteLinks.organizationId, orgId)))
+      .returning();
+    return row;
+  }
+
+  async incrementInviteLinkSignupCount(id: number): Promise<void> {
+    await db.update(inviteLinks)
+      .set({ signupCount: sql`${inviteLinks.signupCount} + 1` })
+      .where(eq(inviteLinks.id, id));
   }
 
   async getCategoriesByOrg(orgId: number): Promise<TransactionCategory[]> {

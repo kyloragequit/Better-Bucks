@@ -123,6 +123,7 @@ export default function AdminEmployeesPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
+              type="search"
               placeholder="Search by name or code..." 
               className="pl-9 bg-muted/30"
               value={search}

@@ -272,6 +272,7 @@ function EmployeeBalancesCard({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              type="search"
               placeholder="Search by name or code..."
               className="pl-9"
               value={search}
@@ -360,6 +361,7 @@ function AdminBalancesCard({
         <div className="relative pt-2">
           <Search className="absolute left-3 top-1/2 translate-y-1 h-4 w-4 text-muted-foreground" />
           <Input
+            type="search"
             placeholder="Search admins..."
             className="pl-9"
             value={search}
@@ -431,6 +433,7 @@ function HistoryCard({ itemName, transactions, loading }: { itemName: string; tr
         <div className="relative pt-2">
           <Search className="absolute left-3 top-1/2 translate-y-1 h-4 w-4 text-muted-foreground" />
           <Input
+            type="search"
             placeholder="Search by name, code, or reason..."
             className="pl-9"
             value={search}

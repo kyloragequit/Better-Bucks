@@ -75,6 +75,9 @@
   }
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Reserve room above the on-screen keyboard so focused inputs in long
+       forms aren't pinned right against the keyboard's top edge on mobile. */
+    scroll-padding-bottom: max(env(safe-area-inset-bottom), 96px);
   }
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;

@@ -175,6 +175,7 @@ export default function AdminPendingPage() {
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
+                type="search"
                 placeholder="Search name, username or email…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}

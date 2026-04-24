@@ -424,6 +424,7 @@ export default function AdminInstantTransactionPage() {
                         setShowSuggestions(true);
                       }}
                       onFocus={() => setShowSuggestions(true)}
+                      type="search"
                       placeholder="Search by name, username, or code..."
                       onKeyDown={(e) => e.key === "Enter" && handleManualLookup()}
                       data-testid="input-manual-lookup"

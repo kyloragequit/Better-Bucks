@@ -300,6 +300,7 @@ function EmployeeBalancesCard({
             {employees.length === 0 ? "No employees yet" : "No employees match your search"}
           </p>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -325,6 +326,7 @@ function EmployeeBalancesCard({
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -370,6 +372,7 @@ function AdminBalancesCard({
         {filtered.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">{admins.length === 0 ? "No admins yet" : "No admins match your search"}</p>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -398,6 +401,7 @@ function AdminBalancesCard({
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -437,6 +441,7 @@ function HistoryCard({ itemName, transactions, loading }: { itemName: string; tr
       </CardHeader>
       <CardContent>
         {loading ? <Loader /> : filtered.length > 0 ? (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -461,6 +466,7 @@ function HistoryCard({ itemName, transactions, loading }: { itemName: string; tr
               ))}
             </TableBody>
           </Table>
+          </div>
         ) : (
           <p className="text-center text-muted-foreground py-8">
             {transactions && transactions.length > 0 ? "No transactions match your search" : "No transactions yet"}

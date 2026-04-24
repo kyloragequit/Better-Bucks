@@ -595,7 +595,7 @@ export default function AdminEmployeeDetailPage() {
           <h2 className="text-xl font-bold">Transaction History</h2>
         </div>
         
-        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

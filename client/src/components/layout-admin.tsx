@@ -117,7 +117,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-muted/20">
       <ImpersonationBanner />
       <DemoBanner />
-      <header className="sticky top-0 z-[999] w-full border-b border-white/10 bg-primary">
+      <header className="sticky top-0 z-[999] w-full border-b border-white/10 bg-primary pt-safe pl-safe pr-safe">
         <div className="container flex min-h-16 items-center justify-between gap-4 px-4 py-2">
           <Link href="/admin/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity no-underline">
             <AppLogo size="sm" linkTo="/admin/dashboard" />
@@ -312,7 +312,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="container py-8 px-4 pb-24 sm:pb-8 animate-in">
+      <main className="container py-8 px-4 pb-[calc(var(--bb-bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] sm:pb-8 pl-safe pr-safe animate-in">
         {children}
       </main>
       <SiteFooter />

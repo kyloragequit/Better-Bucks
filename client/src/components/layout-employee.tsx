@@ -39,7 +39,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
       <DemoBanner />
-      <header className="border-b border-white/10 bg-primary sticky top-0 z-[999]">
+      <header className="border-b border-white/10 bg-primary sticky top-0 z-[999] pt-safe pl-safe pr-safe">
         <div className="container max-w-5xl mx-auto px-4 min-h-16 flex items-center justify-between gap-4 py-2">
           <Link href="/dashboard" className="flex items-center gap-2 font-display font-bold text-xl text-white cursor-pointer hover:opacity-80 transition-opacity">
             <AppLogo size="sm" linkTo="/dashboard" />
@@ -171,7 +171,7 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="container max-w-5xl mx-auto px-4 py-8 pb-24 sm:pb-8 animate-in">
+      <main className="container max-w-5xl mx-auto px-4 py-8 pb-[calc(var(--bb-bottom-nav-h)+env(safe-area-inset-bottom)+1rem)] sm:pb-8 pl-safe pr-safe animate-in">
         {children}
       </main>
       <SiteFooter />

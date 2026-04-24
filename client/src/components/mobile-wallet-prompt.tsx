@@ -72,7 +72,8 @@ export function MobileWalletPrompt() {
 
   return (
     <div
-      className="md:hidden fixed bottom-0 inset-x-0 z-50 px-3 pb-3 pt-2 pointer-events-none"
+      style={{ bottom: "calc(var(--bb-bottom-nav-h) + env(safe-area-inset-bottom) + 0.5rem)" }}
+      className="md:hidden fixed inset-x-0 z-50 px-3 pb-3 pt-2 pl-safe pr-safe pointer-events-none"
       data-testid="mobile-wallet-prompt"
     >
       <div className="pointer-events-auto rounded-2xl border border-border/60 bg-card shadow-2xl p-4 flex items-start gap-3">

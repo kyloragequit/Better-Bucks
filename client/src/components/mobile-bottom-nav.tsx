@@ -14,7 +14,7 @@ export function MobileBottomNav({ items }: { items: MobileNavItem[] }) {
 
   return (
     <nav
-      className="sm:hidden fixed bottom-0 inset-x-0 z-[998] bg-primary border-t border-white/10 pb-[env(safe-area-inset-bottom)]"
+      className="sm:hidden fixed bottom-0 inset-x-0 z-[998] bg-primary border-t border-white/10 pb-safe pl-safe pr-safe"
       aria-label="Primary"
       data-testid="mobile-bottom-nav"
     >

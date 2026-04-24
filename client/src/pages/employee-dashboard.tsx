@@ -280,7 +280,7 @@ export default function EmployeeDashboard() {
                 ))}
               </div>
               {/* Desktop table layout */}
-              <div className="hidden sm:block">
+              <div className="hidden sm:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

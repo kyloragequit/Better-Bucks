@@ -110,6 +110,24 @@
 }
 
 @layer utilities {
+  /* Safe-area inset helpers (used together with viewport-fit=cover in index.html).
+     Use these on sticky headers, fixed bottom bars, and floating action elements so
+     content does not hide behind notches or the home indicator. */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pl-safe { padding-left: env(safe-area-inset-left); }
+  .pr-safe { padding-right: env(safe-area-inset-right); }
+  .px-safe { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .mt-safe { margin-top: env(safe-area-inset-top); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
+
+  /* Coordinated bottom offsets for floating elements that sit above the
+     mobile bottom nav. --bb-bottom-nav-h tracks the nav's visual height
+     (set on :root for sm:hidden range; reset to 0 above the sm breakpoint).
+     Floats then use bottom: calc(var(--bb-bottom-nav-h) + env(safe-area-inset-bottom) + offset). */
+  :root { --bb-bottom-nav-h: 64px; }
+  @media (min-width: 640px) { :root { --bb-bottom-nav-h: 0px; } }
+
   /* Multi-line ellipsis fallback (Tailwind v3 ships line-clamp utilities natively;
      this guarantees behavior even if the JIT is stripped). */
   .line-clamp-2-fallback {

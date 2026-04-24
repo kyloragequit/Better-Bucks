@@ -212,7 +212,7 @@ export default function AdminEmployeesPage() {
             ))}
           </div>
           {/* Desktop table layout */}
-          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
@@ -384,7 +384,7 @@ function PendingAccountsList() {
         })}
       </div>
       {/* Desktop table layout for pending */}
-      <div className="hidden md:block bg-card rounded-xl border border-amber-200/60 shadow-sm overflow-hidden">
+      <div className="hidden md:block bg-card rounded-xl border border-amber-200/60 shadow-sm overflow-x-auto">
         <Table>
           <TableHeader className="bg-amber-50/50">
             <TableRow>
@@ -465,7 +465,7 @@ function PendingInvitesList() {
       <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-foreground">
         <Clock className="h-4 w-4 text-muted-foreground" /> Pending Invitations
       </h2>
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/30">
             <TableRow>

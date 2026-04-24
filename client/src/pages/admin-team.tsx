@@ -180,7 +180,7 @@ export default function AdminTeamPage() {
             ))}
           </div>
 
-          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>

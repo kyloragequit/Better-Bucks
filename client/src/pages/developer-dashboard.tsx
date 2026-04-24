@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";

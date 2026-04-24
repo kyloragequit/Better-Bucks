@@ -1052,7 +1052,7 @@ export default function HowItWorksPage() {
               className="mt-5 text-lg text-gray-600 max-w-xl leading-relaxed"
               data-testid="text-hero-subheadline"
             >
-              A simple platform that helps managers recognize performance, encourage good habits, and turn everyday wins into rewards your employees actually feel.
+              Trusted by one of the world's largest logistics networks
             </p>
             <div className="mt-8 flex flex-col items-center lg:items-start">
               <Button

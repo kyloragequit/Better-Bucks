@@ -92,7 +92,7 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
@@ -414,7 +414,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -471,6 +471,15 @@ export default function DeveloperDashboardPage() {
             >
               <Building2 className="mr-1.5 h-4 w-4" />
               Enterprise Accounts
+            </Button>
+            <Button
+              variant={activeTab === "inbox" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("inbox"); setBlogForm(null); }}
+              data-testid="button-tab-inbox"
+            >
+              <Mail className="mr-1.5 h-4 w-4" />
+              Inbox
             </Button>
           </div>
         </div>
@@ -1537,6 +1546,8 @@ export default function DeveloperDashboardPage() {
         )}
 
         {activeTab === "enterprise" && <EnterpriseAccountsTab />}
+
+        {activeTab === "inbox" && <InboxTab />}
       </main>
       <SiteFooter />
 
@@ -1609,6 +1620,155 @@ type EntAccount = {
   createdAt: string;
   cancelledAt: string | null;
 };
+
+type InboxData = {
+  rfis: { id: number; name: string; email: string; phone: string; needs: string; inquiryType: string; emailSent: boolean; createdAt: string }[];
+  affiliates: { id: number; name: string; email: string; phone: string; webpage: string; additionalInfo: string; emailSent: boolean; createdAt: string }[];
+};
+
+function InboxTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery<InboxData>({
+    queryKey: ["/api/developer/inbox"],
+    queryFn: () => fetch("/api/developer/inbox", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const resendRfi = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/developer/inbox/rfi/${id}/resend`, {}),
+    onSuccess: () => { toast({ title: "Notification resent" }); queryClient.invalidateQueries({ queryKey: ["/api/developer/inbox"] }); },
+    onError: (e: any) => toast({ title: "Resend failed", description: e.message, variant: "destructive" }),
+  });
+
+  const resendAffiliate = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/developer/inbox/affiliate/${id}/resend`, {}),
+    onSuccess: () => { toast({ title: "Notification resent" }); queryClient.invalidateQueries({ queryKey: ["/api/developer/inbox"] }); },
+    onError: (e: any) => toast({ title: "Resend failed", description: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <div className="py-12 text-center text-muted-foreground">Loading inbox…</div>;
+
+  const rfis = data?.rfis ?? [];
+  const affiliates = data?.affiliates ?? [];
+  const totalUnset = rfis.filter(r => !r.emailSent).length + affiliates.filter(a => !a.emailSent).length;
+
+  return (
+    <div className="space-y-6">
+      {totalUnset > 0 && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800" data-testid="inbox-alert-unsent">
+          <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0" />
+          <span><strong>{totalUnset}</strong> submission{totalUnset !== 1 ? "s" : ""} without a confirmed email notification. Use the Resend button to send them now.</span>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Mail className="h-4 w-4" /> RFI Submissions ({rfis.length})
+          </CardTitle>
+          <CardDescription>Better Bucks and Website inquiry forms submitted via the public site.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {rfis.length === 0 ? (
+            <p className="px-6 pb-6 text-sm text-muted-foreground">No RFI submissions yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Notified</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rfis.map(r => (
+                  <TableRow key={r.id} data-testid={`row-rfi-${r.id}`}>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{new Date(r.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell>
+                      <a href={`mailto:${r.email}`} className="text-primary hover:underline text-sm">{r.email}</a>
+                    </TableCell>
+                    <TableCell className="text-sm">{r.phone}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">{r.inquiryType === "website" ? "Website" : "Better Bucks"}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {r.emailSent
+                        ? <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">Sent</Badge>
+                        : <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">Not sent</Badge>}
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => resendRfi.mutate(r.id)} disabled={resendRfi.isPending} data-testid={`button-resend-rfi-${r.id}`}>
+                        <Mail className="h-3.5 w-3.5 mr-1" /> Resend
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Mail className="h-4 w-4" /> Affiliate Applications ({affiliates.length})
+          </CardTitle>
+          <CardDescription>Affiliate program applications submitted via the public affiliate page.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {affiliates.length === 0 ? (
+            <p className="px-6 pb-6 text-sm text-muted-foreground">No affiliate applications yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Platform</TableHead>
+                  <TableHead>Notified</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {affiliates.map(a => (
+                  <TableRow key={a.id} data-testid={`row-affiliate-${a.id}`}>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{new Date(a.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium">{a.name}</TableCell>
+                    <TableCell>
+                      <a href={`mailto:${a.email}`} className="text-primary hover:underline text-sm">{a.email}</a>
+                    </TableCell>
+                    <TableCell className="text-sm">{a.phone}</TableCell>
+                    <TableCell className="max-w-[140px]">
+                      <a href={a.webpage} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm truncate block">{a.webpage}</a>
+                    </TableCell>
+                    <TableCell>
+                      {a.emailSent
+                        ? <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">Sent</Badge>
+                        : <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">Not sent</Badge>}
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => resendAffiliate.mutate(a.id)} disabled={resendAffiliate.isPending} data-testid={`button-resend-affiliate-${a.id}`}>
+                        <Mail className="h-3.5 w-3.5 mr-1" /> Resend
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function EnterpriseAccountsTab() {
   const { toast } = useToast();

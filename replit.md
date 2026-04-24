@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Key Features
 - **Goals System**: Prime admins can create time-based or quantity-based goals with Bucks rewards.
+- **Inbox (Developer Dashboard)**: All RFI and affiliate form submissions are now stored in the database with `email_sent` tracking. A developer-only "Inbox" tab on the developer dashboard lists every submission with name, email, type, and sent status badge. Resend button triggers a re-send of the notification email and marks the record as sent. Affiliate applications now persist to `affiliate_applications` table (previously email-only, submissions were lost if email failed).
 - **Surveys System**: Admins can create multi-question surveys (multiple-choice & written) for employees. Surveys can be optionally linked to an active quantity goal — each submission auto-increments the goal's progress. Results dialog shows response breakdown per question, respondent list, and an "Export PDF" button (client-side jsPDF export). Employee survey cards show "Contributes to: [Goal Name]" when linked. Fixed a query bug where `= ANY()` malformed SQL caused 500 errors on survey listing — replaced with `inArray()` from drizzle-orm throughout.
 - **Employee Store**: Admins curate items for employees to purchase with Bucks, including a wishlist system and customizable order settings (size/color).
 - **Order System**: Employees can submit orders; prime admins are solely responsible for approval/rejection.

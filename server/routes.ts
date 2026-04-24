@@ -29,7 +29,7 @@ async function getStripePubKey() {
 }
 import { sql, eq, and, gte, lte, gt, lt, inArray, isNull } from "drizzle-orm";
 import { db } from "./db";
-import { organizations, users, infoRequests, transactions, orders, customItemTransactions, transactionCategories } from "@shared/schema";
+import { organizations, users, infoRequests, affiliateApplications, transactions, orders, customItemTransactions, transactionCategories } from "@shared/schema";
 import cron from "node-cron";
 import type { User, Merchant } from "@shared/schema";
 
@@ -4140,6 +4140,14 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       });
 
       const data = schema.parse(req.body);
+      const [inserted] = await db.insert(affiliateApplications).values({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        webpage: data.webpage,
+        additionalInfo: data.additionalInfo ?? "",
+      }).returning();
+
       const dateStr = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
       const subject = `[AFFILIATE APPLICATION] ${data.name} — ${dateStr}`;
 
@@ -4180,6 +4188,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
             </div>
           `,
         });
+        if (inserted?.id) {
+          await db.update(affiliateApplications).set({ emailSent: true }).where(eq(affiliateApplications.id, inserted.id));
+        }
       } catch (err) {
         console.error("[Affiliate] Email failed:", err);
       }
@@ -4208,7 +4219,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       const data = { ...parsed, inquiryType: parsed.inquiryType ?? "betterbucks" };
       const isWebsite = data.inquiryType === "website";
 
-      await db.insert(infoRequests).values(data);
+      const [inserted] = await db.insert(infoRequests).values(data).returning();
 
       const dateStr = new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
       const subject = isWebsite
@@ -4231,6 +4242,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
             <p>${escapeHtml(data.needs).replace(/\n/g, "<br>")}</p>
           `,
         });
+        if (inserted?.id) {
+          await db.update(infoRequests).set({ emailSent: true }).where(eq(infoRequests.id, inserted.id));
+        }
       } catch (err) {
         console.error("[RFI] Email failed:", err);
       }
@@ -5876,6 +5890,91 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     });
 
     res.json({ message: `Test enterprise billing email sent to ${email}` });
+  });
+
+  // ─── Developer Inbox (RFI + Affiliate submissions) ─────────────────────────
+
+  app.get("/api/developer/inbox", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const rfis = await db.select().from(infoRequests).orderBy(sql`${infoRequests.createdAt} DESC`);
+    const affiliates = await db.select().from(affiliateApplications).orderBy(sql`${affiliateApplications.createdAt} DESC`);
+    res.json({ rfis, affiliates });
+  });
+
+  app.post("/api/developer/inbox/rfi/:id/resend", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const id = parseInt(req.params.id);
+    const [row] = await db.select().from(infoRequests).where(eq(infoRequests.id, id));
+    if (!row) return res.status(404).json({ message: "Not found" });
+    const isWebsite = row.inquiryType === "website";
+    const dateStr = new Date(row.createdAt).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+    const subject = isWebsite ? `[RESEND] Website Inquiry ${row.name} ${dateStr}` : `[RESEND] RFI Better Bucks ${row.name} ${dateStr}`;
+    const heading = isWebsite ? "New Website Project Inquiry" : "New Information Request";
+    const detailsLabel = isWebsite ? "Project Details" : "Employee Incentive Needs";
+    try {
+      await sendEmail({
+        to: ADMIN_NOTIFY_EMAIL,
+        subject,
+        text: `${heading}\n\nName: ${row.name}\nEmail: ${row.email}\nPhone: ${row.phone}\n\n${detailsLabel}:\n${row.needs}`,
+        html: `
+          <h2>[RESEND] ${heading}</h2>
+          <p style="background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:13px;color:#92400e;">This is a resent notification. Original submission: ${dateStr}</p>
+          <p><strong>Name:</strong> ${escapeHtml(row.name)}</p>
+          <p><strong>Email:</strong> ${escapeHtml(row.email)}</p>
+          <p><strong>Phone:</strong> ${escapeHtml(row.phone)}</p>
+          <h3>${detailsLabel}:</h3>
+          <p>${escapeHtml(row.needs).replace(/\n/g, "<br>")}</p>
+        `,
+      });
+      await db.update(infoRequests).set({ emailSent: true }).where(eq(infoRequests.id, id));
+      res.json({ message: "Notification resent successfully" });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Failed to resend" });
+    }
+  });
+
+  app.post("/api/developer/inbox/affiliate/:id/resend", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const id = parseInt(req.params.id);
+    const [row] = await db.select().from(affiliateApplications).where(eq(affiliateApplications.id, id));
+    if (!row) return res.status(404).json({ message: "Not found" });
+    const dateStr = new Date(row.createdAt).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+    const subject = `[RESEND] [AFFILIATE APPLICATION] ${row.name} — ${dateStr}`;
+    try {
+      await sendEmail({
+        to: ADMIN_NOTIFY_EMAIL,
+        subject,
+        text: `[RESEND] BETTER BUCKS — AFFILIATE PROGRAM APPLICATION\n\nOriginal submission: ${dateStr}\n\nName: ${row.name}\nEmail: ${row.email}\nPhone: ${row.phone}\nWebpage / Social Media: ${row.webpage}\n\nAdditional Info:\n${row.additionalInfo || "(none provided)"}`,
+        html: `
+          ${emailLogoHeader}
+          <div style="font-family:Inter,system-ui,sans-serif;max-width:600px;margin:0 auto;padding:0 24px 32px;">
+            <div style="background:#162A4A;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+              <p style="color:#4E9F3D;font-size:13px;font-weight:700;letter-spacing:2px;margin:0 0 8px;text-transform:uppercase;">Affiliate Program — Resent</p>
+              <h1 style="color:white;font-size:24px;font-weight:800;margin:0;">Affiliate Application</h1>
+              <p style="color:#94a3b8;margin:8px 0 0;font-size:14px;">Originally received ${dateStr}</p>
+            </div>
+            <div style="background:#fffbeb;border-radius:8px;padding:12px 16px;margin-bottom:16px;border:1px solid #fbbf24;">
+              <p style="color:#92400e;font-size:13px;margin:0;">This is a resent notification. Original submission date: ${dateStr}</p>
+            </div>
+            <div style="background:#f8fafc;border-radius:12px;padding:24px;border:1px solid #e2e8f0;">
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:8px 0;color:#64748b;font-size:14px;width:140px;">Name</td><td style="padding:8px 0;font-weight:600;color:#1e293b;font-size:14px;">${escapeHtml(row.name)}</td></tr>
+                <tr><td style="padding:8px 0;color:#64748b;font-size:14px;">Email</td><td style="padding:8px 0;font-weight:600;color:#1e293b;font-size:14px;"><a href="mailto:${escapeHtml(row.email)}" style="color:#4E9F3D;">${escapeHtml(row.email)}</a></td></tr>
+                <tr><td style="padding:8px 0;color:#64748b;font-size:14px;">Phone</td><td style="padding:8px 0;font-weight:600;color:#1e293b;font-size:14px;">${escapeHtml(row.phone)}</td></tr>
+                <tr><td style="padding:8px 0;color:#64748b;font-size:14px;">Platform</td><td style="padding:8px 0;font-weight:600;font-size:14px;"><a href="${escapeHtml(row.webpage)}" style="color:#4E9F3D;">${escapeHtml(row.webpage)}</a></td></tr>
+              </table>
+            </div>
+          </div>
+        `,
+      });
+      await db.update(affiliateApplications).set({ emailSent: true }).where(eq(affiliateApplications.id, id));
+      res.json({ message: "Notification resent successfully" });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Failed to resend" });
+    }
   });
 
   // ─── Goals ────────────────────────────────────────────────────────────────

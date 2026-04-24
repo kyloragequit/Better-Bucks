@@ -265,6 +265,18 @@ export const infoRequests = pgTable("info_requests", {
   phone: text("phone").notNull(),
   needs: text("needs").notNull(),
   inquiryType: text("inquiry_type").default("betterbucks").notNull(),
+  emailSent: boolean("email_sent").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const affiliateApplications = pgTable("affiliate_applications", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  webpage: text("webpage").notNull(),
+  additionalInfo: text("additional_info").default("").notNull(),
+  emailSent: boolean("email_sent").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

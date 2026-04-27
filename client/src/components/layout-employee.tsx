@@ -9,6 +9,7 @@ import { Link, useLocation } from "wouter";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { NeedHelpButton } from "@/components/need-help-button";
+import { AddToHomescreenButton } from "@/components/add-to-homescreen";
 import { useQuery } from "@tanstack/react-query";
 import { DemoBanner } from "@/components/demo-banner";
 
@@ -87,6 +88,10 @@ export function EmployeeLayout({ children }: { children: React.ReactNode }) {
                 <LogOut className="h-5 w-5" />
               </Button>
             )}
+
+            <span className="sm:hidden">
+              <AddToHomescreenButton />
+            </span>
 
             <div className="sm:hidden relative">
               <Button

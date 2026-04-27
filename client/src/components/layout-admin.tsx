@@ -9,6 +9,7 @@ import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
 import { PaymentPausedDialog } from "@/components/payment-paused-dialog";
 import { NeedHelpButton } from "@/components/need-help-button";
+import { AddToHomescreenButton } from "@/components/add-to-homescreen";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -217,6 +218,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <TooltipContent side="bottom">{isPublicDemo ? "Back to Home" : "Log Out"}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            <span className="sm:hidden">
+              <AddToHomescreenButton />
+            </span>
 
             <div className="sm:hidden relative">
               <Button

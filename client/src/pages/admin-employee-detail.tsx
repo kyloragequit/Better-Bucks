@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
@@ -850,9 +850,25 @@ function EditProfileDialog({ user }: { user: any }) {
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState(user.email || "");
   const [selectedDept, setSelectedDept] = useState<string>(user.departmentId?.toString() || "none");
+  const [resetSent, setResetSent] = useState(false);
   const { mutate: updateProfile, isPending } = useUpdateProfile();
   const { data: currentUser } = useUser();
+  const { toast } = useToast();
   const isPrimeAdmin = currentUser?.role === "prime_admin";
+
+  const sendResetMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/users/${user.id}/send-password-reset`),
+    onSuccess: async (res: Response) => {
+      const data = await res.json();
+      setResetSent(true);
+      toast({ title: "Reset email sent", description: data.message });
+    },
+    onError: async (err: any) => {
+      let msg = "Failed to send reset email.";
+      try { msg = (await err.json?.())?.message ?? msg; } catch {}
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    },
+  });
 
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
@@ -928,6 +944,40 @@ function EditProfileDialog({ user }: { user: any }) {
               </Select>
             </div>
           )}
+
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium mb-1 flex items-center gap-1.5">
+              <KeyRound className="h-4 w-4 text-muted-foreground" />
+              Password Reset
+            </p>
+            {email ? (
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={sendResetMutation.isPending || resetSent}
+                  onClick={() => sendResetMutation.mutate()}
+                  data-testid="button-send-password-reset"
+                >
+                  <Mail className="h-4 w-4 mr-1.5" />
+                  {sendResetMutation.isPending
+                    ? "Sending…"
+                    : resetSent
+                    ? "Reset Email Sent!"
+                    : "Send Password Reset Email"}
+                </Button>
+                {resetSent && (
+                  <p className="text-xs text-muted-foreground">A 6-digit code was sent to {email}.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Add an email address above and save the profile before sending a password reset.
+              </p>
+            )}
+          </div>
+
           <DialogFooter>
             <Button type="submit" disabled={isPending} data-testid="button-save-profile">Save Changes</Button>
           </DialogFooter>

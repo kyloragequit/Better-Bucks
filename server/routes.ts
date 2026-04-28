@@ -5185,6 +5185,52 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json(updated);
   });
 
+  // Admin-initiated password reset — sends a reset email to the target user
+  app.post("/api/users/:id/send-password-reset", asyncHandler(async (req, res) => {
+    const currentUser = req.user as User | undefined;
+    if (!req.isAuthenticated() || !currentUser || (currentUser.role !== "prime_admin" && currentUser.role !== "admin")) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid user ID" });
+
+    const target = await storage.getUser(id);
+    if (!target || target.organizationId !== currentUser.organizationId) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (!target.email) {
+      return res.status(400).json({ message: "This user has no email address on file. Add one in Edit Profile first." });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 60 * 60 * 1000);
+    await storage.setPasswordResetToken(target.id, code, expiry);
+
+    try {
+      await sendEmail({
+        to: target.email,
+        subject: "Reset your Better Bucks password",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            ${emailLogoHeader}
+            <p>Hi ${escapeHtml(target.fullName)},</p>
+            <p>An administrator has requested a password reset for your Better Bucks account. Your 6-digit reset code is:</p>
+            <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #162A4A;">${code}</div>
+            <p style="margin-top: 16px; color: #666;">This code expires in 1 hour. Visit <a href="https://betterbucks.net/forgot-password">betterbucks.net/forgot-password</a> to use it.</p>
+            <p style="margin-top: 16px; color: #666;">If you weren't expecting this, you can safely ignore this email.</p>
+            <p style="margin-top: 16px; color: #666; font-size: 12px;">Need help? Contact <a href="mailto:miles.chase@betterbucks.net">miles.chase@betterbucks.net</a>.</p>
+          </div>
+        `,
+        text: `Hi ${target.fullName},\n\nAn administrator has requested a password reset for your account. Your 6-digit reset code is: ${code}\n\nThis code expires in 1 hour. Visit https://betterbucks.net/forgot-password to use it.`,
+      });
+      console.log(`[Admin Password Reset] Email sent to ${maskEmail(target.email)} for user ${target.id} by admin ${currentUser.id}`);
+      res.json({ message: `Password reset email sent to ${maskEmail(target.email)}.` });
+    } catch (err: any) {
+      console.error(`[Admin Password Reset] Failed for user ${target.id}:`, err?.message ?? err);
+      res.status(500).json({ message: "Failed to send reset email. Please try again." });
+    }
+  }));
+
   app.get("/api/org/manager-employee-counts", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {

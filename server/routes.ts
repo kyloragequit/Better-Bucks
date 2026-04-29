@@ -7634,6 +7634,20 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ id: updated.id, name: updated.name, email: updated.email, status: updated.status });
   });
 
+  app.post("/api/admin/merchants/:id/reset-password", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    const id = parseInt(req.params.id);
+    const merch = await storage.getMerchant(id);
+    if (!merch || merch.orgId !== u.organizationId) return res.status(404).json({ message: "Not found" });
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    const bytes = (await import("crypto")).randomBytes(16);
+    let tempPassword = "";
+    for (let i = 0; i < 12; i++) tempPassword += alphabet[bytes[i] % alphabet.length];
+    const passwordHash = await hashPassword(tempPassword);
+    await storage.updateMerchant(id, { passwordHash });
+    res.json({ tempPassword });
+  });
+
   app.delete("/api/admin/merchants/:id", requireAdmin, async (req, res) => {
     const u = req.user as User;
     const id = parseInt(req.params.id);

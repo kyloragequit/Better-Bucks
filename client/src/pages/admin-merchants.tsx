@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
-import { Plus, Trash2, KeyRound, Power, Eye } from "lucide-react";
+import { Plus, Trash2, KeyRound, Power, Eye, Copy, Check } from "lucide-react";
 
 type Merchant = { id: number; name: string; email: string; status: "active" | "disabled"; createdAt: string };
 type Tx = { id: number; bucksAmount: number; createdAt: string; employee?: { id: number; fullName: string; email: string } | null };
@@ -27,7 +27,8 @@ export default function AdminMerchantsPage() {
   const [password, setPassword] = useState("");
 
   const [pwdMerchant, setPwdMerchant] = useState<Merchant | null>(null);
-  const [newPwd, setNewPwd] = useState("");
+  const [tempPwd, setTempPwd] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [txMerchant, setTxMerchant] = useState<Merchant | null>(null);
 
@@ -52,8 +53,20 @@ export default function AdminMerchantsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/merchants"] });
-      setPwdMerchant(null); setNewPwd("");
       toast({ title: "Updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const resetPwdMut = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("POST", `/api/admin/merchants/${id}/reset-password`).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).message || "Failed to reset password");
+        return r.json() as Promise<{ tempPassword: string }>;
+      }),
+    onSuccess: (data) => {
+      setTempPwd(data.tempPassword);
+      setCopied(false);
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -134,7 +147,7 @@ export default function AdminMerchantsPage() {
                         <Eye className="h-3.5 w-3.5 sm:mr-1" />
                         <span className="hidden sm:inline">Transactions</span>
                       </Button>
-                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => setPwdMerchant(m)} aria-label={`Reset password for ${m.name}`} data-testid={`button-pwd-${m.id}`}>
+                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => { setPwdMerchant(m); setTempPwd(null); setCopied(false); }} aria-label={`Reset password for ${m.name}`} data-testid={`button-pwd-${m.id}`}>
                         <KeyRound className="h-3.5 w-3.5 sm:mr-1" />
                         <span className="hidden sm:inline">Reset password</span>
                       </Button>
@@ -154,21 +167,68 @@ export default function AdminMerchantsPage() {
         </Card>
       </div>
 
-      <Dialog open={!!pwdMerchant} onOpenChange={(o) => { if (!o) { setPwdMerchant(null); setNewPwd(""); } }}>
+      <Dialog open={!!pwdMerchant} onOpenChange={(o) => { if (!o) { setPwdMerchant(null); setTempPwd(null); setCopied(false); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reset password</DialogTitle>
-            <DialogDescription>Set a new password for {pwdMerchant?.name}.</DialogDescription>
+            <DialogDescription>
+              {tempPwd
+                ? `Share this temporary password with ${pwdMerchant?.name}. It will not be shown again.`
+                : `Generate a new temporary password for ${pwdMerchant?.name}. Their current password will stop working immediately.`}
+            </DialogDescription>
           </DialogHeader>
-          <form onFocusCapture={scrollOnFocus} className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (pwdMerchant) updateMut.mutate({ id: pwdMerchant.id, data: { password: newPwd } }); }}>
-            <div className="space-y-2">
-              <Label htmlFor="np">New password</Label>
-              <Input id="np" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} minLength={6} required data-testid="input-merchant-new-password" />
+          {tempPwd ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="temp-pwd">Temporary password</Label>
+                <div className="flex items-center gap-2">
+                  <Input id="temp-pwd" readOnly value={tempPwd} className="font-mono" data-testid="text-temp-password" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(tempPwd);
+                        setCopied(true);
+                        toast({ title: "Copied to clipboard" });
+                      } catch {
+                        toast({ title: "Copy failed", variant: "destructive" });
+                      }
+                    }}
+                    data-testid="button-copy-password"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">The merchant should sign in at /merchant/login and change this password as soon as possible.</p>
+              </div>
+              <DialogFooter>
+                <Button type="button" onClick={() => { setPwdMerchant(null); setTempPwd(null); setCopied(false); }} data-testid="button-close-password">Done</Button>
+              </DialogFooter>
             </div>
-            <DialogFooter>
-              <Button type="submit" disabled={updateMut.isPending} data-testid="button-submit-password">{updateMut.isPending ? "Saving…" : "Save"}</Button>
-            </DialogFooter>
-          </form>
+          ) : (
+            <div onFocusCapture={scrollOnFocus} className="space-y-4">
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setPwdMerchant(null); setTempPwd(null); }}
+                  data-testid="button-cancel-password"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={resetPwdMut.isPending}
+                  onClick={() => { if (pwdMerchant) resetPwdMut.mutate(pwdMerchant.id); }}
+                  data-testid="button-generate-password"
+                >
+                  {resetPwdMut.isPending ? "Generating…" : "Generate new password"}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

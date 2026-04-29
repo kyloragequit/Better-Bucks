@@ -327,8 +327,16 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">{currentCredited.toLocaleString()} of {serverBudget.toLocaleString()} bucks allocated</span>
-                    <span className={`font-semibold ${creditPercent >= 100 ? "text-red-700" : creditPercent >= 80 ? "text-amber-700" : "text-emerald-700"}`}>
+                    <span className={`font-semibold flex items-center gap-1 ${creditPercent >= 100 ? "text-red-700" : creditPercent >= 80 ? "text-amber-700" : "text-emerald-700"}`} data-testid="text-credit-percent-status">
+                      {creditPercent >= 100
+                        ? <AlertTriangle className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                        : creditPercent >= 80
+                        ? <AlertTriangle className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                        : <CheckCircle className="h-3 w-3 flex-shrink-0" aria-hidden="true" />}
                       {creditPercent.toFixed(0)}%
+                      <span className="font-medium">
+                        {creditPercent >= 100 ? "Over limit" : creditPercent >= 80 ? "Nearing" : "On track"}
+                      </span>
                     </span>
                   </div>
                   <Progress
@@ -788,14 +796,20 @@ export default function AdminDashboardPage() {
                       const pct = Math.min(Math.round((categoryAnalytics.budgetUsed / categoryAnalytics.monthlyBudgetBucks) * 100), 100);
                       const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-green-500";
                       const textColor = pct >= 90 ? "text-red-600" : pct >= 70 ? "text-amber-600" : "text-green-600";
+                      const statusIcon = pct >= 70
+                        ? <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                        : <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />;
+                      const statusLabel = pct >= 90 ? "Critical" : pct >= 70 ? "Nearing" : "On track";
                       return (
                         <div>
-                          <div className="flex justify-between items-baseline mb-2">
+                          <div className="flex justify-between items-center mb-2">
                             <span className="text-sm text-muted-foreground">
                               <span className="font-bold text-foreground">{categoryAnalytics.budgetUsed.toLocaleString()}</span> of {categoryAnalytics.monthlyBudgetBucks.toLocaleString()} bucks used
                             </span>
-                            <span className={`text-sm font-bold ${textColor}`} data-testid="text-budget-used">
+                            <span className={`text-sm font-bold flex items-center gap-1 ${textColor}`} data-testid="text-budget-used">
+                              {statusIcon}
                               {pct}%
+                              <span className="font-medium text-xs">{statusLabel}</span>
                             </span>
                           </div>
                           <div className="h-3 bg-muted rounded-full overflow-hidden" data-testid="bar-budget-progress">

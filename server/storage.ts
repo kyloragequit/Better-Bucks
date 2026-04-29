@@ -197,6 +197,7 @@ export interface IStorage {
   createMerchantTransaction(data: InsertMerchantTransaction): Promise<MerchantTransaction>;
   getMerchantTransactions(merchantId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User })[]>;
   getMerchantTransactionsByOrg(orgId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User; merchant?: Merchant })[]>;
+  getMerchantTransactionsForEmployee(employeeId: number, limit?: number): Promise<(MerchantTransaction & { merchant?: Merchant })[]>;
 
   // Wallet passes
   createWalletPass(data: InsertWalletPass): Promise<WalletPass>;
@@ -1335,6 +1336,7 @@ export interface DatabaseStorage {
   createMerchantTransaction: IStorage["createMerchantTransaction"];
   getMerchantTransactions: IStorage["getMerchantTransactions"];
   getMerchantTransactionsByOrg: IStorage["getMerchantTransactionsByOrg"];
+  getMerchantTransactionsForEmployee: IStorage["getMerchantTransactionsForEmployee"];
   createWalletPass: IStorage["createWalletPass"];
   getWalletPassBySerial: IStorage["getWalletPassBySerial"];
   getActiveWalletPassForEmployee: IStorage["getActiveWalletPassForEmployee"];
@@ -1396,6 +1398,17 @@ DatabaseStorage.prototype.getMerchantTransactionsByOrg = async function (orgId, 
   const empById = new Map(emps.map((e) => [e.id, e]));
   const merchById = new Map(merchList.map((m) => [m.id, m]));
   return rows.map((r) => ({ ...r, employee: empById.get(r.employeeId), merchant: merchById.get(r.merchantId) }));
+};
+
+DatabaseStorage.prototype.getMerchantTransactionsForEmployee = async function (employeeId, limit = 100) {
+  const rows = await db.select().from(merchantTransactions)
+    .where(eq(merchantTransactions.employeeId, employeeId))
+    .orderBy(desc(merchantTransactions.createdAt))
+    .limit(limit);
+  const merchIds = Array.from(new Set(rows.map((r) => r.merchantId)));
+  const merchList = merchIds.length ? await db.select().from(merchants).where(inArray(merchants.id, merchIds)) : [];
+  const merchById = new Map(merchList.map((m) => [m.id, m]));
+  return rows.map((r) => ({ ...r, merchant: merchById.get(r.merchantId) }));
 };
 
 DatabaseStorage.prototype.createWalletPass = async function (data) {

@@ -27,6 +27,7 @@ const LoginPage = lazy(() => import("@/pages/login"));
 const EmployeeDashboard = lazy(() => import("@/pages/employee-dashboard"));
 const EmployeeOrdersPage = lazy(() => import("@/pages/employee-orders"));
 const EmployeeStorePage = lazy(() => import("@/pages/employee-store"));
+const EmployeeRedemptionsPage = lazy(() => import("@/pages/employee-redemptions"));
 const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard"));
 const AdminEmployeesPage = lazy(() => import("@/pages/admin-employees"));
 const AdminEmployeeDetailPage = lazy(() => import("@/pages/admin-employee-detail"));
@@ -269,6 +270,9 @@ function Router() {
         </Route>
         <Route path="/store">
           <ProtectedRoute component={EmployeeStorePage} />
+        </Route>
+        <Route path="/redemptions">
+          <ProtectedRoute component={EmployeeRedemptionsPage} />
         </Route>
         <Route path="/settings">
           <ProtectedRoute component={EmployeeSettingsPage} />

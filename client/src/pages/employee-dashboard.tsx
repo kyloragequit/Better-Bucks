@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Wallet, History, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins, Gift } from "lucide-react";
+import { Wallet, History, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins, Gift, ShoppingBag } from "lucide-react";
 import type { StoreItem, Wishlist, Goal } from "@shared/schema";
 import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
@@ -35,6 +35,10 @@ export default function EmployeeDashboard() {
   });
   const { data: goals = [] } = useQuery<Goal[]>({
     queryKey: ["/api/goals"],
+    enabled: !!authUser,
+  });
+  const { data: redemptions = [] } = useQuery<{ id: number; bucksAmount: number; createdAt: string; merchant: { id: number; name: string } | null }[]>({
+    queryKey: ["/api/wallet/redemptions"],
     enabled: !!authUser,
   });
 
@@ -171,6 +175,47 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent in-store purchases */}
+      {redemptions.length > 0 && (
+        <Card className="shadow-md border-border/60 mb-8" data-testid="section-recent-redemptions">
+          <CardHeader className="flex flex-row items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-primary" /> Recent in-store purchases
+            </CardTitle>
+            <Link
+              href="/redemptions"
+              className="text-xs text-primary underline shrink-0"
+              data-testid="link-view-all-redemptions"
+            >
+              View all
+            </Link>
+          </CardHeader>
+          <CardContent className="px-0 sm:px-6">
+            <div className="space-y-2 px-4 sm:px-0">
+              {redemptions.slice(0, 5).map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 py-3 border-b last:border-0"
+                  data-testid={`redemption-item-${r.id}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate" data-testid={`redemption-merchant-${r.id}`}>
+                      {r.merchant?.name ?? "Unknown merchant"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {format(new Date(r.createdAt), "MMM d, h:mm a")}
+                    </p>
+                  </div>
+                  <span className="font-bold tabular-nums text-sm shrink-0 text-red-600" data-testid={`redemption-amount-${r.id}`}>
+                    -{r.bucksAmount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Items I've been given */}
       {userDetails.customItems && userDetails.customItems.length > 0 && (

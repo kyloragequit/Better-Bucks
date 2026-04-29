@@ -553,8 +553,18 @@ function InviteUserDialog({ departments }: { departments: Department[] }) {
     });
   };
 
+  const handleOpenChange = (o: boolean) => {
+    if (!o) {
+      setFullName("");
+      setEmail("");
+      setRole("employee");
+      setSelectedDept("none");
+    }
+    setOpen(o);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" data-testid="button-invite-user">
           <Send className="mr-2 h-4 w-4" /> Invite User

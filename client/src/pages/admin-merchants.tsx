@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader } from "@/components/ui/loader";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,7 +80,7 @@ export default function AdminMerchantsPage() {
             <h1 className="text-2xl font-bold" data-testid="text-page-title">Merchants</h1>
             <p className="text-sm text-muted-foreground">Locations where members can scan their Better Bucks pass.</p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <Dialog open={createOpen} onOpenChange={(o) => { if (!o) { setName(""); setEmail(""); setPassword(""); } setCreateOpen(o); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-merchant"><Plus className="h-4 w-4 mr-2" /> Add merchant</Button>
             </DialogTrigger>
@@ -116,7 +117,7 @@ export default function AdminMerchantsPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-sm text-muted-foreground">Loading…</div>
+              <Loader />
             ) : merchants.length === 0 ? (
               <div className="text-sm text-muted-foreground py-6 text-center" data-testid="text-no-merchants">No merchants yet. Click "Add merchant" to create one.</div>
             ) : (

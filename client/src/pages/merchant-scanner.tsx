@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, ScanLine, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
+import { FullPageLoader } from "@/components/ui/loader";
 
 type MerchantMe = { id: number; email: string; name: string; orgId: number };
 type MerchantTx = { id: number; bucksAmount: number; createdAt: string; employee?: { id: number; fullName: string; email: string } | null };
@@ -102,7 +103,7 @@ export default function MerchantScannerPage() {
     redeemMut.mutate({ token: lastToken, amount: n });
   }
 
-  if (isLoading) return <div className="p-6">Loading…</div>;
+  if (isLoading) return <FullPageLoader />;
   if (!me) return null;
 
   return (

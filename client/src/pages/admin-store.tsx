@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
+import { Loader } from "@/components/ui/loader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2, Ruler, Palette } from "lucide-react";
@@ -260,7 +261,7 @@ export default function AdminStorePage() {
               variant="outline"
               onClick={() => setShowHelp(true)}
               className="gap-2"
-              data-testid="button-need-help"
+              data-testid="button-store-help"
             >
               <HelpCircle className="h-4 w-4" />
               <span className="hidden sm:inline">Need help?</span>
@@ -381,7 +382,7 @@ export default function AdminStorePage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading...</p>
+              <div className="py-6"><Loader /></div>
             ) : !items || items.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 <ShoppingBag className="h-10 w-10 mx-auto mb-3 opacity-30" />

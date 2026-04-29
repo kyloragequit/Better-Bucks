@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Loader } from "@/components/ui/loader";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
 import { AdminLayout } from "@/components/layout-admin";
@@ -139,7 +140,7 @@ export default function AdminInviteLinksPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-muted-foreground text-sm">Loading…</p>
+              <Loader />
             ) : links.length === 0 ? (
               <p className="text-muted-foreground text-sm" data-testid="text-empty">No invite links yet. Create one above.</p>
             ) : (

@@ -888,8 +888,20 @@ function EditProfileDialog({ user }: { user: any }) {
     });
   };
 
+  const handleOpenChange = (o: boolean) => {
+    if (o) {
+      setFullName(user.fullName || "");
+      setUsername(user.username);
+      setPassword("");
+      setEmail(user.email || "");
+      setSelectedDept(user.departmentId?.toString() || "none");
+      setResetSent(false);
+    }
+    setOpen(o);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <UserCog className="mr-2 h-4 w-4" /> Edit Profile

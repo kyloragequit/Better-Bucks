@@ -39,6 +39,7 @@ import {
   CartesianGrid,
   Tooltip,
   Cell,
+  LabelList,
 } from "recharts";
 
 type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedDollars: string; totalDollars: string };
@@ -80,7 +81,7 @@ function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDolla
   const chartWidth = needsScroll ? Math.max(display.length * BAR_MIN_WIDTH + 70, 400) : undefined;
 
   const chart = (
-    <BarChart data={display} margin={{ top: 8, right: 16, left: 0, bottom: 32 }} width={chartWidth} height={288}>
+    <BarChart data={display} margin={{ top: 24, right: 16, left: 0, bottom: 32 }} width={chartWidth} height={288}>
       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
       <XAxis
         dataKey="name"
@@ -112,6 +113,14 @@ function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDolla
           {display.map((_, i) => (
             <Cell key={i} fill={ADMIN_COLORS[i % ADMIN_COLORS.length]} />
           ))}
+          <LabelList
+            dataKey="display"
+            position="top"
+            style={{ fontSize: 10, fill: "#374151", fontWeight: 500 }}
+            formatter={(value: number) =>
+              showDollars ? `$${value.toFixed(2)}` : value.toLocaleString()
+            }
+          />
         </Bar>
       ) : (
         <Bar dataKey="display" fill="#e5e7eb" radius={[4, 4, 0, 0]} />

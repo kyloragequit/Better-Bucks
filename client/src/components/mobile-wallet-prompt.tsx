@@ -65,10 +65,10 @@ export function MobileWalletPrompt() {
     }
   }
 
-  if (!show) return null;
+  const configured = status?.configured ?? false;
+  if (!show || !configured) return null;
 
   const ios = isIOS();
-  const configured = status?.configured ?? true;
 
   return (
     <div
@@ -89,11 +89,6 @@ export function MobileWalletPrompt() {
               ? "Tap to add your balance to Apple Wallet so you can pay with one tap at participating merchants."
               : "Open this page on your iPhone to add your balance to Apple Wallet for one-tap payments."}
           </p>
-          {!configured && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Setup is in progress — you can still use the QR code below.
-            </p>
-          )}
           {error && (
             <p className="text-xs text-destructive mt-1" data-testid="text-mobile-wallet-prompt-error">
               {error}

@@ -235,6 +235,13 @@ export default function LandingPage() {
         jsonLd={jsonLd}
       />
 
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+        data-testid="link-skip-to-content"
+      >
+        Skip to main content
+      </a>
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 min-w-0">
@@ -416,7 +423,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
                 <Star className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit1_title")}</h3>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit1_title")}</h2>
               <p className="text-gray-600 mb-4">{c("benefit1_subtitle")}</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
@@ -438,7 +445,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
                 <TrendingUp className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit2_title")}</h3>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit2_title")}</h2>
               <p className="text-gray-600 mb-4">{c("benefit2_subtitle")}</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
@@ -460,7 +467,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-md bg-primary/10 mb-5">
                 <DollarSign className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit3_title")}</h3>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{c("benefit3_title")}</h2>
               <p className="text-gray-600 mb-4">{c("benefit3_subtitle")}</p>
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-gray-600">
@@ -483,35 +490,35 @@ export default function LandingPage() {
 
       <section className="py-12 bg-white border-t" data-testid="section-features">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <h2 className="text-center text-lg font-semibold text-gray-500 uppercase tracking-wide mb-8">Everything your team needs in one place</h2>
+          <h2 className="text-center text-lg font-semibold text-gray-700 uppercase tracking-wide mb-8">Everything your team needs in one place</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
             <div className="text-center" data-testid="feature-bucks">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
                 <Zap className="h-5 w-5 text-primary" />
               </div>
               <p className="font-semibold text-gray-800 text-sm">Instant Bucks</p>
-              <p className="text-xs text-gray-500 mt-1">Award points in seconds with a reason</p>
+              <p className="text-xs text-gray-600 mt-1">Award points in seconds with a reason</p>
             </div>
             <div className="text-center" data-testid="feature-goals">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
                 <Target className="h-5 w-5 text-primary" />
               </div>
               <p className="font-semibold text-gray-800 text-sm">Team Goals</p>
-              <p className="text-xs text-gray-500 mt-1">Set milestones and distribute Bucks to the whole team</p>
+              <p className="text-xs text-gray-600 mt-1">Set milestones and distribute Bucks to the whole team</p>
             </div>
             <div className="text-center" data-testid="feature-surveys">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
                 <ClipboardList className="h-5 w-5 text-primary" />
               </div>
               <p className="font-semibold text-gray-800 text-sm">Surveys</p>
-              <p className="text-xs text-gray-500 mt-1">Collect anonymous team feedback with built-in analytics</p>
+              <p className="text-xs text-gray-600 mt-1">Collect anonymous team feedback with built-in analytics</p>
             </div>
             <div className="text-center" data-testid="feature-store">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-3">
                 <ShoppingBag className="h-5 w-5 text-primary" />
               </div>
               <p className="font-semibold text-gray-800 text-sm">Rewards Store</p>
-              <p className="text-xs text-gray-500 mt-1">Employees spend Bucks on real items they actually want</p>
+              <p className="text-xs text-gray-600 mt-1">Employees spend Bucks on real items they actually want</p>
             </div>
           </div>
         </div>
@@ -582,7 +589,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 border-t border-gray-200" />
-            <span className="text-sm text-gray-400">or request a personalized demo</span>
+            <span className="text-sm text-gray-700">or request a personalized demo</span>
             <div className="flex-1 border-t border-gray-200" />
           </div>
           <form onSubmit={handleContactSubmit} className="bg-white rounded-lg border shadow-sm p-6 sm:p-8 space-y-4">
@@ -650,7 +657,7 @@ export default function LandingPage() {
               {contactSubmitting ? "Sending..." : "Request a Demo"}
             </Button>
           </form>
-          <div className="mt-10 pt-6 border-t text-sm text-gray-400 flex flex-col items-center gap-2">
+          <div className="mt-10 pt-6 border-t text-sm text-gray-700 flex flex-col items-center gap-2">
             <div className="flex items-center gap-2">
               <AppLogo size="sm" />
               <span>Better Bucks LLC</span>
@@ -659,7 +666,7 @@ export default function LandingPage() {
               Contact us:{" "}
               <a
                 href="mailto:miles.chase@betterbucks.net"
-                className="text-gray-500 hover:text-gray-700 transition-colors underline underline-offset-2"
+                className="text-gray-700 hover:text-gray-900 transition-colors underline underline-offset-2"
                 data-testid="link-contact-email"
               >
                 miles.chase@betterbucks.net

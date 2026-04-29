@@ -220,7 +220,7 @@ export default function EmployeeDashboard() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {wishlist.map((entry) => (
                 <div key={entry.id} className="group rounded-lg border overflow-hidden" data-testid={`wishlist-item-${entry.storeItemId}`}>
-                  <a href={entry.storeItem.url} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden bg-gray-100">
+                  <a href={entry.storeItem.url} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden bg-gray-100" aria-label={`View ${entry.storeItem.name} (opens in new tab)`}>
                     <img
                       src={entry.storeItem.imageUrl}
                       alt={entry.storeItem.name}
@@ -269,7 +269,7 @@ export default function EmployeeDashboard() {
                         {format(new Date(tx.createdAt), "MMM d, h:mm a")}
                       </p>
                     </div>
-                    <span className={`font-bold tabular-nums text-sm shrink-0 ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
+                    <span className={`font-bold tabular-nums text-sm shrink-0 ${tx.amount > 0 ? "text-green-700" : "text-red-700"}`}>
                       {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
                     </span>
                   </div>
@@ -302,7 +302,7 @@ export default function EmployeeDashboard() {
                             </Badge>
                           </div>
                         </TableCell>
-                        <TableCell className={`text-right font-bold tabular-nums ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
+                        <TableCell className={`text-right font-bold tabular-nums ${tx.amount > 0 ? "text-green-700" : "text-red-700"}`}>
                           {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
                         </TableCell>
                       </TableRow>

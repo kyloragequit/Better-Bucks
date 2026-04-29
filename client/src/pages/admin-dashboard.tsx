@@ -263,41 +263,45 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
               <div className="flex items-start gap-3">
                 <Award className="h-5 w-5 text-blue-600 mt-1.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-blue-600 mb-1.5">Monthly Budget</p>
+                  <label htmlFor="input-monthly-budget" className="block text-xs font-semibold text-blue-700 mb-1.5">Monthly Budget</label>
                   <div className="flex items-baseline gap-1.5">
                     <input
+                      id="input-monthly-budget"
                       type="number" inputMode="numeric"
                       min="0"
                       value={budget}
                       onChange={e => setBudget(e.target.value)}
-                      className="w-full text-2xl font-bold text-blue-700 bg-transparent border-0 border-b-2 border-blue-200 focus:border-blue-500 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="w-full text-2xl font-bold text-blue-800 bg-transparent border-0 border-b-2 border-blue-300 focus:border-blue-600 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       data-testid="input-monthly-budget"
                       placeholder="10000"
+                      aria-label="Monthly budget in bucks"
                     />
-                    <span className="text-sm font-medium text-blue-600 whitespace-nowrap">bucks</span>
+                    <span className="text-sm font-medium text-blue-700 whitespace-nowrap">bucks</span>
                   </div>
                   {dollarEquiv && (
-                    <p className="text-xs text-blue-500 mt-1">≈ ${dollarEquiv} / month</p>
+                    <p className="text-xs text-blue-700 mt-1">≈ ${dollarEquiv} / month</p>
                   )}
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <BadgeDollarSign className="h-5 w-5 text-green-600 mt-1.5 flex-shrink-0" />
+                <BadgeDollarSign className="h-5 w-5 text-green-700 mt-1.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-green-600 mb-1.5">Bucks per $1</p>
+                  <label htmlFor="input-bucks-per-dollar" className="block text-xs font-semibold text-green-800 mb-1.5">Bucks per $1</label>
                   <div className="flex items-baseline gap-1.5">
                     <input
+                      id="input-bucks-per-dollar"
                       type="number" inputMode="numeric"
                       min="1"
                       value={bpd}
                       onChange={e => setBpd(e.target.value)}
-                      className="w-full text-2xl font-bold text-green-700 bg-transparent border-0 border-b-2 border-green-200 focus:border-green-500 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="w-full text-2xl font-bold text-green-800 bg-transparent border-0 border-b-2 border-green-300 focus:border-green-700 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       data-testid="input-bucks-per-dollar"
                       placeholder="100"
+                      aria-label="Bucks awarded per US dollar"
                     />
-                    <span className="text-sm font-medium text-green-600 whitespace-nowrap">= $1</span>
+                    <span className="text-sm font-medium text-green-800 whitespace-nowrap">= $1</span>
                   </div>
-                  <p className="text-xs text-green-500 mt-1">conversion rate</p>
+                  <p className="text-xs text-green-800 mt-1">conversion rate</p>
                 </div>
               </div>
             </div>
@@ -323,7 +327,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">{currentCredited.toLocaleString()} of {serverBudget.toLocaleString()} bucks allocated</span>
-                    <span className={`font-semibold ${creditPercent >= 100 ? "text-red-600" : creditPercent >= 80 ? "text-amber-600" : "text-emerald-600"}`}>
+                    <span className={`font-semibold ${creditPercent >= 100 ? "text-red-700" : creditPercent >= 80 ? "text-amber-700" : "text-emerald-700"}`}>
                       {creditPercent.toFixed(0)}%
                     </span>
                   </div>
@@ -332,7 +336,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                     className={`h-2 ${creditPercent >= 100 ? "[&>div]:bg-red-500" : creditPercent >= 80 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
                   />
                   {currentCredited > serverBudget && (
-                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1" data-testid="text-over-budget-warning">
+                    <p className="text-xs text-red-700 flex items-center gap-1 mt-1" data-testid="text-over-budget-warning">
                       <AlertTriangle className="h-3 w-3" />
                       Over budget by {(currentCredited - serverBudget).toLocaleString()} bucks (${((currentCredited - serverBudget) / serverBpd).toFixed(2)})
                     </p>
@@ -373,8 +377,8 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                 ))}
                 {mgrCounts.unassigned > 0 && (
                   <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 border border-gray-200" data-testid="mgr-pct-unassigned">
-                    <span className="text-sm font-medium text-gray-600 truncate">Unassigned</span>
-                    <span className="text-sm font-bold text-gray-500 ml-2 whitespace-nowrap">
+                    <span className="text-sm font-medium text-gray-700 truncate">Unassigned</span>
+                    <span className="text-sm font-bold text-gray-700 ml-2 whitespace-nowrap">
                       {mgrCounts.unassigned} <span className="text-xs font-normal">({mgrCounts.unassignedPercentage}%)</span>
                     </span>
                   </div>
@@ -753,9 +757,9 @@ export default function AdminDashboardPage() {
                       <span className="sm:hidden">{formatCompact(currentUser.balance ?? 0)}</span>
                       <span className="hidden sm:inline">{(currentUser.balance ?? 0).toLocaleString()}</span>
                     </span>
-                    <span className="text-sm font-medium text-green-600">bucks available to distribute</span>
+                    <span className="text-sm font-medium text-green-700">bucks available to distribute</span>
                     {bpd > 0 && (
-                      <span className="text-sm text-green-500">≈ ${((currentUser.balance ?? 0) / bpd).toFixed(2)}</span>
+                      <span className="text-sm text-green-700">≈ ${((currentUser.balance ?? 0) / bpd).toFixed(2)}</span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">This is the amount you can award to employees. Your organization admin allocates bucks to you from the monthly budget.</p>

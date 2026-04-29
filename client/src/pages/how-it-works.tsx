@@ -142,7 +142,7 @@ function MiniCalculator() {
       <div className="border-t border-gray-100 pt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Your estimated annual savings</p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-600 mt-0.5">
             Based on a {leavers}-person/yr loss at {fmt(replaceCost)} per replacement.
           </p>
         </div>
@@ -751,7 +751,7 @@ function ProgramPreview() {
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                <p className="text-[10px] uppercase tracking-wide font-bold text-gray-400">Live results · 47 responses</p>
+                <p className="text-[10px] uppercase tracking-wide font-bold text-gray-700">Live results · 47 responses</p>
                 {POLL_OPTIONS.map((opt) => (
                   <div key={opt.label}>
                     <div className="flex items-center justify-between text-[11px] mb-0.5">
@@ -918,6 +918,13 @@ export default function HowItWorksPage() {
         title="Better Bucks — Employee Recognition & Rewards Platform"
         description="Employee Rewards &amp; Recognition That Actually Works. Better Bucks helps managers recognize great work, reduce turnover, and replace spreadsheets with one simple incentive platform."
       />
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+        data-testid="link-skip-to-content"
+      >
+        Skip to main content
+      </a>
 
       {/* ─── Top Nav ───────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
@@ -1026,6 +1033,7 @@ export default function HowItWorksPage() {
         </div>
       </header>
 
+      <main id="main-content">
       {/* ─── Hero (split: text + signup left, program preview right) ──── */}
       <section className="relative overflow-hidden" style={{ background: "#F0F4F8" }} data-testid="section-hero">
         <div
@@ -1095,7 +1103,7 @@ export default function HowItWorksPage() {
             >
               Built for teams that need more than a spreadsheet.
             </h2>
-            <p className="mt-3 text-gray-500 max-w-2xl mx-auto">
+            <p className="mt-3 text-gray-700 max-w-2xl mx-auto">
               Everything you need to recognize great work, motivate your team, and keep your best people from walking out the door.
             </p>
           </div>
@@ -1139,7 +1147,7 @@ export default function HowItWorksPage() {
             >
               How much could Better Bucks save you?
             </h2>
-            <p className="mt-3 text-gray-500 max-w-xl mx-auto">
+            <p className="mt-3 text-gray-700 max-w-xl mx-auto">
               Plug in your numbers. We'll show a conservative estimate of what structured incentives can save your business each year.
             </p>
           </div>
@@ -1249,6 +1257,7 @@ export default function HowItWorksPage() {
           </form>
         </div>
       </section>
+      </main>
 
       <SiteFooter />
     </div>

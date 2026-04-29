@@ -104,7 +104,7 @@ export default function BlogPage() {
             ))}
           </div>
         ) : !posts || posts.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
+          <div className="text-center py-20 text-gray-600">
             <p className="text-lg font-medium">No posts yet</p>
             <p className="text-sm mt-1">Check back soon for insights and updates.</p>
           </div>
@@ -129,7 +129,7 @@ export default function BlogPage() {
                   <h2 className="font-semibold text-gray-900 leading-snug text-base group-hover:text-primary transition-colors line-clamp-2" data-testid={`text-blog-title-${post.id}`}>
                     {post.title}
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2 flex-1">{post.excerpt}</p>
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2 flex-1">{post.excerpt}</p>
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                     {post.authorPhotoUrl ? (
                       <img src={post.authorPhotoUrl} alt={post.authorName} className="h-6 w-6 rounded-full object-cover" />
@@ -138,8 +138,8 @@ export default function BlogPage() {
                         {post.authorName.charAt(0)}
                       </div>
                     )}
-                    <span className="text-xs text-gray-500">{post.authorName}</span>
-                    <span className="text-xs text-gray-400 ml-auto flex items-center gap-1">
+                    <span className="text-xs text-gray-600">{post.authorName}</span>
+                    <span className="text-xs text-gray-600 ml-auto flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       {formatDate(post.publishedAt)}
                     </span>

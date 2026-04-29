@@ -169,7 +169,7 @@ export default function BlogPostPage() {
               )}
               <div>
                 <p className="font-semibold text-gray-900 text-sm" data-testid="text-blog-author-name">{post.authorName}</p>
-                <p className="text-xs text-gray-500 flex items-center gap-1">
+                <p className="text-xs text-gray-600 flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
                   {formatDate(post.publishedAt)}
                 </p>

@@ -407,7 +407,7 @@ export default function AdminSettingsPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">3–30 characters, lowercase letters, numbers, and hyphens only.</p>
                     {siteIdAvailable === true && (
-                      <p className="text-xs text-green-600 flex items-center gap-1" data-testid="text-site-id-available"><Check className="h-3 w-3" /> This Site ID is available</p>
+                      <p className="text-xs text-green-700 flex items-center gap-1" data-testid="text-site-id-available"><Check className="h-3 w-3" /> This Site ID is available</p>
                     )}
                     {siteIdAvailable === false && (
                       <p className="text-xs text-destructive" data-testid="text-site-id-taken">This Site ID is already taken</p>
@@ -574,7 +574,7 @@ export default function AdminSettingsPage() {
                       {org.isFree ? "Free" : `$${tierPrice.toFixed(2)}/month`}
                     </div>
                     {!org.isFree && grandfatheredPrice !== null && currentTierPrice > 0 && grandfatheredPrice < currentTierPrice && (
-                      <div className="text-xs text-green-600 mt-0.5" data-testid="text-grandfathered-savings">
+                      <div className="text-xs text-green-700 mt-0.5" data-testid="text-grandfathered-savings">
                         Locked-in rate (currently ${currentTierPrice.toFixed(2)}/mo)
                       </div>
                     )}
@@ -764,7 +764,7 @@ export default function AdminSettingsPage() {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Status</div>
-                        <div className={`font-medium ${cancelAtPeriodEnd ? "text-amber-600" : "text-green-600"}`}>
+                        <div className={`font-medium ${cancelAtPeriodEnd ? "text-amber-700" : "text-green-700"}`}>
                           {cancelAtPeriodEnd ? "Cancelling" : "Active"}
                         </div>
                       </div>
@@ -2141,7 +2141,7 @@ function WeeklyReportCard() {
             {triggerMutation.isPending ? (
               <>Sending…</>
             ) : sent ? (
-              <><Check className="mr-1.5 h-3.5 w-3.5 text-green-600" /> Sent!</>
+              <><Check className="mr-1.5 h-3.5 w-3.5 text-green-700" /> Sent!</>
             ) : (
               <><Send className="mr-1.5 h-3.5 w-3.5" /> Send Now</>
             )}

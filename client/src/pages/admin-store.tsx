@@ -119,7 +119,7 @@ function NeedHelpPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="px-5 py-4 border-t bg-gray-50 shrink-0">
-          <p className="text-xs text-gray-400 text-center">
+          <p className="text-xs text-gray-600 text-center">
             Still have questions? Contact your Better Bucks rep.
           </p>
         </div>

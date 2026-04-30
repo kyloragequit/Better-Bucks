@@ -97,31 +97,38 @@ export default function DeveloperDashboardPage() {
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
 
-  // Claude chat state
-  type ChatMessage = { role: "user" | "assistant"; content: string };
+  // Claude coding agent state
+  type ToolStep = { name: string; input: Record<string, any>; output?: string; status: "running" | "done" };
+  type ChatMessage = { role: "user" | "assistant"; content: string; toolSteps?: ToolStep[] };
   const [claudeMessages, setClaudeMessages] = useState<ChatMessage[]>([]);
   const [claudeInput, setClaudeInput] = useState("");
   const [claudeStreaming, setClaudeStreaming] = useState(false);
   const claudeBottomRef = useRef<HTMLDivElement>(null);
   const claudeAbortRef = useRef<AbortController | null>(null);
+  const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     claudeBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [claudeMessages, claudeStreaming]);
 
+  function toggleToolExpand(key: string) {
+    setExpandedTools(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
   async function sendToClaud() {
     const text = claudeInput.trim();
     if (!text || claudeStreaming) return;
-    const newMessages: ChatMessage[] = [...claudeMessages, { role: "user", content: text }];
-    setClaudeMessages(newMessages);
+
+    // Only pass text-role messages to backend (tool steps are UI-only)
+    const history = claudeMessages.map(m => ({ role: m.role, content: m.content }));
+    const newMessages = [...history, { role: "user" as const, content: text }];
+
+    setClaudeMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: "", toolSteps: [] }]);
     setClaudeInput("");
     setClaudeStreaming(true);
 
     const abortController = new AbortController();
     claudeAbortRef.current = abortController;
-
-    let assistantText = "";
-    setClaudeMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
       const resp = await fetch("/api/developer/claude", {
@@ -147,39 +154,70 @@ export default function DeveloperDashboardPage() {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
+
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6);
-          if (payload === "[DONE]") break;
           try {
-            const parsed = JSON.parse(payload);
-            if (parsed.error) throw new Error(parsed.error);
-            if (parsed.text) {
-              assistantText += parsed.text;
+            const evt = JSON.parse(payload);
+            if (evt.type === "text") {
               setClaudeMessages(prev => {
                 const updated = [...prev];
-                updated[updated.length - 1] = { role: "assistant", content: assistantText };
+                const last = updated[updated.length - 1];
+                if (last?.role === "assistant") {
+                  updated[updated.length - 1] = { ...last, content: last.content + evt.text };
+                }
+                return updated;
+              });
+            } else if (evt.type === "tool_start") {
+              setClaudeMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === "assistant") {
+                  const steps = [...(last.toolSteps ?? []), { name: evt.name, input: evt.input, status: "running" as const }];
+                  updated[updated.length - 1] = { ...last, toolSteps: steps };
+                }
+                return updated;
+              });
+            } else if (evt.type === "tool_result") {
+              setClaudeMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === "assistant") {
+                  const steps = (last.toolSteps ?? []).map((s, i) =>
+                    i === (last.toolSteps!.length - 1) && s.status === "running"
+                      ? { ...s, output: evt.output, status: "done" as const }
+                      : s
+                  );
+                  updated[updated.length - 1] = { ...last, toolSteps: steps };
+                }
+                return updated;
+              });
+            } else if (evt.type === "error") {
+              throw new Error(evt.message);
+            }
+          } catch (parseErr: any) {
+            if (parseErr?.message && parseErr.message !== "Unexpected end of JSON input") {
+              setClaudeMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === "assistant") {
+                  updated[updated.length - 1] = { ...last, content: last.content + `\n\n⚠️ ${parseErr.message}` };
+                }
                 return updated;
               });
             }
-          } catch {
-            // skip malformed chunks
           }
         }
       }
     } catch (err: any) {
-      if (err?.name === "AbortError") {
+      if (err?.name !== "AbortError") {
         setClaudeMessages(prev => {
           const updated = [...prev];
-          if (updated[updated.length - 1]?.role === "assistant" && !updated[updated.length - 1].content) {
-            updated.pop();
+          const last = updated[updated.length - 1];
+          if (last?.role === "assistant") {
+            updated[updated.length - 1] = { ...last, content: last.content || `⚠️ ${err?.message || "Something went wrong."}` };
           }
-          return updated;
-        });
-      } else {
-        setClaudeMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: "assistant", content: `⚠️ ${err?.message || "Something went wrong."}` };
           return updated;
         });
       }
@@ -2163,8 +2201,8 @@ function EnterpriseAccountsTab() {
                   <Bot className="h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Claude</CardTitle>
-                  <CardDescription className="text-xs">claude-opus-4-5 · Better Bucks context</CardDescription>
+                  <CardTitle className="text-base">Claude Coding Agent</CardTitle>
+                  <CardDescription className="text-xs">claude-opus-4-5 · reads &amp; writes source files</CardDescription>
                 </div>
               </div>
               <Button
@@ -2181,21 +2219,24 @@ function EnterpriseAccountsTab() {
 
             <CardContent className="flex-1 overflow-y-auto py-4 space-y-4" data-testid="claude-message-list">
               {claudeMessages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-3 py-12">
+                <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-12">
                   <Bot className="h-12 w-12 text-violet-300" />
-                  <p className="font-medium text-gray-700">Ask Claude anything about Better Bucks</p>
-                  <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                  <div>
+                    <p className="font-semibold text-gray-800">Claude Coding Agent</p>
+                    <p className="text-sm text-gray-500 mt-1">Can read, write, and search your source files</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-center max-w-lg">
                     {[
-                      "Review the billing flow",
-                      "Suggest a new feature",
-                      "Debug a Drizzle query",
-                      "Write a blog post intro",
+                      "List all files in server/",
+                      "Read server/routes.ts lines 1-50",
+                      "Add a data-testid to the logout button in layout-admin.tsx",
+                      "Search for all TODO comments in the codebase",
                     ].map(s => (
                       <button
                         key={s}
                         onClick={() => setClaudeInput(s)}
                         className="text-xs px-3 py-1.5 rounded-full border border-violet-200 text-violet-700 hover:bg-violet-50 transition-colors"
-                        data-testid={`button-claude-starter-${s.replace(/\s+/g, "-").toLowerCase()}`}
+                        data-testid={`button-claude-starter`}
                       >
                         {s}
                       </button>
@@ -2214,16 +2255,60 @@ function EnterpriseAccountsTab() {
                       <Bot className="h-4 w-4 text-white" />
                     </div>
                   )}
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
-                      msg.role === "user"
-                        ? "bg-[#162A4A] text-white rounded-br-sm"
-                        : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                    }`}
-                  >
-                    {msg.content}
-                    {msg.role === "assistant" && claudeStreaming && i === claudeMessages.length - 1 && (
-                      <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse ml-0.5 rounded-sm" />
+                  <div className={`max-w-[82%] flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                    {/* Tool steps shown above the text bubble */}
+                    {msg.role === "assistant" && (msg.toolSteps ?? []).map((step, si) => {
+                      const toolKey = `${i}-${si}`;
+                      const isExpanded = expandedTools[toolKey];
+                      const toolIcon: Record<string, string> = {
+                        read_file: "📖", write_file: "✏️", list_directory: "📁",
+                        search_code: "🔍", run_command: "⚡",
+                      };
+                      const pathLabel = step.input.path ?? step.input.command ?? step.input.pattern ?? "";
+                      return (
+                        <div key={si} className="w-full">
+                          <button
+                            onClick={() => toggleToolExpand(toolKey)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono w-full text-left transition-colors ${
+                              step.status === "running"
+                                ? "bg-amber-50 border border-amber-200 text-amber-800"
+                                : "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100"
+                            }`}
+                            data-testid={`tool-step-${i}-${si}`}
+                          >
+                            <span>{toolIcon[step.name] ?? "🔧"}</span>
+                            <span className="font-semibold">{step.name}</span>
+                            {pathLabel && <span className="text-gray-400 truncate max-w-[200px]">{pathLabel}</span>}
+                            {step.status === "running" && <Loader2 className="h-3 w-3 ml-auto animate-spin text-amber-500 shrink-0" />}
+                            {step.status === "done" && step.output && (
+                              <span className="ml-auto text-gray-400 shrink-0">{isExpanded ? "▲" : "▼"}</span>
+                            )}
+                          </button>
+                          {isExpanded && step.output && (
+                            <pre className="mt-1 p-2 bg-gray-900 text-green-400 text-xs rounded-lg overflow-x-auto max-h-48 font-mono leading-relaxed whitespace-pre-wrap">
+                              {step.output}
+                            </pre>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {/* Main text bubble */}
+                    {(msg.content || (msg.role === "assistant" && claudeStreaming && i === claudeMessages.length - 1)) && (
+                      <div
+                        className={`rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed w-full ${
+                          msg.role === "user"
+                            ? "bg-[#162A4A] text-white rounded-br-sm"
+                            : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                        }`}
+                      >
+                        {msg.content}
+                        {msg.role === "assistant" && claudeStreaming && i === claudeMessages.length - 1 && !msg.content && (
+                          <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse rounded-sm" />
+                        )}
+                        {msg.role === "assistant" && claudeStreaming && i === claudeMessages.length - 1 && msg.content && (
+                          <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse ml-0.5 rounded-sm" />
+                        )}
+                      </div>
                     )}
                   </div>
                   {msg.role === "user" && (

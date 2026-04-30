@@ -6023,48 +6023,240 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }
   });
 
-  // ─── Claude AI Chat (developer only) ──────────────────────────────────────
+  // ─── Claude Coding Agent (developer only) ─────────────────────────────────
   app.post("/api/developer/claude", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "developer") {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { messages } = z.object({
-      messages: z.array(z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string().max(32000),
-      })).min(1).max(100),
-    }).parse(req.body);
-
     if (!process.env.ANTHROPIC_API_KEY) {
       return res.status(503).json({ message: "ANTHROPIC_API_KEY is not configured." });
     }
 
+    const { messages } = z.object({
+      messages: z.array(z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().max(100000),
+      })).min(1).max(200),
+    }).parse(req.body);
+
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const { execSync } = await import("child_process");
+    const fsModule = await import("fs");
+    const pathModule = await import("path");
+
+    const WORKSPACE = "/home/runner/workspace";
+
+    function safePath(p: string): string {
+      const resolved = pathModule.default.resolve(WORKSPACE, p.replace(/^\/+/, ""));
+      if (!resolved.startsWith(WORKSPACE)) throw new Error(`Path outside workspace: ${p}`);
+      return resolved;
+    }
+
+    const tools: Anthropic.Tool[] = [
+      {
+        name: "read_file",
+        description: "Read the contents of a file in the workspace. Use relative paths from the project root (e.g. 'server/routes.ts', 'client/src/pages/admin-store.tsx').",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            path: { type: "string", description: "File path relative to project root" },
+            offset: { type: "number", description: "Line number to start reading from (1-indexed, optional)" },
+            limit: { type: "number", description: "Max lines to read (optional, default 300)" },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "write_file",
+        description: "Write (create or overwrite) a file in the workspace. Always read the file first before overwriting to avoid losing existing content.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            path: { type: "string", description: "File path relative to project root" },
+            content: { type: "string", description: "Full file content to write" },
+          },
+          required: ["path", "content"],
+        },
+      },
+      {
+        name: "list_directory",
+        description: "List files and directories at a path in the workspace.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            path: { type: "string", description: "Directory path relative to project root (default: '.')" },
+          },
+          required: [],
+        },
+      },
+      {
+        name: "search_code",
+        description: "Search for a pattern in the workspace using ripgrep. Returns matching lines with file and line numbers.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            pattern: { type: "string", description: "Regex pattern to search for" },
+            path: { type: "string", description: "Directory or file to search in (default: '.')" },
+            file_glob: { type: "string", description: "Optional glob to filter files (e.g. '*.tsx')" },
+          },
+          required: ["pattern"],
+        },
+      },
+      {
+        name: "run_command",
+        description: "Run a shell command in the workspace directory. Use for running scripts, npm commands, checking git status, etc. Commands run with a 30-second timeout.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            command: { type: "string", description: "Shell command to execute" },
+          },
+          required: ["command"],
+        },
+      },
+    ];
+
+    function executeTool(name: string, input: Record<string, any>): string {
+      try {
+        if (name === "read_file") {
+          const abs = safePath(input.path);
+          if (!fsModule.default.existsSync(abs)) return `Error: File not found: ${input.path}`;
+          const rawLines = fsModule.default.readFileSync(abs, "utf-8").split("\n");
+          const offset = Math.max(0, (input.offset ?? 1) - 1);
+          const limit = Math.min(input.limit ?? 300, 500);
+          const slice = rawLines.slice(offset, offset + limit);
+          const header = `[${input.path} — lines ${offset + 1}–${offset + slice.length} of ${rawLines.length}]\n`;
+          return header + slice.map((l, i) => `${String(offset + i + 1).padStart(4)}→ ${l}`).join("\n");
+        }
+
+        if (name === "write_file") {
+          const abs = safePath(input.path);
+          fsModule.default.mkdirSync(pathModule.default.dirname(abs), { recursive: true });
+          fsModule.default.writeFileSync(abs, input.content, "utf-8");
+          const lineCount = input.content.split("\n").length;
+          return `Written ${lineCount} lines to ${input.path}`;
+        }
+
+        if (name === "list_directory") {
+          const dir = safePath(input.path ?? ".");
+          if (!fsModule.default.existsSync(dir)) return `Error: Directory not found: ${input.path}`;
+          const entries = fsModule.default.readdirSync(dir, { withFileTypes: true });
+          const lines = entries
+            .filter(e => !["node_modules", ".git", "dist", ".cache"].includes(e.name))
+            .map(e => `${e.isDirectory() ? "📁" : "📄"} ${e.name}`)
+            .join("\n");
+          return lines || "(empty directory)";
+        }
+
+        if (name === "search_code") {
+          const searchPath = input.path ? safePath(input.path) : WORKSPACE;
+          const globFlag = input.file_glob ? `--glob '${input.file_glob}'` : "";
+          const cmd = `rg --line-number --max-count=50 ${globFlag} ${JSON.stringify(input.pattern)} ${JSON.stringify(searchPath)} 2>&1 || true`;
+          const out = execSync(cmd, { cwd: WORKSPACE, timeout: 15000, encoding: "utf-8" });
+          // Make paths relative
+          return out.replace(new RegExp(WORKSPACE + "/", "g"), "") || "(no matches)";
+        }
+
+        if (name === "run_command") {
+          const cmd = input.command as string;
+          const blocked = ["rm -rf /", "shutdown", "reboot", "mkfs", "dd if="];
+          if (blocked.some(b => cmd.includes(b))) return `Error: Command blocked for safety: ${cmd}`;
+          const out = execSync(cmd, { cwd: WORKSPACE, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+          return out.substring(0, 8000) || "(no output)";
+        }
+
+        return `Unknown tool: ${name}`;
+      } catch (err: any) {
+        return `Error: ${err?.message ?? String(err)}`.substring(0, 2000);
+      }
+    }
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    try {
-      const stream = await anthropic.messages.stream({
-        model: "claude-opus-4-5",
-        max_tokens: 8096,
-        system: `You are Claude, an AI assistant integrated into the Better Bucks developer dashboard. Better Bucks is a multi-tenant employee incentive/rewards SaaS built with React/TypeScript, Express, and PostgreSQL (Drizzle ORM). The brand colors are Navy (#162A4A) and Green (#4E9F3D). You help the developer (Miles) with code, strategy, debugging, and anything else they need. Be concise, practical, and direct.`,
-        messages,
-      });
+    function send(obj: object) { res.write(`data: ${JSON.stringify(obj)}\n\n`); }
 
-      for await (const event of stream) {
-        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-          res.write(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`);
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+      // Convert simple text messages to Anthropic format
+      const anthropicMessages: Anthropic.MessageParam[] = messages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const SYSTEM = `You are Claude, an expert full-stack engineer embedded inside the Better Bucks codebase. Better Bucks is a multi-tenant employee incentive/rewards SaaS at betterbucks.net.
+
+Stack: React + TypeScript (Vite), Express backend, PostgreSQL via Drizzle ORM, shadcn/ui, Tailwind CSS, TanStack Query, wouter router. Brand: Navy #162A4A, Green #4E9F3D.
+
+Key paths:
+- client/src/pages/ — page components
+- client/src/components/ — shared components
+- server/routes.ts — all API routes
+- server/storage.ts — all DB queries
+- shared/schema.ts — Drizzle schema + Zod types
+
+You have tools to read files, write files, search code, list directories, and run commands. When asked to make a code change, always:
+1. Read the relevant file(s) first
+2. Make the targeted edit (write_file with the full new content)
+3. Confirm what was changed and why
+
+Be concise. Prefer small, targeted edits. The developer is Miles.`;
+
+      let iteration = 0;
+      const MAX_ITER = 20;
+
+      while (iteration < MAX_ITER) {
+        iteration++;
+
+        const response = await anthropic.messages.create({
+          model: "claude-opus-4-5",
+          max_tokens: 8096,
+          system: SYSTEM,
+          tools,
+          messages: anthropicMessages,
+        });
+
+        // Stream text blocks and collect tool uses
+        let assistantText = "";
+        const toolUses: Array<{ id: string; name: string; input: Record<string, any> }> = [];
+
+        for (const block of response.content) {
+          if (block.type === "text") {
+            assistantText += block.text;
+            send({ type: "text", text: block.text });
+          } else if (block.type === "tool_use") {
+            toolUses.push({ id: block.id, name: block.name, input: block.input as Record<string, any> });
+          }
         }
+
+        // Add assistant turn to history
+        anthropicMessages.push({ role: "assistant", content: response.content });
+
+        if (response.stop_reason === "end_turn" || toolUses.length === 0) {
+          break;
+        }
+
+        // Execute tools and collect results
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+        for (const tu of toolUses) {
+          send({ type: "tool_start", name: tu.name, input: tu.input });
+          const output = executeTool(tu.name, tu.input);
+          send({ type: "tool_result", name: tu.name, output: output.substring(0, 4000) });
+          toolResults.push({ type: "tool_result", tool_use_id: tu.id, content: output });
+        }
+
+        // Add tool results as next user turn
+        anthropicMessages.push({ role: "user", content: toolResults });
       }
-      res.write("data: [DONE]\n\n");
+
+      send({ type: "done" });
       res.end();
     } catch (err: any) {
-      res.write(`data: ${JSON.stringify({ error: err?.message || "Claude request failed" })}\n\n`);
+      send({ type: "error", message: err?.message || "Claude request failed" });
       res.end();
     }
   });

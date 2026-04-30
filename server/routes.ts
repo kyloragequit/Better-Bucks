@@ -15,6 +15,7 @@ import { z } from "zod";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import { execSync as execSyncMcp } from "child_process";
 import nodemailer from "nodemailer";
 import { ensureStripeReady } from "./stripeLazy";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
@@ -6258,6 +6259,183 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     } catch (err: any) {
       send({ type: "error", message: err?.message || "Claude request failed" });
       res.end();
+    }
+  });
+
+  // ─── MCP Server (claude.ai integration) ───────────────────────────────────
+
+  const MCP_WORKSPACE = "/home/runner/workspace";
+
+  function mcpSafePath(p: string): string {
+    const resolved = path.resolve(MCP_WORKSPACE, p.replace(/^\/+/, ""));
+    if (!resolved.startsWith(MCP_WORKSPACE)) throw new Error(`Path outside workspace: ${p}`);
+    return resolved;
+  }
+
+  function mcpExecuteTool(name: string, input: Record<string, any>): string {
+    try {
+      if (name === "read_file") {
+        const abs = mcpSafePath(input.path);
+        if (!fs.existsSync(abs)) return `Error: File not found: ${input.path}`;
+        const rawLines = fs.readFileSync(abs, "utf-8").split("\n");
+        const offset = Math.max(0, (input.offset ?? 1) - 1);
+        const limit = Math.min(input.limit ?? 300, 500);
+        const slice = rawLines.slice(offset, offset + limit);
+        const header = `[${input.path} — lines ${offset + 1}–${offset + slice.length} of ${rawLines.length}]\n`;
+        return header + slice.map((l: string, i: number) => `${String(offset + i + 1).padStart(4)}→ ${l}`).join("\n");
+      }
+      if (name === "write_file") {
+        const abs = mcpSafePath(input.path);
+        fs.mkdirSync(path.dirname(abs), { recursive: true });
+        fs.writeFileSync(abs, input.content, "utf-8");
+        return `Written ${(input.content as string).split("\n").length} lines to ${input.path}`;
+      }
+      if (name === "list_directory") {
+        const dir = mcpSafePath(input.path ?? ".");
+        if (!fs.existsSync(dir)) return `Error: Directory not found: ${input.path}`;
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        return (
+          entries
+            .filter(e => !["node_modules", ".git", "dist", ".cache"].includes(e.name))
+            .map(e => `${e.isDirectory() ? "📁" : "📄"} ${e.name}`)
+            .join("\n") || "(empty directory)"
+        );
+      }
+      if (name === "search_code") {
+        const searchPath = input.path ? mcpSafePath(input.path) : MCP_WORKSPACE;
+        const globFlag = input.file_glob ? `--glob '${input.file_glob}'` : "";
+        const cmd = `rg --line-number --max-count=50 ${globFlag} ${JSON.stringify(input.pattern)} ${JSON.stringify(searchPath)} 2>&1 || true`;
+        const out = execSyncMcp(cmd, { cwd: MCP_WORKSPACE, timeout: 15000, encoding: "utf-8" });
+        return out.replace(new RegExp(MCP_WORKSPACE + "/", "g"), "") || "(no matches)";
+      }
+      if (name === "run_command") {
+        const cmd = input.command as string;
+        const blocked = ["rm -rf /", "shutdown", "reboot", "mkfs", "dd if="];
+        if (blocked.some(b => cmd.includes(b))) return `Error: Command blocked for safety: ${cmd}`;
+        const out = execSyncMcp(cmd, { cwd: MCP_WORKSPACE, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+        return (out || "(no output)").substring(0, 8000);
+      }
+      return `Unknown tool: ${name}`;
+    } catch (err: any) {
+      return `Error: ${err?.message ?? String(err)}`.substring(0, 2000);
+    }
+  }
+
+  const MCP_TOOLS = [
+    {
+      name: "read_file",
+      description: "Read a file in the Better Bucks workspace. Use relative paths (e.g. 'server/routes.ts').",
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "File path relative to project root" },
+          offset: { type: "number", description: "Line number to start reading from (1-indexed)" },
+          limit: { type: "number", description: "Max lines to read (default 300, max 500)" },
+        },
+        required: ["path"],
+      },
+    },
+    {
+      name: "write_file",
+      description: "Write (create or overwrite) a file. Always read it first to avoid data loss.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "File path relative to project root" },
+          content: { type: "string", description: "Full file content to write" },
+        },
+        required: ["path", "content"],
+      },
+    },
+    {
+      name: "list_directory",
+      description: "List files and directories in the workspace.",
+      inputSchema: {
+        type: "object",
+        properties: { path: { type: "string", description: "Directory path relative to project root (default: '.')" } },
+        required: [],
+      },
+    },
+    {
+      name: "search_code",
+      description: "Search for a regex pattern with ripgrep. Returns matching lines with file and line numbers.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          pattern: { type: "string", description: "Regex pattern to search for" },
+          path: { type: "string", description: "Directory or file to search (default: '.')" },
+          file_glob: { type: "string", description: "Optional glob filter (e.g. '*.tsx')" },
+        },
+        required: ["pattern"],
+      },
+    },
+    {
+      name: "run_command",
+      description: "Run a shell command in the workspace. 30-second timeout. Destructive commands are blocked.",
+      inputSchema: {
+        type: "object",
+        properties: { command: { type: "string", description: "Shell command to execute" } },
+        required: ["command"],
+      },
+    },
+  ];
+
+  // GET /api/developer/mcp-config — returns MCP connection info for the setup panel
+  app.get("/api/developer/mcp-config", (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const devDomain = process.env.REPLIT_DEV_DOMAIN || req.hostname;
+    res.json({
+      url: `https://${devDomain}/mcp`,
+      token: process.env.MCP_SECRET ?? null,
+    });
+  });
+
+  // POST /mcp — MCP Streamable HTTP transport for claude.ai integration
+  app.post("/mcp", (req, res) => {
+    const auth = req.headers["authorization"];
+    const secret = process.env.MCP_SECRET;
+    if (!secret || auth !== `Bearer ${secret}`) {
+      return res.status(401).json({ jsonrpc: "2.0", id: null, error: { code: -32000, message: "Unauthorized" } });
+    }
+
+    const body = req.body as { jsonrpc?: string; method?: string; params?: any; id?: any };
+    if (!body || !body.method) {
+      return res.status(400).json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid Request" } });
+    }
+
+    const reply = (result: any) => res.json({ jsonrpc: "2.0", id: body.id ?? null, result });
+    const replyError = (code: number, message: string) =>
+      res.json({ jsonrpc: "2.0", id: body.id ?? null, error: { code, message } });
+
+    switch (body.method) {
+      case "initialize":
+        return reply({
+          protocolVersion: "2024-11-05",
+          capabilities: { tools: {} },
+          serverInfo: { name: "better-bucks", version: "1.0.0" },
+        });
+
+      case "notifications/initialized":
+        return res.status(204).end();
+
+      case "ping":
+        return reply({});
+
+      case "tools/list":
+        return reply({ tools: MCP_TOOLS });
+
+      case "tools/call": {
+        const { name, arguments: args } = body.params ?? {};
+        if (!name || typeof name !== "string") return replyError(-32602, "Missing tool name");
+        const output = mcpExecuteTool(name, args ?? {});
+        return reply({ content: [{ type: "text", text: output }] });
+      }
+
+      default:
+        return replyError(-32601, `Method not found: ${body.method}`);
     }
   });
 

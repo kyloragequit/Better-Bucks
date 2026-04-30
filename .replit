@@ -53,6 +53,9 @@ STRIPE_PRICE_MID = "price_1T9uzJDIJ4pYE7oee8suOmyY"
 STRIPE_PRICE_LARGE = "price_1T9uzJDIJ4pYE7oexxfIxNiD"
 STRIPE_PRICE_ENTERPRISE = "price_1T9uzJDIJ4pYE7oefHG8SIMF"
 
+[userenv.development]
+MCP_SECRET = "09ae2f6d00521d2f074a8bee5f51fc6a"
+
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000

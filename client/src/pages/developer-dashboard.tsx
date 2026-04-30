@@ -106,6 +106,23 @@ export default function DeveloperDashboardPage() {
   const claudeBottomRef = useRef<HTMLDivElement>(null);
   const claudeAbortRef = useRef<AbortController | null>(null);
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
+  const [showMcpPanel, setShowMcpPanel] = useState(false);
+  const [showMcpToken, setShowMcpToken] = useState(false);
+  const [copiedMcpUrl, setCopiedMcpUrl] = useState(false);
+  const [copiedMcpToken, setCopiedMcpToken] = useState(false);
+
+  const { data: mcpConfig } = useQuery<{ url: string; token: string | null }>({
+    queryKey: ["/api/developer/mcp-config"],
+    enabled: activeTab === "claude",
+    staleTime: Infinity,
+  });
+
+  function copyToClipboard(text: string, setCopied: (v: boolean) => void) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   useEffect(() => {
     claudeBottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -2205,17 +2222,87 @@ function EnterpriseAccountsTab() {
                   <CardDescription className="text-xs">claude-opus-4-5 · reads &amp; writes source files</CardDescription>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setClaudeMessages([]); setClaudeInput(""); }}
-                disabled={claudeStreaming}
-                data-testid="button-claude-clear"
-              >
-                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                New chat
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMcpPanel(p => !p)}
+                  className="text-violet-700 border-violet-200 hover:bg-violet-50"
+                  data-testid="button-mcp-toggle"
+                >
+                  <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                  claude.ai
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setClaudeMessages([]); setClaudeInput(""); }}
+                  disabled={claudeStreaming}
+                  data-testid="button-claude-clear"
+                >
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  New chat
+                </Button>
+              </div>
             </CardHeader>
+
+            {showMcpPanel && (
+              <div className="shrink-0 border-b bg-violet-50 px-4 py-3" data-testid="mcp-panel">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-violet-900">Connect to claude.ai</p>
+                    <p className="text-xs text-violet-700 mt-0.5">Add this as an integration in claude.ai so you can prompt Claude there and have it read &amp; write your source files.</p>
+                  </div>
+                  <button onClick={() => setShowMcpPanel(false)} className="text-violet-400 hover:text-violet-600 mt-0.5 shrink-0" data-testid="button-mcp-close">
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs font-medium text-violet-800 mb-1">Step 1 — Copy the server URL</p>
+                    <div className="flex items-center gap-2 bg-white border border-violet-200 rounded-lg px-3 py-1.5">
+                      <code className="text-xs text-gray-700 flex-1 truncate" data-testid="text-mcp-url">{mcpConfig?.url ?? "Loading…"}</code>
+                      <button
+                        onClick={() => mcpConfig?.url && copyToClipboard(mcpConfig.url, setCopiedMcpUrl)}
+                        className="shrink-0 text-violet-500 hover:text-violet-700"
+                        data-testid="button-copy-mcp-url"
+                      >
+                        {copiedMcpUrl ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-violet-800 mb-1">Step 2 — Copy the auth token</p>
+                    <div className="flex items-center gap-2 bg-white border border-violet-200 rounded-lg px-3 py-1.5">
+                      <code className="text-xs text-gray-700 flex-1 truncate" data-testid="text-mcp-token">
+                        {mcpConfig?.token
+                          ? showMcpToken
+                            ? mcpConfig.token
+                            : mcpConfig.token.slice(0, 4) + "••••••••••••••••••••••••••••"
+                          : "Not configured"}
+                      </code>
+                      <button
+                        onClick={() => setShowMcpToken(p => !p)}
+                        className="shrink-0 text-violet-400 hover:text-violet-600 text-xs"
+                        data-testid="button-toggle-mcp-token"
+                      >
+                        {showMcpToken ? "hide" : "show"}
+                      </button>
+                      <button
+                        onClick={() => mcpConfig?.token && copyToClipboard(mcpConfig.token, setCopiedMcpToken)}
+                        className="shrink-0 text-violet-500 hover:text-violet-700"
+                        data-testid="button-copy-mcp-token"
+                      >
+                        {copiedMcpToken ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-violet-700">
+                    <span className="font-medium">Step 3</span> — In claude.ai, go to <span className="font-medium">Settings → Integrations → Add integration</span>, paste the URL, choose "Bearer token" auth, and paste the token.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <CardContent className="flex-1 overflow-y-auto py-4 space-y-4" data-testid="claude-message-list">
               {claudeMessages.length === 0 && (

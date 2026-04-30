@@ -109,6 +109,7 @@ export interface IStorage {
   getWishlistByUser(userId: number): Promise<(Wishlist & { storeItem: StoreItem })[]>;
   getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]>;
 
+  getMarketingSubscribers(): Promise<Array<{ name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null }>>;
   acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
   incrementSuccessfulLoginCount(userId: number): Promise<User>;
   dismissTwoFaPrompt(userId: number): Promise<User>;
@@ -856,6 +857,60 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.organizationId, organizationId))
       .orderBy(desc(wishlists.createdAt));
     return rows.map(r => ({ ...r.wishlist, storeItem: r.storeItem, user: r.user }));
+  }
+
+  async getMarketingSubscribers(): Promise<Array<{ name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null }>> {
+    // 1. Users who opted in via in-app terms acceptance
+    const optedInUsers = await db
+      .select({ id: users.id, fullName: users.fullName, email: users.email, role: users.role, orgId: users.organizationId, termsAcceptedAt: users.termsAcceptedAt })
+      .from(users)
+      .where(eq(users.marketingOptIn, true));
+
+    // Get org names for those users
+    const allOrgs = await db.select({ id: organizations.id, name: organizations.name }).from(organizations);
+    const orgMap = new Map(allOrgs.map(o => [o.id, o.name]));
+
+    const userRows = optedInUsers.map(u => ({
+      name: u.fullName,
+      email: u.email,
+      source: "In-App Opt-In",
+      orgName: u.orgId ? (orgMap.get(u.orgId) ?? null) : null,
+      role: u.role,
+      dateOptedIn: u.termsAcceptedAt ? u.termsAcceptedAt.toISOString() : null,
+    }));
+
+    // 2. Organizations that opted in at signup — get prime admin email if not already covered
+    const marketingOrgs = await db
+      .select({ id: organizations.id, name: organizations.name, createdAt: organizations.createdAt })
+      .from(organizations)
+      .where(eq(organizations.marketingOptIn, true));
+
+    const orgRows: typeof userRows = [];
+    for (const org of marketingOrgs) {
+      // Get prime admin of this org
+      const [primeAdmin] = await db
+        .select({ id: users.id, fullName: users.fullName, email: users.email, marketingOptIn: users.marketingOptIn })
+        .from(users)
+        .where(sql`${users.organizationId} = ${org.id} AND ${users.role} = 'prime_admin'`);
+
+      // Skip if prime admin already opted in via in-app (would be duplicate)
+      if (primeAdmin?.marketingOptIn) continue;
+
+      orgRows.push({
+        name: primeAdmin ? primeAdmin.fullName : org.name,
+        email: primeAdmin ? primeAdmin.email ?? null : null,
+        source: "Signup Form",
+        orgName: org.name,
+        role: primeAdmin ? "prime_admin" : null,
+        dateOptedIn: org.createdAt ? org.createdAt.toISOString() : null,
+      });
+    }
+
+    return [...userRows, ...orgRows].sort((a, b) => {
+      const da = a.dateOptedIn ?? "";
+      const db2 = b.dateOptedIn ?? "";
+      return db2.localeCompare(da); // newest first
+    });
   }
 
   async acceptTerms(userId: number, marketingOptIn: boolean): Promise<User> {

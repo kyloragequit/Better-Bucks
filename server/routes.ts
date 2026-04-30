@@ -5661,6 +5661,18 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json(codes);
   });
 
+  app.get("/api/developer/marketing-subscribers", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    try {
+      const subscribers = await storage.getMarketingSubscribers();
+      res.json(subscribers);
+    } catch (e) {
+      console.error("Marketing subscribers fetch error:", e);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
   app.post("/api/developer/referral-codes", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");

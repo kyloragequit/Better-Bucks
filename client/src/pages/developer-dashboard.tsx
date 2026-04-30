@@ -14,7 +14,7 @@ import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail, Bot, Send, RotateCcw } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail, Bot, Send, RotateCcw, Download, Megaphone } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
@@ -92,7 +92,7 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude" | "marketing">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
@@ -443,6 +443,38 @@ export default function DeveloperDashboardPage() {
     enabled: activeTab === "referrals",
   });
 
+  type MarketingSubscriber = { name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null };
+  const { data: marketingSubscribers, isLoading: marketingLoading } = useQuery<MarketingSubscriber[]>({
+    queryKey: ["/api/developer/marketing-subscribers"],
+    enabled: activeTab === "marketing",
+  });
+
+  function downloadMarketingCsv(rows: MarketingSubscriber[]) {
+    const headers = ["Name", "Email", "Organization", "Role", "Source", "Date Opted In"];
+    const escape = (v: string | null | undefined) => {
+      const s = v ?? "";
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      headers.join(","),
+      ...rows.map(r => [
+        escape(r.name),
+        escape(r.email),
+        escape(r.orgName),
+        escape(r.role),
+        escape(r.source),
+        escape(r.dateOptedIn ? new Date(r.dateOptedIn).toLocaleDateString("en-US") : ""),
+      ].join(",")),
+    ];
+    const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `marketing-subscribers-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const createRefCodeMutation = useMutation({
     mutationFn: async (data: { code: string; description: string; extraMonths: number }) => {
       const res = await apiRequest("POST", "/api/developer/referral-codes", data);
@@ -561,7 +593,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : activeTab === "marketing" ? "Everyone who opted in to marketing communications — export to CSV for email campaigns." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -637,6 +669,16 @@ export default function DeveloperDashboardPage() {
             >
               <Bot className="mr-1.5 h-4 w-4" />
               Claude
+            </Button>
+            <Button
+              variant={activeTab === "marketing" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("marketing"); setBlogForm(null); }}
+              data-testid="button-tab-marketing"
+              className={activeTab === "marketing" ? "" : "border-green-300 text-green-700 hover:bg-green-50"}
+            >
+              <Megaphone className="mr-1.5 h-4 w-4" />
+              Marketing
             </Button>
           </div>
         </div>
@@ -1940,6 +1982,94 @@ export default function DeveloperDashboardPage() {
                 </Button>
               )}
             </div>
+          </Card>
+        )}
+
+        {activeTab === "marketing" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-600 text-white">
+                  <Megaphone className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Marketing Subscribers</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {marketingLoading ? "Loading…" : `${marketingSubscribers?.length ?? 0} subscriber${(marketingSubscribers?.length ?? 0) !== 1 ? "s" : ""} opted in`}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!marketingSubscribers?.length}
+                onClick={() => marketingSubscribers && downloadMarketingCsv(marketingSubscribers)}
+                data-testid="button-export-marketing-csv"
+                className="border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <Download className="mr-1.5 h-4 w-4" />
+                Export CSV
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {marketingLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : !marketingSubscribers?.length ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                  <Megaphone className="h-10 w-10 text-muted-foreground/30" />
+                  <p className="text-muted-foreground text-sm">No marketing subscribers yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Organization</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Source</TableHead>
+                        <TableHead>Date Opted In</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {marketingSubscribers.map((sub, i) => (
+                        <TableRow key={i} data-testid={`row-marketing-subscriber-${i}`}>
+                          <TableCell className="font-medium">{sub.name}</TableCell>
+                          <TableCell>
+                            {sub.email ? (
+                              <a href={`mailto:${sub.email}`} className="text-blue-600 hover:underline text-sm" data-testid={`link-subscriber-email-${i}`}>
+                                {sub.email}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{sub.orgName ?? "—"}</TableCell>
+                          <TableCell>
+                            {sub.role && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                {sub.role}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sub.source === "In-App Opt-In" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
+                              {sub.source}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {sub.dateOptedIn ? new Date(sub.dateOptedIn).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
           </Card>
         )}
 

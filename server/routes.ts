@@ -3203,10 +3203,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     ${referralRow}
     <tr><td style="padding:8px 12px;font-weight:600;color:#374151;background:#fff;border:1px solid #e5e7eb">Submitted</td><td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</td></tr>
   </table>
-  ${mode === "stripe" ? '<p style="margin-top:16px;color:#374151">Customer has been sent to the Stripe payment page to complete their subscription setup.</p>' : mode === "contactPending" ? '<p style="margin-top:16px;color:#374151">Reach out to them to complete their onboarding and lock in their rate.</p>' : '<p style="margin-top:16px;color:#374151">Promo code applied — account activated immediately.</p>'}
+  ${mode === "stripe" ? '<p style="margin-top:16px;color:#374151">✅ Stripe payment confirmed — subscription is now active. Customer is ready to set up their account.</p>' : mode === "contactPending" ? '<p style="margin-top:16px;color:#374151">Reach out to them to complete their onboarding and lock in their rate.</p>' : '<p style="margin-top:16px;color:#374151">Promo code applied — account activated immediately.</p>'}
 </div>
 </div>`,
-      text: `${modeLabel}\n\nCompany: ${organizationName}\nContact Email: ${email}\nPlan: ${config.name}\nMonthly Rate: ${planPrices[tier]}\nEmployee Limit: ${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}\nOrg Code: ${orgCode}${referralText}\nSubmitted: ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT`,
+      text: `${modeLabel}\n\nCompany: ${organizationName}\nContact Email: ${email}\nPlan: ${config.name}\nMonthly Rate: ${planPrices[tier]}\nEmployee Limit: ${config.maxEmployees === -1 ? "Unlimited (Enterprise)" : `Up to ${config.maxEmployees}`}\nOrg Code: ${orgCode}${referralText}\nSubmitted: ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT${mode === "stripe" ? "\n\n✅ Stripe payment confirmed — subscription is now active." : ""}`,
     }).catch(err => console.error("[Email] Failed to send signup notification:", err));
 
     return validatedReferral;
@@ -3387,9 +3387,6 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
       await storage.updateOrganizationStripe(org.id, customer.id, "pending_checkout");
       await storage.updateOrganizationSignupPrice(org.id, config.price);
-
-      // Send admin notification email
-      sendSignupNotificationEmail({ organizationName, email, tier, config, orgCode, referralCode: validatedReferral?.code, mode: "stripe" });
 
       res.json({ url: session.url, orgCode });
     } catch (error) {
@@ -3598,6 +3595,24 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         if (subscriptions.data.length > 0) {
           await storage.updateOrganizationStripe(org.id, org.stripeCustomerId, subscriptions.data[0].id);
           await storage.updateOrganizationStatus(org.id, "active");
+
+          // Payment confirmed — now send the admin signup notification
+          try {
+            const stripeCustomer = await stripe.customers.retrieve(org.stripeCustomerId);
+            const contactEmail = (!stripeCustomer.deleted && stripeCustomer.email) ? stripeCustomer.email : "";
+            const orgConfig = tierConfig[org.tier as keyof typeof tierConfig];
+            sendSignupNotificationEmail({
+              organizationName: org.name,
+              email: contactEmail,
+              tier: org.tier,
+              config: orgConfig,
+              orgCode: org.code,
+              mode: "stripe",
+            }).catch(err => console.error("[Email] Post-checkout notification failed:", err));
+          } catch (notifyErr) {
+            console.error("[Email] Could not send post-checkout signup notification:", notifyErr);
+          }
+
           return res.json({ active: true });
         }
       } catch (e) {

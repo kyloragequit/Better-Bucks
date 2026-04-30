@@ -3361,6 +3361,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         }],
         mode: 'subscription',
         automatic_tax: { enabled: true },
+        customer_update: { address: 'auto' },
         subscription_data: {
           trial_period_days: trialDays,
           trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
@@ -3452,6 +3453,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         }],
         mode: 'subscription',
         automatic_tax: { enabled: true },
+        customer_update: { address: 'auto' },
         billing_address_collection: 'required',
         payment_method_collection: 'always',
         consent_collection: { terms_of_service: 'required' },
@@ -5822,7 +5824,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       const subscription = await stripe.subscriptions.create({
         customer: customer.id,
         items: [{ price: price.id }],
-        automatic_tax: { enabled: true },
+        automatic_tax: { enabled: false },
         metadata: { accountType: "enterprise", companyName: data.companyName },
         collection_method: "send_invoice",
         days_until_due: 30,

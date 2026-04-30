@@ -6202,12 +6202,6 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     }
   }
 
-  /** Derive a stable, non-stored MCP auth token from the Repl's runtime identity. */
-  function getMcpToken(): string {
-    const seed = process.env.REPL_ID || process.env.REPLIT_DEV_DOMAIN || "better-bucks-local";
-    return crypto.createHmac("sha256", "bbmcp-v1").update(seed).digest("hex").slice(0, 32);
-  }
-
   interface McpToolInput {
     path?: string;
     content?: string;
@@ -6290,17 +6284,22 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     if (!req.isAuthenticated() || !user || user.role !== "developer") {
       return res.status(401).json({ message: "Unauthorized" });
     }
+    const secret = process.env.MCP_SECRET ?? null;
     const devDomain = process.env.REPLIT_DEV_DOMAIN || req.hostname;
     res.json({
       url: `https://${devDomain}/mcp`,
-      token: getMcpToken(),
+      token: secret,
     });
   });
 
   // POST /mcp — MCP Streamable HTTP transport for claude.ai integration
   app.post("/mcp", (req, res) => {
+    const secret = process.env.MCP_SECRET;
+    if (!secret) {
+      return res.status(503).json({ jsonrpc: "2.0", id: null, error: { code: -32000, message: "MCP_SECRET not configured" } });
+    }
     const auth = req.headers["authorization"];
-    if (auth !== `Bearer ${getMcpToken()}`) {
+    if (auth !== `Bearer ${secret}`) {
       return res.status(401).json({ jsonrpc: "2.0", id: null, error: { code: -32000, message: "Unauthorized" } });
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { useUser } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail, Bot, Send, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
@@ -92,10 +92,102 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
+
+  // Claude chat state
+  type ChatMessage = { role: "user" | "assistant"; content: string };
+  const [claudeMessages, setClaudeMessages] = useState<ChatMessage[]>([]);
+  const [claudeInput, setClaudeInput] = useState("");
+  const [claudeStreaming, setClaudeStreaming] = useState(false);
+  const claudeBottomRef = useRef<HTMLDivElement>(null);
+  const claudeAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    claudeBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [claudeMessages, claudeStreaming]);
+
+  async function sendToClaud() {
+    const text = claudeInput.trim();
+    if (!text || claudeStreaming) return;
+    const newMessages: ChatMessage[] = [...claudeMessages, { role: "user", content: text }];
+    setClaudeMessages(newMessages);
+    setClaudeInput("");
+    setClaudeStreaming(true);
+
+    const abortController = new AbortController();
+    claudeAbortRef.current = abortController;
+
+    let assistantText = "";
+    setClaudeMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
+    try {
+      const resp = await fetch("/api/developer/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ messages: newMessages }),
+        signal: abortController.signal,
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ message: "Request failed" }));
+        throw new Error(err.message || "Request failed");
+      }
+
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6);
+          if (payload === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(payload);
+            if (parsed.error) throw new Error(parsed.error);
+            if (parsed.text) {
+              assistantText += parsed.text;
+              setClaudeMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { role: "assistant", content: assistantText };
+                return updated;
+              });
+            }
+          } catch {
+            // skip malformed chunks
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        setClaudeMessages(prev => {
+          const updated = [...prev];
+          if (updated[updated.length - 1]?.role === "assistant" && !updated[updated.length - 1].content) {
+            updated.pop();
+          }
+          return updated;
+        });
+      } else {
+        setClaudeMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: `⚠️ ${err?.message || "Something went wrong."}` };
+          return updated;
+        });
+      }
+    } finally {
+      setClaudeStreaming(false);
+      claudeAbortRef.current = null;
+    }
+  }
 
   async function handleBlogImageUpload(file: File) {
     setBlogImageUploading(true);
@@ -414,7 +506,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -480,6 +572,16 @@ export default function DeveloperDashboardPage() {
             >
               <Mail className="mr-1.5 h-4 w-4" />
               Inbox
+            </Button>
+            <Button
+              variant={activeTab === "claude" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("claude"); setBlogForm(null); }}
+              data-testid="button-tab-claude"
+              className={activeTab === "claude" ? "" : "border-violet-300 text-violet-700 hover:bg-violet-50"}
+            >
+              <Bot className="mr-1.5 h-4 w-4" />
+              Claude
             </Button>
           </div>
         </div>
@@ -2052,6 +2154,129 @@ function EnterpriseAccountsTab() {
           )}
         </CardContent>
       </Card>
+
+        {activeTab === "claude" && (
+          <Card className="flex flex-col" style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}>
+            <CardHeader className="flex-row items-center justify-between gap-4 pb-3 border-b shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-violet-600 text-white">
+                  <Bot className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Claude</CardTitle>
+                  <CardDescription className="text-xs">claude-opus-4-5 · Better Bucks context</CardDescription>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setClaudeMessages([]); setClaudeInput(""); }}
+                disabled={claudeStreaming}
+                data-testid="button-claude-clear"
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                New chat
+              </Button>
+            </CardHeader>
+
+            <CardContent className="flex-1 overflow-y-auto py-4 space-y-4" data-testid="claude-message-list">
+              {claudeMessages.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-3 py-12">
+                  <Bot className="h-12 w-12 text-violet-300" />
+                  <p className="font-medium text-gray-700">Ask Claude anything about Better Bucks</p>
+                  <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                    {[
+                      "Review the billing flow",
+                      "Suggest a new feature",
+                      "Debug a Drizzle query",
+                      "Write a blog post intro",
+                    ].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setClaudeInput(s)}
+                        className="text-xs px-3 py-1.5 rounded-full border border-violet-200 text-violet-700 hover:bg-violet-50 transition-colors"
+                        data-testid={`button-claude-starter-${s.replace(/\s+/g, "-").toLowerCase()}`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {claudeMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  data-testid={`claude-message-${i}`}
+                >
+                  {msg.role === "assistant" && (
+                    <div className="shrink-0 w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center mt-0.5">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-[#162A4A] text-white rounded-br-sm"
+                        : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                    }`}
+                  >
+                    {msg.content}
+                    {msg.role === "assistant" && claudeStreaming && i === claudeMessages.length - 1 && (
+                      <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse ml-0.5 rounded-sm" />
+                    )}
+                  </div>
+                  {msg.role === "user" && (
+                    <div className="shrink-0 w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center mt-0.5 text-xs font-bold text-gray-700">
+                      M
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div ref={claudeBottomRef} />
+            </CardContent>
+
+            <div className="shrink-0 border-t p-3 flex gap-2 items-end bg-white rounded-b-lg">
+              <Textarea
+                value={claudeInput}
+                onChange={e => setClaudeInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendToClaud();
+                  }
+                }}
+                placeholder="Message Claude… (Enter to send, Shift+Enter for new line)"
+                className="resize-none min-h-[44px] max-h-40 text-sm"
+                rows={1}
+                disabled={claudeStreaming}
+                data-testid="input-claude-message"
+              />
+              {claudeStreaming ? (
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => claudeAbortRef.current?.abort()}
+                  className="shrink-0 h-10 w-10 border-red-300 text-red-600 hover:bg-red-50"
+                  data-testid="button-claude-stop"
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  onClick={sendToClaud}
+                  disabled={!claudeInput.trim()}
+                  className="shrink-0 h-10 w-10 bg-violet-600 hover:bg-violet-700 text-white"
+                  data-testid="button-claude-send"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
     </div>
   );
 }

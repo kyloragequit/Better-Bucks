@@ -6023,6 +6023,52 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }
   });
 
+  // ─── Claude AI Chat (developer only) ──────────────────────────────────────
+  app.post("/api/developer/claude", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { messages } = z.object({
+      messages: z.array(z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().max(32000),
+      })).min(1).max(100),
+    }).parse(req.body);
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ message: "ANTHROPIC_API_KEY is not configured." });
+    }
+
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    try {
+      const stream = await anthropic.messages.stream({
+        model: "claude-opus-4-5",
+        max_tokens: 8096,
+        system: `You are Claude, an AI assistant integrated into the Better Bucks developer dashboard. Better Bucks is a multi-tenant employee incentive/rewards SaaS built with React/TypeScript, Express, and PostgreSQL (Drizzle ORM). The brand colors are Navy (#162A4A) and Green (#4E9F3D). You help the developer (Miles) with code, strategy, debugging, and anything else they need. Be concise, practical, and direct.`,
+        messages,
+      });
+
+      for await (const event of stream) {
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          res.write(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`);
+        }
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+    } catch (err: any) {
+      res.write(`data: ${JSON.stringify({ error: err?.message || "Claude request failed" })}\n\n`);
+      res.end();
+    }
+  });
+
   // ─── Goals ────────────────────────────────────────────────────────────────
 
   // Helper: reset expired time-based goals for demo orgs so they never finish

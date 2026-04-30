@@ -6146,7 +6146,10 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
 
   function mcpSafePath(p: string): string {
     const resolved = path.resolve(MCP_WORKSPACE, p.replace(/^\/+/, ""));
-    if (!resolved.startsWith(MCP_WORKSPACE)) throw new Error(`Path outside workspace: ${p}`);
+    const prefix = MCP_WORKSPACE + path.sep;
+    if (resolved !== MCP_WORKSPACE && !resolved.startsWith(prefix)) {
+      throw new Error(`Path outside workspace: ${p}`);
+    }
     return resolved;
   }
 

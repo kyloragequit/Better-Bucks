@@ -116,7 +116,8 @@ Preferred communication style: Simple, everyday language.
 ### Services
 - Stripe (subscriptions and payments)
 - Twilio (SMS phone verification)
-- nodemailer (email verification)
+- nodemailer (SMTP fallback for email)
+- @replit/connectors-sdk (Gmail API OAuth integration — primary email sender)
 - multer (file uploads)
 
 ## Reusable Invite Links

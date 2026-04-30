@@ -17,6 +17,7 @@ import fs from "fs";
 import crypto from "crypto";
 import { execSync as execSyncMcp } from "child_process";
 import nodemailer from "nodemailer";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import { ensureStripeReady } from "./stripeLazy";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { pushPassUpdateForEmployee as _pushPassUpdateForEmployee } from "./walletPass";
@@ -100,10 +101,16 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000).unref();
 
-let cachedTransporter: any = null;
+let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 let cachedSmtpKey = "";
+let gmailConnectors: ReplitConnectors | null = null;
 
-function getTransporter() {
+function getGmailConnectors(): ReplitConnectors {
+  if (!gmailConnectors) gmailConnectors = new ReplitConnectors();
+  return gmailConnectors;
+}
+
+function getTransporter(): ReturnType<typeof nodemailer.createTransport> | null {
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   if (!smtpUser || !smtpPass) return null;
@@ -122,6 +129,51 @@ function getTransporter() {
   });
   cachedSmtpKey = key;
   return cachedTransporter;
+}
+
+function buildRfc2822Message({ from, to, subject, html, text }: {
+  from: string;
+  to: string | string[];
+  subject: string;
+  html: string;
+  text?: string;
+}): string {
+  const toStr = Array.isArray(to) ? to.join(", ") : to;
+  const boundary = `bb_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`;
+  const b64Lines = (data: string): string => data.match(/.{1,76}/g)?.join("\r\n") ?? data;
+
+  const lines: string[] = [
+    `From: "Better Bucks" <${from}>`,
+    `To: ${toStr}`,
+    `Subject: ${encodedSubject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ``,
+  ];
+
+  if (text) {
+    lines.push(
+      `--${boundary}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      b64Lines(Buffer.from(text).toString("base64")),
+      ``,
+    );
+  }
+
+  lines.push(
+    `--${boundary}`,
+    `Content-Type: text/html; charset=UTF-8`,
+    `Content-Transfer-Encoding: base64`,
+    ``,
+    b64Lines(Buffer.from(html).toString("base64")),
+    ``,
+    `--${boundary}--`,
+  );
+
+  return lines.join("\r\n");
 }
 
 /**
@@ -178,16 +230,8 @@ async function notifyEmployeeBalanceChange(userId: number, change: number, reaso
 }
 
 async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }): Promise<void> {
-  const smtpUser = process.env.SMTP_USER;
-  if (!smtpUser || !process.env.SMTP_PASS) {
-    const msg = `SMTP not configured — SMTP_USER / SMTP_PASS env vars are missing. Cannot send "${subject}" to ${maskEmail(typeof to === "string" ? to : String(to))}.`;
-    console.error(`[Email] ${msg}`);
-    throw new Error(msg);
-  }
-  const transporter = getTransporter();
-  if (!transporter) throw new Error("SMTP not configured");
-  // Append an auto-generated marker for any recipient other than miles.chase@betterbucks.net
-  // so internal mail to Miles stays clean while everyone else can see the tag.
+  const FROM = "miles.chase@betterbucks.net";
+
   const recipients = (Array.isArray(to) ? to : [to]).map(r => String(r).trim().toLowerCase());
   const isToMiles = recipients.length === 1 && recipients[0] === "miles.chase@betterbucks.net";
   const finalHtml = isToMiles
@@ -196,6 +240,35 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
   const finalText = text
     ? (isToMiles ? text : `${text}\n\n[auto-generated5738]`)
     : undefined;
+
+  // Primary: Gmail API via OAuth (better deliverability, shows in Sent folder)
+  try {
+    const connectors = getGmailConnectors();
+    const raw = buildRfc2822Message({ from: FROM, to, subject, html: finalHtml, text: finalText });
+    const base64url = Buffer.from(raw).toString("base64url");
+    const resp = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raw: base64url }),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`Gmail API ${resp.status}: ${errText.slice(0, 300)}`);
+    }
+    console.log(`[Email] Sent "${subject}" to ${maskEmail(to)} via Gmail API`);
+    return;
+  } catch (gmailErr: unknown) {
+    const gmailMsg = gmailErr instanceof Error ? gmailErr.message : String(gmailErr);
+    console.warn(`[Email] Gmail API failed, falling back to SMTP: ${gmailMsg}`);
+  }
+
+  // Fallback: SMTP
+  const smtpUser = process.env.SMTP_USER;
+  if (!smtpUser || !process.env.SMTP_PASS) {
+    throw new Error(`Email not configured — Gmail API unavailable and SMTP credentials missing. Cannot send "${subject}".`);
+  }
+  const transporter = getTransporter();
+  if (!transporter) throw new Error("Email not configured");
   try {
     await transporter.sendMail({
       from: `"Better Bucks" <${smtpUser}>`,
@@ -204,12 +277,13 @@ async function sendEmail({ to, subject, html, text }: { to: string; subject: str
       html: finalHtml,
       ...(finalText ? { text: finalText } : {}),
     });
-    console.log(`[Email] Sent "${subject}" to ${maskEmail(to)}`);
-  } catch (err: any) {
-    console.error(`[Email] Failed to send "${subject}" to ${maskEmail(to)}:`, err?.message ?? err);
+    console.log(`[Email] Sent "${subject}" to ${maskEmail(to)} via SMTP fallback`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Email] SMTP fallback failed for "${subject}" to ${maskEmail(to)}: ${msg}`);
     cachedTransporter = null;
     cachedSmtpKey = "";
-    throw err;
+    throw err instanceof Error ? err : new Error(msg);
   }
 }
 

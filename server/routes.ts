@@ -5281,6 +5281,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const expiry = new Date(Date.now() + 60 * 60 * 1000);
     await storage.setPasswordResetToken(target.id, code, expiry);
 
+    let emailSent = false;
     try {
       await sendEmail({
         to: target.email,
@@ -5298,12 +5299,20 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         `,
         text: `Hi ${target.fullName},\n\nAn administrator has requested a password reset for your account. Your 6-digit reset code is: ${code}\n\nThis code expires in 1 hour. Visit https://betterbucks.net/forgot-password to use it.`,
       });
+      emailSent = true;
       console.log(`[Admin Password Reset] Email sent to ${maskEmail(target.email)} for user ${target.id} by admin ${currentUser.id}`);
-      res.json({ message: `Password reset email sent to ${maskEmail(target.email)}.` });
-    } catch (err: any) {
-      console.error(`[Admin Password Reset] Failed for user ${target.id}:`, err?.message ?? err);
-      res.status(500).json({ message: "Failed to send reset email. Please try again." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Admin Password Reset] Email failed for user ${target.id} — code still available: ${msg}`);
     }
+    // Always return the code so admins can share it directly if email is blocked.
+    res.json({
+      message: emailSent
+        ? `Reset email sent to ${maskEmail(target.email)}. The code is also shown below in case the email doesn't arrive.`
+        : `Email delivery failed. Share this code directly with ${target.fullName}:`,
+      code,
+      emailSent,
+    });
   }));
 
   app.get("/api/org/manager-employee-counts", async (req, res) => {

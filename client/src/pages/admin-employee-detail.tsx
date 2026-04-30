@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail, Copy } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
@@ -851,6 +851,8 @@ function EditProfileDialog({ user }: { user: any }) {
   const [email, setEmail] = useState(user.email || "");
   const [selectedDept, setSelectedDept] = useState<string>(user.departmentId?.toString() || "none");
   const [resetSent, setResetSent] = useState(false);
+  const [resetCode, setResetCode] = useState<string | null>(null);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const { mutate: updateProfile, isPending } = useUpdateProfile();
   const { data: currentUser } = useUser();
   const { toast } = useToast();
@@ -861,7 +863,13 @@ function EditProfileDialog({ user }: { user: any }) {
     onSuccess: async (res: Response) => {
       const data = await res.json();
       setResetSent(true);
-      toast({ title: "Reset email sent", description: data.message });
+      setResetCode(data.code ?? null);
+      setResetEmailSent(data.emailSent ?? false);
+      toast({
+        title: data.emailSent ? "Reset email sent" : "Email blocked — use code below",
+        description: data.message,
+        variant: data.emailSent ? "default" : "destructive",
+      });
     },
     onError: async (err: any) => {
       let msg = "Failed to send reset email.";
@@ -896,6 +904,8 @@ function EditProfileDialog({ user }: { user: any }) {
       setEmail(user.email || "");
       setSelectedDept(user.departmentId?.toString() || "none");
       setResetSent(false);
+      setResetCode(null);
+      setResetEmailSent(false);
     }
     setOpen(o);
   };
@@ -963,7 +973,7 @@ function EditProfileDialog({ user }: { user: any }) {
               Password Reset
             </p>
             {email ? (
-              <div className="flex items-center gap-3">
+              <div className="space-y-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -976,11 +986,38 @@ function EditProfileDialog({ user }: { user: any }) {
                   {sendResetMutation.isPending
                     ? "Sending…"
                     : resetSent
-                    ? "Reset Email Sent!"
-                    : "Send Password Reset Email"}
+                    ? "Code Generated"
+                    : "Send Password Reset"}
                 </Button>
-                {resetSent && (
-                  <p className="text-xs text-muted-foreground">A 6-digit code was sent to {email}.</p>
+                {resetSent && resetCode && (
+                  <div className={`rounded-md border p-3 ${resetEmailSent ? "bg-muted/50" : "bg-amber-50 border-amber-300"}`} data-testid="reset-code-display">
+                    <p className="text-xs font-medium mb-1.5 text-muted-foreground">
+                      {resetEmailSent
+                        ? `Email sent to ${email}. Code also shown here in case it doesn't arrive:`
+                        : `Email blocked by ${user.fullName}'s mail server. Share this code with them directly:`}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-2xl font-bold tracking-[0.25em] text-foreground" data-testid="text-reset-code">
+                        {resetCode}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2"
+                        data-testid="button-copy-reset-code"
+                        onClick={() => {
+                          navigator.clipboard.writeText(resetCode);
+                          toast({ title: "Copied", description: "Reset code copied to clipboard." });
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      They enter this at <strong>betterbucks.net/forgot-password</strong> — expires in 1 hour.
+                    </p>
+                  </div>
                 )}
               </div>
             ) : (

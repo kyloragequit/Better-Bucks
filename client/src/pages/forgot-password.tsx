@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LogoBackground } from "@/components/logo-background";
 import { AppLogo } from "@/components/app-logo";
-import { ArrowLeft, Mail, Phone, Send, CheckCircle, KeyRound, Building2, Eye, EyeOff, Lock } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Send, CheckCircle, KeyRound, Building2, Eye, EyeOff, Lock, AlertCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
@@ -126,13 +126,15 @@ export default function ForgotPasswordPage() {
                 </Button>
               </div>
             ) : sent ? (
-              <div className="text-center py-4 space-y-4">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-                  <CheckCircle className="h-7 w-7 text-green-600" />
+              <div className="py-2 space-y-4">
+                <div className="text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 mb-3">
+                    <CheckCircle className="h-7 w-7 text-green-600" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    If an account with that {method} exists, a 6-digit reset code has been sent. Check your inbox — it expires in 1 hour.
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  If an account with that {method} exists, a 6-digit reset code has been sent. It expires in 1 hour.
-                </p>
                 <Button
                   className="w-full"
                   onClick={() => setLocation(`/reset-password?contact=${encodeURIComponent(contact.trim())}`)}
@@ -140,9 +142,28 @@ export default function ForgotPasswordPage() {
                 >
                   Enter Reset Code
                 </Button>
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 space-y-1.5" data-testid="notice-email-fallback">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    Didn't receive it?
+                  </div>
+                  <ul className="text-xs text-amber-900 space-y-1 pl-1">
+                    <li>• Check your spam or junk folder.</li>
+                    <li>• Some corporate mail systems (e.g. DHL) block automated emails — ask your administrator to look up your reset code directly.</li>
+                    <li>• If your email isn't on file, your admin can add it to your profile first.</li>
+                  </ul>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-amber-800 underline underline-offset-2 mt-1"
+                    onClick={() => { setSent(false); setMethod("siteid"); }}
+                    data-testid="button-try-siteid"
+                  >
+                    Try Site ID instead →
+                  </button>
+                </div>
                 <button
                   type="button"
-                  className="text-xs text-muted-foreground underline underline-offset-2"
+                  className="block w-full text-center text-xs text-muted-foreground underline underline-offset-2"
                   onClick={() => setSent(false)}
                 >
                   Try a different contact
@@ -285,6 +306,11 @@ export default function ForgotPasswordPage() {
                         autoComplete={method === "email" ? "email" : "tel"}
                         data-testid="input-contact"
                       />
+                      {method === "email" && (
+                        <p className="text-xs text-muted-foreground">
+                          Use the email address your administrator has on file for you. Corporate mail filters may delay or block the code — if it doesn't arrive, use <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setMethod("siteid")}>Site ID</button> instead.
+                        </p>
+                      )}
                     </div>
 
                     <Button

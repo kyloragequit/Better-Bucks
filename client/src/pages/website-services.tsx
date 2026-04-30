@@ -542,7 +542,7 @@ export default function WebsiteServicesPage() {
                     {!submitting && <ArrowRight className="ml-2 h-5 w-5" />}
                   </Button>
 
-                  <p className="text-xs text-gray-500 text-center">
+                  <p className="text-xs text-gray-600 text-center">
                     Or email me directly: <a href="mailto:miles.chase@betterbucks.net" className="font-semibold underline" style={{ color: NAVY }}>miles.chase@betterbucks.net</a>
                   </p>
                 </form>
@@ -574,7 +574,7 @@ export default function WebsiteServicesPage() {
             ))}
           </div>
 
-          <div className="mt-10 text-center text-sm text-gray-500">
+          <div className="mt-10 text-center text-sm text-gray-600">
             Curious about <Link href="/" className="font-semibold underline" style={{ color: NAVY }} data-testid="link-betterbucks-home">Better Bucks</Link>, the employee-rewards platform that this site demos? That's the SaaS I built — and an example of what I can build for you.
           </div>
         </div>

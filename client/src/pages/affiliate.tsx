@@ -266,7 +266,7 @@ export default function AffiliatePage() {
                 <Icon className="h-6 w-6" style={{ color: BUCKS_COLOR }} />
               </div>
               <h3 className="font-bold text-gray-900 text-lg">{title}</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
+              <p className="text-gray-600 text-sm leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
@@ -278,18 +278,18 @@ export default function AffiliatePage() {
           <div className="text-center mb-8 sm:mb-12">
             <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: BUCKS_COLOR }}>The Math Is Simple</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 sm:mb-4">How Much Could You Earn?</h2>
-            <p className="text-gray-500 text-base sm:text-lg">Drag the slider to see your potential monthly commission at 25%.</p>
+            <p className="text-gray-600 text-base sm:text-lg">Drag the slider to see your potential monthly commission at 25%.</p>
           </div>
 
           {/* Slider card */}
           <div className="bg-white rounded-3xl shadow-xl p-5 sm:p-10">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 sm:gap-0 mb-4">
               <div>
-                <p className="text-sm text-gray-400 mb-1">Referred Monthly Sales</p>
+                <p className="text-sm text-gray-600 mb-1">Referred Monthly Sales</p>
                 <p className="text-3xl sm:text-4xl font-extrabold text-gray-900" data-testid="text-sales-amount">{formatCurrency(salesAmount)}</p>
               </div>
               <div className="sm:text-right">
-                <p className="text-sm text-gray-400 mb-1">Your 25% Commission</p>
+                <p className="text-sm text-gray-600 mb-1">Your 25% Commission</p>
                 <p className="text-3xl sm:text-4xl font-extrabold" style={{ color: BUCKS_COLOR }} data-testid="text-commission-amount">{formatCurrency(commission)}</p>
               </div>
             </div>
@@ -328,7 +328,7 @@ export default function AffiliatePage() {
             </div>
 
             {/* Labels */}
-            <div className="flex justify-between text-xs text-gray-400">
+            <div className="flex justify-between text-xs text-gray-600">
               <span>$1K/mo</span>
               <span>$50K/mo</span>
               <span>$100K/mo</span>
@@ -387,7 +387,7 @@ export default function AffiliatePage() {
                   {step}
                 </div>
                 <h3 className="font-bold text-gray-900 text-lg">{title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
+                <p className="text-gray-600 text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>

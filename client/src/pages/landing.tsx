@@ -532,7 +532,7 @@ export default function LandingPage() {
           <p className="text-gray-600 text-lg leading-relaxed max-w-3xl mx-auto mb-10" data-testid="text-what-is-body">
             Better Bucks is <strong>employee incentive software</strong> built for operations teams that need more than a spreadsheet. As a purpose-built <strong>employee recognition platform</strong>, it replaces manual processes with <strong>workplace rewards software</strong> that runs automatically. Our <strong>incentive tracking software</strong> gives managers real-time visibility into every award and redemption — while giving employees <strong>employee engagement tools</strong> they actually feel motivated by. The result is a <strong>performance recognition system</strong> that drives measurable results across logistics, warehousing, and manufacturing teams.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm text-gray-500 max-w-2xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm text-gray-600 max-w-2xl mx-auto">
             {[
               "Employee Incentive Software",
               "Employee Recognition Platform",

@@ -87,7 +87,7 @@ function MiniCalculator() {
     <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6 sm:p-8" data-testid="card-mini-calculator">
       <div className="grid gap-5 sm:grid-cols-3 mb-6">
         <div>
-          <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-600 mb-1.5">
             <span>Employees</span>
             <span className="text-gray-900 font-bold" data-testid="text-calc-employees">{emp}</span>
           </div>
@@ -104,7 +104,7 @@ function MiniCalculator() {
           />
         </div>
         <div>
-          <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-600 mb-1.5">
             <span>Avg hourly wage</span>
             <span className="text-gray-900 font-bold" data-testid="text-calc-wage">${wage}</span>
           </div>
@@ -121,7 +121,7 @@ function MiniCalculator() {
           />
         </div>
         <div>
-          <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-600 mb-1.5">
             <span>Annual turnover %</span>
             <span className="text-gray-900 font-bold" data-testid="text-calc-turnover">{turn}%</span>
           </div>
@@ -141,7 +141,7 @@ function MiniCalculator() {
 
       <div className="border-t border-gray-100 pt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Your estimated annual savings</p>
+          <p className="text-xs uppercase tracking-wide text-gray-600 font-semibold">Your estimated annual savings</p>
           <p className="text-xs text-gray-600 mt-0.5">
             Based on a {leavers}-person/yr loss at {fmt(replaceCost)} per replacement.
           </p>
@@ -501,7 +501,7 @@ function ProgramPreview() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm" style={{ color: NAVY }}>{emp.name}</p>
-                      <p className="text-xs text-gray-500">{emp.dept} · {emp.balance} Bucks</p>
+                      <p className="text-xs text-gray-600">{emp.dept} · {emp.balance} Bucks</p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-gray-300" />
                   </button>
@@ -520,11 +520,11 @@ function ProgramPreview() {
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-sm" style={{ color: NAVY }}>Sarah K.</p>
-                    <p className="text-xs text-gray-500">Logistics</p>
+                    <p className="text-xs text-gray-600">Logistics</p>
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Reward amount</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-1.5">Reward amount</p>
                   <div
                     className="flex items-baseline gap-1 px-3 py-2 rounded-lg"
                     style={{ background: `${BUCKS_COLOR}15` }}
@@ -534,7 +534,7 @@ function ProgramPreview() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Reason</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-1.5">Reason</p>
                   <div className="flex flex-wrap gap-1.5">
                     {REASONS.map((r) => {
                       const active = reason === r || reasonHighlight === r;
@@ -582,7 +582,7 @@ function ProgramPreview() {
                 </div>
                 <div>
                   <p className="font-black text-base" style={{ color: NAVY }}>Sent!</p>
-                  <p className="text-xs text-gray-500 mt-0.5 max-w-[220px]">
+                  <p className="text-xs text-gray-600 mt-0.5 max-w-[220px]">
                     Sarah K. earned <span className="font-bold" style={{ color: BUCKS_COLOR }}>100 Bucks</span> for {reason.toLowerCase()}.
                   </p>
                 </div>
@@ -607,7 +607,7 @@ function ProgramPreview() {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0">
                       <p className="font-bold text-xs" style={{ color: NAVY }}>{g.title}</p>
-                      <p className="text-[10px] text-gray-500">{g.dept}</p>
+                      <p className="text-[10px] text-gray-600">{g.dept}</p>
                     </div>
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
@@ -701,7 +701,7 @@ function ProgramPreview() {
                 </div>
                 <div>
                   <p className="font-black text-base" style={{ color: NAVY }}>Order placed!</p>
-                  <p className="text-xs text-gray-500 mt-0.5 max-w-[240px]">
+                  <p className="text-xs text-gray-600 mt-0.5 max-w-[240px]">
                     Gaming Headset · 350 Bucks · Sent to admin to fulfill
                   </p>
                 </div>
@@ -1191,7 +1191,7 @@ export default function HowItWorksPage() {
               <h3 className="font-bold text-lg" style={{ color: NAVY }}>
                 Talk to our team
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-gray-600 mt-0.5">
                 Tell us about your team and we'll reach out within one business day.
               </p>
             </div>

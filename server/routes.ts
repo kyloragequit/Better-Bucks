@@ -6481,7 +6481,21 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     if (!req.isAuthenticated() || !user || !user.organizationId) return res.status(401).send("Unauthorized");
     await resetDemoGoalsIfNeeded(user.organizationId);
     const allGoals = await storage.getGoalsByOrganization(user.organizationId);
-    res.json(allGoals.filter(g => g.status === "active" || g.status === "pending_distribution" || g.status === "completed" || g.status === "failed"));
+    const isAdmin = user.role === "prime_admin" || user.role === "admin";
+    const visible = allGoals.filter(g => {
+      if (g.status !== "active" && g.status !== "pending_distribution" && g.status !== "completed" && g.status !== "failed") return false;
+      // Admins see all goals
+      if (isAdmin) return true;
+      // Apply audience targeting for employees
+      if (!g.targetType || g.targetType === "all") return true;
+      const ids = Array.isArray(g.targetIds) ? (g.targetIds as number[]) : [];
+      if (ids.length === 0) return true;
+      if (g.targetType === "individual") return ids.includes(user.id);
+      if (g.targetType === "department") return user.departmentId != null && ids.includes(user.departmentId);
+      if (g.targetType === "team") return user.managerId != null && ids.includes(user.managerId);
+      return true;
+    });
+    res.json(visible);
   }));
 
   // GET /api/admin/goals — all goals (admin + prime_admin)
@@ -6499,7 +6513,7 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin" && user.role !== "admin") return res.status(403).send("Forbidden");
     if (!user.organizationId) return res.status(400).send("No organization");
-    const { title, type, bucksReward, targetQuantity, targetDays, durationUnit, targetHours, targetMinutes, endDate } = req.body;
+    const { title, type, bucksReward, targetQuantity, targetDays, durationUnit, targetHours, targetMinutes, endDate, targetType, targetIds } = req.body;
     if (!title || !type || !bucksReward) return res.status(400).json({ message: "title, type, and bucksReward are required" });
     if (type === "quantity" && !targetQuantity) return res.status(400).json({ message: "targetQuantity is required for quantity goals" });
     const unit = durationUnit || "days";
@@ -6519,6 +6533,8 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       startDate: new Date(),
       endDate: endDate ? new Date(endDate) : null,
       createdBy: user.id,
+      targetType: targetType || "all",
+      targetIds: Array.isArray(targetIds) ? targetIds : null,
     });
     res.status(201).json(goal);
   }));
@@ -6530,7 +6546,7 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     const goalId = parseInt(req.params.id);
     const goal = await storage.getGoal(goalId);
     if (!goal || goal.organizationId !== user.organizationId) return res.status(404).json({ message: "Goal not found" });
-    const { title, bucksReward, targetQuantity, targetDays, durationUnit, targetHours, targetMinutes, endDate } = req.body;
+    const { title, bucksReward, targetQuantity, targetDays, durationUnit, targetHours, targetMinutes, endDate, targetType, targetIds } = req.body;
     const unit = durationUnit as string | undefined;
     const updated = await storage.updateGoal(goalId, {
       ...(title !== undefined ? { title } : {}),
@@ -6541,6 +6557,8 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       ...(unit === "hours_minutes" ? { targetHours: targetHours ? parseInt(targetHours) : null, targetMinutes: targetMinutes ? parseInt(targetMinutes) : null, targetDays: null } : {}),
       ...(unit === undefined && targetDays !== undefined ? { targetDays: parseInt(targetDays) } : {}),
       ...(endDate !== undefined ? { endDate: endDate ? new Date(endDate) : null } : {}),
+      ...(targetType !== undefined ? { targetType } : {}),
+      ...(targetIds !== undefined ? { targetIds: Array.isArray(targetIds) ? targetIds : null } : {}),
     });
     res.json(updated);
   }));
@@ -6612,17 +6630,21 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     if (goal.bucksDistributedAt) return res.status(400).json({ message: "Bucks already distributed" });
     const updated = await storage.distributeGoalBucks(goalId, user.organizationId, user.id);
     await storage.createGoalNotificationsForOrg(goalId, user.organizationId, "distributed");
-    // Notify each employee in the org that bucks landed in their balance,
-    // and invalidate their cached user record so the new balance is visible
-    // immediately on their next /api/user request.
+    // Notify targeted employees that bucks landed in their balance
     try {
       const orgUsers = await storage.getUsersByOrganization(user.organizationId);
       const reason = `Goal achieved: ${goal.title}`;
+      const targetIds = Array.isArray(goal.targetIds) ? (goal.targetIds as number[]) : [];
       for (const u of orgUsers) {
-        if (u.role === "employee" && u.status === "approved") {
-          invalidateUserCache(u.id);
-          void notifyEmployeeBalanceChange(u.id, goal.bucksReward, reason);
+        if (u.role !== "employee" || u.status !== "approved") continue;
+        // Apply same targeting logic as storage.distributeGoalBucks
+        if (goal.targetType && goal.targetType !== "all" && targetIds.length > 0) {
+          if (goal.targetType === "individual" && !targetIds.includes(u.id)) continue;
+          if (goal.targetType === "department" && (u.departmentId == null || !targetIds.includes(u.departmentId))) continue;
+          if (goal.targetType === "team" && (u.managerId == null || !targetIds.includes(u.managerId))) continue;
         }
+        invalidateUserCache(u.id);
+        void notifyEmployeeBalanceChange(u.id, goal.bucksReward, reason);
       }
     } catch (err: any) {
       console.error("[BalanceNotify] goal distribution notify failed:", err?.message ?? err);

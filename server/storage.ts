@@ -1063,14 +1063,31 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  private async getTargetedUserIds(goal: Goal, organizationId: number): Promise<number[]> {
+    const allEmployees = await db
+      .select({ id: users.id, departmentId: users.departmentId, managerId: users.managerId })
+      .from(users)
+      .where(and(eq(users.organizationId, organizationId), eq(users.role, "employee"), eq(users.status, "approved")));
+
+    const targetIds = Array.isArray(goal.targetIds) ? (goal.targetIds as number[]) : [];
+    if (!goal.targetType || goal.targetType === "all" || targetIds.length === 0) {
+      return allEmployees.map(e => e.id);
+    }
+    return allEmployees
+      .filter(e => {
+        if (goal.targetType === "individual") return targetIds.includes(e.id);
+        if (goal.targetType === "department") return e.departmentId != null && targetIds.includes(e.departmentId);
+        if (goal.targetType === "team") return e.managerId != null && targetIds.includes(e.managerId);
+        return true;
+      })
+      .map(e => e.id);
+  }
+
   async distributeGoalBucks(goalId: number, organizationId: number, performedBy: number): Promise<Goal> {
     const goal = await this.getGoal(goalId);
     if (!goal) throw new Error("Goal not found");
-    const employees = await db.select({ id: users.id }).from(users).where(
-      and(eq(users.organizationId, organizationId), eq(users.role, "employee"), eq(users.status, "approved"))
-    );
-    if (employees.length > 0) {
-      const empIds = employees.map(e => e.id);
+    const empIds = await this.getTargetedUserIds(goal, organizationId);
+    if (empIds.length > 0) {
       await db.update(users)
         .set({ balance: sql`${users.balance} + ${goal.bucksReward}` })
         .where(inArray(users.id, empIds));
@@ -1091,10 +1108,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGoalNotificationsForOrg(goalId: number, organizationId: number, type: "failed" | "distributed"): Promise<void> {
-    const orgUsers = await db.select().from(users).where(eq(users.organizationId, organizationId));
-    if (orgUsers.length === 0) return;
+    const goal = await this.getGoal(goalId);
+    if (!goal) return;
+    let userIds: number[];
+    if (!goal.targetType || goal.targetType === "all") {
+      const orgUsers = await db.select({ id: users.id }).from(users).where(eq(users.organizationId, organizationId));
+      userIds = orgUsers.map(u => u.id);
+    } else {
+      userIds = await this.getTargetedUserIds(goal, organizationId);
+      // Also include admins/prime_admins so they always see notifications
+      const admins = await db.select({ id: users.id }).from(users).where(
+        and(eq(users.organizationId, organizationId), sql`${users.role} IN ('admin', 'prime_admin')`)
+      );
+      const adminIds = admins.map(a => a.id).filter(id => !userIds.includes(id));
+      userIds = [...userIds, ...adminIds];
+    }
+    if (userIds.length === 0) return;
     await db.insert(goalNotifications).values(
-      orgUsers.map(u => ({ goalId, organizationId, userId: u.id, type }))
+      userIds.map(uid => ({ goalId, organizationId, userId: uid, type }))
     );
   }
 

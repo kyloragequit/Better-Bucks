@@ -316,6 +316,8 @@ export const goals = pgTable("goals", {
   bucksDistributedAt: timestamp("bucks_distributed_at"),
   createdBy: integer("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  targetType: text("target_type", { enum: ["all", "department", "team", "individual"] }).default("all").notNull(),
+  targetIds: jsonb("target_ids"),
 });
 
 export const goalNotifications = pgTable("goal_notifications", {

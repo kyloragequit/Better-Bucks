@@ -3,19 +3,22 @@ import { usePublicDemo } from "@/hooks/use-demo";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { useUser } from "@/hooks/use-auth";
+import { useUsers } from "@/hooks/use-users";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/ui/loader";
-import { Plus, Target, Timer, Hash, Trophy, XCircle, Coins, Pencil, Trash2, ChevronUp, CheckCircle } from "lucide-react";
-import type { Goal } from "@shared/schema";
+import { Plus, Target, Timer, Hash, Trophy, XCircle, Coins, Pencil, Trash2, ChevronUp, CheckCircle, Users, Building2, UserCheck } from "lucide-react";
+import type { Goal, Department, User } from "@shared/schema";
 import { differenceInDays, differenceInMinutes, formatDistanceToNow } from "date-fns";
 
 function goalTotalMinutes(goal: Goal): number {
@@ -71,9 +74,11 @@ type GoalFormData = {
   targetHours: string;
   targetMinutes: string;
   endDate: string;
+  targetType: "all" | "department" | "team" | "individual";
+  targetIds: number[];
 };
 
-const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", targetQuantity: "", targetDays: "", durationUnit: "days", targetHours: "", targetMinutes: "", endDate: "" };
+const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", targetQuantity: "", targetDays: "", durationUnit: "days", targetHours: "", targetMinutes: "", endDate: "", targetType: "all", targetIds: [] };
 
 export default function AdminGoalsPage() {
   const isPublicDemo = usePublicDemo();
@@ -93,6 +98,14 @@ export default function AdminGoalsPage() {
     queryKey: ["/api/admin/goals"],
     enabled: !!user,
   });
+
+  const { data: allUsers = [] } = useUsers();
+  const { data: departments = [] } = useQuery<Department[]>({ queryKey: ["/api/departments"] });
+
+  // Employees only, for individual targeting
+  const employees = (allUsers as User[]).filter((u: User) => u.role === "employee" && u.status === "approved");
+  // Team leaders (admin + prime_admin), for team targeting
+  const teamLeaders = (allUsers as User[]).filter((u: User) => u.role === "admin" || u.role === "prime_admin");
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["/api/admin/goals"] });
 
@@ -151,7 +164,16 @@ export default function AdminGoalsPage() {
       targetHours: g.targetHours ? String(g.targetHours) : "",
       targetMinutes: g.targetMinutes ? String(g.targetMinutes) : "",
       endDate: g.endDate ? new Date(g.endDate).toISOString().split("T")[0] : "",
+      targetType: (g.targetType ?? "all") as GoalFormData["targetType"],
+      targetIds: Array.isArray(g.targetIds) ? (g.targetIds as number[]) : [],
     });
+  }
+
+  function toggleTargetId(id: number) {
+    setForm(f => ({
+      ...f,
+      targetIds: f.targetIds.includes(id) ? f.targetIds.filter(x => x !== id) : [...f.targetIds, id],
+    }));
   }
 
   const activeGoals = goals.filter(g => g.status === "active");
@@ -179,7 +201,7 @@ export default function AdminGoalsPage() {
         {pendingGoals.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-green-700 flex items-center gap-2"><Trophy className="h-5 w-5" />Goal Met — Distribute Bucks</h2>
-            {pendingGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+            {pendingGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} audienceLabel={getAudienceLabel(g, departments as Department[], allUsers as User[])} />)}
           </div>
         )}
 
@@ -191,7 +213,7 @@ export default function AdminGoalsPage() {
               {isPrimeAdmin ? "No active goals. Create one above." : "No active goals have been set by the Organization Owner yet."}
             </p>
           )}
-          {activeGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+          {activeGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} audienceLabel={getAudienceLabel(g, departments as Department[], allUsers as User[])} />)}
           {isPrimeAdmin && (
             <div className="pt-2">
               <Button onClick={openCreate} data-testid="button-create-goal"><Plus className="mr-2 h-4 w-4" />New Goal</Button>
@@ -203,7 +225,7 @@ export default function AdminGoalsPage() {
         {completedGoals.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-muted-foreground flex items-center gap-2"><CheckCircle className="h-5 w-5" />Completed</h2>
-            {completedGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+            {completedGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} audienceLabel={getAudienceLabel(g, departments as Department[], allUsers as User[])} />)}
           </div>
         )}
 
@@ -211,7 +233,7 @@ export default function AdminGoalsPage() {
         {failedGoals.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-destructive flex items-center gap-2"><XCircle className="h-5 w-5" />Failed</h2>
-            {failedGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} />)}
+            {failedGoals.map(g => <GoalCard key={g.id} goal={g} isPrimeAdmin={isPrimeAdmin} onEdit={openEdit} onDelete={setDeleteConfirm} onIncrement={setIncrementGoalId} onFail={id => failMutation.mutate(id)} onComplete={id => completeMutation.mutate(id)} onDistribute={id => distributeMutation.mutate(id)} distributing={distributeMutation.isPending} audienceLabel={getAudienceLabel(g, departments as Department[], allUsers as User[])} />)}
           </div>
         )}
       </div>
@@ -290,6 +312,96 @@ export default function AdminGoalsPage() {
               <Label>End Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} data-testid="input-goal-end-date" />
             </div>
+
+            {/* Audience targeting */}
+            <div className="space-y-2 pt-1 border-t">
+              <Label className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />Who should see this goal?</Label>
+              <Select
+                value={form.targetType}
+                onValueChange={v => setForm(f => ({ ...f, targetType: v as GoalFormData["targetType"], targetIds: [] }))}
+              >
+                <SelectTrigger data-testid="select-goal-target-type"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all"><span className="flex items-center gap-2"><Users className="h-4 w-4" />All Employees</span></SelectItem>
+                  <SelectItem value="department"><span className="flex items-center gap-2"><Building2 className="h-4 w-4" />By Department</span></SelectItem>
+                  <SelectItem value="team"><span className="flex items-center gap-2"><UserCheck className="h-4 w-4" />By Team</span></SelectItem>
+                  <SelectItem value="individual"><span className="flex items-center gap-2"><UserCheck className="h-4 w-4" />Specific Individuals</span></SelectItem>
+                </SelectContent>
+              </Select>
+
+              {form.targetType === "department" && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Select departments:</p>
+                  {departments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No departments set up yet.</p>
+                  ) : (
+                    <ScrollArea className="h-36 border rounded-md p-2">
+                      <div className="space-y-2">
+                        {(departments as Department[]).map((dept: Department) => (
+                          <label key={dept.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5" data-testid={`checkbox-dept-${dept.id}`}>
+                            <Checkbox
+                              checked={form.targetIds.includes(dept.id)}
+                              onCheckedChange={() => toggleTargetId(dept.id)}
+                            />
+                            <span className="text-sm">{dept.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+              )}
+
+              {form.targetType === "team" && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Select team leaders — employees on their team will see this goal:</p>
+                  {teamLeaders.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No team leaders found.</p>
+                  ) : (
+                    <ScrollArea className="h-36 border rounded-md p-2">
+                      <div className="space-y-2">
+                        {teamLeaders.map((leader: User) => (
+                          <label key={leader.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5" data-testid={`checkbox-leader-${leader.id}`}>
+                            <Checkbox
+                              checked={form.targetIds.includes(leader.id)}
+                              onCheckedChange={() => toggleTargetId(leader.id)}
+                            />
+                            <span className="text-sm">{leader.fullName}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+              )}
+
+              {form.targetType === "individual" && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Select specific employees:</p>
+                  {employees.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No employees found.</p>
+                  ) : (
+                    <ScrollArea className="h-36 border rounded-md p-2">
+                      <div className="space-y-2">
+                        {employees.map((emp: User) => (
+                          <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5" data-testid={`checkbox-employee-${emp.id}`}>
+                            <Checkbox
+                              checked={form.targetIds.includes(emp.id)}
+                              onCheckedChange={() => toggleTargetId(emp.id)}
+                            />
+                            <span className="text-sm">{emp.fullName}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+              )}
+
+              {form.targetType !== "all" && form.targetIds.length === 0 && (
+                <p className="text-xs text-amber-600">⚠ No selections made — goal will be hidden from everyone until you select at least one.</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowCreate(false); setEditGoal(null); }}>Cancel</Button>
@@ -344,6 +456,24 @@ export default function AdminGoalsPage() {
   );
 }
 
+function getAudienceLabel(goal: Goal, departments: Department[], allUsers: User[]): string | null {
+  if (!goal.targetType || goal.targetType === "all") return null;
+  const ids = Array.isArray(goal.targetIds) ? (goal.targetIds as number[]) : [];
+  if (ids.length === 0) return "No audience selected";
+  if (goal.targetType === "department") {
+    const names = ids.map(id => departments.find(d => d.id === id)?.name ?? `Dept #${id}`);
+    return names.join(", ");
+  }
+  if (goal.targetType === "team") {
+    const names = ids.map(id => { const u = allUsers.find(u => u.id === id); return u ? `${u.fullName}'s team` : `Team #${id}`; });
+    return names.join(", ");
+  }
+  if (goal.targetType === "individual") {
+    return `${ids.length} individual${ids.length !== 1 ? "s" : ""}`;
+  }
+  return null;
+}
+
 interface GoalCardProps {
   goal: Goal;
   isPrimeAdmin: boolean;
@@ -354,9 +484,10 @@ interface GoalCardProps {
   onComplete: (id: number) => void;
   onDistribute: (id: number) => void;
   distributing: boolean;
+  audienceLabel: string | null;
 }
 
-function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, onComplete, onDistribute, distributing }: GoalCardProps) {
+function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, onComplete, onDistribute, distributing, audienceLabel }: GoalCardProps) {
   const isPublicDemo = usePublicDemo();
   const progress = goalProgress(goal);
   const isActive = goal.status === "active";
@@ -411,9 +542,15 @@ function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, o
           )}
 
           <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Coins className="h-3 w-3" />{goal.bucksReward} bcks per employee</span>
+            <span className="flex items-center gap-1"><Coins className="h-3 w-3" />{goal.bucksReward} bcks per {audienceLabel ? "recipient" : "employee"}</span>
             <span>Started {formatDistanceToNow(new Date(goal.startDate))} ago</span>
           </div>
+          {audienceLabel && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1 mt-1">
+              <Users className="h-3 w-3 shrink-0" />
+              <span className="truncate">{audienceLabel}</span>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -435,7 +572,7 @@ function GoalCard({ goal, isPrimeAdmin, onEdit, onDelete, onIncrement, onFail, o
           )}
           {!isPublicDemo && isPrimeAdmin && (isPending || (isCompleted && !goal.bucksDistributedAt)) && (
             <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" disabled={distributing} onClick={() => onDistribute(goal.id)} data-testid={`button-distribute-${goal.id}`}>
-              <Coins className="mr-1.5 h-3.5 w-3.5" />{distributing ? "Distributing..." : `Distribute ${goal.bucksReward} bcks to All Employees`}
+              <Coins className="mr-1.5 h-3.5 w-3.5" />{distributing ? "Distributing..." : `Distribute ${goal.bucksReward} bcks${audienceLabel ? ` to ${audienceLabel}` : " to All Employees"}`}
             </Button>
           )}
           {isCompleted && goal.bucksDistributedAt && (

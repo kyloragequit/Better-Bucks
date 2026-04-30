@@ -6043,135 +6043,13 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }).parse(req.body);
 
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
-    const { execSync } = await import("child_process");
-    const fsModule = await import("fs");
-    const pathModule = await import("path");
 
-    const WORKSPACE = "/home/runner/workspace";
-
-    function safePath(p: string): string {
-      const resolved = pathModule.default.resolve(WORKSPACE, p.replace(/^\/+/, ""));
-      if (!resolved.startsWith(WORKSPACE)) throw new Error(`Path outside workspace: ${p}`);
-      return resolved;
-    }
-
-    const tools: Anthropic.Tool[] = [
-      {
-        name: "read_file",
-        description: "Read the contents of a file in the workspace. Use relative paths from the project root (e.g. 'server/routes.ts', 'client/src/pages/admin-store.tsx').",
-        input_schema: {
-          type: "object" as const,
-          properties: {
-            path: { type: "string", description: "File path relative to project root" },
-            offset: { type: "number", description: "Line number to start reading from (1-indexed, optional)" },
-            limit: { type: "number", description: "Max lines to read (optional, default 300)" },
-          },
-          required: ["path"],
-        },
-      },
-      {
-        name: "write_file",
-        description: "Write (create or overwrite) a file in the workspace. Always read the file first before overwriting to avoid losing existing content.",
-        input_schema: {
-          type: "object" as const,
-          properties: {
-            path: { type: "string", description: "File path relative to project root" },
-            content: { type: "string", description: "Full file content to write" },
-          },
-          required: ["path", "content"],
-        },
-      },
-      {
-        name: "list_directory",
-        description: "List files and directories at a path in the workspace.",
-        input_schema: {
-          type: "object" as const,
-          properties: {
-            path: { type: "string", description: "Directory path relative to project root (default: '.')" },
-          },
-          required: [],
-        },
-      },
-      {
-        name: "search_code",
-        description: "Search for a pattern in the workspace using ripgrep. Returns matching lines with file and line numbers.",
-        input_schema: {
-          type: "object" as const,
-          properties: {
-            pattern: { type: "string", description: "Regex pattern to search for" },
-            path: { type: "string", description: "Directory or file to search in (default: '.')" },
-            file_glob: { type: "string", description: "Optional glob to filter files (e.g. '*.tsx')" },
-          },
-          required: ["pattern"],
-        },
-      },
-      {
-        name: "run_command",
-        description: "Run a shell command in the workspace directory. Use for running scripts, npm commands, checking git status, etc. Commands run with a 30-second timeout.",
-        input_schema: {
-          type: "object" as const,
-          properties: {
-            command: { type: "string", description: "Shell command to execute" },
-          },
-          required: ["command"],
-        },
-      },
-    ];
-
-    function executeTool(name: string, input: Record<string, any>): string {
-      try {
-        if (name === "read_file") {
-          const abs = safePath(input.path);
-          if (!fsModule.default.existsSync(abs)) return `Error: File not found: ${input.path}`;
-          const rawLines = fsModule.default.readFileSync(abs, "utf-8").split("\n");
-          const offset = Math.max(0, (input.offset ?? 1) - 1);
-          const limit = Math.min(input.limit ?? 300, 500);
-          const slice = rawLines.slice(offset, offset + limit);
-          const header = `[${input.path} — lines ${offset + 1}–${offset + slice.length} of ${rawLines.length}]\n`;
-          return header + slice.map((l, i) => `${String(offset + i + 1).padStart(4)}→ ${l}`).join("\n");
-        }
-
-        if (name === "write_file") {
-          const abs = safePath(input.path);
-          fsModule.default.mkdirSync(pathModule.default.dirname(abs), { recursive: true });
-          fsModule.default.writeFileSync(abs, input.content, "utf-8");
-          const lineCount = input.content.split("\n").length;
-          return `Written ${lineCount} lines to ${input.path}`;
-        }
-
-        if (name === "list_directory") {
-          const dir = safePath(input.path ?? ".");
-          if (!fsModule.default.existsSync(dir)) return `Error: Directory not found: ${input.path}`;
-          const entries = fsModule.default.readdirSync(dir, { withFileTypes: true });
-          const lines = entries
-            .filter(e => !["node_modules", ".git", "dist", ".cache"].includes(e.name))
-            .map(e => `${e.isDirectory() ? "📁" : "📄"} ${e.name}`)
-            .join("\n");
-          return lines || "(empty directory)";
-        }
-
-        if (name === "search_code") {
-          const searchPath = input.path ? safePath(input.path) : WORKSPACE;
-          const globFlag = input.file_glob ? `--glob '${input.file_glob}'` : "";
-          const cmd = `rg --line-number --max-count=50 ${globFlag} ${JSON.stringify(input.pattern)} ${JSON.stringify(searchPath)} 2>&1 || true`;
-          const out = execSync(cmd, { cwd: WORKSPACE, timeout: 15000, encoding: "utf-8" });
-          // Make paths relative
-          return out.replace(new RegExp(WORKSPACE + "/", "g"), "") || "(no matches)";
-        }
-
-        if (name === "run_command") {
-          const cmd = input.command as string;
-          const blocked = ["rm -rf /", "shutdown", "reboot", "mkfs", "dd if="];
-          if (blocked.some(b => cmd.includes(b))) return `Error: Command blocked for safety: ${cmd}`;
-          const out = execSync(cmd, { cwd: WORKSPACE, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
-          return out.substring(0, 8000) || "(no output)";
-        }
-
-        return `Unknown tool: ${name}`;
-      } catch (err: any) {
-        return `Error: ${err?.message ?? String(err)}`.substring(0, 2000);
-      }
-    }
+    // Derive Anthropic tool format from the shared MCP_TOOLS definition
+    const tools: Anthropic.Tool[] = MCP_TOOLS.map(t => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.inputSchema as Anthropic.Tool["input_schema"],
+    }));
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -6222,14 +6100,14 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
 
         // Stream text blocks and collect tool uses
         let assistantText = "";
-        const toolUses: Array<{ id: string; name: string; input: Record<string, any> }> = [];
+        const toolUses: Array<{ id: string; name: string; input: McpToolInput }> = [];
 
         for (const block of response.content) {
           if (block.type === "text") {
             assistantText += block.text;
             send({ type: "text", text: block.text });
           } else if (block.type === "tool_use") {
-            toolUses.push({ id: block.id, name: block.name, input: block.input as Record<string, any> });
+            toolUses.push({ id: block.id, name: block.name, input: block.input as McpToolInput });
           }
         }
 
@@ -6240,12 +6118,12 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
           break;
         }
 
-        // Execute tools and collect results
+        // Execute tools using shared helper and collect results
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
         for (const tu of toolUses) {
           send({ type: "tool_start", name: tu.name, input: tu.input });
-          const output = executeTool(tu.name, tu.input);
+          const output = mcpExecuteTool(tu.name, tu.input);
           send({ type: "tool_result", name: tu.name, output: output.substring(0, 4000) });
           toolResults.push({ type: "tool_result", tool_use_id: tu.id, content: output });
         }
@@ -6256,8 +6134,8 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
 
       send({ type: "done" });
       res.end();
-    } catch (err: any) {
-      send({ type: "error", message: err?.message || "Claude request failed" });
+    } catch (err: unknown) {
+      send({ type: "error", message: err instanceof Error ? err.message : "Claude request failed" });
       res.end();
     }
   });
@@ -6272,9 +6150,10 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     return resolved;
   }
 
-  function mcpExecuteTool(name: string, input: Record<string, any>): string {
+  function mcpExecuteTool(name: string, input: McpToolInput): string {
     try {
       if (name === "read_file") {
+        if (!input.path) return "Error: path is required";
         const abs = mcpSafePath(input.path);
         if (!fs.existsSync(abs)) return `Error: File not found: ${input.path}`;
         const rawLines = fs.readFileSync(abs, "utf-8").split("\n");
@@ -6285,14 +6164,15 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
         return header + slice.map((l: string, i: number) => `${String(offset + i + 1).padStart(4)}→ ${l}`).join("\n");
       }
       if (name === "write_file") {
+        if (!input.path || input.content === undefined) return "Error: path and content are required";
         const abs = mcpSafePath(input.path);
         fs.mkdirSync(path.dirname(abs), { recursive: true });
         fs.writeFileSync(abs, input.content, "utf-8");
-        return `Written ${(input.content as string).split("\n").length} lines to ${input.path}`;
+        return `Written ${input.content.split("\n").length} lines to ${input.path}`;
       }
       if (name === "list_directory") {
         const dir = mcpSafePath(input.path ?? ".");
-        if (!fs.existsSync(dir)) return `Error: Directory not found: ${input.path}`;
+        if (!fs.existsSync(dir)) return `Error: Directory not found: ${input.path ?? "."}`;
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         return (
           entries
@@ -6302,6 +6182,7 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
         );
       }
       if (name === "search_code") {
+        if (!input.pattern) return "Error: pattern is required";
         const searchPath = input.path ? mcpSafePath(input.path) : MCP_WORKSPACE;
         const globFlag = input.file_glob ? `--glob '${input.file_glob}'` : "";
         const cmd = `rg --line-number --max-count=50 ${globFlag} ${JSON.stringify(input.pattern)} ${JSON.stringify(searchPath)} 2>&1 || true`;
@@ -6309,16 +6190,39 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
         return out.replace(new RegExp(MCP_WORKSPACE + "/", "g"), "") || "(no matches)";
       }
       if (name === "run_command") {
-        const cmd = input.command as string;
+        if (!input.command) return "Error: command is required";
         const blocked = ["rm -rf /", "shutdown", "reboot", "mkfs", "dd if="];
-        if (blocked.some(b => cmd.includes(b))) return `Error: Command blocked for safety: ${cmd}`;
-        const out = execSyncMcp(cmd, { cwd: MCP_WORKSPACE, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+        if (blocked.some(b => input.command!.includes(b))) return `Error: Command blocked for safety: ${input.command}`;
+        const out = execSyncMcp(input.command, { cwd: MCP_WORKSPACE, timeout: 30000, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
         return (out || "(no output)").substring(0, 8000);
       }
       return `Unknown tool: ${name}`;
-    } catch (err: any) {
-      return `Error: ${err?.message ?? String(err)}`.substring(0, 2000);
+    } catch (err: unknown) {
+      return `Error: ${err instanceof Error ? err.message : String(err)}`.substring(0, 2000);
     }
+  }
+
+  /** Derive a stable, non-stored MCP auth token from the Repl's runtime identity. */
+  function getMcpToken(): string {
+    const seed = process.env.REPL_ID || process.env.REPLIT_DEV_DOMAIN || "better-bucks-local";
+    return crypto.createHmac("sha256", "bbmcp-v1").update(seed).digest("hex").slice(0, 32);
+  }
+
+  interface McpToolInput {
+    path?: string;
+    content?: string;
+    offset?: number;
+    limit?: number;
+    pattern?: string;
+    file_glob?: string;
+    command?: string;
+  }
+
+  interface McpRpcBody {
+    jsonrpc?: string;
+    method?: string;
+    params?: { name?: string; arguments?: McpToolInput };
+    id?: string | number | null;
   }
 
   const MCP_TOOLS = [
@@ -6389,26 +6293,25 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     const devDomain = process.env.REPLIT_DEV_DOMAIN || req.hostname;
     res.json({
       url: `https://${devDomain}/mcp`,
-      token: process.env.MCP_SECRET ?? null,
+      token: getMcpToken(),
     });
   });
 
   // POST /mcp — MCP Streamable HTTP transport for claude.ai integration
   app.post("/mcp", (req, res) => {
     const auth = req.headers["authorization"];
-    const secret = process.env.MCP_SECRET;
-    if (!secret || auth !== `Bearer ${secret}`) {
+    if (auth !== `Bearer ${getMcpToken()}`) {
       return res.status(401).json({ jsonrpc: "2.0", id: null, error: { code: -32000, message: "Unauthorized" } });
     }
 
-    const body = req.body as { jsonrpc?: string; method?: string; params?: any; id?: any };
+    const body = req.body as McpRpcBody;
     if (!body || !body.method) {
       return res.status(400).json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid Request" } });
     }
 
-    const reply = (result: any) => res.json({ jsonrpc: "2.0", id: body.id ?? null, result });
-    const replyError = (code: number, message: string) =>
-      res.json({ jsonrpc: "2.0", id: body.id ?? null, error: { code, message } });
+    const id = body.id ?? null;
+    const reply = (result: unknown) => res.json({ jsonrpc: "2.0", id, result });
+    const replyError = (code: number, message: string) => res.json({ jsonrpc: "2.0", id, error: { code, message } });
 
     switch (body.method) {
       case "initialize":

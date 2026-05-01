@@ -1237,7 +1237,7 @@ export default function HowItWorksPage() {
           </div>
 
           <p className="text-center text-sm text-gray-500 mt-8">
-            All plans include a <strong>60-day free pilot</strong>. No credit card required to start. Cancel anytime.
+            All plans include a <strong>60-day free pilot</strong>. Pay when you see the benefits. Cancel anytime.
           </p>
         </div>
       </section>

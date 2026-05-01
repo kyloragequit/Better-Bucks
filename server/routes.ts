@@ -7670,6 +7670,15 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     const taken = await storage.getUserByUsernameAndOrg(data.username, inv.organizationId);
     if (taken) return res.status(400).json({ message: "That username is already taken in this organization. Please choose another." });
 
+    // Enforce plan user limit
+    const invOrg = await storage.getOrganization(inv.organizationId);
+    if (invOrg && invOrg.maxEmployees > 0) {
+      const currentUsers = await storage.getUsersByOrganization(inv.organizationId);
+      if (currentUsers.length >= invOrg.maxEmployees) {
+        return res.status(400).json({ message: `This organization has reached its employee limit (${invOrg.maxEmployees}). Please contact your administrator to upgrade the plan.` });
+      }
+    }
+
     const { hashPassword } = await import("./auth");
     const hashed = await hashPassword(data.password);
     const barcode = crypto.randomBytes(6).toString("hex").toUpperCase();
@@ -7813,6 +7822,15 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     if (usernameTaken) return res.status(400).json({ message: "That username is already taken in this organization." });
     const emailTaken = await storage.getUserByEmailAndOrg(data.email, link.organizationId);
     if (emailTaken) return res.status(400).json({ message: "An account with that email already exists in this organization." });
+
+    // Enforce plan user limit
+    const linkOrg = await storage.getOrganization(link.organizationId);
+    if (linkOrg && linkOrg.maxEmployees > 0) {
+      const currentUsers = await storage.getUsersByOrganization(link.organizationId);
+      if (currentUsers.length >= linkOrg.maxEmployees) {
+        return res.status(400).json({ message: `This organization has reached its employee limit (${linkOrg.maxEmployees}). Please contact your administrator to upgrade the plan.` });
+      }
+    }
 
     const hashed = await hashPassword(data.password);
     const barcode = crypto.randomBytes(6).toString("hex").toUpperCase();

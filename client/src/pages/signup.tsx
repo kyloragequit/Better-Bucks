@@ -352,22 +352,10 @@ export default function SignupPage() {
           })}
         </div>
 
-        <div className="text-center py-8">
-          <div className="inline-block rounded-xl bg-gradient-to-r from-[#4E9F3D] to-[#3a7a2e] px-10 py-5 shadow-lg">
-            <p className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide" data-testid="text-free-trial-banner">
-              First 50 Companies Get Permanent Founder Pricing!
-            </p>
-            <p className="text-white/90 text-sm mt-1">60-Day free trial · Cancel anytime · No commitments</p>
-          </div>
-        </div>
-
         <div ref={signupFormRef}>
         {selectedTier && (
           <Card className="shadow-2xl shadow-black/10 border-muted bg-white/80 backdrop-blur-sm max-w-lg mx-auto">
             <CardHeader className="text-center pb-3">
-              <div className="inline-block rounded-full bg-primary/10 text-primary text-xs font-bold px-3 py-1 mb-2 tracking-wide uppercase">
-                ⭐ Founder Pricing
-              </div>
               <CardTitle className="text-lg">
                 Claim Your Spot
               </CardTitle>
@@ -461,7 +449,7 @@ export default function SignupPage() {
                     <p className="font-semibold text-foreground">13. CHANGES TO TERMS</p>
                     <p>We may update these terms at any time. Continued use of the Software constitutes acceptance of any changes.</p>
                     <p className="font-semibold text-foreground">14. ACCEPTANCE OF TERMS</p>
-                    <p>By checking the box and clicking "Claim Founder Pricing," you acknowledge that you have read, understood, and agree to be bound by this Agreement.</p>
+                    <p>By checking the box and clicking "Get Started," you acknowledge that you have read, understood, and agree to be bound by this Agreement.</p>
                   </div>
                   <div className="flex items-start gap-3 pt-1">
                     <Checkbox
@@ -506,7 +494,7 @@ export default function SignupPage() {
                   ) : (
                     <>
                       <Shield className="mr-2 h-4 w-4" />
-                      Claim Founder Pricing
+                      Get Started
                     </>
                   )}
                 </Button>

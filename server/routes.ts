@@ -3140,10 +3140,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
   // Tier pricing configuration
   const tierConfig = {
-    small:      { price: 1099,  maxEmployees: 25,  name: "Small Site",      description: "Up to 25 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
-    mid:        { price: 1899,  maxEmployees: 75,  name: "Mid-Size Site",   description: "26–75 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    large:      { price: 2999,  maxEmployees: 150, name: "Large Site",      description: "76–150 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    enterprise: { price: 29999, maxEmployees: -1,  name: "Enterprise Site", description: "150+ employees — includes 60-day free pilot, unlimited logins, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
+    small:      { price: 879,   maxEmployees: 25,  name: "Small Site",      description: "Up to 25 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
+    mid:        { price: 1519,  maxEmployees: 75,  name: "Mid-Size Site",   description: "26–75 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    large:      { price: 2399,  maxEmployees: 150, name: "Large Site",      description: "76–150 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    enterprise: { price: 23999, maxEmployees: -1,  name: "Enterprise Site", description: "150+ employees — includes 60-day free pilot, unlimited logins, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
   } as const;
 
   // Organization signup - create checkout session
@@ -3165,7 +3165,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     orgCode: string; referralCode?: string; mode: "stripe" | "contactPending" | "promo";
   }) {
     const planPrices: Record<string, string> = {
-      small: "$10.99/mo", mid: "$18.99/mo", large: "$29.99/mo", enterprise: "$299.99/mo",
+      small: "$8.79/mo", mid: "$15.19/mo", large: "$23.99/mo", enterprise: "$239.99/mo",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;

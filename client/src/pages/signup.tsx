@@ -22,22 +22,20 @@ const tiers = [
   {
     id: "small" as const,
     name: "Small Site",
-    price: 10.99,
-    originalPrice: 49.99,
+    price: 8.79,
     maxEmployees: 25,
     description: "Up to 25 employees",
-    perEmployee: "~$0.44",
+    perEmployee: "~$0.35",
     icon: Users,
     features: ["60-day free pilot program", "Up to 25 active logins", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"],
   },
   {
     id: "mid" as const,
     name: "Mid-Size Site",
-    price: 18.99,
-    originalPrice: 99.99,
+    price: 15.19,
     maxEmployees: 75,
     description: "26–75 employees",
-    perEmployee: "~$0.25",
+    perEmployee: "~$0.20",
     icon: Building2,
     popular: true,
     features: ["60-day free pilot program", "Up to 75 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
@@ -45,19 +43,17 @@ const tiers = [
   {
     id: "large" as const,
     name: "Large Site",
-    price: 29.99,
-    originalPrice: 149.99,
+    price: 23.99,
     maxEmployees: 150,
     description: "76–150 employees",
-    perEmployee: "~$0.20",
+    perEmployee: "~$0.16",
     icon: Zap,
     features: ["60-day free pilot program", "Up to 150 active logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
   },
   {
     id: "enterprise" as const,
     name: "Enterprise Site",
-    price: 299.99,
-    originalPrice: 599.99,
+    price: 239.99,
     maxEmployees: -1,
     description: "150+ employees",
     perEmployee: "More dedicated support",
@@ -298,7 +294,6 @@ export default function SignupPage() {
                       <span className="text-2xl font-bold text-primary">Contact Us</span>
                     ) : (
                       <div className="space-y-0.5">
-                        <div className="text-sm text-muted-foreground line-through">${tier.originalPrice}/mo</div>
                         <div>
                           <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
                           <span className="text-sm text-muted-foreground">/mo</span>

@@ -1139,7 +1139,6 @@ export default function HowItWorksPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Simple, Transparent Pricing</h2>
-            <p className="text-gray-600 text-lg max-w-xl mx-auto">Start with a 60-day free pilot — no credit card required until you're ready.</p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 

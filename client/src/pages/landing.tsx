@@ -561,9 +561,6 @@ export default function LandingPage() {
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3" data-testid="text-cta-headline">
               {c("cta_headline")}
             </h2>
-            <p className="text-gray-600 text-lg max-w-xl mx-auto">
-              Start with a 60-day free pilot — no credit card required until you're ready.
-            </p>
           </div>
 
           {/* Pricing cards */}

@@ -9,11 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowRight,
+  Check,
   CheckCircle2,
   Send,
   Play,
   Zap,
   Users,
+  Building2,
+  Crown,
   Menu,
   LogIn,
   BookOpen,
@@ -856,6 +859,7 @@ export default function HowItWorksPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const rfiRef = useRef<HTMLElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
 
@@ -1130,6 +1134,118 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      {/* ─── Pricing Section ─────────────────────────────────── */}
+      <section className="py-16 sm:py-24 bg-gray-50 border-t" data-testid="section-pricing">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Simple, Transparent Pricing</h2>
+            <p className="text-gray-600 text-lg max-w-xl mx-auto">Start with a 60-day free pilot — no credit card required until you're ready.</p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+            {/* A Little Better */}
+            <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-small">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg mb-4" style={{ background: `${NAVY}18` }}>
+                <Users className="h-5 w-5" style={{ color: NAVY }} />
+              </div>
+              <h3 className="text-3xl font-extrabold tracking-tight" style={{ color: NAVY }}>A Little Better</h3>
+              <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>25 Logins</p>
+              <p className="text-xs text-gray-500 mb-4">Up to 25 employee accounts</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-gray-900">$8.79</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-5">~$0.35 per login</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 shrink-0" style={{ color: BUCKS_COLOR }} />{f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full" style={{ background: NAVY }} onClick={() => setLocation("/signup")} data-testid="button-pricing-small">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Much Better — Most Popular */}
+            <div className="relative rounded-xl shadow-lg p-6 flex flex-col ring-2" style={{ background: NAVY, ringColor: BUCKS_COLOR }} data-testid="pricing-card-mid">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="text-white text-xs font-bold px-3 py-1 rounded-full shadow" style={{ background: BUCKS_COLOR }}>Most Popular</span>
+              </div>
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 mb-4">
+                <Building2 className="h-5 w-5 text-white" />
+              </div>
+              <h3 className="text-3xl font-extrabold text-white tracking-tight">Much Better</h3>
+              <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>75 Logins</p>
+              <p className="text-xs text-white/70 mb-4">Up to 75 employee accounts</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-white">$15.19</span>
+                <span className="text-sm text-white/70">/mo</span>
+              </div>
+              <p className="text-xs text-white/70 mb-5">~$0.20 per login</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-white/90">
+                    <Check className="h-4 w-4 shrink-0" style={{ color: BUCKS_COLOR }} />{f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full font-semibold" style={{ background: "white", color: NAVY }} onClick={() => setLocation("/signup")} data-testid="button-pricing-mid">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* A LOT Better */}
+            <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-large">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg mb-4" style={{ background: `${NAVY}18` }}>
+                <Zap className="h-5 w-5" style={{ color: NAVY }} />
+              </div>
+              <h3 className="text-3xl font-extrabold tracking-tight" style={{ color: NAVY }}>A LOT Better</h3>
+              <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>150 Logins</p>
+              <p className="text-xs text-gray-500 mb-4">Up to 150 employee accounts</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-gray-900">$23.99</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-5">~$0.16 per login</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 shrink-0" style={{ color: BUCKS_COLOR }} />{f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full" style={{ background: NAVY }} onClick={() => setLocation("/signup")} data-testid="button-pricing-large">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* How much Better? */}
+            <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-enterprise">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg mb-4" style={{ background: `${NAVY}18` }}>
+                <Crown className="h-5 w-5" style={{ color: NAVY }} />
+              </div>
+              <h3 className="text-3xl font-extrabold tracking-tight" style={{ color: NAVY }}>How much Better?</h3>
+              <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>Unlimited Logins</p>
+              <p className="text-xs text-gray-500 mb-4">150+ employees, no cap</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-gray-900">$239.99</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <p className="text-sm text-gray-600 mb-6 flex-1">Let's talk. We'll build the right plan for your team size, goals, and budget — no cookie-cutter tiers.</p>
+              <Button className="w-full" style={{ background: NAVY }} onClick={() => rfiRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} data-testid="button-pricing-enterprise">
+                Request Info <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-gray-500 mt-8">
+            All plans include a <strong>60-day free pilot</strong>. No credit card required to start. Cancel anytime.
+          </p>
+        </div>
+      </section>
+
       {/* ─── Simplified ROI Calculator (replaces testimonials) ─── */}
       <section className="py-16 sm:py-20" style={{ background: "#F0F4F8" }} data-testid="section-calculator">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
@@ -1156,7 +1272,7 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ─── Bottom CTA + Sign-up ─────────────────────────────── */}
-      <section className="py-16 sm:py-24" style={{ background: NAVY }} data-testid="section-cta">
+      <section ref={rfiRef} className="py-16 sm:py-24" style={{ background: NAVY }} data-testid="section-cta">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 grid gap-10 lg:grid-cols-2 items-center">
           <div className="text-center lg:text-left">
             <h2

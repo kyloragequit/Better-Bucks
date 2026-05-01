@@ -312,6 +312,7 @@ export default function EmployeeDashboard() {
                       <p className="font-medium text-sm truncate">{tx.reason}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {format(new Date(tx.createdAt), "MMM d, h:mm a")}
+                        {tx.performedByName && <span className="ml-1">· by {tx.performedByName}</span>}
                       </p>
                     </div>
                     <span className={`font-bold tabular-nums text-sm shrink-0 ${tx.amount > 0 ? "text-green-700" : "text-red-700"}`}>
@@ -341,7 +342,12 @@ export default function EmployeeDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{tx.reason}</span>
+                            <div>
+                              <span className="font-medium">{tx.reason}</span>
+                              {tx.performedByName && (
+                                <p className="text-xs text-muted-foreground mt-0.5">by {tx.performedByName}</p>
+                              )}
+                            </div>
                             <Badge variant="secondary" className="text-xs font-normal">
                               {tx.amount > 0 ? "Credit" : "Debit"}
                             </Badge>

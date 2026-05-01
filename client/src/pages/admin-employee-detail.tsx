@@ -626,7 +626,12 @@ export default function AdminEmployeeDetailPage() {
                       <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Debit</Badge>
                     )}
                   </TableCell>
-                  <TableCell>{tx.reason}</TableCell>
+                  <TableCell>
+                    <span>{tx.reason}</span>
+                    {tx.performedByName && (
+                      <p className="text-xs text-muted-foreground mt-0.5">by {tx.performedByName}</p>
+                    )}
+                  </TableCell>
                   <TableCell className={`text-right font-medium ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
                     {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
                   </TableCell>

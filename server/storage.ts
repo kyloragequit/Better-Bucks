@@ -2,6 +2,7 @@
 import { db } from "./db";
 import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, walletPasses, walletPassDevices, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice } from "@shared/schema";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -25,7 +26,7 @@ export interface IStorage {
   setTutorialCompleted(userId: number, completed: boolean): Promise<User>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  getTransactionsByUser(userId: number): Promise<Transaction[]>;
+  getTransactionsByUser(userId: number): Promise<(Transaction & { performedByName: string | null })[]>;
   getAllTransactions(): Promise<(Transaction & { user: User })[]>;
 
   createOrder(order: InsertOrder): Promise<Order>;
@@ -374,12 +375,21 @@ export class DatabaseStorage implements IStorage {
     return newTransaction;
   }
 
-  async getTransactionsByUser(userId: number): Promise<Transaction[]> {
-    return await db
-      .select()
+  async getTransactionsByUser(userId: number): Promise<(Transaction & { performedByName: string | null })[]> {
+    const performer = alias(users, "performer");
+    const result = await db
+      .select({
+        transaction: transactions,
+        performedByName: performer.fullName,
+      })
       .from(transactions)
+      .leftJoin(performer, eq(transactions.performedBy, performer.id))
       .where(eq(transactions.userId, userId))
       .orderBy(desc(transactions.createdAt));
+    return result.map(row => ({
+      ...row.transaction,
+      performedByName: row.performedByName ?? null,
+    }));
   }
 
   async getAllTransactions(): Promise<(Transaction & { user: User })[]> {

@@ -94,7 +94,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/users/:id',
       responses: {
-        200: z.custom<typeof users.$inferSelect & { transactions: typeof transactions.$inferSelect[]; customItems: { id: number; name: string; balance: number }[] }>(),
+        200: z.custom<typeof users.$inferSelect & { transactions: (typeof transactions.$inferSelect & { performedByName: string | null })[]; customItems: { id: number; name: string; balance: number }[] }>(),
         404: errorSchemas.notFound,
       },
     },

@@ -561,20 +561,21 @@ export default function LandingPage() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
-            {/* Small */}
+            {/* A Little Better */}
             <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-small">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
                 <Users className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Small Site</h3>
-              <p className="text-sm text-gray-500 mb-4">Up to 25 employees</p>
+              <h3 className="text-lg font-bold text-gray-900">A Little Better</h3>
+              <p className="text-2xl font-extrabold text-primary mt-1 mb-1">25 Logins</p>
+              <p className="text-xs text-gray-500 mb-4">Up to 25 employee accounts</p>
               <div className="mb-1">
                 <span className="text-4xl font-bold text-gray-900">$8.79</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
-              <p className="text-xs text-gray-500 mb-5">~$0.35 per employee</p>
+              <p className="text-xs text-gray-500 mb-5">~$0.35 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["60-day free pilot", "Up to 25 logins", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"].map(f => (
+                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
                     <Check className="h-4 w-4 text-secondary shrink-0" />{f}
                   </li>
@@ -585,7 +586,7 @@ export default function LandingPage() {
               </Button>
             </div>
 
-            {/* Mid — Most Popular */}
+            {/* Much Better — Most Popular */}
             <div className="relative bg-primary rounded-xl shadow-lg p-6 flex flex-col ring-2 ring-secondary" data-testid="pricing-card-mid">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="bg-secondary text-white text-xs font-bold px-3 py-1 rounded-full shadow">Most Popular</span>
@@ -593,15 +594,16 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 mb-4">
                 <Building2 className="h-5 w-5 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-white">Mid-Size Site</h3>
-              <p className="text-sm text-white/70 mb-4">26–75 employees</p>
+              <h3 className="text-lg font-bold text-white">Much Better</h3>
+              <p className="text-2xl font-extrabold text-secondary mt-1 mb-1">75 Logins</p>
+              <p className="text-xs text-white/70 mb-4">Up to 75 employee accounts</p>
               <div className="mb-1">
                 <span className="text-4xl font-bold text-white">$15.19</span>
                 <span className="text-sm text-white/70">/mo</span>
               </div>
-              <p className="text-xs text-white/70 mb-5">~$0.20 per employee</p>
+              <p className="text-xs text-white/70 mb-5">~$0.20 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["60-day free pilot", "Up to 75 logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
+                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-white/90">
                     <Check className="h-4 w-4 text-secondary shrink-0" />{f}
                   </li>
@@ -612,20 +614,21 @@ export default function LandingPage() {
               </Button>
             </div>
 
-            {/* Large */}
+            {/* A LOT Better */}
             <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-large">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
                 <Zap className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Large Site</h3>
-              <p className="text-sm text-gray-500 mb-4">76–150 employees</p>
+              <h3 className="text-lg font-bold text-gray-900">A LOT Better</h3>
+              <p className="text-2xl font-extrabold text-primary mt-1 mb-1">150 Logins</p>
+              <p className="text-xs text-gray-500 mb-4">Up to 150 employee accounts</p>
               <div className="mb-1">
                 <span className="text-4xl font-bold text-gray-900">$23.99</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
-              <p className="text-xs text-gray-500 mb-5">~$0.16 per employee</p>
+              <p className="text-xs text-gray-500 mb-5">~$0.16 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["60-day free pilot", "Up to 150 logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
+                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
                     <Check className="h-4 w-4 text-secondary shrink-0" />{f}
                   </li>
@@ -636,20 +639,21 @@ export default function LandingPage() {
               </Button>
             </div>
 
-            {/* Enterprise */}
+            {/* How much Better? */}
             <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-enterprise">
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
                 <Crown className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Enterprise</h3>
-              <p className="text-sm text-gray-500 mb-4">150+ employees</p>
+              <h3 className="text-lg font-bold text-gray-900">How much Better?</h3>
+              <p className="text-2xl font-extrabold text-primary mt-1 mb-1">Unlimited Logins</p>
+              <p className="text-xs text-gray-500 mb-4">150+ employees, no cap</p>
               <div className="mb-1">
                 <span className="text-4xl font-bold text-gray-900">$239.99</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
               <p className="text-xs text-gray-500 mb-5">Dedicated support included</p>
               <ul className="space-y-2 mb-6 flex-1">
-                {["60-day free pilot", "Unlimited logins", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"].map(f => (
+                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
                     <Check className="h-4 w-4 text-secondary shrink-0" />{f}
                   </li>

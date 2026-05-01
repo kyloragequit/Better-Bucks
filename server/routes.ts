@@ -1659,7 +1659,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         if (org && org.maxEmployees > 0) {
           const orgUsers = await storage.getUsersByOrganization(user.organizationId);
           if (orgUsers.length >= org.maxEmployees) {
-            const tierNames: Record<string, string> = { small: "Small Site (25)", mid: "Mid-Size Site (75)", large: "Large Site (150)", enterprise: "Enterprise (Unlimited)" };
+            const tierNames: Record<string, string> = { small: "A Little Better (25 logins)", mid: "Much Better (75 logins)", large: "A LOT Better (150 logins)", enterprise: "How much Better? (Unlimited)" };
             return res.status(400).json({ message: `Employee limit reached for your ${tierNames[org.tier] || org.tier} plan (${org.maxEmployees} max). Please upgrade your plan to add more team members.` });
           }
         }
@@ -3140,10 +3140,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
   // Tier pricing configuration
   const tierConfig = {
-    small:      { price: 879,   maxEmployees: 25,  name: "Small Site",      description: "Up to 25 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
-    mid:        { price: 1519,  maxEmployees: 75,  name: "Mid-Size Site",   description: "26–75 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    large:      { price: 2399,  maxEmployees: 150, name: "Large Site",      description: "76–150 employees — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    enterprise: { price: 23999, maxEmployees: -1,  name: "Enterprise Site", description: "150+ employees — includes 60-day free pilot, unlimited logins, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
+    small:      { price: 879,   maxEmployees: 25,  name: "A Little Better",  description: "25 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
+    mid:        { price: 1519,  maxEmployees: 75,  name: "Much Better",      description: "75 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    large:      { price: 2399,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    enterprise: { price: 23999, maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
   } as const;
 
   // Organization signup - create checkout session
@@ -5733,10 +5733,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }).parse(req.body);
 
     const tiers = [
-      { tier: "small", price: 4999, name: "Small Site", maxEmp: 25 },
-      { tier: "mid", price: 9999, name: "Mid-Size Site", maxEmp: 75 },
-      { tier: "large", price: 14999, name: "Large Site", maxEmp: 150 },
-      { tier: "enterprise", price: 29999, name: "Enterprise Site", maxEmp: "Unlimited" },
+      { tier: "small", price: 4999, name: "A Little Better", maxEmp: 25 },
+      { tier: "mid", price: 9999, name: "Much Better", maxEmp: 75 },
+      { tier: "large", price: 14999, name: "A LOT Better", maxEmp: 150 },
+      { tier: "enterprise", price: 29999, name: "How much Better?", maxEmp: "Unlimited" },
     ];
 
     const laTaxRate = 0.0945;

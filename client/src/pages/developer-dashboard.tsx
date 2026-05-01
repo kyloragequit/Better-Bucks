@@ -73,10 +73,10 @@ type OrgWithStats = Organization & {
 };
 
 const tierLabels: Record<string, string> = {
-  small: "Small Site",
-  mid: "Mid-Size",
-  large: "Large Site",
-  enterprise: "Enterprise",
+  small: "A Little Better",
+  mid: "Much Better",
+  large: "A LOT Better",
+  enterprise: "How much Better?",
 };
 
 const tierPrices: Record<string, number> = {

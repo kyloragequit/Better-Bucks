@@ -318,6 +318,30 @@ async function notifyAllPrimeAdmins(organizationId: number, subject: string, det
   await Promise.all(emails.map(email => notifyAdmin(email, subject, details).catch(() => {})));
 }
 
+async function getOrgAdminEmails(organizationId: number): Promise<string[]> {
+  const orgUsers = await storage.getUsersByOrganization(organizationId);
+  const emails = orgUsers
+    .filter(u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.emailVerified && u.status === "approved")
+    .map(u => u.email as string);
+  return [...new Set(emails)];
+}
+
+async function notifyAdminsOfNewOrder(organizationId: number, employee: { firstName: string; lastName: string; email?: string | null }, order: { id: number; description: string; pointsCost: number; convertedValue?: string | null; itemUrl?: string | null }): Promise<void> {
+  const emails = await getOrgAdminEmails(organizationId);
+  if (!emails.length) return;
+
+  const details: Record<string, string> = {
+    "Employee": `${employee.firstName} ${employee.lastName}`,
+    "Order #": String(order.id),
+    "Item": order.description,
+    "Bucks Spent": String(order.pointsCost),
+  };
+  if (order.convertedValue) details["Estimated Value"] = order.convertedValue;
+  if (order.itemUrl) details["Item Link"] = order.itemUrl;
+
+  await Promise.all(emails.map(email => notifyAdmin(email, "New Employee Order Submitted", details).catch(() => {})));
+}
+
 interface BillingEmailParams {
   to: string;
   invoiceNumber: string;
@@ -2746,6 +2770,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       });
       invalidateUserCache(user.id);
       void notifyEmployeeBalanceChange(user.id, -pointsCost, `Order #${order.id}: ${description}`);
+      if (user.organizationId) {
+        void notifyAdminsOfNewOrder(user.organizationId, user, { ...order, convertedValue: convertedValue ?? null });
+      }
 
       res.status(201).json(order);
     } catch (e) {

@@ -53,10 +53,10 @@ const tiers = [
   {
     id: "enterprise" as const,
     name: "How much Better?",
-    price: 239.99,
+    price: 0,
     maxEmployees: -1,
     description: "Unlimited Logins",
-    perEmployee: "More dedicated support",
+    perEmployee: "Custom pricing — contact us",
     icon: Crown,
     features: ["Unlimited employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"],
   },
@@ -360,7 +360,7 @@ export default function SignupPage() {
                 Claim Your Spot
               </CardTitle>
               <CardDescription>
-                {selectedTierData?.name} — locked in at ${selectedTierData?.price}/month
+                {selectedTierData?.name}{selectedTierData?.id !== "enterprise" ? ` — locked in at $${selectedTierData?.price}/month` : " — contact us for custom pricing"}
               </CardDescription>
             </CardHeader>
             <CardContent>

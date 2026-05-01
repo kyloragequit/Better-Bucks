@@ -3143,7 +3143,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     small:      { price: 879,   maxEmployees: 25,  name: "A Little Better",  description: "25 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
     mid:        { price: 1519,  maxEmployees: 75,  name: "Much Better",      description: "75 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
     large:      { price: 2399,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    enterprise: { price: 23999, maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, custom reporting, and dedicated support." },
+    enterprise: { price: 0,     maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — custom pricing, please contact us for a personalized quote." },
   } as const;
 
   // Organization signup - create checkout session
@@ -3165,7 +3165,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     orgCode: string; referralCode?: string; mode: "stripe" | "contactPending" | "promo";
   }) {
     const planPrices: Record<string, string> = {
-      small: "$8.79/mo", mid: "$15.19/mo", large: "$23.99/mo", enterprise: "$239.99/mo",
+      small: "$8.79/mo", mid: "$15.19/mo", large: "$23.99/mo", enterprise: "Contact us",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;

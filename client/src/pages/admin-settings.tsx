@@ -34,7 +34,7 @@ const tierDefaults: Record<string, { name: string; price: number; maxEmployees: 
   small:      { name: "A Little Better",  price: 879,   maxEmployees: 25 },
   mid:        { name: "Much Better",      price: 1519,  maxEmployees: 75 },
   large:      { name: "A LOT Better",     price: 2399,  maxEmployees: 150 },
-  enterprise: { name: "How much Better?", price: 23999, maxEmployees: -1 },
+  enterprise: { name: "How much Better?", price: 0, maxEmployees: -1 },
 };
 const tierOrder = ["small", "mid", "large", "enterprise"] as const;
 

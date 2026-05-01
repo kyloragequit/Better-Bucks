@@ -49,10 +49,10 @@ const tiers = [
   {
     id: "enterprise" as const,
     name: "How much Better?",
-    price: 239.99,
+    price: 0,
     maxEmployees: -1,
     description: "Unlimited Logins",
-    perEmployee: "Best value",
+    perEmployee: "Custom pricing — contact us",
     icon: Crown,
     features: ["Unlimited employee logins", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"],
   },
@@ -172,11 +172,17 @@ export default function ReactivatePage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-center">
                   <div>
-                    <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
-                    <span className="text-sm text-muted-foreground">/mo</span>
+                    {tier.price === 0 ? (
+                      <span className="text-2xl font-bold text-primary">Contact Us</span>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
+                        <span className="text-sm text-muted-foreground">/mo</span>
+                      </>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {tier.perEmployee} per employee
+                    {tier.price === 0 ? tier.perEmployee : `${tier.perEmployee} per employee`}
                   </div>
                   <div className="space-y-1.5 text-left">
                     {tier.features.map((feature, i) => (
@@ -213,7 +219,7 @@ export default function ReactivatePage() {
                 Confirm Reactivation
               </CardTitle>
               <CardDescription>
-                {selectedTierData?.name} - ${selectedTierData?.price}/month
+                {selectedTierData?.name}{selectedTierData?.price === 0 ? " — contact us for custom pricing" : ` - $${selectedTierData?.price}/month`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -235,7 +241,7 @@ export default function ReactivatePage() {
                   ) : (
                     <>
                       <CreditCard className="mr-2 h-4 w-4" />
-                      Continue to Payment - ${selectedTierData?.price}/month
+                      {selectedTierData?.price === 0 ? "Request Info →" : `Continue to Payment - $${selectedTierData?.price}/month`}
                     </>
                   )}
                 </Button>

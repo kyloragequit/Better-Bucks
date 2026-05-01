@@ -552,14 +552,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section className="py-16 sm:py-24 bg-gray-50 border-t" data-testid="section-pricing">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      </main>
+
+      <footer ref={contactRef} className="border-t bg-gray-50" data-testid="section-contact">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Simple, Transparent Pricing</h2>
-            <p className="text-gray-600 text-lg max-w-xl mx-auto">Start with a 60-day free pilot — no credit card required until you're ready.</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3" data-testid="text-cta-headline">
+              {c("cta_headline")}
+            </h2>
+            <p className="text-gray-600 text-lg max-w-xl mx-auto">
+              Start with a 60-day free pilot — no credit card required until you're ready.
+            </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Pricing cards */}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" data-testid="section-pricing">
 
             {/* A Little Better */}
             <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-small">
@@ -665,24 +672,12 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <p className="text-center text-sm text-gray-500 mt-8">
+          <p className="text-center text-sm text-gray-500 mt-8 mb-10">
             All plans include a <strong>60-day free pilot</strong>. No credit card required to start. Cancel anytime.
           </p>
-        </div>
-      </section>
-      </main>
 
-      <footer ref={contactRef} className="border-t bg-gray-50" data-testid="section-contact">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3" data-testid="text-cta-headline">
-              {c("cta_headline")}
-            </h2>
-            <p className="text-gray-600 max-w-lg mx-auto">
-              {c("cta_subtext")}
-            </p>
-          </div>
-          <div className="flex justify-center mb-6">
+          {/* Demo + contact strip */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 border-t">
             <Button
               size="lg"
               variant="outline"
@@ -691,106 +686,22 @@ export default function LandingPage() {
               disabled={demoLoading}
               data-testid="button-cta-try-demo"
             >
-              {demoLoading ? (
-                <SpinningLogo className="mr-2 h-5 w-5" />
-              ) : (
-                <Play className="mr-2 h-5 w-5" />
-              )}
-              {demoLoading ? (
-                "Loading..."
-              ) : (
-                <>
-                  <span className="sm:hidden">Try Demo</span>
-                  <span className="hidden sm:inline">Try our self guided demo</span>
-                </>
-              )}
+              {demoLoading ? <SpinningLogo className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
+              {demoLoading ? "Loading..." : "Try the Demo First"}
             </Button>
-          </div>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 border-t border-gray-200" />
-            <span className="text-sm text-gray-700">or request a personalized demo</span>
-            <div className="flex-1 border-t border-gray-200" />
-          </div>
-          <form onSubmit={handleContactSubmit} className="bg-white rounded-lg border shadow-sm p-6 sm:p-8 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="contact-name">Name</Label>
-                <Input
-                  id="contact-name"
-                  required
-                  placeholder="Your full name"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  data-testid="input-contact-name"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="contact-email">Email</Label>
-                <Input
-                  id="contact-email"
-                  type="email"
-                  required
-                  placeholder="you@company.com"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  data-testid="input-contact-email"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="contact-phone">Phone</Label>
-              <Input
-                id="contact-phone"
-                type="tel"
-                required
-                placeholder="(555) 123-4567"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                data-testid="input-contact-phone"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="contact-needs">Tell us about your employee incentive needs</Label>
-              <Textarea
-                id="contact-needs"
-                required
-                rows={4}
-                placeholder="How many employees do you have? What kind of rewards are you looking for?"
-                value={contactNeeds}
-                onChange={(e) => setContactNeeds(e.target.value)}
-                data-testid="input-contact-needs"
-              />
-            </div>
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full text-base shadow-lg shadow-primary/25"
-              disabled={contactSubmitting}
-              data-testid="button-request-demo"
+            <span className="text-gray-400 hidden sm:inline">or</span>
+            <a
+              href="mailto:miles.chase@betterbucks.net"
+              className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2 transition-colors"
+              data-testid="link-contact-email"
             >
-              {contactSubmitting ? (
-                <SpinningLogo className="mr-2 h-5 w-5" />
-              ) : (
-                <Send className="mr-2 h-5 w-5" />
-              )}
-              {contactSubmitting ? "Sending..." : "Request a Demo"}
-            </Button>
-          </form>
-          <div className="mt-10 pt-6 border-t text-sm text-gray-700 flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2">
-              <AppLogo size="sm" />
-              <span>Better Bucks LLC</span>
-            </div>
-            <p className="flex items-center gap-1">
-              Contact us:{" "}
-              <a
-                href="mailto:miles.chase@betterbucks.net"
-                className="text-gray-700 hover:text-gray-900 transition-colors underline underline-offset-2"
-                data-testid="link-contact-email"
-              >
-                miles.chase@betterbucks.net
-              </a>
-            </p>
+              Email us with questions
+            </a>
+          </div>
+
+          <div className="mt-10 pt-6 border-t text-sm text-gray-500 flex items-center justify-center gap-2">
+            <AppLogo size="sm" />
+            <span>Better Bucks LLC · miles.chase@betterbucks.net</span>
           </div>
         </div>
       </footer>

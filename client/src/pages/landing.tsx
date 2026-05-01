@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/app-logo";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb, BookOpen, Play, ClipboardList, Target, Zap, ShoppingBag } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ArrowRight, LogIn, Building2, Info, Send, Menu, Lightbulb, BookOpen, Play, ClipboardList, Target, Zap, ShoppingBag, Users, Check, Crown } from "lucide-react";
 import { LogoBackground } from "@/components/logo-background";
 import { InstagramFloat } from "@/components/instagram-float";
 
@@ -549,6 +549,121 @@ export default function LandingPage() {
               </span>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-16 sm:py-24 bg-gray-50 border-t" data-testid="section-pricing">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Simple, Transparent Pricing</h2>
+            <p className="text-gray-600 text-lg max-w-xl mx-auto">Start with a 60-day free pilot — no credit card required until you're ready.</p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+            {/* Small */}
+            <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-small">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Small Site</h3>
+              <p className="text-sm text-gray-500 mb-4">Up to 25 employees</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-gray-900">$8.79</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-5">~$0.35 per employee</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {["60-day free pilot", "Up to 25 logins", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 text-secondary shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full" onClick={() => setLocation("/signup")} data-testid="button-pricing-small">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Mid — Most Popular */}
+            <div className="relative bg-primary rounded-xl shadow-lg p-6 flex flex-col ring-2 ring-secondary" data-testid="pricing-card-mid">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-secondary text-white text-xs font-bold px-3 py-1 rounded-full shadow">Most Popular</span>
+              </div>
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 mb-4">
+                <Building2 className="h-5 w-5 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">Mid-Size Site</h3>
+              <p className="text-sm text-white/70 mb-4">26–75 employees</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-white">$15.19</span>
+                <span className="text-sm text-white/70">/mo</span>
+              </div>
+              <p className="text-xs text-white/70 mb-5">~$0.20 per employee</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {["60-day free pilot", "Up to 75 logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-white/90">
+                    <Check className="h-4 w-4 text-secondary shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full bg-white text-primary hover:bg-white/90 font-semibold" onClick={() => setLocation("/signup")} data-testid="button-pricing-mid">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Large */}
+            <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-large">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
+                <Zap className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Large Site</h3>
+              <p className="text-sm text-gray-500 mb-4">76–150 employees</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-gray-900">$23.99</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-5">~$0.16 per employee</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {["60-day free pilot", "Up to 150 logins", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 text-secondary shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full" onClick={() => setLocation("/signup")} data-testid="button-pricing-large">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Enterprise */}
+            <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col" data-testid="pricing-card-enterprise">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
+                <Crown className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Enterprise</h3>
+              <p className="text-sm text-gray-500 mb-4">150+ employees</p>
+              <div className="mb-1">
+                <span className="text-4xl font-bold text-gray-900">$239.99</span>
+                <span className="text-sm text-gray-500">/mo</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-5">Dedicated support included</p>
+              <ul className="space-y-2 mb-6 flex-1">
+                {["60-day free pilot", "Unlimited logins", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 text-secondary shrink-0" />{f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full" onClick={() => setLocation("/signup")} data-testid="button-pricing-enterprise">
+                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-gray-500 mt-8">
+            All plans include a <strong>60-day free pilot</strong>. No credit card required to start. Cancel anytime.
+          </p>
         </div>
       </section>
       </main>

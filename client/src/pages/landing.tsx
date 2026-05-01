@@ -41,6 +41,7 @@ export default function LandingPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const contactRef = useRef<HTMLDivElement>(null);
+  const rfiRef = useRef<HTMLDivElement>(null);
   const { data: rawContent } = useQuery<Record<string, string>>({ queryKey: ["/api/page-content"] });
   const c = (key: string) => rawContent?.[key] ?? DEFAULTS[key] ?? "";
 
@@ -573,7 +574,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
                 <Users className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">A Little Better</h3>
+              <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">A Little Better</h3>
               <p className="text-2xl font-extrabold text-primary mt-1 mb-1">25 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 25 employee accounts</p>
               <div className="mb-1">
@@ -601,7 +602,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white/20 mb-4">
                 <Building2 className="h-5 w-5 text-white" />
               </div>
-              <h3 className="text-lg font-bold text-white">Much Better</h3>
+              <h3 className="text-3xl font-extrabold text-white tracking-tight">Much Better</h3>
               <p className="text-2xl font-extrabold text-secondary mt-1 mb-1">75 Logins</p>
               <p className="text-xs text-white/70 mb-4">Up to 75 employee accounts</p>
               <div className="mb-1">
@@ -626,7 +627,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
                 <Zap className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">A LOT Better</h3>
+              <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">A LOT Better</h3>
               <p className="text-2xl font-extrabold text-primary mt-1 mb-1">150 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 150 employee accounts</p>
               <div className="mb-1">
@@ -651,23 +652,16 @@ export default function LandingPage() {
               <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
                 <Crown className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">How much Better?</h3>
+              <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">How much Better?</h3>
               <p className="text-2xl font-extrabold text-primary mt-1 mb-1">Unlimited Logins</p>
               <p className="text-xs text-gray-500 mb-4">150+ employees, no cap</p>
               <div className="mb-1">
                 <span className="text-4xl font-bold text-gray-900">$239.99</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
-              <p className="text-xs text-gray-500 mb-5">Dedicated support included</p>
-              <ul className="space-y-2 mb-6 flex-1">
-                {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
-                    <Check className="h-4 w-4 text-secondary shrink-0" />{f}
-                  </li>
-                ))}
-              </ul>
-              <Button className="w-full" onClick={() => setLocation("/signup")} data-testid="button-pricing-enterprise">
-                Get Started <ArrowRight className="ml-2 h-4 w-4" />
+              <p className="text-sm text-gray-600 mb-6 flex-1">Let's talk. We'll build the right plan for your team size, goals, and budget — no cookie-cutter tiers.</p>
+              <Button className="w-full" onClick={() => rfiRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} data-testid="button-pricing-enterprise">
+                Request Info <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -675,6 +669,79 @@ export default function LandingPage() {
           <p className="text-center text-sm text-gray-500 mt-8 mb-10">
             All plans include a <strong>60-day free pilot</strong>. No credit card required to start. Cancel anytime.
           </p>
+
+          {/* RFI Form */}
+          <div ref={rfiRef} className="max-w-2xl mx-auto mt-10 scroll-mt-24">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Request More Information</h3>
+              <p className="text-gray-600">Tell us about your team and we'll reach out with a personalized demo.</p>
+            </div>
+            <form onSubmit={handleContactSubmit} className="bg-white rounded-lg border shadow-sm p-6 sm:p-8 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-name">Name</Label>
+                  <Input
+                    id="contact-name"
+                    required
+                    placeholder="Your full name"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    data-testid="input-contact-name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-email">Email</Label>
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    required
+                    placeholder="you@company.com"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    data-testid="input-contact-email"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-phone">Phone</Label>
+                <Input
+                  id="contact-phone"
+                  type="tel"
+                  required
+                  placeholder="(555) 123-4567"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  data-testid="input-contact-phone"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-needs">Tell us about your employee incentive needs</Label>
+                <Textarea
+                  id="contact-needs"
+                  required
+                  rows={4}
+                  placeholder="How many employees do you have? What kind of rewards are you looking for?"
+                  value={contactNeeds}
+                  onChange={(e) => setContactNeeds(e.target.value)}
+                  data-testid="input-contact-needs"
+                />
+              </div>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full text-base shadow-lg shadow-primary/25"
+                disabled={contactSubmitting}
+                data-testid="button-request-demo"
+              >
+                {contactSubmitting ? (
+                  <SpinningLogo className="mr-2 h-5 w-5" />
+                ) : (
+                  <Send className="mr-2 h-5 w-5" />
+                )}
+                {contactSubmitting ? "Sending..." : "Request a Demo"}
+              </Button>
+            </form>
+          </div>
 
           {/* Demo + contact strip */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 border-t">

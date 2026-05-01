@@ -297,14 +297,6 @@ async function getOrgPrimeAdminEmail(organizationId: number): Promise<string | n
   return primeAdmin?.email ?? null;
 }
 
-async function getOrgAdminEmails(organizationId: number): Promise<string[]> {
-  const orgUsers = await storage.getUsersByOrganization(organizationId);
-  const emails = orgUsers
-    .filter(u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.status === "approved")
-    .map(u => u.email as string);
-  return [...new Set(emails)];
-}
-
 async function getOrgPrimeAdminEmails(organizationId: number): Promise<string[]> {
   const orgUsers = await storage.getUsersByOrganization(organizationId);
   const emails = orgUsers

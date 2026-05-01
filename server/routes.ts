@@ -313,17 +313,17 @@ async function notifyAllPrimeAdmins(organizationId: number, subject: string, det
 async function getOrgAdminEmails(organizationId: number): Promise<string[]> {
   const orgUsers = await storage.getUsersByOrganization(organizationId);
   const emails = orgUsers
-    .filter(u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.emailVerified && u.status === "approved")
+    .filter(u => (u.role === "prime_admin" || u.role === "admin") && u.email && u.status === "approved")
     .map(u => u.email as string);
   return [...new Set(emails)];
 }
 
-async function notifyAdminsOfNewOrder(organizationId: number, employee: { firstName: string; lastName: string; email?: string | null }, order: { id: number; description: string; pointsCost: number; convertedValue?: string | null; itemUrl?: string | null }): Promise<void> {
+async function notifyAdminsOfNewOrder(organizationId: number, employee: { fullName: string; email?: string | null }, order: { id: number; description: string; pointsCost: number; convertedValue?: string | null; itemUrl?: string | null }): Promise<void> {
   const emails = await getOrgAdminEmails(organizationId);
   if (!emails.length) return;
 
   const details: Record<string, string> = {
-    "Employee": `${employee.firstName} ${employee.lastName}`,
+    "Employee": employee.fullName,
     "Order #": String(order.id),
     "Item": order.description,
     "Bucks Spent": String(order.pointsCost),

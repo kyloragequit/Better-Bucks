@@ -1058,7 +1058,7 @@ export default function HowItWorksPage() {
               style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", color: NAVY }}
               data-testid="text-hero-headline"
             >
-              "The only employee rewards platform built for the workers who don't have a desk."
+              The only employee rewards platform built for the workers who don't have a desk.
             </h1>
             <p
               className="mt-5 text-lg text-gray-600 max-w-xl leading-relaxed"

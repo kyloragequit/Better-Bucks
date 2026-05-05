@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Package, Check, X, Eye, ExternalLink, Lock, Pencil } from "lucide-react";
+import { Package, Check, X, Eye, ExternalLink, Lock, Pencil, ShoppingCart, Download, Send, Mail } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,10 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Order, User } from "@shared/schema";
 
 type OrderWithUser = Order & { user: User };
+
+type ShoppingListVariant = { size: string; color: string; qty: number; employees: string[] };
+type ShoppingListItem = { name: string; variants: ShoppingListVariant[] };
+type ShoppingListData = { items: ShoppingListItem[]; generatedAt: string; totalOrders: number };
 
 function statusVariant(status: string) {
   switch (status) {
@@ -39,6 +43,7 @@ export default function AdminOrdersPage() {
     queryKey: ["/api/orders"],
   });
   const [selectedOrder, setSelectedOrder] = useState<OrderWithUser | null>(null);
+  const [showShoppingList, setShowShoppingList] = useState(false);
 
   if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
 
@@ -66,11 +71,23 @@ export default function AdminOrdersPage() {
       {pendingOrders.length > 0 && (
         <Card className="shadow-md mb-6 border-primary/20">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              Pending Orders
-              <Badge variant="secondary" className="ml-2">{pendingOrders.length}</Badge>
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                Pending Orders
+                <Badge variant="secondary" className="ml-2">{pendingOrders.length}</Badge>
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setShowShoppingList(true)}
+                data-testid="button-open-shopping-list"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Shopping List
+              </Button>
+            </div>
             <div className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 mt-1">
               <ExternalLink className="h-4 w-4 mt-0.5 shrink-0 text-primary/60" />
               <p className="text-sm text-muted-foreground">
@@ -273,6 +290,10 @@ export default function AdminOrdersPage() {
       {selectedOrder && (
         <OrderPhotoDialog order={selectedOrder} onClose={() => setSelectedOrder(null)} isPrime={isPrime} />
       )}
+
+      {showShoppingList && (
+        <ShoppingListDialog onClose={() => setShowShoppingList(false)} />
+      )}
     </AdminLayout>
   );
 }
@@ -321,6 +342,158 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
         <><Check className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">{label}</span></>
       )}
     </Button>
+  );
+}
+
+function ShoppingListDialog({ onClose }: { onClose: () => void }) {
+  const { toast } = useToast();
+  const [emailTo, setEmailTo] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const { data, isLoading } = useQuery<ShoppingListData>({
+    queryKey: ["/api/orders/shopping-list"],
+  });
+
+  const totalQty = data?.items.reduce((sum, item) => sum + item.variants.reduce((s, v) => s + v.qty, 0), 0) ?? 0;
+
+  const handleDownload = () => {
+    const a = document.createElement("a");
+    a.href = "/api/orders/shopping-list/csv";
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailTo.trim()) {
+      toast({ title: "Email required", description: "Please enter an email address.", variant: "destructive" });
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      const res = await apiRequest("POST", "/api/orders/shopping-list/send", { email: emailTo.trim() });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to send email");
+      }
+      toast({ title: "Sent!", description: `Shopping list emailed to ${emailTo.trim()}.` });
+      setEmailTo("");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5 text-primary" />
+            Shopping List
+          </DialogTitle>
+          <DialogDescription>
+            Compiled from all pending orders — {data?.totalOrders ?? "…"} order{data?.totalOrders !== 1 ? "s" : ""}, {totalQty} total item{totalQty !== 1 ? "s" : ""}
+            {data?.generatedAt && (
+              <span className="ml-1 text-xs text-muted-foreground">
+                · generated {format(new Date(data.generatedAt), "MMM d, h:mm a")}
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Preview table */}
+        <div className="rounded-lg border overflow-hidden">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-24"><Loader /></div>
+          ) : !data || data.items.length === 0 ? (
+            <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">No pending orders to compile.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/60">
+                  <TableHead className="font-semibold">Item</TableHead>
+                  <TableHead className="font-semibold">Size</TableHead>
+                  <TableHead className="font-semibold">Color</TableHead>
+                  <TableHead className="font-semibold text-center">Qty</TableHead>
+                  <TableHead className="font-semibold">Ordered By</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.items.map((item, itemIdx) =>
+                  item.variants.map((v, vIdx) => (
+                    <TableRow key={`${itemIdx}-${vIdx}`} className={vIdx === 0 && itemIdx > 0 ? "border-t-2 border-muted" : ""}>
+                      {vIdx === 0 && (
+                        <TableCell
+                          rowSpan={item.variants.length}
+                          className="font-medium align-top max-w-[160px]"
+                          data-testid={`text-shopping-item-${itemIdx}`}
+                        >
+                          {item.name}
+                        </TableCell>
+                      )}
+                      <TableCell className="text-sm text-muted-foreground">{v.size || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{v.color || "—"}</TableCell>
+                      <TableCell className="text-center font-bold text-primary" data-testid={`text-shopping-qty-${itemIdx}-${vIdx}`}>{v.qty}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate" title={v.employees.join(", ")}>{v.employees.join(", ")}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="space-y-4 pt-2">
+          {/* Download */}
+          <Button
+            variant="outline"
+            className="w-full flex items-center gap-2"
+            onClick={handleDownload}
+            disabled={!data || data.items.length === 0}
+            data-testid="button-download-shopping-list"
+          >
+            <Download className="h-4 w-4" />
+            Download CSV
+          </Button>
+
+          {/* Email */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-sm font-medium">
+              <Mail className="h-4 w-4" />
+              Send to email
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="recipient@example.com"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendEmail()}
+                disabled={sendingEmail || !data || data.items.length === 0}
+                data-testid="input-shopping-list-email"
+              />
+              <Button
+                onClick={handleSendEmail}
+                disabled={sendingEmail || !emailTo.trim() || !data || data.items.length === 0}
+                className="flex items-center gap-1.5 whitespace-nowrap"
+                data-testid="button-send-shopping-list-email"
+              >
+                {sendingEmail ? <SpinningLogo className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                {sendingEmail ? "Sending…" : "Send"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

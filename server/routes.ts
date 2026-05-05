@@ -2877,6 +2877,176 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json(updated);
   });
 
+  // ── Shopping List ──────────────────────────────────────────────────────────
+
+  function buildShoppingList(orders: Array<{ description: string; quantity: number | null; selectedSize: string | null; selectedColor: string | null; employeeName: string }>) {
+    type Variant = { size: string; color: string; qty: number; employees: string[] };
+    const items = new Map<string, Map<string, Variant>>();
+
+    for (const o of orders) {
+      const name = (o.description || "Unknown Item").trim();
+      const size = (o.selectedSize || "").trim();
+      const color = (o.selectedColor || "").trim();
+      const qty = Math.max(1, o.quantity ?? 1);
+      const variantKey = `${size}|||${color}`;
+
+      if (!items.has(name)) items.set(name, new Map());
+      const variantMap = items.get(name)!;
+      if (!variantMap.has(variantKey)) {
+        variantMap.set(variantKey, { size, color, qty: 0, employees: [] });
+      }
+      const v = variantMap.get(variantKey)!;
+      v.qty += qty;
+      if (o.employeeName && !v.employees.includes(o.employeeName)) {
+        v.employees.push(o.employeeName);
+      }
+    }
+
+    return Array.from(items.entries()).map(([name, variantMap]) => ({
+      name,
+      variants: Array.from(variantMap.values()),
+    }));
+  }
+
+  function buildShoppingListCsv(groupedItems: ReturnType<typeof buildShoppingList>, orgName: string, generatedAt: Date) {
+    const lines: string[] = [
+      `Shopping List — Better Bucks Pending Orders`,
+      `Organization: ${orgName}`,
+      `Generated: ${generatedAt.toLocaleString("en-US", { timeZone: "America/Chicago" })} CT`,
+      ``,
+      `Item,Size,Color,Qty,"Ordered By"`,
+    ];
+    for (const item of groupedItems) {
+      for (const v of item.variants) {
+        const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+        lines.push([esc(item.name), esc(v.size || "—"), esc(v.color || "—"), String(v.qty), esc(v.employees.join("; "))].join(","));
+      }
+    }
+    return lines.join("\r\n");
+  }
+
+  function buildShoppingListHtml(groupedItems: ReturnType<typeof buildShoppingList>, orgName: string, generatedAt: Date) {
+    const NAVY = "#162A4A";
+    const GREEN = "#4E9F3D";
+    let rows = "";
+    for (const item of groupedItems) {
+      const rowSpan = item.variants.length;
+      item.variants.forEach((v, i) => {
+        rows += `<tr>
+          ${i === 0 ? `<td rowspan="${rowSpan}" style="border:1px solid #ddd;padding:8px 12px;font-weight:600;vertical-align:top;">${item.name}</td>` : ""}
+          <td style="border:1px solid #ddd;padding:8px 12px;">${v.size || "—"}</td>
+          <td style="border:1px solid #ddd;padding:8px 12px;">${v.color || "—"}</td>
+          <td style="border:1px solid #ddd;padding:8px 12px;text-align:center;font-weight:700;color:${GREEN};">${v.qty}</td>
+          <td style="border:1px solid #ddd;padding:8px 12px;color:#555;">${v.employees.join(", ")}</td>
+        </tr>`;
+      });
+    }
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;margin:0;padding:0;background:#f5f5f5;">
+<div style="max-width:700px;margin:20px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+  <div style="background:${NAVY};padding:24px 32px;">
+    <h1 style="color:#fff;margin:0;font-size:22px;">Shopping List</h1>
+    <p style="color:rgba(255,255,255,.7);margin:4px 0 0;font-size:13px;">${orgName} &mdash; Pending Orders</p>
+  </div>
+  <div style="padding:24px 32px;">
+    <p style="color:#888;font-size:12px;margin:0 0 16px;">Generated ${generatedAt.toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead>
+        <tr style="background:${NAVY};color:#fff;">
+          <th style="padding:10px 12px;text-align:left;">Item</th>
+          <th style="padding:10px 12px;text-align:left;">Size</th>
+          <th style="padding:10px 12px;text-align:left;">Color</th>
+          <th style="padding:10px 12px;text-align:center;">Qty</th>
+          <th style="padding:10px 12px;text-align:left;">Ordered By</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="margin:20px 0 0;font-size:12px;color:#aaa;">This is an auto-generated shopping list from Better Bucks. A CSV file is attached.</p>
+  </div>
+</div></body></html>`;
+  }
+
+  // GET /api/orders/shopping-list — returns compiled shopping list as JSON (admin only)
+  app.get("/api/orders/shopping-list", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (user.role !== "admin" && user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const allOrders = await storage.getOrdersByOrganization(user.organizationId);
+    const pending = allOrders.filter(o => o.status === "pending") as Array<{ description: string; quantity: number | null; selectedSize: string | null; selectedColor: string | null; user?: { fullName?: string } }>;
+    const mapped = pending.map(o => ({
+      description: o.description,
+      quantity: o.quantity,
+      selectedSize: o.selectedSize,
+      selectedColor: o.selectedColor,
+      employeeName: (o as any).user?.fullName || "Unknown",
+    }));
+    const grouped = buildShoppingList(mapped);
+    res.json({ items: grouped, generatedAt: new Date().toISOString(), totalOrders: pending.length });
+  });
+
+  // GET /api/orders/shopping-list/csv — download CSV file (admin only)
+  app.get("/api/orders/shopping-list/csv", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (user.role !== "admin" && user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const org = await storage.getOrganization(user.organizationId);
+    const orgName = org?.name || "Organization";
+    const allOrders = await storage.getOrdersByOrganization(user.organizationId);
+    const pending = allOrders.filter(o => o.status === "pending");
+    const mapped = pending.map(o => ({
+      description: o.description,
+      quantity: (o as any).quantity,
+      selectedSize: (o as any).selectedSize,
+      selectedColor: (o as any).selectedColor,
+      employeeName: (o as any).user?.fullName || "Unknown",
+    }));
+    const grouped = buildShoppingList(mapped);
+    const now = new Date();
+    const csv = buildShoppingListCsv(grouped, orgName, now);
+    const filename = `shopping-list-${now.toISOString().slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  });
+
+  // POST /api/orders/shopping-list/send — email shopping list to an address (admin only)
+  app.post("/api/orders/shopping-list/send", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (user.role !== "admin" && user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const parsed = z.object({ email: z.string().email("Invalid email address") }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.success ? "" : parsed.error.errors[0].message });
+
+    const { email } = parsed.data;
+    const org = await storage.getOrganization(user.organizationId);
+    const orgName = org?.name || "Organization";
+    const allOrders = await storage.getOrdersByOrganization(user.organizationId);
+    const pending = allOrders.filter(o => o.status === "pending");
+    const mapped = pending.map(o => ({
+      description: o.description,
+      quantity: (o as any).quantity,
+      selectedSize: (o as any).selectedSize,
+      selectedColor: (o as any).selectedColor,
+      employeeName: (o as any).user?.fullName || "Unknown",
+    }));
+    const grouped = buildShoppingList(mapped);
+    const now = new Date();
+    const html = buildShoppingListHtml(grouped, orgName, now);
+    const csv = buildShoppingListCsv(grouped, orgName, now);
+
+    const subject = `Shopping List — ${orgName} (${pending.length} pending order${pending.length !== 1 ? "s" : ""})`;
+    await sendEmail({ to: email, subject, html, text: csv });
+
+    res.json({ success: true, message: `Shopping list sent to ${email}` });
+  });
+
   // Points distribution stats (admin only) - counts bucks given from admins to employees
   app.get("/api/stats/points", async (req, res) => {
     const user = req.user as User | undefined;

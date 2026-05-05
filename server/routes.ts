@@ -1335,9 +1335,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (!org || org.status !== "active") {
         return res.status(400).json({ message: "Invalid or inactive organization code" });
       }
-      const existingUser = await storage.getUserByUsernameAndOrg(adminData.username, org.id);
+      const existingUser = await storage.getUserByUsername(adminData.username);
       if (existingUser) {
-        return res.status(409).json({ message: "Username already exists in this organization" });
+        return res.status(409).json({ message: "That username is already taken. Please choose another." });
       }
       if (org.maxEmployees > 0) {
         const orgUsers = await storage.getUsersByOrganization(org.id);
@@ -1415,9 +1415,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (!org || org.status !== "active") {
         return res.status(400).json({ message: "Invalid or inactive organization code" });
       }
-      const existingUser = await storage.getUserByUsernameAndOrg(empData.username, org.id);
+      const existingUser = await storage.getUserByUsername(empData.username);
       if (existingUser) {
-        return res.status(409).json({ message: "Username already exists in this organization" });
+        return res.status(409).json({ message: "That username is already taken. Please choose another." });
       }
       if (org.maxEmployees > 0) {
         const orgUsers = await storage.getUsersByOrganization(org.id);
@@ -1655,9 +1655,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       }
 
       if (user.organizationId) {
-        const existingUser = await storage.getUserByUsernameAndOrg(userData.username, user.organizationId);
+        const existingUser = await storage.getUserByUsername(userData.username);
         if (existingUser) {
-          return res.status(400).json({ message: "Username/Employee Code already exists in this organization" });
+          return res.status(400).json({ message: "That username is already taken. Please choose another." });
         }
         if (hasEmail) {
           const existingEmail = await storage.getUserByEmailGlobal(empEmail);
@@ -2034,10 +2034,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
             }
           }
 
-          // Duplicate username check
-          const existing = await storage.getUserByUsernameAndOrg(row.username.trim(), job.orgId);
+          // Duplicate username check (global — usernames must be unique across all orgs)
+          const existing = await storage.getUserByUsername(row.username.trim());
           if (existing) {
-            job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Employee code already exists" });
+            job.results.push({ row: rowNum, username: row.username, fullName: row.fullName, success: false, error: "Username already taken by another account" });
             job.processed++; continue;
           }
 
@@ -7666,9 +7666,9 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     });
     const data = schema.parse(req.body);
 
-    // Check username is unique in this org
-    const taken = await storage.getUserByUsernameAndOrg(data.username, inv.organizationId);
-    if (taken) return res.status(400).json({ message: "That username is already taken in this organization. Please choose another." });
+    // Check username is globally unique
+    const taken = await storage.getUserByUsername(data.username);
+    if (taken) return res.status(400).json({ message: "That username is already taken. Please choose another." });
 
     // Enforce plan user limit
     const invOrg = await storage.getOrganization(inv.organizationId);
@@ -7818,8 +7818,8 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     if (!parsed.success) return res.status(400).json({ message: "Please fill out all fields correctly." });
     const data = parsed.data;
 
-    const usernameTaken = await storage.getUserByUsernameAndOrg(data.username, link.organizationId);
-    if (usernameTaken) return res.status(400).json({ message: "That username is already taken in this organization." });
+    const usernameTaken = await storage.getUserByUsername(data.username);
+    if (usernameTaken) return res.status(400).json({ message: "That username is already taken. Please choose another." });
     const emailTaken = await storage.getUserByEmailAndOrg(data.email, link.organizationId);
     if (emailTaken) return res.status(400).json({ message: "An account with that email already exists in this organization." });
 

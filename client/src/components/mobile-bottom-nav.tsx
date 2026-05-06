@@ -6,6 +6,7 @@ export type MobileNavItem = {
   label: string;
   icon: LucideIcon;
   testId?: string;
+  badge?: number;
 };
 
 export function MobileBottomNav({ items }: { items: MobileNavItem[] }) {
@@ -28,12 +29,22 @@ export function MobileBottomNav({ items }: { items: MobileNavItem[] }) {
                 href={item.href}
                 aria-label={item.label}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 min-h-[56px] py-2 text-[10px] font-medium transition-colors ${
+                className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[56px] py-2 text-[10px] font-medium transition-colors ${
                   active ? "text-white" : "text-white/60 hover:text-white"
                 }`}
                 data-testid={item.testId ? `bottomnav-${item.testId}` : `bottomnav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                <Icon className={`h-5 w-5 ${active ? "text-secondary" : ""}`} aria-hidden="true" />
+                <span className="relative inline-flex">
+                  <Icon className={`h-5 w-5 ${active ? "text-secondary" : ""}`} aria-hidden="true" />
+                  {(item.badge ?? 0) > 0 && (
+                    <span
+                      className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none"
+                      data-testid={`badge-pending-orders-mobile`}
+                    >
+                      {item.badge! > 99 ? "99+" : item.badge}
+                    </span>
+                  )}
+                </span>
                 <span className="truncate max-w-full px-1">{item.label}</span>
               </Link>
             </li>

@@ -2967,6 +2967,18 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 </div></body></html>`;
   }
 
+  // GET /api/orders/pending-count — lightweight badge count (admin only)
+  app.get("/api/orders/pending-count", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (user.role !== "admin" && user.role !== "prime_admin") return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.json({ count: 0 });
+    const allOrders = await storage.getOrdersByOrganization(user.organizationId);
+    const count = allOrders.filter(o => o.status === "pending").length;
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ count });
+  });
+
   // GET /api/orders/shopping-list — returns compiled shopping list as JSON (admin only)
   app.get("/api/orders/shopping-list", async (req, res) => {
     const user = req.user as User | undefined;

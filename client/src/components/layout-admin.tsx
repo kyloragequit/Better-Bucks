@@ -76,6 +76,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const isInDemo = demoStatus?.inDemo === true;
   const isPublicDemo = demoStatus?.isPublicDemo === true;
 
+  const { data: pendingCountData } = useQuery<{ count: number }>({
+    queryKey: ["/api/orders/pending-count"],
+    refetchInterval: 30_000,
+    enabled: user?.role === "admin" || user?.role === "prime_admin",
+  });
+  const pendingCount = pendingCountData?.count ?? 0;
+
   const startDemoMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/demo/start", { method: "POST", credentials: "include" });
@@ -101,7 +108,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/team", label: "Team", icon: UsersRound },
     { href: "/admin/employees", label: "Employees", icon: Users },
     { href: "/admin/invite-links", label: "Invite Links", icon: LinkIcon },
-    { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+    { href: "/admin/orders", label: "Orders", icon: ShoppingCart, badge: pendingCount },
     { href: "/admin/instant-transaction", label: "Instant Transaction", shortLabel: "Quick TX", icon: Zap, testId: "link-instant-transaction" },
     { href: "/admin/goals", label: "Goals", icon: Target },
     { href: "/admin/surveys", label: "Surveys", icon: ClipboardList },
@@ -149,6 +156,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         <span className="flex items-center gap-2">
                           <activeItem.icon className="h-4 w-4 shrink-0" />
                           {activeItem.label}
+                          {activeItem.href === "/admin/orders" && pendingCount > 0 && (
+                            <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none" data-testid="badge-pending-orders-trigger">
+                              {pendingCount > 99 ? "99+" : pendingCount}
+                            </span>
+                          )}
                         </span>
                       ) : (
                         <span className="text-white/60">Navigate…</span>
@@ -158,6 +170,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   <SelectContent className="w-auto min-w-48">
                     {allItems.map((item) => {
                       const Icon = item.icon;
+                      const itemBadge = (item as any).badge as number | undefined;
                       return (
                         <SelectItem
                           key={item.href}
@@ -167,6 +180,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           <span className="flex items-center gap-2">
                             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                             {item.label}
+                            {(itemBadge ?? 0) > 0 && (
+                              <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none" data-testid="badge-pending-orders-dropdown">
+                                {itemBadge! > 99 ? "99+" : itemBadge}
+                              </span>
+                            )}
                           </span>
                         </SelectItem>
                       );
@@ -241,6 +259,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-lg shadow-lg border py-1 z-50">
                     {navItems.map((item) => {
                       const Icon = item.icon;
+                      const itemBadge = (item as any).badge as number | undefined;
                       return (
                         <button type="button"
                           key={item.href}
@@ -250,8 +269,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           onClick={() => { setLocation(item.href); setMobileMenuOpen(false); }}
                           data-testid={`mobile-${item.testId || `link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}`}
                         >
-                          <Icon className="h-4 w-4" />
-                          {item.label}
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="flex-1 text-left">{item.label}</span>
+                          {(itemBadge ?? 0) > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none" data-testid="badge-pending-orders-hamburger">
+                              {itemBadge! > 99 ? "99+" : itemBadge}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -330,7 +354,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         items={[
           { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
           { href: "/admin/employees", label: "Employees", icon: Users, testId: "link-employees" },
-          { href: "/admin/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders" },
+          { href: "/admin/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders", badge: pendingCount },
           {
             href: user?.role === "prime_admin" ? "/admin/settings" : "/admin/account-settings",
             label: "Settings",

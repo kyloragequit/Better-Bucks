@@ -315,6 +315,7 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders/pending-count"] });
       toast({ title: "Order Updated", description: `Order has been ${action}.` });
     },
     onError: (e: Error) => {

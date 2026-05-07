@@ -319,7 +319,13 @@ async function getOrgAdminEmails(organizationId: number): Promise<string[]> {
 }
 
 async function notifyAdminsOfNewOrder(organizationId: number, employee: { fullName: string; email?: string | null }, order: { id: number; description: string; pointsCost: number; convertedValue?: string | null; itemUrl?: string | null }): Promise<void> {
-  const emails = await getOrgAdminEmails(organizationId);
+  const orgUsers = await storage.getUsersByOrganization(organizationId);
+  // All approved org users with an email — excluding the employee who placed the order
+  const emails = [...new Set(
+    orgUsers
+      .filter(u => u.email && u.status === "approved" && u.email !== employee.email)
+      .map(u => u.email as string)
+  )];
   if (!emails.length) return;
 
   const details: Record<string, string> = {

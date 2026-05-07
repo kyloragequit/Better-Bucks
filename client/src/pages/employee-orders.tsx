@@ -18,7 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import type { Order, ShopWebsite } from "@shared/schema";
-import { useStoreUrl } from "@/hooks/use-store-url";
 
 function statusVariant(status: string) {
   switch (status) {
@@ -36,7 +35,10 @@ export default function EmployeeOrdersPage() {
   const { data: orders, isLoading } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
   });
-  const { storeUrl } = useStoreUrl();
+  const { data: shopWebsites } = useQuery<ShopWebsite[]>({
+    queryKey: ["/api/shop-websites"],
+    enabled: !!authUser,
+  });
   const { data: features } = useQuery<{ storeEnabled: boolean; manualOrdersEnabled: boolean }>({
     queryKey: ["/api/organizations/features"],
     enabled: !!authUser,
@@ -62,14 +64,22 @@ export default function EmployeeOrdersPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Visit our promo store to find items you'd like to order. Take screenshots of the items, then come back here to submit your order.
+              Visit the store to find items you'd like to order. Take screenshots of the items, then come back here to submit your order.
             </p>
-            <a href={storeUrl} target="_blank" rel="noopener noreferrer">
-              <Button className="w-full" data-testid="link-promo-store">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Visit Store
-              </Button>
-            </a>
+            {shopWebsites && shopWebsites.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {shopWebsites.map((shop) => (
+                  <a key={shop.id} href={shop.url} target="_blank" rel="noopener noreferrer">
+                    <Button className="w-full" variant="outline" data-testid={`link-shop-${shop.id}`}>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {shop.name}
+                    </Button>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No store links have been set up yet. Contact your admin.</p>
+            )}
           </CardContent>
         </Card>
 

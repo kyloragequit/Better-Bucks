@@ -3,6 +3,7 @@ import { db } from "./db";
 import { stripeOrphans } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { getUncachableStripeClient } from "./stripeClient";
+import { sendOrphanPermanentFailureAlert } from "./lib/alerts";
 
 const MAX_RETRIES = 5;
 const RETRY_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -169,6 +170,13 @@ async function processRow(
       { id: row.id, stripeCustomerId: row.stripeCustomerId, stripeSubscriptionId: row.stripeSubscriptionId, lastError },
       "[stripeOrphanRetry] Orphan marked failed_permanently after max retries — manual cleanup required",
     );
+    await sendOrphanPermanentFailureAlert({
+      orphanId: row.id,
+      stripeCustomerId: row.stripeCustomerId,
+      stripeSubscriptionId: row.stripeSubscriptionId,
+      lastError,
+      retryCount: newRetryCount,
+    });
   } else {
     await db
       .update(stripeOrphans)

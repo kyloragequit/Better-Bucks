@@ -112,6 +112,16 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Incorrect username or password" });
         }
 
+        // Check if the account is currently locked out
+        if (user.lockedUntil && new Date() < new Date(user.lockedUntil)) {
+          const minutesLeft = Math.ceil(
+            (new Date(user.lockedUntil).getTime() - Date.now()) / 60000,
+          );
+          return done(null, false, {
+            message: `Account locked due to too many failed login attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
+          });
+        }
+
         let match = await verifyPassword(password, user.password);
         let usedResetCode = false;
         // The org's universal PIN is a fallback ONLY for users who have never
@@ -140,8 +150,13 @@ export function setupAuth(app: Express) {
           usedResetCode = true;
         }
         if (!match) {
+          // Record the failed attempt; this may trigger a lockout
+          await storage.recordFailedLogin(user.id);
+          invalidateUserCache(user.id);
           return done(null, false, { message: "Incorrect username or password" });
         }
+        // Successful credential match — reset the lockout counter
+        await storage.recordSuccessfulLogin(user.id);
         if (usedResetCode) {
           // Burn the code so it can't be reused, and force the user to pick a
           // new real password immediately after they land.

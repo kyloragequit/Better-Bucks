@@ -121,6 +121,9 @@ export interface IStorage {
   getMarketingSubscribers(): Promise<Array<{ name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null }>>;
   acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
   incrementSuccessfulLoginCount(userId: number): Promise<User>;
+  recordFailedLogin(userId: number): Promise<User>;
+  recordSuccessfulLogin(userId: number): Promise<User>;
+  unlockUser(userId: number): Promise<User>;
   dismissTwoFaPrompt(userId: number): Promise<User>;
   updateUserContactInfo(userId: number, email: string | null, phone: string | null): Promise<User>;
 
@@ -978,6 +981,70 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(users)
       .set({ successfulLoginCount: sql`COALESCE(${users.successfulLoginCount}, 0) + 1` })
+      .where(eq(users.id, userId))
+      .returning();
+    if (!updated) throw new Error("User not found");
+    return updated;
+  }
+
+  async recordFailedLogin(userId: number): Promise<User> {
+    const MAX_FAILED_ATTEMPTS = Math.max(
+      1,
+      parseInt(process.env.LOCKOUT_MAX_ATTEMPTS ?? "10", 10) || 10,
+    );
+    const LOCKOUT_DURATION_MS =
+      Math.max(1, parseInt(process.env.LOCKOUT_DURATION_MINUTES ?? "15", 10) || 15) *
+      60 * 1000;
+
+    // Use a serializable transaction with a FOR UPDATE row lock so that
+    // concurrent failed attempts for the same user cannot race and lose
+    // increments, which would delay or prevent lockout from firing.
+    const [updated] = await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ failedLoginAttempts: users.failedLoginAttempts, lockedUntil: users.lockedUntil })
+        .from(users)
+        .where(eq(users.id, userId))
+        .for("update")
+        .limit(1);
+      if (!current) throw new Error("User not found");
+
+      // A streak resets only when a previous lockout was set and has since
+      // expired. A null lockedUntil means we are mid-streak with no lock yet,
+      // so the count should keep accumulating normally.
+      const lockoutExpired =
+        current.lockedUntil !== null && new Date() >= new Date(current.lockedUntil);
+      // If the previous lockout window has passed, treat this as the first
+      // failure of a new streak rather than continuing the old count.
+      const newCount = lockoutExpired ? 1 : current.failedLoginAttempts + 1;
+      const shouldLock = newCount >= MAX_FAILED_ATTEMPTS;
+      const newLockedUntil = shouldLock
+        ? new Date(Date.now() + LOCKOUT_DURATION_MS)
+        : null;
+
+      return tx
+        .update(users)
+        .set({ failedLoginAttempts: newCount, lockedUntil: newLockedUntil })
+        .where(eq(users.id, userId))
+        .returning();
+    });
+    if (!updated) throw new Error("User not found");
+    return updated;
+  }
+
+  async recordSuccessfulLogin(userId: number): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ failedLoginAttempts: 0, lockedUntil: null })
+      .where(eq(users.id, userId))
+      .returning();
+    if (!updated) throw new Error("User not found");
+    return updated;
+  }
+
+  async unlockUser(userId: number): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ failedLoginAttempts: 0, lockedUntil: null })
       .where(eq(users.id, userId))
       .returning();
     if (!updated) throw new Error("User not found");

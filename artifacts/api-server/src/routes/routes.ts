@@ -2607,6 +2607,28 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }
   });
 
+  // Unlock a locked-out account (admin or prime_admin within the same org)
+  app.post("/api/users/:id/unlock", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+    try {
+      const target = await storage.getUser(id);
+      if (!target || (user.organizationId && target.organizationId !== user.organizationId)) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const updated = await storage.unlockUser(id);
+      invalidateUserCache(id);
+      res.json(updated);
+    } catch (err) {
+      console.error("Error unlocking user:", err);
+      res.status(500).json({ message: "Failed to unlock user" });
+    }
+  });
+
   // Transfer Super User (prime_admin) role to another org user
   app.post("/api/organizations/transfer-super-user", async (req, res) => {
     const user = req.user as User | undefined;

@@ -170,16 +170,29 @@ export function registerMobileRoutes(app: Express) {
         return;
       }
 
+      // Check if the account is locked out
+      if (user.lockedUntil && new Date() < new Date(user.lockedUntil)) {
+        const minutesLeft = Math.ceil(
+          (new Date(user.lockedUntil).getTime() - Date.now()) / 60000,
+        );
+        res.status(429).json({
+          message: `Account locked due to too many failed login attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
+        });
+        return;
+      }
+
       const match = await verifyPassword(password, user.password);
       if (!match) {
+        await storage.recordFailedLogin(user.id);
         res
           .status(401)
           .json({ message: "Incorrect username or password" });
         return;
       }
 
+      const freshUser = await storage.recordSuccessfulLogin(user.id);
       const token = signMobileToken(user.id);
-      res.json({ token, user: safeUser(user) });
+      res.json({ token, user: safeUser(freshUser) });
     } catch (err: any) {
       if (err?.issues) {
         res

@@ -69,6 +69,8 @@ export const users = pgTable("users", {
   customItemBalance: integer("custom_item_balance").default(0).notNull(),
   lastPlainPassword: text("last_plain_password"),
   managerId: integer("manager_id"),
+  failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
+  lockedUntil: timestamp("locked_until"),
 });
 
 export const transactionCategories = pgTable("transaction_categories", {

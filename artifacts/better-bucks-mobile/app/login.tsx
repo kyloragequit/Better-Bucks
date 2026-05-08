@@ -1,7 +1,11 @@
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as AuthSession from "expo-auth-session";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -10,20 +14,68 @@ import { TextField } from "@/components/TextField";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
 export default function LoginScreen() {
-  const { login, loginWithBiometrics, enrollBiometrics, biometricCapable, biometricEnrolled } =
-    useAuth();
+  const {
+    login,
+    loginWithBiometrics,
+    loginWithApple,
+    loginWithGoogle,
+    enrollBiometrics,
+    biometricCapable,
+    biometricEnrolled,
+  } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [bioSubmitting, setBioSubmitting] = useState(false);
+  const [socialSubmitting, setSocialSubmitting] = useState<"apple" | "google" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [_googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId: GOOGLE_CLIENT_ID || undefined,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || undefined,
+  });
 
   useEffect(() => {
     if (biometricEnrolled) {
       handleBiometricLogin();
     }
   }, [biometricEnrolled]);
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const idToken = googleResponse.authentication?.idToken;
+      if (idToken) {
+        handleSocialResult(loginWithGoogle(idToken));
+      } else {
+        setSocialSubmitting(null);
+        setError("Google did not return an ID token.");
+      }
+    } else if (googleResponse?.type === "error") {
+      setSocialSubmitting(null);
+      setError("Google sign-in failed. Please try again.");
+    } else if (googleResponse?.type === "dismiss" || googleResponse?.type === "cancel") {
+      setSocialSubmitting(null);
+    }
+  }, [googleResponse]);
+
+  const handleSocialResult = async (promise: ReturnType<typeof loginWithGoogle>) => {
+    const result = await promise;
+    setSocialSubmitting(null);
+    if (result.ok) {
+      router.replace("/dashboard");
+    } else if (result.message !== "Cancelled") {
+      if ("providerEmail" in result && result.providerEmail) {
+        setError(`${result.message} (${result.providerEmail})`);
+      } else {
+        setError(result.message);
+      }
+    }
+  };
 
   const handleBiometricLogin = async () => {
     setBioSubmitting(true);
@@ -35,6 +87,22 @@ export default function LoginScreen() {
     } else if (result.message !== "Cancelled") {
       setError(result.message);
     }
+  };
+
+  const handleAppleSignIn = async () => {
+    setSocialSubmitting("apple");
+    setError(null);
+    handleSocialResult(loginWithApple());
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (!GOOGLE_CLIENT_ID) {
+      setError("Google sign-in is not configured for this build.");
+      return;
+    }
+    setSocialSubmitting("google");
+    setError(null);
+    await promptGoogleAsync();
   };
 
   const handleSubmit = async () => {
@@ -71,6 +139,8 @@ export default function LoginScreen() {
     }
   };
 
+  const appleAvailable = Platform.OS === "ios";
+
   return (
     <ScreenContainer>
       <View style={styles.header}>
@@ -106,6 +176,34 @@ export default function LoginScreen() {
           </View>
         </View>
       ) : null}
+
+      {appleAvailable ? (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+          cornerRadius={10}
+          style={styles.appleButton}
+          onPress={handleAppleSignIn}
+        />
+      ) : null}
+
+      <Pressable
+        onPress={handleGoogleSignIn}
+        style={[styles.googleButton, socialSubmitting === "google" && styles.socialButtonDisabled]}
+        disabled={socialSubmitting !== null}
+        accessibilityLabel="Sign in with Google"
+      >
+        <GoogleIcon />
+        <Text style={styles.googleText}>
+          {socialSubmitting === "google" ? "Signing in…" : "Sign in with Google"}
+        </Text>
+      </Pressable>
+
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerLabel}>or use email & password</Text>
+        <View style={styles.dividerLine} />
+      </View>
 
       <TextField
         label="Email or username"
@@ -153,6 +251,14 @@ export default function LoginScreen() {
   );
 }
 
+function GoogleIcon() {
+  return (
+    <View style={styles.googleIcon}>
+      <Text style={styles.googleIconText}>G</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
@@ -196,8 +302,8 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 4,
+    marginTop: 12,
+    marginBottom: 8,
     gap: 10,
   },
   dividerLine: {
@@ -209,5 +315,43 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.4)",
     fontFamily: "Inter_400Regular",
     fontSize: 12,
+  },
+  appleButton: {
+    width: "100%",
+    height: 48,
+    marginBottom: 10,
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    height: 48,
+    width: "100%",
+    marginBottom: 4,
+  },
+  socialButtonDisabled: {
+    opacity: 0.6,
+  },
+  googleText: {
+    color: "#1f1f1f",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#4285F4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  googleIconText: {
+    color: "#ffffff",
+    fontFamily: "Inter_700Bold",
+    fontSize: 12,
+    lineHeight: 14,
   },
 });

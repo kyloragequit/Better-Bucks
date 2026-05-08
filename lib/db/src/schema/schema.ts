@@ -593,3 +593,15 @@ export type WalletPass = typeof walletPasses.$inferSelect;
 export type InsertWalletPass = typeof walletPasses.$inferInsert;
 export type WalletPassDevice = typeof walletPassDevices.$inferSelect;
 export type InsertWalletPassDevice = typeof walletPassDevices.$inferInsert;
+
+export const userSocialLinks = pgTable("user_social_links", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  provider: text("provider", { enum: ["google", "apple"] }).notNull(),
+  providerUserId: text("provider_user_id").notNull(),
+  email: text("email"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type UserSocialLink = typeof userSocialLinks.$inferSelect;
+export type InsertUserSocialLink = typeof userSocialLinks.$inferInsert;

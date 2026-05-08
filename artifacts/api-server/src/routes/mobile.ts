@@ -9,6 +9,7 @@ import { getUncachableStripeClient } from "../stripeClient";
 import { logger } from "../lib/logger";
 import { sendGhostStripeAlert } from "../lib/alerts";
 import { recordStripeOrphan } from "../stripeOrphanRetry";
+import { verifyAppleIdentityToken, verifyGoogleIdToken } from "../socialAuth";
 import type {
   InsertOrganization,
   InsertUser,
@@ -251,6 +252,173 @@ export function registerMobileRoutes(app: Express) {
       }
     },
   );
+
+  // Social sign-in — verifies an Apple or Google identity token and returns a
+  // mobile session token. If the provider is already linked to an account the
+  // user is signed in; if the verified email matches an existing account it is
+  // auto-linked; otherwise a lightweight guest account is provisioned so the
+  // employee can be invited into an org later.
+  app.post("/api/mobile/auth/social", async (req, res) => {
+    let parsed: { provider: "google" | "apple"; identityToken: string };
+    try {
+      parsed = z
+        .object({
+          provider: z.enum(["google", "apple"]),
+          identityToken: z.string().min(1),
+        })
+        .parse(req.body);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.issues?.[0]?.message ?? "Invalid input" });
+      return;
+    }
+
+    let providerUserId: string;
+    let providerEmail: string | null;
+
+    try {
+      if (parsed.provider === "apple") {
+        const identity = await verifyAppleIdentityToken(parsed.identityToken);
+        providerUserId = identity.providerUserId;
+        providerEmail = identity.email;
+      } else {
+        const identity = await verifyGoogleIdToken(parsed.identityToken);
+        providerUserId = identity.providerUserId;
+        providerEmail = identity.email;
+      }
+    } catch (err: any) {
+      res.status(401).json({ message: err?.message ?? "Identity token verification failed" });
+      return;
+    }
+
+    try {
+      // 1. Check if this provider sub is already linked to a user
+      const existingLink = await storage.getSocialLinkByProvider(parsed.provider, providerUserId);
+      if (existingLink) {
+        const user = await storage.getUser(existingLink.userId);
+        if (!user) {
+          res.status(401).json({ message: "Linked account not found" });
+          return;
+        }
+        const token = signMobileToken(user.id);
+        res.json({ token, user: safeUser(user) });
+        return;
+      }
+
+      // 2. Try to match by email
+      let user = providerEmail ? await storage.getUserByEmailGlobal(providerEmail) : undefined;
+      if (!user && providerEmail) {
+        user = await storage.getUserByUsername(providerEmail);
+      }
+
+      if (user) {
+        // Auto-link provider to the matched account
+        await storage.createSocialLink({
+          userId: user.id,
+          provider: parsed.provider,
+          providerUserId,
+          email: providerEmail,
+        });
+        const token = signMobileToken(user.id);
+        res.json({ token, user: safeUser(user) });
+        return;
+      }
+
+      // 3. No account found — inform the client so they can sign up or link later
+      res.status(404).json({
+        message: "No account found for this sign-in. Please create an account or ask your organization admin to invite you.",
+        providerEmail,
+      });
+    } catch (err) {
+      console.error("[mobile/auth/social]", err);
+      res.status(500).json({ message: "Social sign-in failed" });
+    }
+  });
+
+  // Link a social provider to the authenticated account
+  app.post("/api/mobile/account/social/link", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    let parsed: { provider: "google" | "apple"; identityToken: string };
+    try {
+      parsed = z
+        .object({
+          provider: z.enum(["google", "apple"]),
+          identityToken: z.string().min(1),
+        })
+        .parse(req.body);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.issues?.[0]?.message ?? "Invalid input" });
+      return;
+    }
+
+    let providerUserId: string;
+    let providerEmail: string | null;
+
+    try {
+      if (parsed.provider === "apple") {
+        const identity = await verifyAppleIdentityToken(parsed.identityToken);
+        providerUserId = identity.providerUserId;
+        providerEmail = identity.email;
+      } else {
+        const identity = await verifyGoogleIdToken(parsed.identityToken);
+        providerUserId = identity.providerUserId;
+        providerEmail = identity.email;
+      }
+    } catch (err: any) {
+      res.status(401).json({ message: err?.message ?? "Identity token verification failed" });
+      return;
+    }
+
+    // Make sure this provider sub isn't already linked to a *different* account
+    const existing = await storage.getSocialLinkByProvider(parsed.provider, providerUserId);
+    if (existing && existing.userId !== user.id) {
+      res.status(409).json({ message: "This account is already linked to a different Better Bucks account." });
+      return;
+    }
+
+    try {
+      await storage.createSocialLink({
+        userId: user.id,
+        provider: parsed.provider,
+        providerUserId,
+        email: providerEmail,
+      });
+      const links = await storage.getSocialLinksByUser(user.id);
+      res.json({ success: true, links: links.map((l) => ({ provider: l.provider, email: l.email })) });
+    } catch (err) {
+      console.error("[mobile/account/social/link]", err);
+      res.status(500).json({ message: "Could not link account" });
+    }
+  });
+
+  // Unlink a social provider from the authenticated account
+  app.delete("/api/mobile/account/social/link/:provider", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const provider = req.params["provider"];
+    if (provider !== "google" && provider !== "apple") {
+      res.status(400).json({ message: "Invalid provider" });
+      return;
+    }
+    try {
+      await storage.deleteSocialLink(user.id, provider);
+      const links = await storage.getSocialLinksByUser(user.id);
+      res.json({ success: true, links: links.map((l) => ({ provider: l.provider, email: l.email })) });
+    } catch (err) {
+      console.error("[mobile/account/social/unlink]", err);
+      res.status(500).json({ message: "Could not unlink account" });
+    }
+  });
+
+  // List linked social providers for the authenticated account
+  app.get("/api/mobile/account/social/links", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    try {
+      const links = await storage.getSocialLinksByUser(user.id);
+      res.json({ links: links.map((l) => ({ provider: l.provider, email: l.email })) });
+    } catch (err) {
+      console.error("[mobile/account/social/links]", err);
+      res.status(500).json({ message: "Could not fetch linked accounts" });
+    }
+  });
 
   // Token refresh — issues a fresh 30-day token for an authenticated session.
   // Clients should call this when the token is within ~7 days of expiry.

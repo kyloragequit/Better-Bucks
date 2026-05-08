@@ -1,3 +1,4 @@
+import * as AppleAuthentication from "expo-apple-authentication";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import React, {
@@ -26,6 +27,8 @@ export type AuthUser = {
   organizationId?: number | null;
 };
 
+export type SocialLink = { provider: "google" | "apple"; email: string | null };
+
 type AuthContextValue = {
   loading: boolean;
   token: string | null;
@@ -41,6 +44,20 @@ type AuthContextValue = {
   loginWithBiometrics: () => Promise<
     { ok: true } | { ok: false; message: string }
   >;
+  loginWithApple: () => Promise<
+    { ok: true } | { ok: false; message: string; providerEmail?: string | null }
+  >;
+  loginWithGoogle: (idToken: string) => Promise<
+    { ok: true } | { ok: false; message: string; providerEmail?: string | null }
+  >;
+  linkSocialProvider: (
+    provider: "google" | "apple",
+    identityToken: string,
+  ) => Promise<{ ok: true; links: SocialLink[] } | { ok: false; message: string }>;
+  unlinkSocialProvider: (
+    provider: "google" | "apple",
+  ) => Promise<{ ok: true; links: SocialLink[] } | { ok: false; message: string }>;
+  fetchSocialLinks: () => Promise<SocialLink[]>;
   enrollBiometrics: () => Promise<boolean>;
   disableBiometrics: () => Promise<void>;
 };
@@ -227,6 +244,125 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const callSocialAuth = useCallback(
+    async (
+      provider: "google" | "apple",
+      identityToken: string,
+    ): Promise<{ ok: true } | { ok: false; message: string; providerEmail?: string | null }> => {
+      try {
+        const res = await fetch(apiUrl("/api/mobile/auth/social"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, identityToken }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return {
+            ok: false as const,
+            message: data?.message ?? "Sign-in failed",
+            providerEmail: data?.providerEmail ?? null,
+          };
+        }
+        await signIn(data.token, data.user);
+        return { ok: true as const };
+      } catch (err: any) {
+        return {
+          ok: false as const,
+          message: err?.message ?? "Network error",
+        };
+      }
+    },
+    [signIn],
+  );
+
+  const loginWithApple = useCallback<AuthContextValue["loginWithApple"]>(async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        return { ok: false as const, message: "Apple did not return an identity token" };
+      }
+      return callSocialAuth("apple", credential.identityToken);
+    } catch (err: any) {
+      if (err?.code === "ERR_REQUEST_CANCELED") {
+        return { ok: false as const, message: "Cancelled" };
+      }
+      return { ok: false as const, message: err?.message ?? "Apple sign-in failed" };
+    }
+  }, [callSocialAuth]);
+
+  const loginWithGoogle = useCallback<AuthContextValue["loginWithGoogle"]>(
+    async (idToken: string) => {
+      return callSocialAuth("google", idToken);
+    },
+    [callSocialAuth],
+  );
+
+  const linkSocialProvider = useCallback<AuthContextValue["linkSocialProvider"]>(
+    async (provider, identityToken) => {
+      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!storedToken) return { ok: false as const, message: "Not signed in" };
+      try {
+        const res = await fetch(apiUrl("/api/mobile/account/social/link"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${storedToken}`,
+          },
+          body: JSON.stringify({ provider, identityToken }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { ok: false as const, message: data?.message ?? "Could not link account" };
+        }
+        return { ok: true as const, links: data.links ?? [] };
+      } catch (err: any) {
+        return { ok: false as const, message: err?.message ?? "Network error" };
+      }
+    },
+    [],
+  );
+
+  const unlinkSocialProvider = useCallback<AuthContextValue["unlinkSocialProvider"]>(
+    async (provider) => {
+      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!storedToken) return { ok: false as const, message: "Not signed in" };
+      try {
+        const res = await fetch(apiUrl(`/api/mobile/account/social/link/${provider}`), {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { ok: false as const, message: data?.message ?? "Could not unlink account" };
+        }
+        return { ok: true as const, links: data.links ?? [] };
+      } catch (err: any) {
+        return { ok: false as const, message: err?.message ?? "Network error" };
+      }
+    },
+    [],
+  );
+
+  const fetchSocialLinks = useCallback<AuthContextValue["fetchSocialLinks"]>(async () => {
+    const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (!storedToken) return [];
+    try {
+      const res = await fetch(apiUrl("/api/mobile/account/social/links"), {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+      if (!res.ok) return [];
+      const data = await res.json().catch(() => ({}));
+      return data?.links ?? [];
+    } catch {
+      return [];
+    }
+  }, []);
+
   const enrollBiometrics = useCallback(async (): Promise<boolean> => {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -264,6 +400,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       login,
       loginWithBiometrics,
+      loginWithApple,
+      loginWithGoogle,
+      linkSocialProvider,
+      unlinkSocialProvider,
+      fetchSocialLinks,
       enrollBiometrics,
       disableBiometrics,
     }),
@@ -277,6 +418,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       login,
       loginWithBiometrics,
+      loginWithApple,
+      loginWithGoogle,
+      linkSocialProvider,
+      unlinkSocialProvider,
+      fetchSocialLinks,
       enrollBiometrics,
       disableBiometrics,
     ],

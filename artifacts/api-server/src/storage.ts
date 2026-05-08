@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, walletPasses, walletPassDevices, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice } from "@workspace/db";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, walletPasses, walletPassDevices, userSocialLinks, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink } from "@workspace/db";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -224,6 +224,11 @@ export interface IStorage {
   listWalletSerialsForDevice(deviceLibraryIdentifier: string, passTypeId: string): Promise<string[]>;
   redeemForMerchant(args: { employeeId: number; merchantId: number; amount: number; reason: string }):
     Promise<{ ok: true; newBalance: number; transaction: Transaction; merchantTransaction: MerchantTransaction } | { ok: false; reason: "insufficient"; currentBalance: number } | { ok: false; reason: "missing" }>;
+
+  getSocialLinkByProvider(provider: "google" | "apple", providerUserId: string): Promise<UserSocialLink | undefined>;
+  getSocialLinksByUser(userId: number): Promise<UserSocialLink[]>;
+  createSocialLink(data: { userId: number; provider: "google" | "apple"; providerUserId: string; email?: string | null }): Promise<UserSocialLink>;
+  deleteSocialLink(userId: number, provider: "google" | "apple"): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1553,6 +1558,10 @@ export interface DatabaseStorage {
   listWalletSerialsForDevice: IStorage["listWalletSerialsForDevice"];
   redeemForMerchant: IStorage["redeemForMerchant"];
   tryDeductBalance: IStorage["tryDeductBalance"];
+  getSocialLinkByProvider: IStorage["getSocialLinkByProvider"];
+  getSocialLinksByUser: IStorage["getSocialLinksByUser"];
+  createSocialLink: IStorage["createSocialLink"];
+  deleteSocialLink: IStorage["deleteSocialLink"];
 }
 DatabaseStorage.prototype.createMerchant = async function (data) {
   const [m] = await db.insert(merchants).values(data).returning();
@@ -1685,6 +1694,36 @@ DatabaseStorage.prototype.listWalletSerialsForDevice = async function (deviceLib
   const rows = await db.select().from(walletPassDevices)
     .where(eq(walletPassDevices.deviceLibraryIdentifier, deviceLibraryIdentifier));
   return rows.map((r) => r.serialNumber);
+};
+DatabaseStorage.prototype.getSocialLinkByProvider = async function (provider, providerUserId) {
+  const [link] = await db.select().from(userSocialLinks)
+    .where(and(eq(userSocialLinks.provider, provider), eq(userSocialLinks.providerUserId, providerUserId)));
+  return link;
+};
+DatabaseStorage.prototype.getSocialLinksByUser = async function (userId) {
+  return db.select().from(userSocialLinks).where(eq(userSocialLinks.userId, userId));
+};
+DatabaseStorage.prototype.createSocialLink = async function (data) {
+  const existing = await db.select().from(userSocialLinks)
+    .where(and(eq(userSocialLinks.userId, data.userId), eq(userSocialLinks.provider, data.provider)));
+  if (existing.length) {
+    const [updated] = await db.update(userSocialLinks)
+      .set({ providerUserId: data.providerUserId, email: data.email ?? null })
+      .where(eq(userSocialLinks.id, existing[0].id))
+      .returning();
+    return updated;
+  }
+  const [link] = await db.insert(userSocialLinks).values({
+    userId: data.userId,
+    provider: data.provider,
+    providerUserId: data.providerUserId,
+    email: data.email ?? null,
+  }).returning();
+  return link;
+};
+DatabaseStorage.prototype.deleteSocialLink = async function (userId, provider) {
+  await db.delete(userSocialLinks)
+    .where(and(eq(userSocialLinks.userId, userId), eq(userSocialLinks.provider, provider)));
 };
 
 export const storage: IStorage = new DatabaseStorage();

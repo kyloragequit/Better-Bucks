@@ -58,6 +58,8 @@
   "dependencies": {
     "@hcaptcha/react-native-hcaptcha": "^4.0.0",
     "@stripe/stripe-react-native": "^0.50.3",
+    "expo-apple-authentication": "^55.0.13",
+    "expo-auth-session": "^55.0.15",
     "expo-file-system": "^19.0.22",
     "expo-local-authentication": "^17.0.8",
     "expo-secure-store": "^15.0.8",

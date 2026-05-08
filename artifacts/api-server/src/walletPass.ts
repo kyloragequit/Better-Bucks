@@ -127,6 +127,10 @@ export async function buildPassForEmployee(
   // endpoint /api/wallet/qr-token) keeps the original 5-min rotation for defense-in-depth on screens.
   const qrToken = signWalletQr({ e: employeeId, o: employee.organizationId || 0, s: pass.serialNumber }, 60 * 60 * 24 * 30);
   const updatedTag = `${Date.now()}`;
+  // Use the persisted lastUpdatedTag so the pass face timestamp matches what PassKit
+  // stored when the balance actually changed. Fall back to the new updatedTag only
+  // if this is a brand-new pass that has never been tagged yet.
+  const displayTag = pass.lastUpdatedTag ?? updatedTag;
 
   const passJson: any = {
     formatVersion: 1,
@@ -156,6 +160,13 @@ export async function buildPassForEmployee(
       ],
       auxiliaryFields: [
         { key: "balance2", label: "Bucks balance", value: `${employee.balance ?? 0}` },
+        {
+          key: "lastUpdated",
+          label: "Last updated",
+          value: new Date(Number(displayTag)).toISOString(),
+          dateStyle: "PKDateStyleNone",
+          timeStyle: "PKDateStyleShort",
+        },
       ],
       backFields: [
         { key: "instructions", label: "How to use", value: "Show this pass to a participating merchant. They will scan the QR code to redeem your Bucks. The QR code refreshes every few minutes for security." },

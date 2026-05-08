@@ -6,6 +6,7 @@ import { storage } from "../storage";
 import { hashPassword, verifyPassword } from "../auth";
 import { ensureStripeReady } from "../stripeLazy";
 import { getUncachableStripeClient } from "../stripeClient";
+import { logger } from "../lib/logger";
 import type {
   InsertOrganization,
   InsertUser,
@@ -348,19 +349,35 @@ export function registerMobileRoutes(app: Express) {
     let stripeSubscriptionId: string | null = null;
 
     async function rollbackStripe() {
-      try {
-        if (stripeSubscriptionId) {
-          await stripe.subscriptions
-            .cancel(stripeSubscriptionId)
-            .catch(() => undefined);
+      let subCancelError: unknown = null;
+      let customerDeleteError: unknown = null;
+
+      if (stripeSubscriptionId) {
+        try {
+          await stripe.subscriptions.cancel(stripeSubscriptionId);
+        } catch (err) {
+          subCancelError = err;
         }
-        if (stripeCustomerId) {
-          await stripe.customers
-            .del(stripeCustomerId)
-            .catch(() => undefined);
+      }
+
+      if (stripeCustomerId) {
+        try {
+          await stripe.customers.del(stripeCustomerId);
+        } catch (err) {
+          customerDeleteError = err;
         }
-      } catch {
-        // best-effort rollback; swallow errors
+      }
+
+      if (subCancelError || customerDeleteError) {
+        logger.error(
+          {
+            stripeCustomerId,
+            stripeSubscriptionId,
+            subCancelError,
+            customerDeleteError,
+          },
+          "Stripe rollback failed after DB write error — orphaned Stripe objects require manual cleanup",
+        );
       }
     }
 
@@ -466,7 +483,7 @@ export function registerMobileRoutes(app: Express) {
       // Stripe account does not accumulate ghost customers/subscriptions.
       await rollbackStripe();
 
-      console.error("[mobile/signup]", err);
+      logger.error({ err }, "[mobile/signup] Signup failed");
       const msg =
         err?.raw?.message ||
         err?.message ||

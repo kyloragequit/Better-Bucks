@@ -113,6 +113,27 @@ const loginLimiter = rateLimit({
 app.use("/api/login", loginLimiter);
 app.use("/api/developer-login", loginLimiter);
 
+// Mobile login: 5 failed attempts per minute per IP
+const mobileLoginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts. Please wait a minute and try again." },
+  skipSuccessfulRequests: true,
+});
+app.use("/api/mobile/login", mobileLoginLimiter);
+
+// Mobile signup: 3 attempts per hour per IP (each attempt may hit Stripe)
+const mobileSignupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many signup attempts. Please try again in an hour." },
+});
+app.use("/api/mobile/organizations/signup", mobileSignupLimiter);
+
 // Health check — mounted before registerRoutes so it's always available
 app.use("/api", healthRouter);
 

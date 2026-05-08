@@ -65,6 +65,13 @@ export interface IStorage {
   updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null }): Promise<User>;
 
   createOrganization(org: InsertOrganization): Promise<Organization>;
+  createMobileSignup(params: {
+    orgInsert: InsertOrganization;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
+    signupPrice: number;
+    userInsert: InsertUser & { status: "active" | "inactive" | "pending" | "paused" | "deleted" };
+  }): Promise<{ org: Organization; user: User }>;
   getOrganization(id: number): Promise<Organization | undefined>;
   getOrganizationByCode(code: string): Promise<Organization | undefined>;
   getOrganizationBySiteId(siteId: string): Promise<Organization | undefined>;
@@ -546,6 +553,40 @@ export class DatabaseStorage implements IStorage {
   async createOrganization(org: InsertOrganization): Promise<Organization> {
     const [newOrg] = await db.insert(organizations).values(org).returning();
     return newOrg;
+  }
+
+  async createMobileSignup(params: {
+    orgInsert: InsertOrganization;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
+    signupPrice: number;
+    userInsert: InsertUser & { status: "active" | "inactive" | "pending" | "paused" | "deleted" };
+  }): Promise<{ org: Organization; user: User }> {
+    const { orgInsert, stripeCustomerId, stripeSubscriptionId, signupPrice, userInsert } = params;
+    return db.transaction(async (tx) => {
+      const [org] = await tx.insert(organizations).values(orgInsert).returning();
+      const [orgWithStripe] = await tx
+        .update(organizations)
+        .set({ stripeCustomerId, stripeSubscriptionId, status: "active", signupPrice })
+        .where(eq(organizations.id, org.id))
+        .returning();
+      if (!orgWithStripe) throw new Error("Failed to update org with Stripe info");
+      // Override organizationId with the real org ID from this transaction.
+      // The users schema declares status as ("pending" | "approved") but the
+      // actual DB column accepts more values (the insertUserSchema intentionally
+      // omits status for this reason). We cast only the status field to the
+      // schema-declared union so the rest of the object stays fully typed.
+      const { status: userStatus, ...userFields } = userInsert;
+      const [user] = await tx
+        .insert(users)
+        .values({
+          ...userFields,
+          organizationId: org.id,
+          status: userStatus as typeof users.$inferInsert["status"],
+        })
+        .returning();
+      return { org: orgWithStripe, user };
+    });
   }
 
   async getOrganization(id: number): Promise<Organization | undefined> {

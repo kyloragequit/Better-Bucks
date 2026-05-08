@@ -335,6 +335,27 @@ export function registerMobileRoutes(app: Express) {
 
     const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
 
+    // Track Stripe resources created so we can roll them back on DB failure
+    let stripeCustomerId: string | null = null;
+    let stripeSubscriptionId: string | null = null;
+
+    async function rollbackStripe() {
+      try {
+        if (stripeSubscriptionId) {
+          await stripe.subscriptions
+            .cancel(stripeSubscriptionId)
+            .catch(() => undefined);
+        }
+        if (stripeCustomerId) {
+          await stripe.customers
+            .del(stripeCustomerId)
+            .catch(() => undefined);
+        }
+      } catch {
+        // best-effort rollback; swallow errors
+      }
+    }
+
     try {
       // Create customer + attach payment method
       const customer = await stripe.customers.create({
@@ -344,6 +365,7 @@ export function registerMobileRoutes(app: Express) {
         invoice_settings: { default_payment_method: paymentMethodId },
         metadata: { source: "mobile_app", tier, organizationName },
       });
+      stripeCustomerId = customer.id;
 
       // Create a Product for this tier (Subscription price_data requires a
       // pre-existing Product ID, not product_data inline).
@@ -375,8 +397,17 @@ export function registerMobileRoutes(app: Express) {
       const subscription = await stripe.subscriptions.create(
         subscriptionParams,
       );
+      stripeSubscriptionId = subscription.id;
 
-      // Create org
+      // --- DB writes below: all-or-nothing transaction. Any failure
+      //     rolls back every DB row AND triggers Stripe rollback. ---
+
+      const hashed = await hashPassword(password);
+      const barcode = `BB-${orgCode}-${crypto
+        .randomBytes(3)
+        .toString("hex")
+        .toUpperCase()}`;
+
       const orgInsert: InsertOrganization = {
         name: organizationName,
         code: orgCode,
@@ -385,22 +416,6 @@ export function registerMobileRoutes(app: Express) {
         licenseAcceptedAt: licenseAccepted ? new Date() : null,
         marketingOptIn: false,
       };
-      const org = await storage.createOrganization(orgInsert);
-
-      await storage.updateOrganizationStripe(
-        org.id,
-        customer.id,
-        subscription.id,
-      );
-      await storage.updateOrganizationStatus(org.id, "active");
-      await storage.updateOrganizationSignupPrice(org.id, config.price);
-
-      // Create prime admin user for the org
-      const hashed = await hashPassword(password);
-      const barcode = `BB-${orgCode}-${crypto
-        .randomBytes(3)
-        .toString("hex")
-        .toUpperCase()}`;
       // status is omitted from the InsertUser schema (so it defaults to
       // "pending" in normal flows). For mobile signup the prime admin pays
       // upfront, so we mark them "active" by combining the typed insert
@@ -415,12 +430,19 @@ export function registerMobileRoutes(app: Express) {
         barcode,
         fullName,
         email,
-        organizationId: org.id,
+        organizationId: 0, // placeholder; storage sets real org.id inside tx
         emailVerified: false,
         marketingOptIn: false,
         termsAcceptedAt: new Date(),
       };
-      const user = await storage.createUser(userInsert);
+
+      const { user } = await storage.createMobileSignup({
+        orgInsert,
+        stripeCustomerId: customer.id,
+        stripeSubscriptionId: subscription.id,
+        signupPrice: config.price,
+        userInsert,
+      });
 
       const token = signMobileToken(user.id);
 
@@ -432,6 +454,10 @@ export function registerMobileRoutes(app: Express) {
         trialDays: 60,
       });
     } catch (err: any) {
+      // Roll back any Stripe objects so the user is not charged and the
+      // Stripe account does not accumulate ghost customers/subscriptions.
+      await rollbackStripe();
+
       console.error("[mobile/signup]", err);
       const msg =
         err?.raw?.message ||

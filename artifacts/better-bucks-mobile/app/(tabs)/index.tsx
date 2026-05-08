@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { ScrollView, StyleSheet, Text, View, RefreshControl, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 type Transaction = {
   id: number;
@@ -42,6 +44,7 @@ function formatDate(dateStr: string) {
 export default function HomeTab() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
+  const { visible: onboardingVisible, dismiss: dismissOnboarding } = useOnboarding();
 
   const { data, isLoading, refetch, isRefetching } = useQuery<DashboardData>({
     queryKey: ["mobile-dashboard", token],
@@ -59,8 +62,13 @@ export default function HomeTab() {
   const admin = user?.role === "admin" || user?.role === "prime_admin";
 
   return (
-    <ScrollView
-      style={styles.root}
+    <>
+      <OnboardingModal
+        visible={onboardingVisible}
+        onDismiss={dismissOnboarding}
+      />
+      <ScrollView
+        style={styles.root}
       contentContainerStyle={[
         styles.content,
         { paddingBottom: insets.bottom + 32 },
@@ -143,6 +151,7 @@ export default function HomeTab() {
         </View>
       )}
     </ScrollView>
+    </>
   );
 }
 

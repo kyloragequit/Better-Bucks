@@ -3920,6 +3920,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       await storage.updateUserBalance(adminId, bucksEach);
       await storage.createTransaction({ userId: adminId, amount: bucksEach, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
       invalidateUserCache(adminId);
+      void _pushPassUpdateForEmployee(adminId);
     }
     res.json({ allocated: validAdminIds.length, bucksEach, total: validAdminIds.length * bucksEach });
   });
@@ -3940,6 +3941,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       await storage.updateUserBalance(adminId, bucks);
       await storage.createTransaction({ userId: adminId, amount: bucks, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
       invalidateUserCache(adminId);
+      void _pushPassUpdateForEmployee(adminId);
       totalAllocated += bucks;
       adminsAllocated++;
     }

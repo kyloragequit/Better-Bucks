@@ -12,7 +12,7 @@ import { recordStripeOrphan } from "../stripeOrphanRetry";
 import { verifyAppleIdentityToken, verifyGoogleIdToken } from "../socialAuth";
 import { notifyAdminsOfAccountLockout } from "../lib/lockoutNotify";
 import { sendEmail } from "../lib/email";
-import { buildPassForEmployee, PassConfigError } from "../walletPass";
+import { buildPassForEmployee, PassConfigError, pushPassUpdateForEmployee } from "../walletPass";
 import { buildGoogleWalletSaveUrl, GoogleWalletConfigError } from "../googleWalletPass";
 import type {
   InsertOrganization,
@@ -778,6 +778,7 @@ export function registerMobileRoutes(app: Express) {
           reason,
           performedBy: user.id,
         });
+        void pushPassUpdateForEmployee(user.id);
 
         const order = await storage.createOrder({
           userId: user.id,
@@ -859,6 +860,7 @@ export function registerMobileRoutes(app: Express) {
             reason: `Refund: ${order.description ?? "Order denied"}`,
             performedBy: user.id,
           });
+          void pushPassUpdateForEmployee(order.userId);
         }
 
         const updated = await storage.updateOrderStatus(
@@ -1091,6 +1093,7 @@ export function registerMobileRoutes(app: Express) {
           reason: parsed.data.reason,
           performedBy: admin.id,
         });
+        void pushPassUpdateForEmployee(employeeId);
 
         const updated = await storage.getUser(employeeId);
 

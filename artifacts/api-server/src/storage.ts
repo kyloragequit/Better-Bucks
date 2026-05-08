@@ -214,6 +214,7 @@ export interface IStorage {
   getMerchantTransactionsByOrg(orgId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User; merchant?: Merchant })[]>;
   getMerchantTransactionsForEmployee(employeeId: number, limit?: number): Promise<(MerchantTransaction & { merchant?: Merchant })[]>;
   getRedemptionSummaryForEmployee(employeeId: number): Promise<{ monthTotal: number; allTimeTotal: number }>;
+  getMonthlyBucksSummary(userId: number): Promise<{ earned: number; spent: number }>;
 
   // Wallet passes
   createWalletPass(data: InsertWalletPass): Promise<WalletPass>;
@@ -1592,6 +1593,7 @@ export interface DatabaseStorage {
   getMerchantTransactionsByOrg: IStorage["getMerchantTransactionsByOrg"];
   getMerchantTransactionsForEmployee: IStorage["getMerchantTransactionsForEmployee"];
   getRedemptionSummaryForEmployee: IStorage["getRedemptionSummaryForEmployee"];
+  getMonthlyBucksSummary: IStorage["getMonthlyBucksSummary"];
   createWalletPass: IStorage["createWalletPass"];
   getWalletPassBySerial: IStorage["getWalletPassBySerial"];
   getActiveWalletPassForEmployee: IStorage["getActiveWalletPassForEmployee"];
@@ -1689,6 +1691,27 @@ DatabaseStorage.prototype.getRedemptionSummaryForEmployee = async function (empl
   return {
     allTimeTotal: parseInt(allTimeRow?.total ?? "0", 10),
     monthTotal: parseInt(monthRow?.total ?? "0", 10),
+  };
+};
+
+DatabaseStorage.prototype.getMonthlyBucksSummary = async function (userId) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const [row] = await db
+    .select({
+      earned: sql<string>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0)`,
+      spent: sql<string>`coalesce(sum(case when ${transactions.amount} < 0 then abs(${transactions.amount}) else 0 end), 0)`,
+    })
+    .from(transactions)
+    .where(and(
+      eq(transactions.userId, userId),
+      gte(transactions.createdAt, monthStart),
+      sql`${transactions.createdAt} < ${nextMonthStart}`,
+    ));
+  return {
+    earned: parseInt(row?.earned ?? "0", 10),
+    spent: parseInt(row?.spent ?? "0", 10),
   };
 };
 

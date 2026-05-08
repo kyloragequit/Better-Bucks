@@ -1142,6 +1142,17 @@ export function registerMobileRoutes(app: Express) {
     res.json({ balance: user.balance ?? 0 });
   });
 
+  app.get("/api/mobile/summary", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    try {
+      const summary = await storage.getMonthlyBucksSummary(user.id);
+      res.json(summary);
+    } catch (err) {
+      req.log.error({ err }, "Failed to compute monthly summary");
+      res.status(500).json({ message: "Failed to load summary" });
+    }
+  });
+
   // Recent transactions — merges ledger entries + merchant redemptions, sorted newest-first
   app.get("/api/mobile/transactions", mobileAuthMiddleware, async (req, res) => {
     const user = (req as MobileRequest).mobileUser;

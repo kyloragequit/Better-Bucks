@@ -51,6 +51,11 @@ type DashboardData = {
   } | null;
 };
 
+type MonthlySummary = {
+  earned: number;
+  spent: number;
+};
+
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -114,6 +119,23 @@ export default function HomeTab() {
     staleTime: 30_000,
   });
 
+  const { data: summary, refetch: refetchSummary } = useQuery<MonthlySummary>({
+    queryKey: ["mobile-monthly-summary", token],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/mobile/summary"), {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to load summary");
+      return res.json();
+    },
+    enabled: !!token && isEmployee,
+    staleTime: 30_000,
+  });
+
+  async function handleRefresh() {
+    await Promise.all([refetch(), refetchSummary()]);
+  }
+
   const admin = user?.role === "admin" || user?.role === "prime_admin";
 
   return (
@@ -131,7 +153,7 @@ export default function HomeTab() {
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
-          onRefresh={refetch}
+          onRefresh={handleRefresh}
           tintColor={brand.gold}
         />
       }
@@ -156,6 +178,36 @@ export default function HomeTab() {
         )}
         <Text style={styles.balanceUnit}>Bucks</Text>
       </View>
+
+      {/* Monthly earned/spent summary — employees only */}
+      {isEmployee && summary && (
+        <View style={styles.summaryBar}>
+          <Text style={styles.summaryBarLabel}>
+            {new Date().toLocaleString("default", { month: "long" })} summary
+          </Text>
+          <View style={styles.summaryBarRow}>
+            <View style={styles.summaryBarItem}>
+              <Ionicons name="arrow-down-circle" size={18} color="#4ADE80" />
+              <View>
+                <Text style={styles.summaryBarItemLabel}>Earned</Text>
+                <Text style={[styles.summaryBarItemValue, { color: "#4ADE80" }]}>
+                  {summary.earned.toLocaleString()} Bucks
+                </Text>
+              </View>
+            </View>
+            <View style={styles.summaryBarDivider} />
+            <View style={styles.summaryBarItem}>
+              <Ionicons name="arrow-up-circle" size={18} color="#FCA5A5" />
+              <View>
+                <Text style={styles.summaryBarItemLabel}>Spent</Text>
+                <Text style={[styles.summaryBarItemValue, { color: "#FCA5A5" }]}>
+                  {summary.spent.toLocaleString()} Bucks
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Add to Wallet — employees only */}
       {isEmployee && (
@@ -509,5 +561,47 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.35)",
     fontFamily: "Inter_400Regular",
     fontSize: 15,
+  },
+  summaryBar: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  summaryBarLabel: {
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  summaryBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  summaryBarItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  summaryBarDivider: {
+    width: 1,
+    height: 34,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginHorizontal: 12,
+  },
+  summaryBarItemLabel: {
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  summaryBarItemValue: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
   },
 });

@@ -1,8 +1,8 @@
 
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -566,16 +566,27 @@ export const walletPassDevices = pgTable("wallet_pass_devices", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const stripeOrphans = pgTable("stripe_orphans", {
-  id: serial("id").primaryKey(),
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  status: text("status", { enum: ["pending", "processing", "resolved", "failed_permanently"] }).default("pending").notNull(),
-  retryCount: integer("retry_count").default(0).notNull(),
-  lastError: text("last_error"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const stripeOrphans = pgTable(
+  "stripe_orphans",
+  {
+    id: serial("id").primaryKey(),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    status: text("status", { enum: ["pending", "processing", "resolved", "failed_permanently"] }).default("pending").notNull(),
+    retryCount: integer("retry_count").default(0).notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("stripe_orphans_pending_pair_idx")
+      .on(
+        sql`(COALESCE(${table.stripeCustomerId}, ''))`,
+        sql`(COALESCE(${table.stripeSubscriptionId}, ''))`,
+      )
+      .where(sql`${table.status} = 'pending'`),
+  ],
+);
 
 export type StripeOrphan = typeof stripeOrphans.$inferSelect;
 export type InsertStripeOrphan = typeof stripeOrphans.$inferInsert;

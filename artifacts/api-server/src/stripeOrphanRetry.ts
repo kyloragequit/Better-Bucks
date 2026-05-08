@@ -59,14 +59,17 @@ export async function recordStripeOrphan(opts: {
   lastError?: string;
 }): Promise<void> {
   try {
-    await db.insert(stripeOrphans).values({
-      stripeCustomerId: opts.stripeCustomerId,
-      stripeSubscriptionId: opts.stripeSubscriptionId,
-      status: "pending",
-      retryCount: 0,
-      lastError: opts.lastError ?? null,
-      updatedAt: new Date(),
-    });
+    await db.execute(sql`
+      INSERT INTO stripe_orphans
+        (stripe_customer_id, stripe_subscription_id, status, retry_count, last_error, created_at, updated_at)
+      VALUES
+        (${opts.stripeCustomerId}, ${opts.stripeSubscriptionId}, 'pending', 0, ${opts.lastError ?? null}, NOW(), NOW())
+      ON CONFLICT ((COALESCE(stripe_customer_id, '')), (COALESCE(stripe_subscription_id, '')))
+        WHERE status = 'pending'
+      DO UPDATE SET
+        last_error = EXCLUDED.last_error,
+        updated_at = EXCLUDED.updated_at
+    `);
     logger.info(
       {
         stripeCustomerId: opts.stripeCustomerId,

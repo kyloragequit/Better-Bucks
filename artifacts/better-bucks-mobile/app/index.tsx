@@ -14,7 +14,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!loading && token) {
-      router.replace("/dashboard");
+      router.replace("/(tabs)" as any);
     }
   }, [loading, token]);
 

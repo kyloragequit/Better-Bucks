@@ -114,6 +114,9 @@ const TIER_CONFIG = {
   },
 } as const;
 
+const isAdmin = (user: User) =>
+  user.role === "admin" || user.role === "prime_admin";
+
 export function registerMobileRoutes(app: Express) {
   // Public: list pricing tiers
   app.get("/api/mobile/tiers", (_req, res) => {
@@ -223,6 +226,483 @@ export function registerMobileRoutes(app: Express) {
     res.json({ token, user: safeUser(user) });
   });
 
+  // ─── Dashboard / Home ──────────────────────────────────────────────────────
+
+  // Home screen data: balance, recent transactions, goals summary
+  app.get("/api/mobile/dashboard", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    try {
+      const [freshUser, transactions, goals] = await Promise.all([
+        storage.getUser(user.id),
+        storage.getTransactionsByUser(user.id),
+        user.organizationId
+          ? storage.getGoalsByOrganization(user.organizationId)
+          : Promise.resolve([]),
+      ]);
+
+      const activeGoals = goals.filter((g) => g.status === "active");
+      const recentTransactions = transactions.slice(0, 15);
+
+      let adminStats: {
+        totalEmployees: number;
+        pendingOrdersCount: number;
+        totalBucksGiven: number;
+      } | null = null;
+
+      if (isAdmin(user) && user.organizationId) {
+        const [employees, orgOrders] = await Promise.all([
+          storage.getUsersByOrganization(user.organizationId),
+          storage.getOrdersByOrganization(user.organizationId),
+        ]);
+        const pendingOrders = orgOrders.filter((o) => o.status === "pending");
+        const totalBucksGiven = transactions
+          .filter((t) => t.amount > 0)
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        adminStats = {
+          totalEmployees: employees.filter((e) => e.role === "employee").length,
+          pendingOrdersCount: pendingOrders.length,
+          totalBucksGiven,
+        };
+      }
+
+      res.json({
+        balance: freshUser?.balance ?? 0,
+        recentTransactions,
+        activeGoals,
+        adminStats,
+      });
+    } catch (err) {
+      console.error("[mobile/dashboard]", err);
+      res.status(500).json({ message: "Failed to load dashboard" });
+    }
+  });
+
+  // ─── Store ─────────────────────────────────────────────────────────────────
+
+  app.get("/api/mobile/store-items", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!user.organizationId) {
+      return res.json([]);
+    }
+    try {
+      const items = await storage.getStoreItemsByOrganization(
+        user.organizationId,
+      );
+      return res.json(items.filter((i) => i.available));
+    } catch (err) {
+      console.error("[mobile/store-items]", err);
+      return res.status(500).json({ message: "Failed to load store" });
+    }
+  });
+
+  app.post(
+    "/api/mobile/store-items/:id/purchase",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      if (user.role !== "employee") {
+        return res
+          .status(403)
+          .json({ message: "Only employees can make purchases" });
+      }
+      const itemId = parseInt(req.params.id);
+      if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
+
+      try {
+        const item = await storage.getStoreItem(itemId);
+        if (!item || item.organizationId !== user.organizationId) {
+          return res.status(404).json({ message: "Item not found" });
+        }
+        if (!item.available) {
+          return res.status(400).json({ message: "Item is not available" });
+        }
+
+        const bodySchema = z.object({
+          quantity: z.number().int().min(1).max(99).optional().default(1),
+          selectedSize: z.string().optional(),
+          selectedColor: z.string().optional(),
+        });
+        const parsed = bodySchema.safeParse(req.body);
+        const quantity = parsed.success ? parsed.data.quantity : 1;
+        const selectedSize = parsed.success
+          ? (parsed.data.selectedSize ?? null)
+          : null;
+        const selectedColor = parsed.success
+          ? (parsed.data.selectedColor ?? null)
+          : null;
+        const totalCost = item.price * quantity;
+
+        if (item.requiresSize && !selectedSize) {
+          return res
+            .status(400)
+            .json({ message: "Size selection is required for this item." });
+        }
+        if (item.requiresColor && !selectedColor) {
+          return res
+            .status(400)
+            .json({ message: "Color selection is required for this item." });
+        }
+
+        const freshUser = await storage.getUser(user.id);
+        if (!freshUser || freshUser.balance < totalCost) {
+          return res
+            .status(400)
+            .json({ message: "Insufficient balance" });
+        }
+
+        const reason =
+          quantity > 1
+            ? `Store purchase: ${item.name} (x${quantity})`
+            : `Store purchase: ${item.name}`;
+
+        await storage.updateUserBalance(user.id, -totalCost);
+        await storage.createTransaction({
+          userId: user.id,
+          amount: -totalCost,
+          reason,
+          performedBy: user.id,
+        });
+
+        const order = await storage.createOrder({
+          userId: user.id,
+          pointsCost: totalCost,
+          quantity,
+          description:
+            quantity > 1
+              ? `Store Purchase: ${item.name} (x${quantity})`
+              : `Store Purchase: ${item.name}`,
+          photoUrls: [item.imageUrl],
+          itemUrl: item.url,
+          shopWebsiteId: null,
+          convertedValue: null,
+          selectedSize,
+          selectedColor,
+        });
+
+        return res.json({ success: true, order, newBalance: freshUser.balance - totalCost });
+      } catch (err) {
+        console.error("[mobile/purchase]", err);
+        return res.status(500).json({ message: "Purchase failed" });
+      }
+    },
+  );
+
+  // ─── Orders ────────────────────────────────────────────────────────────────
+
+  app.get("/api/mobile/orders", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    try {
+      if (isAdmin(user) && user.organizationId) {
+        const orders = await storage.getOrdersByOrganization(
+          user.organizationId,
+        );
+        return res.json(orders);
+      }
+      const orders = await storage.getOrdersByUser(user.id);
+      return res.json(orders);
+    } catch (err) {
+      console.error("[mobile/orders]", err);
+      return res.status(500).json({ message: "Failed to load orders" });
+    }
+  });
+
+  app.patch(
+    "/api/mobile/orders/:id/status",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      if (!isAdmin(user)) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      const orderId = parseInt(req.params.id);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      const bodySchema = z.object({
+        status: z.enum(["pending", "approved", "denied", "shipped", "fulfilled"]),
+        adminNotes: z.string().optional(),
+      });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      try {
+        const order = await storage.getOrder(orderId);
+        if (!order) return res.status(404).json({ message: "Order not found" });
+
+        const orderUser = await storage.getUser(order.userId);
+        if (orderUser?.organizationId !== user.organizationId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+
+        if (parsed.data.status === "denied" && order.status === "pending") {
+          await storage.updateUserBalance(order.userId, order.pointsCost);
+          await storage.createTransaction({
+            userId: order.userId,
+            amount: order.pointsCost,
+            reason: `Refund: ${order.description ?? "Order denied"}`,
+            performedBy: user.id,
+          });
+        }
+
+        const updated = await storage.updateOrderStatus(
+          orderId,
+          parsed.data.status,
+          parsed.data.adminNotes,
+        );
+        return res.json(updated);
+      } catch (err) {
+        console.error("[mobile/orders/status]", err);
+        return res.status(500).json({ message: "Failed to update order" });
+      }
+    },
+  );
+
+  // ─── Surveys ───────────────────────────────────────────────────────────────
+
+  app.get("/api/mobile/surveys", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!user.organizationId) return res.json([]);
+    try {
+      const surveys = await storage.getSurveysByOrganization(
+        user.organizationId,
+      );
+      const activeSurveys = isAdmin(user)
+        ? surveys
+        : surveys.filter((s) => s.status === "active");
+
+      const withResponded = await Promise.all(
+        activeSurveys.map(async (s) => {
+          const responded = await storage.hasUserRespondedToSurvey(
+            s.id,
+            user.id,
+          );
+          return { ...s, responded };
+        }),
+      );
+      return res.json(withResponded);
+    } catch (err) {
+      console.error("[mobile/surveys]", err);
+      return res.status(500).json({ message: "Failed to load surveys" });
+    }
+  });
+
+  app.get(
+    "/api/mobile/surveys/:id",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      const surveyId = parseInt(req.params.id);
+      if (isNaN(surveyId)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      try {
+        const survey = await storage.getSurvey(surveyId);
+        if (!survey || survey.organizationId !== user.organizationId) {
+          return res.status(404).json({ message: "Survey not found" });
+        }
+        const responded = await storage.hasUserRespondedToSurvey(
+          surveyId,
+          user.id,
+        );
+        return res.json({ ...survey, responded });
+      } catch (err) {
+        console.error("[mobile/surveys/:id]", err);
+        return res.status(500).json({ message: "Failed to load survey" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/mobile/surveys/:id/respond",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      const surveyId = parseInt(req.params.id);
+      if (isNaN(surveyId)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+      try {
+        const survey = await storage.getSurvey(surveyId);
+        if (!survey || survey.organizationId !== user.organizationId) {
+          return res.status(404).json({ message: "Survey not found" });
+        }
+        if (survey.status !== "active") {
+          return res
+            .status(400)
+            .json({ message: "Survey is not active" });
+        }
+        const already = await storage.hasUserRespondedToSurvey(
+          surveyId,
+          user.id,
+        );
+        if (already) {
+          return res
+            .status(400)
+            .json({ message: "Already responded to this survey" });
+        }
+
+        await storage.submitSurveyResponse(
+          surveyId,
+          user.id,
+          req.body.answers || [],
+        );
+
+        if ((survey as any).linkedGoalId) {
+          try {
+            const goal = await storage.getGoal((survey as any).linkedGoalId);
+            if (
+              goal &&
+              goal.type === "quantity" &&
+              goal.status === "active" &&
+              goal.organizationId === user.organizationId
+            ) {
+              await storage.incrementGoalQuantity(goal.id, 1);
+            }
+          } catch {
+            // don't block survey submission if goal increment fails
+          }
+        }
+
+        return res.json({ success: true });
+      } catch (err) {
+        console.error("[mobile/surveys/respond]", err);
+        return res.status(500).json({ message: "Failed to submit response" });
+      }
+    },
+  );
+
+  // ─── Goals ─────────────────────────────────────────────────────────────────
+
+  app.get("/api/mobile/goals", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!user.organizationId) return res.json([]);
+    try {
+      const goals = await storage.getGoalsByOrganization(user.organizationId);
+      return res.json(goals.filter((g) => g.status === "active"));
+    } catch (err) {
+      console.error("[mobile/goals]", err);
+      return res.status(500).json({ message: "Failed to load goals" });
+    }
+  });
+
+  // ─── Admin: Employees & Rewards ────────────────────────────────────────────
+
+  app.get(
+    "/api/mobile/employees",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      if (!isAdmin(user)) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      if (!user.organizationId) return res.json([]);
+      try {
+        const employees = await storage.getUsersByOrganization(
+          user.organizationId,
+        );
+        return res.json(
+          employees
+            .filter((e) => e.role === "employee" || e.role === "admin")
+            .map(safeUser),
+        );
+      } catch (err) {
+        console.error("[mobile/employees]", err);
+        return res.status(500).json({ message: "Failed to load employees" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/mobile/employees/:id/reward",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const admin = (req as MobileRequest).mobileUser;
+      if (!isAdmin(admin)) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      const employeeId = parseInt(req.params.id);
+      if (isNaN(employeeId)) {
+        return res.status(400).json({ message: "Invalid ID" });
+      }
+
+      const bodySchema = z.object({
+        amount: z.number().int().min(1).max(100000),
+        reason: z.string().min(1).max(500),
+      });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          message: parsed.error.issues[0]?.message ?? "Invalid input",
+        });
+      }
+
+      try {
+        const employee = await storage.getUser(employeeId);
+        if (
+          !employee ||
+          employee.organizationId !== admin.organizationId
+        ) {
+          return res.status(404).json({ message: "Employee not found" });
+        }
+
+        await storage.updateUserBalance(employeeId, parsed.data.amount);
+        await storage.createTransaction({
+          userId: employeeId,
+          amount: parsed.data.amount,
+          reason: parsed.data.reason,
+          performedBy: admin.id,
+        });
+
+        const updated = await storage.getUser(employeeId);
+        return res.json({
+          success: true,
+          newBalance: updated?.balance ?? 0,
+          employee: updated ? safeUser(updated) : null,
+        });
+      } catch (err) {
+        console.error("[mobile/employees/reward]", err);
+        return res.status(500).json({ message: "Failed to send reward" });
+      }
+    },
+  );
+
+  // ─── Admin: Stats ──────────────────────────────────────────────────────────
+
+  app.get("/api/mobile/stats", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user)) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    if (!user.organizationId) {
+      return res.json({ totalEmployees: 0, pendingOrders: 0, activeSurveys: 0, activeGoals: 0 });
+    }
+    try {
+      const [employees, orders, surveys, goals] = await Promise.all([
+        storage.getUsersByOrganization(user.organizationId),
+        storage.getOrdersByOrganization(user.organizationId),
+        storage.getSurveysByOrganization(user.organizationId),
+        storage.getGoalsByOrganization(user.organizationId),
+      ]);
+
+      return res.json({
+        totalEmployees: employees.filter(
+          (e) => e.role === "employee" || e.role === "admin",
+        ).length,
+        pendingOrders: orders.filter((o) => o.status === "pending").length,
+        activeSurveys: surveys.filter((s) => s.status === "active").length,
+        activeGoals: goals.filter((g) => g.status === "active").length,
+      });
+    } catch (err) {
+      console.error("[mobile/stats]", err);
+      return res.status(500).json({ message: "Failed to load stats" });
+    }
+  });
+
+  // ─── Account ───────────────────────────────────────────────────────────────
+
+
   // Account deletion — required by Apple App Store guideline 5.1.1(v)
   app.post(
     "/api/mobile/account/delete",
@@ -230,13 +710,13 @@ export function registerMobileRoutes(app: Express) {
     async (req, res) => {
       const user = (req as MobileRequest).mobileUser;
       try {
-        // If this user is the prime admin of an org, also cancel the org's
-        // Stripe subscription and mark the org deleted.
         if (user.role === "prime_admin" && user.organizationId) {
           const org = await storage.getOrganization(user.organizationId);
-          if (org?.stripeSubscriptionId &&
-              !org.stripeSubscriptionId.startsWith("promo_") &&
-              !org.stripeSubscriptionId.startsWith("pending_")) {
+          if (
+            org?.stripeSubscriptionId &&
+            !org.stripeSubscriptionId.startsWith("promo_") &&
+            !org.stripeSubscriptionId.startsWith("pending_")
+          ) {
             try {
               await ensureStripeReady();
               const stripe = await getUncachableStripeClient();
@@ -263,6 +743,8 @@ export function registerMobileRoutes(app: Express) {
       }
     },
   );
+
+  // ─── Signup ────────────────────────────────────────────────────────────────
 
   // Signup with Stripe payment method (mobile uses native CardField, not Checkout)
   app.post("/api/mobile/organizations/signup", async (req, res) => {
@@ -296,7 +778,6 @@ export function registerMobileRoutes(app: Express) {
 
     const config = TIER_CONFIG[tier];
 
-    // Enterprise — no payment, just record the lead and return contactPending
     if (tier === "enterprise") {
       res.json({
         contactPending: true,
@@ -311,7 +792,6 @@ export function registerMobileRoutes(app: Express) {
       return;
     }
 
-    // Confirm Stripe is configured
     try {
       await ensureStripeReady();
     } catch {
@@ -331,7 +811,6 @@ export function registerMobileRoutes(app: Express) {
       return;
     }
 
-    // Reject duplicate username/email upfront
     const existing =
       (await storage.getUserByUsername(email)) ||
       (await storage.getUserByEmailGlobal(email));
@@ -382,7 +861,6 @@ export function registerMobileRoutes(app: Express) {
     }
 
     try {
-      // Create customer + attach payment method
       const customer = await stripe.customers.create({
         email,
         name: organizationName,
@@ -392,14 +870,11 @@ export function registerMobileRoutes(app: Express) {
       });
       stripeCustomerId = customer.id;
 
-      // Create a Product for this tier (Subscription price_data requires a
-      // pre-existing Product ID, not product_data inline).
       const product = await stripe.products.create({
         name: `Better Bucks – ${config.name}`,
         metadata: { tier, source: "mobile_app" },
       });
 
-      // Create subscription with 60-day trial
       const subscriptionItem: Stripe.SubscriptionCreateParams.Item = {
         price_data: {
           currency: "usd",

@@ -48,8 +48,12 @@ function RootLayoutNav() {
         options={{ headerShown: false, gestureEnabled: false }}
       />
       <Stack.Screen
+        name="(tabs)"
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
+      <Stack.Screen
         name="dashboard"
-        options={{ title: "Better Bucks", headerBackVisible: false }}
+        options={{ headerShown: false, gestureEnabled: false }}
       />
     </Stack>
   );

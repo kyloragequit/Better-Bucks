@@ -56,18 +56,18 @@ export default function LoginScreen() {
         "Enable Face ID / Touch ID?",
         "Sign in faster next time using biometrics.",
         [
-          { text: "Not now", style: "cancel", onPress: () => router.replace("/dashboard") },
+          { text: "Not now", style: "cancel", onPress: () => router.replace("/(tabs)" as any) },
           {
             text: "Enable",
             onPress: async () => {
               await enrollBiometrics();
-              router.replace("/dashboard");
+              router.replace("/(tabs)" as any);
             },
           },
         ],
       );
     } else {
-      router.replace("/dashboard");
+      router.replace("/(tabs)" as any);
     }
   };
 

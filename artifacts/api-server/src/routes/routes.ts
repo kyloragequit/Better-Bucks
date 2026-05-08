@@ -7318,6 +7318,79 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     }
   });
 
+  // ── Monthly Budget Allocation Reminder (1st of each month at 9:00 AM UTC) ──
+  cron.schedule("0 9 1 * *", async () => {
+    console.log("[BudgetReminder] Cron triggered — sending monthly allocation reminders...");
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    try {
+      const allOrgs = await storage.getAllOrganizations();
+      let sent = 0;
+      for (const org of allOrgs) {
+        if (org.status !== "active") continue;
+        const budget = org.monthlyBudgetBucks ?? 0;
+        if (budget <= 0) continue;
+        try {
+          const used = await storage.getMonthlyBudgetUsed(org.id, year, month);
+          if (used > 0) continue; // already allocated — no reminder needed
+          const primeEmails = await getOrgPrimeAdminEmails(org.id);
+          if (!primeEmails.length) continue;
+          const monthName = now.toLocaleString("en-US", { month: "long" });
+          const html = `
+            <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+              ${emailLogoHeader}
+              <p style="color:#374151;font-size:15px;margin:0 0 12px;">Hi there,</p>
+              <p style="color:#374151;font-size:15px;margin:0 0 16px;">
+                It's the start of <strong>${monthName}</strong> — time to allocate your monthly Bucks budget for
+                <strong>${escapeHtml(org.name)}</strong>.
+              </p>
+              <div style="background:#EEF4FB;border-radius:10px;padding:18px 20px;margin:0 0 20px;">
+                <p style="margin:0 0 6px;font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">This Month's Budget</p>
+                <p style="margin:0;font-size:28px;font-weight:700;color:#162A4A;">${budget.toLocaleString()} <span style="font-size:16px;font-weight:500;color:#6B7280;">Bucks</span></p>
+                <p style="margin:6px 0 0;font-size:13px;color:#F5A623;font-weight:600;">0 allocated so far</p>
+              </div>
+              <p style="color:#374151;font-size:15px;margin:0 0 20px;">
+                Log in to your Better Bucks dashboard and distribute Bucks to your administrators so they can start
+                rewarding employees this month.
+              </p>
+              <div style="text-align:center;margin:0 0 24px;">
+                <a href="https://betterbucks.net/dashboard"
+                   style="display:inline-block;background:#162A4A;color:#F5C842;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;">
+                  Allocate Bucks Now →
+                </a>
+              </div>
+              <p style="color:#9CA3AF;font-size:12px;margin:0;">
+                You're receiving this because you're a Better Bucks organization administrator.
+                Questions? Reply to this email or contact
+                <a href="mailto:miles.chase@betterbucks.net" style="color:#162A4A;">miles.chase@betterbucks.net</a>.
+              </p>
+            </div>
+          `;
+          const text = `Hi there,\n\nIt's the start of ${monthName} — time to allocate your ${budget.toLocaleString()} Bucks monthly budget for ${org.name}.\n\nLog in at https://betterbucks.net/dashboard to distribute Bucks to your administrators.\n\nQuestions? Contact miles.chase@betterbucks.net`;
+          await Promise.all(
+            primeEmails.map(email =>
+              sendEmail({
+                to: email,
+                subject: `[Better Bucks] Time to allocate your ${monthName} Bucks budget`,
+                html,
+                text,
+              }).catch(err =>
+                console.error(`[BudgetReminder] Email failed for ${email} (org ${org.id}):`, err?.message ?? err)
+              )
+            )
+          );
+          sent++;
+        } catch (err) {
+          console.error(`[BudgetReminder] Failed for org ${org.name} (${org.id}):`, err);
+        }
+      }
+      console.log(`[BudgetReminder] Sent reminders to ${sent} org(s)`);
+    } catch (err) {
+      console.error("[BudgetReminder] Cron error:", err);
+    }
+  });
+
   // ── Custom Items (multi-item type) ──────────────────────────────────────────
 
   // Helper: ensure backwards-compat — migrate org's single-item config into the new tables

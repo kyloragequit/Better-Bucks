@@ -408,7 +408,19 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
           {regularAdmins.length > 0 && (
             <div className="pt-3 border-t space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Users className="h-4 w-4" /> Allocate Bucks to Administrators</p>
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Allocate Bucks to Administrators
+                  {serverBudget > 0 && currentCredited === 0 && (
+                    <span
+                      className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold leading-none flex-shrink-0"
+                      title="Budget not yet allocated this month"
+                      aria-label="Allocation needed"
+                    >
+                      !
+                    </span>
+                  )}
+                </p>
                 <div className="flex items-center gap-2">
                   {mgrCounts && mgrCounts.counts.length > 0 && serverBudget > 0 && (
                     <button

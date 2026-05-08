@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { File as EFSFile, Paths } from "expo-file-system";
 import * as Linking from "expo-linking";
@@ -26,6 +27,7 @@ type Transaction = {
   amount: number;
   reason: string | null;
   createdAt: string;
+  performedByName?: string | null;
 };
 
 type Goal = {
@@ -356,7 +358,12 @@ const goalStyles = StyleSheet.create({
 function TransactionRow({ tx }: { tx: Transaction }) {
   const positive = tx.amount > 0;
   return (
-    <View style={txStyles.row}>
+    <Pressable
+      style={({ pressed }) => [txStyles.row, pressed && { opacity: 0.7 }]}
+      onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: tx.id } })}
+      accessibilityRole="button"
+      accessibilityLabel={`View details for ${tx.reason ?? "transaction"}`}
+    >
       <View
         style={[
           txStyles.icon,
@@ -379,7 +386,8 @@ function TransactionRow({ tx }: { tx: Transaction }) {
         {positive ? "+" : ""}
         {tx.amount.toLocaleString()}
       </Text>
-    </View>
+      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.25)" />
+    </Pressable>
   );
 }
 

@@ -56,6 +56,10 @@ function RootLayoutNav() {
         name="dashboard"
         options={{ headerShown: false, gestureEnabled: false }}
       />
+      <Stack.Screen
+        name="transaction/[id]"
+        options={{ title: "Transaction Details" }}
+      />
     </Stack>
   );
 }

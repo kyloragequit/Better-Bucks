@@ -1187,6 +1187,49 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
+  // Single transaction detail — ledger entries only (user-scoped)
+  app.get("/api/mobile/transactions/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const txId = Number(req.params.id);
+    if (isNaN(txId) || txId < 1) {
+      return res.status(400).json({ message: "Invalid transaction id" });
+    }
+
+    try {
+      const all = await storage.getTransactionsByUser(user.id);
+      const tx = all.find((t) => t.id === txId);
+      if (!tx) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      let categoryName: string | null = null;
+      let categoryColor: string | null = null;
+      if (tx.categoryId && user.organizationId) {
+        const categories = await storage.getCategoriesByOrg(user.organizationId);
+        const cat = categories.find((c) => c.id === tx.categoryId);
+        if (cat) {
+          categoryName = cat.name;
+          categoryColor = cat.color;
+        }
+      }
+
+      res.json({
+        id: tx.id,
+        amount: tx.amount,
+        reason: tx.reason,
+        type: tx.amount >= 0 ? "credit" : "debit",
+        createdAt: tx.createdAt,
+        performedByName: tx.performedByName ?? null,
+        categoryId: tx.categoryId ?? null,
+        categoryName,
+        categoryColor,
+      });
+    } catch (err) {
+      logger.error({ err }, "[mobile/transactions/:id] Failed to load transaction");
+      res.status(500).json({ message: "Could not load transaction" });
+    }
+  });
+
   // ─── Account ───────────────────────────────────────────────────────────────
 
   // Account deletion — required by Apple App Store guideline 5.1.1(v)

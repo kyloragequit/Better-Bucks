@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { HelpCircle, BookOpen, Mail, Send, X, ArrowLeft } from "lucide-react";
+import { HelpCircle, BookOpen, Mail, Send, ArrowLeft } from "lucide-react";
 import { useTutorial } from "@/hooks/use-tutorial";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,6 +15,7 @@ export function NeedHelpButton() {
   const [view, setView] = useState<View>("menu");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({});
   const { restartTutorial } = useTutorial();
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +44,19 @@ export function NeedHelpButton() {
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open && containerRef.current) {
+      if (window.innerWidth < 640) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setPopoverStyle({ top: rect.bottom + 8 });
+      } else {
+        setPopoverStyle({});
+      }
+    }
+    setOpen(!open);
+    if (open) setView("menu");
+  };
+
   const handleTutorial = async () => {
     setOpen(false);
     setView("menu");
@@ -69,10 +83,7 @@ export function NeedHelpButton() {
         variant="ghost"
         size="sm"
         className="text-white/70 hover:text-white hover:bg-white/10 gap-1.5 text-sm font-medium"
-        onClick={() => {
-          setOpen(!open);
-          if (open) setView("menu");
-        }}
+        onClick={handleToggle}
         data-testid="button-need-help"
       >
         <HelpCircle className="h-4 w-4" />
@@ -80,9 +91,12 @@ export function NeedHelpButton() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div
+          className="fixed sm:absolute right-4 sm:right-0 sm:top-full sm:mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-xl border border-gray-200 z-[1100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+          style={popoverStyle}
+        >
           {view === "menu" ? (
-            <div className="py-1">
+            <div className="py-1 overflow-y-auto max-h-[calc(100vh-var(--bb-bottom-nav-h)-env(safe-area-inset-bottom)-5rem)]">
               <div className="px-4 py-2.5 border-b border-gray-100">
                 <p className="text-sm font-semibold text-gray-900">Need Help?</p>
                 <p className="text-xs text-gray-500 mt-0.5">Choose an option below</p>
@@ -115,7 +129,7 @@ export function NeedHelpButton() {
               </button>
             </div>
           ) : (
-            <div className="p-4">
+            <div className="p-4 overflow-y-auto max-h-[calc(100vh-var(--bb-bottom-nav-h)-env(safe-area-inset-bottom)-5rem)]">
               <div className="flex items-center gap-2 mb-3">
                 <button
                   className="p-1 rounded hover:bg-gray-100 transition-colors"

@@ -412,6 +412,7 @@ function ShoppingListDialog({ onClose }: { onClose: () => void }) {
           ) : !data || data.items.length === 0 ? (
             <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">No pending orders to compile.</div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/60">
@@ -444,6 +445,7 @@ function ShoppingListDialog({ onClose }: { onClose: () => void }) {
                 )}
               </TableBody>
             </Table>
+            </div>
           )}
         </div>
 

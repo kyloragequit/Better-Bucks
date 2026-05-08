@@ -243,7 +243,7 @@ export default function LandingPage() {
       >
         Skip to main content
       </a>
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b pt-safe pl-safe pr-safe">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 min-w-0">
             <AppLogo size="sm" />

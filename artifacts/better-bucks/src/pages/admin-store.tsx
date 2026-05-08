@@ -118,7 +118,7 @@ function NeedHelpPanel({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="px-5 py-4 border-t bg-gray-50 shrink-0">
+        <div className="px-5 pt-4 border-t bg-gray-50 shrink-0 [padding-bottom:max(1rem,env(safe-area-inset-bottom))]">
           <p className="text-xs text-gray-600 text-center">
             Still have questions? Contact your Better Bucks rep.
           </p>

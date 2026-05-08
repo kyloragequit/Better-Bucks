@@ -205,7 +205,7 @@ export default function EmployeeStorePage() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="p-5 space-y-3">
+              <div className="p-4 space-y-4">
                 <h3 className="text-lg font-bold leading-snug" data-testid="text-browse-item-name">{browsingItem.name}</h3>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary" className="font-bold text-primary bg-primary/10 text-base px-3 py-1">

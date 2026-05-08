@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { Store } from "lucide-react";
 
 export default function MerchantLoginPage() {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -23,12 +21,12 @@ export default function MerchantLoginPage() {
   useEffect(() => { if (me?.id) setLocation("/merchant/scanner"); }, [me, setLocation]);
 
   const loginMut = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/merchant/login", { email, password }).then((r) => r.json()),
+    mutationFn: () =>
+      apiRequest("POST", "/api/merchant/login", { email, password }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
       setLocation("/merchant/scanner");
     },
-    onError: (e: Error) => toast({ title: "Login failed", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -48,12 +46,34 @@ export default function MerchantLoginPage() {
           >
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" data-testid="input-merchant-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                id="email"
+                data-testid="input-merchant-email"
+                type="email"
+                inputMode="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pwd">Password</Label>
-              <Input id="pwd" data-testid="input-merchant-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input
+                id="pwd"
+                data-testid="input-merchant-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
+            {loginMut.isError && (
+              <p role="alert" className="text-sm font-medium text-destructive" data-testid="error-merchant-login">
+                {(loginMut.error as Error)?.message || "Login failed"}
+              </p>
+            )}
             <Button type="submit" className="w-full" disabled={loginMut.isPending} data-testid="button-merchant-login">
               {loginMut.isPending ? "Signing in…" : "Sign in"}
             </Button>

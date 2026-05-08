@@ -24,6 +24,7 @@ export default function MerchantScannerPage() {
   const { data: me, isLoading } = useQuery<MerchantMe>({ queryKey: ["/api/merchant/me"], retry: false });
 
   const [amount, setAmount] = useState<string>("");
+  const [amountError, setAmountError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [lastToken, setLastToken] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<LastResult | null>(null);
@@ -97,9 +98,16 @@ export default function MerchantScannerPage() {
   useEffect(() => () => { void stopScan(); }, []);
 
   function submitRedeem() {
-    if (!lastToken) { toast({ title: "Scan first", description: "Scan a member's QR code before redeeming.", variant: "destructive" }); return; }
+    if (!lastToken) {
+      setAmountError("Scan a member's QR code before entering an amount.");
+      return;
+    }
     const n = Number(amount);
-    if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) { toast({ title: "Enter a whole number", description: "Bucks amount must be a positive whole number.", variant: "destructive" }); return; }
+    if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
+      setAmountError("Enter a positive whole number of Bucks (e.g. 50).");
+      return;
+    }
+    setAmountError(null);
     redeemMut.mutate({ token: lastToken, amount: n });
   }
 
@@ -143,13 +151,28 @@ export default function MerchantScannerPage() {
                 <div className="text-sm text-muted-foreground">QR captured. Enter the Bucks amount to redeem:</div>
                 <div className="space-y-2">
                   <Label htmlFor="amt">Bucks amount</Label>
-                  <Input id="amt" inputMode="numeric" pattern="[0-9]*" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))} placeholder="e.g. 50" data-testid="input-redeem-amount" />
+                  <Input
+                    id="amt"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={amount}
+                    onChange={(e) => { setAmount(e.target.value.replace(/[^0-9]/g, "")); setAmountError(null); }}
+                    placeholder="e.g. 50"
+                    aria-describedby={amountError ? "amt-error" : undefined}
+                    aria-invalid={!!amountError}
+                    data-testid="input-redeem-amount"
+                  />
+                  {amountError && (
+                    <p id="amt-error" role="alert" className="text-sm font-medium text-destructive" data-testid="error-redeem-amount">
+                      {amountError}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={submitRedeem} disabled={redeemMut.isPending} data-testid="button-confirm-redeem">
                     {redeemMut.isPending ? "Processing…" : "Redeem"}
                   </Button>
-                  <Button variant="outline" onClick={() => { setLastToken(null); setAmount(""); }} data-testid="button-cancel-redeem">Cancel</Button>
+                  <Button variant="outline" onClick={() => { setLastToken(null); setAmount(""); setAmountError(null); }} data-testid="button-cancel-redeem">Cancel</Button>
                 </div>
               </div>
             )}

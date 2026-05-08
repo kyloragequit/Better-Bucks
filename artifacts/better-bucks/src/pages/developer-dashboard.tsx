@@ -2584,56 +2584,61 @@ function EnterpriseAccountsTab() {
             <form onSubmit={handleSubmit} onFocusCapture={scrollOnFocus} className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label>Company Name</Label>
-                  <Input required value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} data-testid="input-ent-company" />
+                  <Label htmlFor="ent-company">Company Name</Label>
+                  <Input id="ent-company" required value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} data-testid="input-ent-company" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Contact Name</Label>
-                  <Input required value={form.contactName} onChange={e => setForm({...form, contactName: e.target.value})} data-testid="input-ent-contact-name" />
+                  <Label htmlFor="ent-contact-name">Contact Name</Label>
+                  <Input id="ent-contact-name" required value={form.contactName} onChange={e => setForm({...form, contactName: e.target.value})} data-testid="input-ent-contact-name" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Contact Email</Label>
-                  <Input type="email" required value={form.contactEmail} onChange={e => setForm({...form, contactEmail: e.target.value})} data-testid="input-ent-email" />
+                  <Label htmlFor="ent-email">Contact Email</Label>
+                  <Input id="ent-email" type="email" inputMode="email" required value={form.contactEmail} onChange={e => setForm({...form, contactEmail: e.target.value})} data-testid="input-ent-email" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Street Address</Label>
-                  <Input required value={form.address} onChange={e => setForm({...form, address: e.target.value})} data-testid="input-ent-address" />
+                  <Label htmlFor="ent-address">Street Address</Label>
+                  <Input id="ent-address" autoComplete="street-address" required value={form.address} onChange={e => setForm({...form, address: e.target.value})} data-testid="input-ent-address" />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
-                    <Label>City</Label>
-                    <Input required value={form.city} onChange={e => setForm({...form, city: e.target.value})} data-testid="input-ent-city" />
+                    <Label htmlFor="ent-city">City</Label>
+                    <Input id="ent-city" autoComplete="address-level2" required value={form.city} onChange={e => setForm({...form, city: e.target.value})} data-testid="input-ent-city" />
                   </div>
                   <div className="space-y-1">
-                    <Label>State</Label>
-                    <Input required value={form.state} onChange={e => setForm({...form, state: e.target.value})} data-testid="input-ent-state" />
+                    <Label htmlFor="ent-state">State</Label>
+                    <Input id="ent-state" autoComplete="address-level1" required value={form.state} onChange={e => setForm({...form, state: e.target.value})} data-testid="input-ent-state" />
                   </div>
                   <div className="space-y-1">
-                    <Label>ZIP</Label>
-                    <Input required value={form.zip} onChange={e => setForm({...form, zip: e.target.value})} data-testid="input-ent-zip" />
+                    <Label htmlFor="ent-zip">ZIP</Label>
+                    <Input id="ent-zip" inputMode="numeric" pattern="[0-9\-]*" autoComplete="postal-code" required value={form.zip} onChange={e => setForm({...form, zip: e.target.value})} data-testid="input-ent-zip" />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label>Custom Price ($)</Label>
-                  <Input type="number" inputMode="decimal" step="0.01" min="1" required value={form.customPrice} onChange={e => setForm({...form, customPrice: e.target.value})} placeholder="e.g. 499.99" data-testid="input-ent-price" />
+                  <Label htmlFor="ent-price">Custom Price ($)</Label>
+                  <Input id="ent-price" type="number" inputMode="decimal" step="0.01" min="1" required value={form.customPrice} onChange={e => setForm({...form, customPrice: e.target.value})} placeholder="e.g. 499.99" data-testid="input-ent-price" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Billing Cycle</Label>
-                  <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.billingCycle} onChange={e => setForm({...form, billingCycle: e.target.value})} data-testid="select-ent-cycle">
+                  <Label htmlFor="ent-cycle">Billing Cycle</Label>
+                  <select id="ent-cycle" className="flex h-11 sm:h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={form.billingCycle} onChange={e => setForm({...form, billingCycle: e.target.value})} data-testid="select-ent-cycle">
                     <option value="monthly">Monthly</option>
                     <option value="quarterly">Quarterly</option>
                     <option value="annual">Annual</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Max Logins (Usage Limit)</Label>
-                  <Input type="number" inputMode="numeric" min="1" required value={form.maxLogins} onChange={e => setForm({...form, maxLogins: e.target.value})} placeholder="e.g. 500" data-testid="input-ent-logins" />
+                  <Label htmlFor="ent-logins">Max Logins (Usage Limit)</Label>
+                  <Input id="ent-logins" type="number" inputMode="numeric" min="1" required value={form.maxLogins} onChange={e => setForm({...form, maxLogins: e.target.value})} placeholder="e.g. 500" data-testid="input-ent-logins" />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Notes (optional)</Label>
-                <Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Internal notes about this account..." data-testid="input-ent-notes" />
+                <Label htmlFor="ent-notes">Notes (optional)</Label>
+                <Textarea id="ent-notes" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Internal notes about this account..." data-testid="input-ent-notes" />
               </div>
+              {createMutation.isError && (
+                <p role="alert" className="text-sm font-medium text-destructive" data-testid="error-create-enterprise">
+                  {(createMutation.error as Error)?.message || "Failed to create enterprise account"}
+                </p>
+              )}
               <div className="flex gap-2">
                 <Button type="submit" disabled={createMutation.isPending} data-testid="button-create-enterprise">
                   {createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}

@@ -1,0 +1,128 @@
+I have an existing Better Bucks web app (betterbucks.net) — a B2B employee recognition and incentive platform. I need you to build a React Native (Expo) mobile app targeting iOS (Apple App Store distribution) that serves as the mobile companion to this platform.
+
+Home Screen (unauthenticated):
+
+
+
+
+
+Completely minimal — show only:
+
+
+
+
+
+The Better Bucks logo centered on screen (navy #1A3A6B background)
+
+
+
+A "Log In" button (gold #F5C842, dark text)
+
+
+
+A "Sign Up" button (outlined, white text)
+
+
+
+No navigation bar, no extra copy, no distractions
+
+Sign Up Flow:
+
+
+
+
+
+Account Info screen — collect: Business Name, Full Name, Work Email, Password, Confirm Password
+
+
+
+Plan Selection screen — display pricing tiers (placeholder: Basic, Pro, Enterprise) with monthly/annual toggle
+
+
+
+Payment screen — integrate Stripe using @stripe/stripe-react-native. Collect card details via Stripe's CardField component. On success, create the account in the backend.
+
+
+
+Confirmation screen — "Account created! Please log in." with a button that routes to the Log In screen.
+
+Log In Flow:
+
+
+
+
+
+Email + Password fields
+
+
+
+"Log In" button calls the existing backend auth endpoint (JWT-based)
+
+
+
+On success, navigate to the main app dashboard
+
+Tech stack:
+
+
+
+
+
+React Native with Expo (managed workflow, SDK 50+)
+
+
+
+React Navigation (Stack navigator)
+
+
+
+Stripe React Native SDK for payments
+
+
+
+Backend: connect to the existing Better Bucks REST API (I will provide the base URL as an environment variable EXPO_PUBLIC_API_URL)
+
+
+
+Store JWT in Expo SecureStore
+
+App Store requirements to include:
+
+
+
+
+
+app.json configured with bundle ID net.betterbucks.app, app name "Better Bucks", proper iOS permissions
+
+
+
+Splash screen using navy #1A3A6B background
+
+
+
+App icon placeholder (navy square with gold "BB" text — I'll replace with final asset)
+
+Color palette:
+
+
+
+
+
+Navy: #1A3A6B
+
+
+
+Green: #4A8C3F
+
+
+
+Gold: #F5C842
+
+
+
+White: #FFFFFF
+
+Do not build the full dashboard yet — stop after successful login routes to a placeholder "Dashboard" screen that just says "Welcome to Better Bucks." I will build out the dashboard separately.
+
+Use .env for all secrets (STRIPE_PUBLISHABLE_KEY, EXPO_PUBLIC_API_URL). Do not hardcode any keys.
+

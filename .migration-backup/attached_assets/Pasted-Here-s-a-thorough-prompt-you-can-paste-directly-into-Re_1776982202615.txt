@@ -1,0 +1,55 @@
+Here's a thorough prompt you can paste directly into Replit Agent:
+
+MOBILE UX/UI OPTIMIZATION — FULL AUDIT & FIX
+
+Perform a complete mobile UX and UI overhaul of this project. Go through every single screen, component, button, modal, tooltip, overlay, and interactive element. Do not skip anything. Here is exactly what needs to be addressed:
+
+1. BUTTON & INTERACTION FIXES
+
+Audit every button and tap target. All tappable elements must be at minimum 44×44px per iOS/Android guidelines.
+Fix any buttons that are unresponsive, glitched, or require multiple taps to register — especially any "Skip," "Close," "Dismiss," or tutorial navigation buttons.
+Ensure all modals, drawers, and overlays have a clearly working close/dismiss action that cannot get stuck.
+Remove any event listener conflicts or z-index stacking issues that cause buttons to be blocked by invisible elements.
+2. TUTORIAL & ONBOARDING
+
+The tutorial skip/exit flow is broken. Audit the entire tutorial or onboarding sequence. Every step must have a clearly visible, always-functional "Skip" or "Exit" button.
+Ensure tutorial state is properly reset or cleared if the user exits mid-flow so it does not loop or re-trigger unexpectedly.
+If the tutorial uses overlays or spotlights, make sure they do not block underlying UI elements or trap focus.
+3. TEXT & CONTENT DENSITY
+
+Go through every screen and identify any text that is too long, wraps awkwardly, overflows its container, or clutters the layout on a small screen.
+Shorten labels wherever possible. Use concise copy. Replace long button labels with icon + short label or icon-only where the action is universally understood (e.g., trash icon for delete, pencil for edit, share arrow for share, gear for settings, etc.).
+Apply text-overflow: ellipsis or truncation with tooltip/expansion for any long dynamic strings (names, titles, URLs).
+Increase line-height and reduce font size where content feels dense. Use a clear visual hierarchy (H1 → body → caption scale).
+4. ICON-FIRST NAVIGATION & ACTIONS
+
+Audit the navigation bar and all action toolbars. Convert repetitive or space-consuming text links into icon buttons with accessible aria-label attributes.
+Use a bottom navigation bar pattern (not top hamburger menu) for primary sections on mobile.
+Any action that appears in a list row (edit, delete, share, etc.) should be icon-only in compact view.
+5. LAYOUT & SPACING
+
+Fix any elements that overflow horizontally or require horizontal scrolling unintentionally.
+Add proper padding and safe-area insets (env(safe-area-inset-*)) so nothing is hidden behind notches or home indicators.
+Cards, list items, and containers should use consistent spacing (8px grid system recommended).
+Fix any absolute-positioned elements that collide or overlap on smaller viewports (< 390px wide).
+6. FORMS & INPUTS
+
+All inputs must be large enough to tap and must trigger the correct keyboard type (inputmode, type attributes).
+Labels must sit above inputs, not inside them as permanent placeholders.
+Error states must be visible and not hidden behind the keyboard.
+Forms must scroll properly when the keyboard is open.
+7. PERFORMANCE & SCROLL
+
+Ensure all scroll containers use -webkit-overflow-scrolling: touch or equivalent for smooth native-feel scrolling.
+Remove any pointer-events: none or user-select: none rules that may be accidentally blocking taps.
+Debounce or throttle any scroll/resize listeners that could cause jank.
+8. ACCESSIBILITY BASELINE
+
+Every icon-only button must have an aria-label.
+Color contrast must meet WCAG AA (4.5:1 for body text, 3:1 for large text).
+Focus states must be visible for keyboard/switch-control users.
+After making all changes, do a final pass: simulate the full user flow from first open through every major feature on a 390px wide viewport and confirm nothing is broken, hidden, or inaccessible. Document every change made in a summary comment or changelog at the top of the relevant files.
+
+Paste that in and it should give Replit Agent enough specificity to work systematically rather than just patching surface-level stuff. If you want me to tailor it further to your specific project's stack (React, Vue, plain HTML, etc.) just let me know.
+
+

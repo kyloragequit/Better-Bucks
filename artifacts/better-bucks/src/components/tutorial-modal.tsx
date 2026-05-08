@@ -1,0 +1,1331 @@
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
+import { useTutorial, TUTORIAL_RESET_EVENT } from "@/hooks/use-tutorial";
+import { useUser } from "@/hooks/use-auth";
+import { AppLogo } from "@/components/app-logo";
+import {
+  Wallet, ShoppingBag, ShoppingCart, LayoutDashboard, Users, Zap,
+  Settings, CheckCircle2, Package, Truck, Coins, Star, ChevronRight,
+  ChevronLeft, X, TrendingUp, ClipboardCheck, Gamepad2, Tv, PersonStanding,
+  ArrowRight, Heart, ExternalLink, Target, Timer, Hash, KeyRound,
+  ChevronDown, FileSpreadsheet, Upload, Download, PieChart, BarChart3,
+  MessageSquare, FileText, UserCheck, Tag,
+} from "lucide-react";
+
+const NAVY = "#162A4A";
+const GREEN = "#4E9F3D";
+
+const tutorialProducts = [
+  { icon: Gamepad2, name: "Gaming Controller", price: 150, tag: "Popular", stars: 5 },
+  { icon: Tv, name: 'Smart TV 55"', price: 450, tag: "Top Pick", stars: 4 },
+  { icon: PersonStanding, name: "Action Figure", price: 75, tag: "New", stars: 5 },
+];
+
+function useAnimatedNumber(target: number, duration = 800, delay = 300) {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      const start = performance.now();
+      const step = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(target * eased));
+        if (progress < 1) rafRef.current = requestAnimationFrame(step);
+      };
+      rafRef.current = requestAnimationFrame(step);
+    }, delay);
+    return () => { clearTimeout(t1); cancelAnimationFrame(rafRef.current); };
+  }, [target, duration, delay]);
+  return value;
+}
+
+function AnimatedBar({ pct, color, delay = 0 }: { pct: number; color: string; delay?: number }) {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), delay);
+    return () => clearTimeout(t);
+  }, [pct, delay]);
+  return (
+    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${width}%`, background: color }} />
+    </div>
+  );
+}
+
+function MiniTeamAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 400),
+      setTimeout(() => setStep(2), 800),
+      setTimeout(() => setStep(3), 1200),
+      setTimeout(() => setStep(4), 1800),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const members = [
+    { name: "Sarah C.", dept: "Warehouse" },
+    { name: "Marcus H.", dept: "Logistics" },
+    { name: "Priya P.", dept: "Shipping" },
+  ];
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> My Team</span>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${GREEN}30`, color: GREEN }}>3 selected</span>
+      </div>
+      <div className="bg-white">
+        {members.map((m, i) => (
+          <div key={m.name} className="flex items-center gap-2 px-3 py-2 border-b last:border-0 transition-all duration-400" style={{ opacity: step > i ? 1 : 0.3 }}>
+            <div className="w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-300" style={{ borderColor: step > i ? GREEN : "#d1d5db", background: step > i ? GREEN : "transparent" }}>
+              {step > i && <CheckCircle2 className="h-2.5 w-2.5 text-white" />}
+            </div>
+            <div>
+              <p className="text-xs font-semibold" style={{ color: NAVY }}>{m.name}</p>
+              <p className="text-[10px] text-gray-400">{m.dept}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t transition-all duration-500" style={{ opacity: step >= 4 ? 1 : 0, transform: step >= 4 ? "translateY(0)" : "translateY(4px)" }}>
+        <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: GREEN }}>
+          <Coins className="h-3 w-3" />
+          <span>+50 Bucks awarded to 3 members!</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCategoryAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 500),
+      setTimeout(() => setStep(2), 1200),
+      setTimeout(() => setStep(3), 2000),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const cats = [
+    { name: "Safety", color: "#4E9F3D" },
+    { name: "Performance", color: "#3B82F6" },
+    { name: "Attendance", color: "#F59E0B" },
+  ];
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" /> Select Category</span>
+      </div>
+      <div className="bg-white p-2 space-y-1">
+        {cats.map((c, i) => (
+          <div
+            key={c.name}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-300 cursor-default"
+            style={{ background: step === i + 1 ? `${c.color}12` : "transparent", transform: step === i + 1 ? "scale(1.02)" : "scale(1)" }}
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />
+            <span className="text-xs font-semibold" style={{ color: step === i + 1 ? c.color : NAVY }}>{c.name}</span>
+            {step === i + 1 && <CheckCircle2 className="h-3 w-3 ml-auto" style={{ color: c.color }} />}
+          </div>
+        ))}
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t transition-all duration-500" style={{ opacity: step >= 3 ? 1 : 0 }}>
+        <p className="text-[10px] text-gray-500">Category tags appear in your analytics breakdown.</p>
+      </div>
+    </div>
+  );
+}
+
+function MiniSurveyAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 400),
+      setTimeout(() => setStep(2), 1000),
+      setTimeout(() => setStep(3), 1600),
+      setTimeout(() => setStep(4), 2200),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" /> Weekly Check-In</span>
+        <span className="text-[10px] text-white/60">2 questions</span>
+      </div>
+      <div className="bg-white p-3 space-y-3">
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold" style={{ color: NAVY }}>How was your week?</p>
+          <div className="flex gap-1">
+            {["Great", "Good", "Okay"].map((opt, i) => (
+              <div
+                key={opt}
+                className="flex-1 py-1 rounded-md text-center text-[10px] font-semibold border transition-all duration-300"
+                style={{
+                  borderColor: step >= 1 && i === 0 ? GREEN : "#e5e7eb",
+                  background: step >= 1 && i === 0 ? `${GREEN}12` : "white",
+                  color: step >= 1 && i === 0 ? GREEN : "#6b7280",
+                }}
+              >{opt}</div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold" style={{ color: NAVY }}>Any suggestions?</p>
+          <div className="rounded-md border px-2 py-1 text-[10px] text-gray-400 transition-all duration-500" style={{ borderColor: step >= 2 ? GREEN : "#e5e7eb" }}>
+            {step >= 2 ? <span className="text-gray-600">More team activities would be fun!</span> : "Type your answer..."}
+          </div>
+        </div>
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t flex items-center justify-between transition-all duration-500" style={{ opacity: step >= 3 ? 1 : 0 }}>
+        <span className="text-[10px] text-gray-400">Anonymous response</span>
+        <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: step >= 4 ? GREEN : "#6b7280" }}>
+          {step >= 4 ? <><CheckCircle2 className="h-3 w-3" /> Submitted!</> : "Submit"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniDocAnim() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 300),
+      setTimeout(() => setStep(2), 900),
+      setTimeout(() => setStep(3), 1500),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  const awarded = useAnimatedNumber(6200, 800, 400);
+  const spent = useAnimatedNumber(3100, 800, 600);
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between" style={{ background: NAVY }}>
+        <span className="text-white font-bold text-xs flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Monthly Report</span>
+        <span className="text-[10px] text-white/60">April 2026</span>
+      </div>
+      <div className="bg-white p-3 space-y-2.5">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg p-2 text-center" style={{ background: `${GREEN}08` }}>
+            <p className="text-lg font-black" style={{ color: GREEN }}>{awarded.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-400">Awarded</p>
+          </div>
+          <div className="rounded-lg p-2 text-center bg-blue-50">
+            <p className="text-lg font-black text-blue-600">{spent.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-400">Spent</p>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-gray-500">Budget Used</span>
+            <span className="font-bold" style={{ color: GREEN }}>62%</span>
+          </div>
+          <AnimatedBar pct={62} color={GREEN} delay={600} />
+        </div>
+      </div>
+      <div className="px-3 py-2 bg-gray-50 border-t flex items-center justify-between transition-all duration-500" style={{ opacity: step >= 3 ? 1 : 0 }}>
+        <span className="text-[10px] text-gray-400">PDF ready</span>
+        <div className="flex items-center gap-1 text-[10px] font-bold" style={{ color: GREEN }}>
+          <Download className="h-3 w-3" /> Download
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniShop({
+  balance,
+  onOrderComplete,
+}: {
+  balance: number;
+  onOrderComplete: () => void;
+}) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [orderStep, setOrderStep] = useState(0);
+  const [completed, setCompleted] = useState(false);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    return () => timersRef.current.forEach(clearTimeout);
+  }, []);
+
+  const handleSelect = (i: number) => {
+    setSelected(i);
+    setOrderStep(1);
+    timersRef.current.push(
+      setTimeout(() => setOrderStep(2), 1400),
+      setTimeout(() => { setOrderStep(3); setCompleted(true); onOrderComplete(); }, 2800)
+    );
+  };
+
+  const product = selected !== null ? tutorialProducts[selected] : null;
+
+  if (orderStep === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Pick something — give it a try!
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {tutorialProducts.map((p, i) => {
+            const Icon = p.icon;
+            const canAfford = balance >= p.price;
+            return (
+              <div
+                key={p.name}
+                className="rounded-xl border border-gray-100 p-3 flex flex-col items-center gap-2 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all duration-200 text-center"
+                onClick={() => canAfford && handleSelect(i)}
+                style={{ opacity: canAfford ? 1 : 0.5, cursor: canAfford ? "pointer" : "not-allowed" }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${NAVY}12` }}>
+                  <Icon className="h-5 w-5" style={{ color: NAVY }} />
+                </div>
+                <p className="text-xs font-bold leading-tight" style={{ color: NAVY }}>{p.name}</p>
+                <span className="text-xs font-black" style={{ color: GREEN }}>{p.price} Bucks</span>
+                <span
+                  aria-hidden="true"
+                  className="w-full py-1 rounded-lg text-xs font-semibold text-white transition-all duration-200 inline-block text-center"
+                  style={{ background: canAfford ? GREEN : "#d1d5db", opacity: canAfford ? 1 : 0.6 }}
+                >
+                  Select
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (orderStep === 1) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-6 slide-up">
+        <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: `${GREEN}33`, borderTopColor: GREEN }} />
+        <p className="text-sm font-semibold text-gray-600">Processing order…</p>
+      </div>
+    );
+  }
+
+  if (orderStep === 2 || orderStep === 3) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-4 text-center slide-up">
+        <div className="w-14 h-14 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
+          <CheckCircle2 className="h-7 w-7" style={{ color: GREEN }} />
+        </div>
+        <p className="font-black text-lg" style={{ color: NAVY }}>Order Placed!</p>
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <Package className="h-3.5 w-3.5" />
+          <span>{product?.name}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${GREEN}18`, color: GREEN }}>
+          <Truck className="h-3 w-3" />
+          <span>Your manager will fulfill your request</span>
+        </div>
+        <p className="text-xs text-gray-400 max-w-xs">
+          That's it! In the real app your Bucks are deducted and the order shows up in your Orders tab.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+type Slide = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  body: React.ReactNode;
+  requiresInteraction?: boolean;
+};
+
+function buildSlides(role: string, name: string): Slide[] {
+  const firstName = name.split(" ")[0];
+
+  const welcomeSlide: Slide = {
+    id: "welcome",
+    title: `Welcome, ${firstName}! 👋`,
+    subtitle: role === "prime_admin"
+      ? "You're the Organization Owner"
+      : role === "admin"
+      ? "You're an Administrator"
+      : "You're an Employee",
+    body: (
+      <div className="flex flex-col items-center gap-6">
+        <AppLogo size="lg" />
+        <p className="text-center text-gray-600 max-w-sm text-sm leading-relaxed">
+          {role === "prime_admin"
+            ? "You have full control over the Better Bucks platform — manage your team, curate the store, configure your organization, and track every Bucks transaction."
+            : role === "admin"
+            ? "You can manage employees, award Bucks for great work, approve orders, and keep your team motivated and recognized."
+            : "Earn Bucks for great performance and redeem them in your company store for things you actually want. Let's take a quick tour!"}
+        </p>
+        <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
+          {(role === "employee"
+            ? [
+                { icon: Wallet, label: "Earn Bucks", desc: "For performance" },
+                { icon: ShoppingBag, label: "Shop", desc: "Spend your Bucks" },
+                { icon: ShoppingCart, label: "Track Orders", desc: "See your items" },
+              ]
+            : role === "admin"
+            ? [
+                { icon: Users, label: "Manage Team", desc: "Add & view employees" },
+                { icon: Coins, label: "Award Bucks", desc: "Recognize great work" },
+                { icon: ClipboardCheck, label: "Fulfill Orders", desc: "Approve requests" },
+              ]
+            : [
+                { icon: Users, label: "Team", desc: "Manage everyone" },
+                { icon: ShoppingBag, label: "Store", desc: "Curate products" },
+                { icon: Settings, label: "Settings", desc: "Full org control" },
+              ]
+          ).map(({ icon: Icon, label, desc }) => (
+            <div key={label} className="flex flex-col items-center gap-1.5 p-3 rounded-xl border bg-gray-50 text-center">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${GREEN}18` }}>
+                <Icon className="h-4.5 w-4.5" style={{ color: GREEN }} />
+              </div>
+              <p className="text-xs font-bold" style={{ color: NAVY }}>{label}</p>
+              <p className="text-xs text-gray-400">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  };
+
+  const dashboardSlide: Slide = {
+    id: "dashboard",
+    title: role === "employee" ? "Your Dashboard" : "Admin Dashboard",
+    subtitle: role === "employee"
+      ? "Your Bucks balance and recent activity — at a glance."
+      : "Monitor Bucks activity, order volume, and team stats.",
+    body: (
+      <div className="space-y-3">
+        <div className="rounded-xl border p-4" style={{ background: `${NAVY}08` }}>
+          <p className="text-xs text-gray-500 mb-1">{role === "employee" ? "Your Balance" : "Bucks Awarded This Week"}</p>
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-black" style={{ color: NAVY }}>{role === "employee" ? "850" : "2,340"}</span>
+            <span className="text-lg text-gray-400 font-medium">Bucks</span>
+          </div>
+          {role !== "employee" && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs" style={{ color: GREEN }}>
+              <TrendingUp className="h-3 w-3" />
+              <span>+12% from last week</span>
+            </div>
+          )}
+        </div>
+        {role !== "employee" ? (
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Pending Orders", value: "4", color: "#f59e0b" },
+              { label: "Employees", value: "47", color: NAVY },
+              { label: "Fulfilled Today", value: "8", color: GREEN },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-lg border p-3 text-center bg-white">
+                <p className="text-2xl font-black" style={{ color }}>{value}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border p-3 bg-white">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Recent Transactions</p>
+            {[
+              { label: "Safety Compliance Award", amount: "+100", positive: true },
+              { label: "Gaming Controller", amount: "-150", positive: false },
+              { label: "Attendance Bonus", amount: "+50", positive: true },
+            ].map(({ label, amount, positive }) => (
+              <div key={label} className="flex items-center justify-between py-1.5 border-b last:border-0">
+                <span className="text-xs text-gray-600">{label}</span>
+                <span className="text-xs font-bold" style={{ color: positive ? GREEN : "#ef4444" }}>{amount}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-gray-400 text-center">
+          {role === "employee"
+            ? "Your dashboard lives at the Dashboard tab — always start here!"
+            : "Use filters to view by date range, department, or individual admin."}
+        </p>
+      </div>
+    ),
+  };
+
+  const employeeSlides: Slide[] = [
+    welcomeSlide,
+    dashboardSlide,
+    {
+      id: "store",
+      title: "The Employee Store",
+      subtitle: "Browse items your admin has added. Spend your Bucks on what you actually want.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="h-4 w-4" /> Store</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold" style={{ background: GREEN, color: "white" }}>
+                <Coins className="h-3 w-3" /> 850 Bucks
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-3 bg-gray-50">
+              {tutorialProducts.map((p, i) => {
+                const Icon = p.icon;
+                return (
+                  <div key={i} className="rounded-lg border bg-white p-2 flex flex-col items-center gap-1.5 text-center">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${NAVY}10` }}>
+                      <Icon className="h-4 w-4" style={{ color: NAVY }} />
+                    </div>
+                    <p className="text-xs font-bold leading-tight" style={{ color: NAVY }}>{p.name}</p>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, si) => (
+                        <Star key={si} className="h-2 w-2" style={{ fill: si < p.stars ? "#f59e0b" : "none", color: si < p.stars ? "#f59e0b" : "#d1d5db" }} />
+                      ))}
+                    </div>
+                    <span className="text-xs font-black" style={{ color: GREEN }}>{p.price} Bucks</span>
+                    <div className="flex items-center gap-1 w-full">
+                      <button className="flex-1 py-0.5 rounded text-xs font-semibold text-white" style={{ background: GREEN }}>Select</button>
+                      <Heart className="h-3 w-3 text-gray-300 cursor-pointer" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Heart items to save them to your wishlist. Admins can see what you're wishing for!
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "try-store",
+      title: "Try It Yourself!",
+      subtitle: "Click Select on any item below. We'll walk you through the full order flow.",
+      requiresInteraction: true,
+      body: null,
+    },
+    {
+      id: "orders",
+      title: "Track Your Orders",
+      subtitle: "Everything you've redeemed lives here. Your manager will update the status.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><ShoppingCart className="h-4 w-4" /> My Orders</span>
+            </div>
+            <div className="divide-y bg-white">
+              {[
+                { name: "Gaming Controller", status: "Approved", color: GREEN, date: "Today" },
+                { name: "Action Figure", status: "Pending", color: "#f59e0b", date: "Yesterday" },
+                { name: "Gift Card $25", status: "Fulfilled", color: "#6b7280", date: "3 days ago" },
+              ].map(({ name, status, color, date }) => (
+                <div key={name} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: NAVY }}>{name}</p>
+                    <p className="text-xs text-gray-400">{date}</p>
+                  </div>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${color}18`, color }}>{status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: `${NAVY}08` }}>
+            <ExternalLink className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
+            <p className="text-gray-500"><strong className="text-gray-700">Items are ordered on your store website</strong> — this platform tracks the request and lets your manager approve it.</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "surveys",
+      title: "Surveys & Feedback",
+      subtitle: "Your organization may send surveys to collect feedback. Share your thoughts anonymously.",
+      body: <MiniSurveyAnim />,
+    },
+    {
+      id: "done",
+      title: "You're All Set! 🎉",
+      subtitle: "Start earning Bucks and spend them on what you love.",
+      body: (
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
+            <CheckCircle2 className="h-10 w-10" style={{ color: GREEN }} />
+          </div>
+          <div className="space-y-2 text-center max-w-xs">
+            <p className="text-sm text-gray-600">Here's a quick cheat sheet:</p>
+            {[
+              { icon: LayoutDashboard, text: "Dashboard — Your Bucks balance & history" },
+              { icon: ShoppingBag, text: "Store — Browse & redeem items" },
+              { icon: ShoppingCart, text: "Orders — Track your redeemed items" },
+              { icon: MessageSquare, text: "Surveys — Share your feedback" },
+              { icon: Settings, text: "Settings — Update your email & password" },
+            ].map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-2.5 text-left">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>
+                  <Icon className="h-3.5 w-3.5" style={{ color: NAVY }} />
+                </div>
+                <p className="text-xs text-gray-600">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  const currentMonth = new Date().toLocaleString("default", { month: "long" });
+
+  const adminSlides: Slide[] = [
+    welcomeSlide,
+    dashboardSlide,
+    {
+      id: "analytics",
+      title: "Budget & Category Analytics",
+      subtitle: "Track how your monthly budget is being used and see how Bucks are distributed across reward types.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5">
+                <PieChart className="h-4 w-4" /> {currentMonth} Analytics
+              </span>
+            </div>
+            <div className="p-3 bg-white space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Budget Progression</p>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-gray-600"><span className="font-bold text-gray-800">6,200</span> of 10,000 bucks used</span>
+                  <span className="font-bold text-green-600">62%</span>
+                </div>
+                <AnimatedBar pct={62} color={GREEN} delay={300} />
+                <div className="flex justify-between mt-1 text-xs text-gray-400">
+                  <span>0</span><span>5,000</span><span>10,000</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Rewards by Category</p>
+                {[
+                  { name: "Safety", color: "#4E9F3D", pct: 42 },
+                  { name: "Performance", color: "#3B82F6", pct: 33 },
+                  { name: "Attendance", color: "#F59E0B", pct: 25 },
+                ].map((c, i) => (
+                  <div key={c.name} className="mb-2">
+                    <div className="flex justify-between text-xs mb-0.5">
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full inline-block" style={{ background: c.color }} />
+                        {c.name}
+                      </span>
+                      <span className="font-semibold text-gray-700">{c.pct}%</span>
+                    </div>
+                    <AnimatedBar pct={c.pct} color={c.color} delay={400 + i * 200} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            When awarding Bucks, select a category (Safety, Attendance, etc.) to see the breakdown here.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "team",
+      title: "My Team",
+      subtitle: "View employees assigned to you. Select members and award Bucks in bulk with a single click.",
+      body: <MiniTeamAnim />,
+    },
+    {
+      id: "employees",
+      title: "Manage Your Employees",
+      subtitle: "View, approve, and manage employees. Award Bucks directly from the employee list.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><Users className="h-4 w-4" /> Employees</span>
+              <button className="px-3 py-1 rounded text-xs font-semibold text-white" style={{ background: GREEN }}>+ Add Employee</button>
+            </div>
+            <div className="divide-y bg-white">
+              {[
+                { name: "Sarah Chen", code: "EMP-001", balance: 420, dept: "Warehouse" },
+                { name: "Marcus Hill", code: "EMP-002", balance: 850, dept: "Logistics" },
+                { name: "Priya Patel", code: "EMP-003", balance: 175, dept: "Shipping" },
+              ].map(({ name, code, balance, dept }) => (
+                <div key={name} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: NAVY }}>{name}</p>
+                    <p className="text-xs text-gray-400">{code} · {dept}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${GREEN}18`, color: GREEN }}>{balance} Bucks</span>
+                    <button className="text-xs px-2 py-1 rounded border text-gray-600">Award</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Click Award to send Bucks instantly. Use the Instant Transaction tab for quick bulk awards.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "bulk-import",
+      title: "Import Employees from Spreadsheet",
+      subtitle: "Add dozens of employees in one shot — download the template, fill it in, upload it.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-xs flex items-center gap-1.5"><FileSpreadsheet className="h-4 w-4" /> Import Spreadsheet</span>
+              <div className="flex gap-2">
+                <button className="px-3 py-1 rounded text-xs font-semibold" style={{ background: "white", color: NAVY }}>
+                  <Download className="inline h-3 w-3 mr-1" />Template
+                </button>
+              </div>
+            </div>
+            <div className="p-3 bg-white space-y-2">
+              <div className="rounded-lg border-2 border-dashed border-gray-200 py-4 flex flex-col items-center gap-1.5 text-center bg-gray-50">
+                <Upload className="h-5 w-5 text-gray-400" />
+                <p className="text-xs font-semibold text-gray-600">Drop your .xlsx file here</p>
+                <p className="text-xs text-gray-400">or click to browse</p>
+              </div>
+              <div className="rounded-lg border text-xs overflow-hidden">
+                <div className="grid grid-cols-5 bg-gray-50 px-2 py-1.5 font-semibold text-gray-500 border-b">
+                  <span>Full Name</span><span>Code</span><span>Role</span><span>Dept</span><span>Email</span>
+                </div>
+                {[
+                  { name: "Jane Smith", code: "EMP-001", role: "employee", dept: "Warehouse", email: "" },
+                  { name: "Bob Johnson", code: "EMP-002", role: "employee", dept: "Logistics", email: "" },
+                  { name: "Alice Mgr", code: "MGR-001", role: "admin", dept: "Shipping", email: "alice@co.com" },
+                ].map(r => (
+                  <div key={r.code} className="grid grid-cols-5 px-2 py-1.5 border-b last:border-0 text-gray-600">
+                    <span className="font-medium" style={{ color: NAVY }}>{r.name}</span>
+                    <span className="font-mono">{r.code}</span>
+                    <span className={r.role === "admin" ? "font-semibold" : ""} style={{ color: r.role === "admin" ? GREEN : "inherit" }}>{r.role}</span>
+                    <span>{r.dept}</span>
+                    <span className="truncate">{r.email || "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Each row becomes an employee account. Errors are shown row-by-row so you can fix and re-import.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "orders",
+      title: "Fulfill Employee Orders",
+      subtitle: "When employees redeem items, their requests appear here for you to approve or reject.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><ClipboardCheck className="h-4 w-4" /> Pending Orders</span>
+            </div>
+            <div className="divide-y bg-white">
+              {[
+                { employee: "Sarah Chen", item: "Gaming Controller", bucks: 150 },
+                { employee: "Marcus Hill", item: 'Smart TV 55"', bucks: 450 },
+              ].map(({ employee, item, bucks }) => (
+                <div key={employee} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: NAVY }}>{item}</p>
+                    <p className="text-xs text-gray-400">Requested by {employee} · {bucks} Bucks</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button className="text-xs px-2.5 py-1 rounded font-semibold text-white" style={{ background: GREEN }}>Approve</button>
+                    <button className="text-xs px-2.5 py-1 rounded font-semibold border text-red-500 border-red-200">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: `${NAVY}08` }}>
+            <ExternalLink className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
+            <p className="text-gray-500">After approving, <strong className="text-gray-700">visit your store website to place the physical order</strong> for the employee. Upload a fulfillment photo to confirm delivery.</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "instant-tx",
+      title: "Instant Transaction",
+      subtitle: "Scan a QR code or search for an employee, pick a category, and award Bucks in seconds.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border p-4 bg-white space-y-3">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-600">Employee</p>
+              <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-gray-50">
+                <Users className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-500">Sarah Chen — EMP-001</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-600">Category</p>
+              <MiniCategoryAnim />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Find Instant Transaction in the navigation dropdown at the top of the page.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "surveys",
+      title: "Employee Surveys",
+      subtitle: "Create surveys to gather team feedback — multiple choice or open-ended. View results in real time.",
+      body: <MiniSurveyAnim />,
+    },
+    {
+      id: "goals",
+      title: "Team Goals",
+      subtitle: "Set targets that motivate the whole team — hit them and everyone earns Bucks.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><Target className="h-4 w-4" /> Goals</span>
+            </div>
+            <div className="p-3 bg-gray-50 space-y-3">
+              {[
+                { icon: Hash, label: "Units Shipped This Month", type: "Quantity", current: 74, target: 100, reward: 250 },
+                { icon: Timer, label: "Days Without an Incident", type: "Time", current: 18, target: 30, reward: 500 },
+              ].map(({ icon: Icon, label, type, current, target, reward }, i) => (
+                <div key={label} className="rounded-lg border bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: NAVY }}>
+                      <Icon className="h-3.5 w-3.5" style={{ color: GREEN }} />
+                      {label}
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${GREEN}18`, color: GREEN }}>{reward} bcks</span>
+                  </div>
+                  <AnimatedBar pct={Math.round((current / target) * 100)} color={GREEN} delay={300 + i * 300} />
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>{current} / {target} {type === "Quantity" ? "units" : "days"}</span>
+                    <span>{Math.round((current / target) * 100)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            {role === "prime_admin"
+              ? "Create goals in the Goals tab. When a goal is met, distribute Bucks to every employee in one click."
+              : "Add progress to quantity goals using the Goals tab. The Organization Owner controls goal creation."}
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "done",
+      title: "You're Ready to Lead! 🏆",
+      subtitle: "Your team is counting on you. Here's a quick recap:",
+      body: (
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
+            <CheckCircle2 className="h-10 w-10" style={{ color: GREEN }} />
+          </div>
+          <div className="space-y-2 text-center max-w-xs w-full">
+            {[
+              { icon: LayoutDashboard, text: "Dashboard — Org-wide stats and charts" },
+              { icon: PieChart, text: "Analytics — Budget tracking & category breakdown" },
+              { icon: Users, text: "Team — Your assigned employees & bulk awards" },
+              { icon: Users, text: "Employees — Add, manage & award your team" },
+              { icon: ShoppingCart, text: "Orders — Review and fulfill requests" },
+              { icon: Zap, text: "Instant Transaction — Quick category-based awards" },
+              { icon: MessageSquare, text: "Surveys — Collect team feedback" },
+              { icon: Target, text: "Goals — Add progress to quantity goals" },
+              { icon: Package, text: "Items — Give and redeem custom non-Bucks tokens" },
+            ].map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-2.5 text-left">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>
+                  <Icon className="h-3.5 w-3.5" style={{ color: NAVY }} />
+                </div>
+                <p className="text-xs text-gray-600">{text}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 text-center">Navigate using the dropdown in the top bar.</p>
+        </div>
+      ),
+    },
+  ];
+
+  const primeAdminExtraSlides: Slide[] = [
+    {
+      id: "store-creation",
+      title: "Curate the Employee Store",
+      subtitle: "You decide what employees can spend their Bucks on. Add, edit, or remove items anytime.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="h-4 w-4" /> Employee Store</span>
+              <button className="px-3 py-1 rounded text-xs font-semibold text-white" style={{ background: GREEN }}>+ Add Item</button>
+            </div>
+            <div className="p-4 bg-gray-50 space-y-3">
+              <div className="rounded-lg border bg-white p-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-gray-400">Item Name</p>
+                    <p className="text-sm font-semibold" style={{ color: NAVY }}>Gaming Controller</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Price (Bucks)</p>
+                    <p className="text-sm font-bold" style={{ color: GREEN }}>150 Bucks</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Product URL</p>
+                  <p className="text-xs text-blue-500 truncate">amazon.com/gaming-controller...</p>
+                </div>
+                <div className="flex gap-2">
+                  <button className="flex-1 py-1 rounded text-xs border text-gray-600">✏️ Edit</button>
+                  <button className="flex-1 py-1 rounded text-xs border text-red-500 border-red-200">🗑 Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-center" style={{ color: GREEN }}>
+            💡 Look for the "Need help?" button on the Store page for a detailed walkthrough!
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "documents",
+      title: "Monthly Reports & Documents",
+      subtitle: "Generate detailed monthly reports with charts, breakdowns, and downloadable PDFs.",
+      body: <MiniDocAnim />,
+    },
+    {
+      id: "settings",
+      title: "Organization Settings",
+      subtitle: "Configure your org code, Universal Passkey, billing plan, role labels, and more.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden bg-white">
+            {[
+              { label: "Org Name", value: "Acme Corp" },
+              { label: "Org Code", value: "ACME1234 (share with employees to register)" },
+              { label: "Universal Passkey", value: "One shared PIN all employees can log in with" },
+              { label: "Plan", value: "Mid-Size · 300 employees max" },
+              { label: "Role Labels", value: '"Bucks" → "Points" (customize anytime)' },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-4 py-3 border-b last:border-0">
+                <p className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+                  {label === "Universal Passkey" && <KeyRound className="h-3 w-3" style={{ color: NAVY + "80" }} />}
+                  {label}
+                </p>
+                <p className="text-xs text-right text-gray-700 max-w-[55%]">{value}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Settings are only visible to Organization Owners. The Universal Passkey lets any employee use a shared PIN as a fallback login.
+          </p>
+        </div>
+      ),
+    },
+  ];
+
+  if (role === "employee") return employeeSlides;
+
+  const baseAdminSlides = adminSlides.slice(0, -1);
+  if (role === "prime_admin") {
+    return [
+      ...baseAdminSlides,
+      ...primeAdminExtraSlides,
+      {
+        id: "done",
+        title: "You're the Organization Owner! 👑",
+        subtitle: "Full control. Let's make your team's day.",
+        body: (
+          <div className="flex flex-col items-center gap-5">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center scale-in" style={{ background: `${GREEN}18` }}>
+              <CheckCircle2 className="h-10 w-10" style={{ color: GREEN }} />
+            </div>
+            <div className="space-y-2 text-center max-w-xs w-full">
+              {[
+                { icon: LayoutDashboard, text: "Dashboard — Full platform analytics" },
+                { icon: Users, text: "Team — Your assigned employees & bulk awards" },
+                { icon: Users, text: "Employees — Add, manage & award your team" },
+                { icon: ShoppingCart, text: "Orders — Approve and fulfill requests" },
+                { icon: Zap, text: "Instant Transaction — Quick category-based awards" },
+                { icon: MessageSquare, text: "Surveys — Create surveys & view responses" },
+                { icon: Target, text: "Goals — Create goals & distribute Bucks" },
+                { icon: Package, text: "Items — Custom non-Bucks token system" },
+                { icon: FileText, text: "Documents — Monthly reports & PDF downloads" },
+                { icon: ShoppingBag, text: "Store — Curate what employees can redeem" },
+                { icon: Settings, text: "Settings — Org config, Universal Passkey & billing" },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-2.5 text-left">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>
+                    <Icon className="h-3.5 w-3.5" style={{ color: NAVY }} />
+                  </div>
+                  <p className="text-xs text-gray-600">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ),
+      },
+    ];
+  }
+
+  return adminSlides;
+}
+
+const APP_PAGE_PREFIXES = ["/dashboard", "/store", "/orders", "/settings", "/admin/", "/surveys"];
+
+export function TutorialModal() {
+  const { data: user } = useUser();
+  const { showChoice, shouldShow, chooseTutorial, completeTutorial, skipTutorial } = useTutorial();
+  const [location, setLocation] = useLocation();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [shopDone, setShopDone] = useState(false);
+  const [shopBalance] = useState(850);
+  const [forceHide, setForceHide] = useState(false);
+  const [slideDir, setSlideDir] = useState<"next" | "prev">("next");
+  const [animating, setAnimating] = useState(false);
+
+  const dbCompleted = !!user && user.tutorialCompleted;
+  // Only clear forceHide when the user explicitly restarts the tutorial.
+  // (Previously this watched [dbCompleted, forceHide] which created a race:
+  // a refetched user with tutorialCompleted=false would re-open the modal
+  // immediately after Skip, making the page appear frozen.)
+  useEffect(() => {
+    const handler = () => {
+      setForceHide(false);
+      setCurrentSlide(0);
+      setShopDone(false);
+    };
+    window.addEventListener(TUTORIAL_RESET_EVENT, handler);
+    return () => window.removeEventListener(TUTORIAL_RESET_EVENT, handler);
+  }, []);
+
+  const isOnAppPage = APP_PAGE_PREFIXES.some(p => location.startsWith(p));
+  const isActive = !forceHide && (showChoice || shouldShow) && !!user && isOnAppPage && user?.role !== "developer" && !!user?.termsAcceptedAt;
+
+  useEffect(() => {
+    if (isActive) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [isActive]);
+
+  // iOS Safari quirk: when the modal swaps or unmounts in response to a tap,
+  // the synthesized click can land on an element underneath and (if it is an
+  // input) open the on-screen keyboard. Always blur the focused element first
+  // so the keyboard never appears. This also fixes the "have to tap twice
+  // to skip" bug where the first tap was being absorbed by keyboard dismiss.
+  const blurActive = () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && typeof el.blur === "function") el.blur();
+  };
+
+  const handleSkip = useCallback(() => {
+    blurActive();
+    // Cancel any pending slide-animation timer so a queued setCurrentSlide
+    // can't fire after the modal has been dismissed.
+    if (slideTimerRef.current) {
+      clearTimeout(slideTimerRef.current);
+      slideTimerRef.current = undefined;
+    }
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
+    document.documentElement.style.overflow = "";
+    setForceHide(true);
+    // Fire the completion mutation AFTER local teardown so unmount can't
+    // cancel the optimistic setQueryData. completeTutorial is fire-and-forget.
+    skipTutorial();
+  }, [skipTutorial]);
+
+  const handleChoose = useCallback((type: "quick" | "full") => {
+    blurActive();
+    chooseTutorial(type);
+  }, [chooseTutorial]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleSkip(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isActive, handleSkip]);
+
+  const slideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>();
+  useEffect(() => () => clearTimeout(slideTimerRef.current), []);
+
+  const animateSlide = useCallback((direction: "next" | "prev", newIndex: number) => {
+    if (animating) return;
+    setSlideDir(direction);
+    setAnimating(true);
+    slideTimerRef.current = setTimeout(() => {
+      setCurrentSlide(newIndex);
+      setAnimating(false);
+    }, 250);
+  }, [animating]);
+
+  if (!isActive) return null;
+
+  if (showChoice) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(22,42,74,0.85)", backdropFilter: "blur(4px)" }}>
+        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden slide-up">
+          <div className="flex items-center justify-between px-6 py-4 border-b" style={{ background: NAVY }}>
+            <div className="flex items-center gap-2">
+              <AppLogo size="sm" />
+              <span className="text-white font-bold text-sm">Welcome to Better Bucks!</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSkip}
+              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+              className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
+              data-testid="button-tutorial-choice-skip"
+              title="Skip for now"
+              aria-label="Skip tutorial"
+            >
+              <X className="h-5 w-5" />
+              <span>Skip</span>
+            </button>
+          </div>
+
+          <div className="px-7 py-8 text-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 scale-in" style={{ background: `${GREEN}15` }}>
+              <Star className="h-7 w-7" style={{ color: GREEN }} />
+            </div>
+            <h2 className="text-xl font-black font-display mb-2" style={{ color: NAVY }}>
+              Ready to get started?
+            </h2>
+            <p className="text-sm text-gray-500 mb-8">
+              Choose how you'd like to learn about Better Bucks. You can always replay the tour from your settings.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 text-left">
+              <button
+                type="button"
+                onClick={() => handleChoose("quick")}
+                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                data-testid="button-choose-quick-tour"
+                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-primary/30 bg-gray-50 hover:bg-primary/5 transition-all duration-200 text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${NAVY}10` }}>
+                  <Zap className="h-5 w-5" style={{ color: NAVY }} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: NAVY }}>Quick Tour</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">A short slide-based overview of the key features. Takes about 2 minutes.</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-primary ml-auto mt-3 transition-colors shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleChoose("full")}
+                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                data-testid="button-choose-full-tour"
+                className="flex items-start gap-4 p-4 rounded-xl border-2 border-transparent hover:border-green-300 bg-gray-50 hover:bg-green-50 transition-all duration-200 text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${GREEN}15` }}>
+                  <Target className="h-5 w-5" style={{ color: GREEN }} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: GREEN }}>Full Walkthrough</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">A guided page-by-page tour with spotlight highlights. Shows you exactly where everything lives. Takes about 5 minutes.</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-green-500 ml-auto mt-3 transition-colors shrink-0" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSkip}
+              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+              className="mt-5 w-full py-3 min-h-[44px] rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              data-testid="button-tutorial-choice-maybe-later"
+              aria-label="Skip tutorial and go to the app"
+            >
+              Maybe later — take me to the app
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const slides = buildSlides(user.role, user.fullName || "there");
+  const slide = slides[currentSlide];
+  const isLast = currentSlide === slides.length - 1;
+  const isTrySlide = slide.id === "try-store";
+  const canAdvance = !slide.requiresInteraction || shopDone;
+
+  const handleNext = () => {
+    if (isLast) {
+      if (slideTimerRef.current) {
+        clearTimeout(slideTimerRef.current);
+        slideTimerRef.current = undefined;
+      }
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      document.documentElement.style.overflow = "";
+      setForceHide(true);
+      completeTutorial();
+      if (user.role === "employee") setLocation("/dashboard");
+      else if (user.role === "prime_admin") setLocation("/admin/dashboard");
+      else setLocation("/admin/dashboard");
+    } else {
+      animateSlide("next", currentSlide + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentSlide > 0) animateSlide("prev", currentSlide - 1);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(22,42,74,0.85)", backdropFilter: "blur(4px)" }}>
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden slide-up" style={{ maxHeight: "90vh" }}>
+
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ background: NAVY }}>
+          <div className="flex items-center gap-2">
+            <AppLogo size="sm" />
+            <span className="text-white font-bold text-sm">Better Bucks</span>
+            <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-semibold capitalize" style={{ background: `${GREEN}40`, color: "white" }}>
+              {user.role.replace("_", " ")}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleSkip}
+            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
+            data-testid="button-tutorial-skip"
+            title="Skip tutorial"
+            aria-label="Skip tutorial"
+          >
+            <X className="h-5 w-5" />
+            <span>Skip</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 py-3 border-b bg-gray-50 shrink-0">
+          {slides.map((_, i) => (
+            <div
+              key={i}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: i === currentSlide ? 20 : 6,
+                height: 6,
+                background: i === currentSlide ? GREEN : i < currentSlide ? `${GREEN}60` : "#e5e7eb",
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
+          <div
+            key={currentSlide}
+            className={animating ? (slideDir === "next" ? "slide-out-left" : "slide-out-right") : "slide-in"}
+          >
+            <div className="mb-5 text-center">
+              <h2 className="text-xl font-black font-display" style={{ color: NAVY }}>{slide.title}</h2>
+              {slide.subtitle && <p className="text-sm text-gray-500 mt-1">{slide.subtitle}</p>}
+            </div>
+
+            {isTrySlide ? (
+              <MiniShop balance={shopBalance} onOrderComplete={() => setShopDone(true)} />
+            ) : (
+              slide.body
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between shrink-0">
+          <button
+            type="button"
+            onClick={handlePrev}
+            disabled={currentSlide === 0 || animating}
+            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+            className="flex items-center gap-1 px-3 py-2 min-h-[44px] -ml-2 rounded-md text-sm font-semibold text-gray-400 hover:text-gray-700 disabled:opacity-0 transition-colors"
+            data-testid="button-tutorial-prev"
+          >
+            <ChevronLeft className="h-4 w-4" /> Back
+          </button>
+
+          <span className="text-xs text-gray-400">{currentSlide + 1} of {slides.length}</span>
+
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={!canAdvance || animating}
+            style={{ background: GREEN, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+            className="flex items-center gap-1.5 px-5 py-2.5 min-h-[44px] rounded-xl text-sm font-bold text-white transition-all duration-200 disabled:opacity-40 hover:scale-105"
+            data-testid="button-tutorial-next"
+          >
+            {isLast ? "Let's Go!" : "Next"}
+            {!isLast && <ChevronRight className="h-4 w-4" />}
+            {isLast && <ArrowRight className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(0); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideOutLeft {
+          from { opacity: 1; transform: translateX(0); }
+          to { opacity: 0; transform: translateX(-20px); }
+        }
+        @keyframes slideOutRight {
+          from { opacity: 1; transform: translateX(0); }
+          to { opacity: 0; transform: translateX(20px); }
+        }
+        .slide-up {
+          animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .scale-in {
+          animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .slide-in {
+          animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .slide-out-left {
+          animation: slideOutLeft 0.25s ease-in both;
+        }
+        .slide-out-right {
+          animation: slideOutRight 0.25s ease-in both;
+        }
+      `}</style>
+    </div>
+  );
+}

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Better Bucks"
+version = "1.0.0"
+id = "artifacts/better-bucks"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24586
+
+[services.development]
+run = "pnpm --filter @workspace/better-bucks run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/better-bucks", "run", "build" ]
+publicDir = "artifacts/better-bucks/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24586"
+BASE_PATH = "/"

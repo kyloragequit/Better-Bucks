@@ -1,0 +1,385 @@
+import { useState, useEffect } from "react";
+import { SpinningLogo } from "@/components/spinning-logo";
+import { SiteFooter } from "@/components/site-footer";
+import { useLocation } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AppLogo } from "@/components/app-logo";
+import { LogoBackground } from "@/components/logo-background";
+import { useToast } from "@/hooks/use-toast";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
+import { ArrowLeft, UserPlus, Lock, User, Building2, Check, Globe, Mail, Phone, Eye, EyeOff } from "lucide-react";
+
+export default function SetupPrimePage() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const scrollOnFocus = useScrollIntoViewOnFocus();
+  const queryClient = useQueryClient();
+
+  const params = new URLSearchParams(window.location.search);
+  const initialCode = params.get("org_code") || "";
+
+  const [orgCode, setOrgCode] = useState(initialCode);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [contactMethod, setContactMethod] = useState<"email" | "phone">("email");
+  const [storeUrl, setStoreUrl] = useState("");
+  const [codeValidated, setCodeValidated] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { mutate: validateCode, isPending: isValidating } = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/organizations/validate/${orgCode.toUpperCase()}`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Invalid code");
+      }
+      return await res.json();
+    },
+    onSuccess: (data: { id: number; name: string; status: string }) => {
+      if (data.status !== "active") {
+        toast({
+          title: "Organization Not Active",
+          description: "This organization's subscription is not active yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setCodeValidated(true);
+      setOrgName(data.name);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Invalid Code",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const { mutate: setupPrime, isPending: isSettingUp } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/organizations/setup-prime", {
+        orgCode: orgCode.toUpperCase(),
+        username,
+        password,
+        fullName,
+        email: contactMethod === "email" ? email : "",
+        phone: contactMethod === "phone" ? phone : "",
+        storeUrl,
+      });
+      return await res.json();
+    },
+    onSuccess: (user: any) => {
+      queryClient.setQueryData(["/api/user"], user);
+      if (user.emailVerified) {
+        toast({
+          title: "Account Created!",
+          description: `Welcome, ${user.fullName}! Your account is ready.`,
+        });
+        setLocation("/admin/dashboard");
+      } else {
+        toast({
+          title: "Account Created!",
+          description: `Welcome, ${user.fullName}! Please verify your email.`,
+        });
+        setLocation("/verify-email");
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Setup Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (initialCode) {
+      validateCode();
+    }
+  }, []);
+
+  const handleValidate = (e: React.FormEvent) => {
+    e.preventDefault();
+    validateCode();
+  };
+
+  const handleSetup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+    if (password.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    setupPrime();
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4 relative overflow-hidden bg-white">
+      <LogoBackground />
+
+      <div className="relative z-10 w-full max-w-md space-y-4">
+        <Button
+          variant="ghost"
+          onClick={() => setLocation("/login")}
+          data-testid="button-back-login"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Login
+        </Button>
+
+        <Card className="shadow-2xl shadow-black/10 border-muted bg-white/80 backdrop-blur-sm">
+          <CardHeader className="text-center space-y-2">
+            <div className="mx-auto mb-2">
+              <AppLogo size="lg" />
+            </div>
+            <CardTitle className="text-2xl font-bold" data-testid="text-setup-title">
+              First Time Setup
+            </CardTitle>
+            <CardDescription>
+              {codeValidated
+                ? `Setting up administrator for ${orgName}`
+                : "Enter your organization code to create your admin account"}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            {!codeValidated ? (
+              <form onFocusCapture={scrollOnFocus} onSubmit={handleValidate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="org-code">Organization Code</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="org-code"
+                      placeholder="e.g. A1B2C3D4"
+                      className="pl-9 uppercase font-mono tracking-widest"
+                      value={orgCode}
+                      onChange={(e) => setOrgCode(e.target.value.toUpperCase())}
+                      required
+                      data-testid="input-org-code"
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 transition-all duration-300"
+                  disabled={isValidating || !orgCode}
+                  data-testid="button-validate-code"
+                >
+                  {isValidating ? (
+                    <>
+                      <SpinningLogo className="mr-2 h-4 w-4" />
+                      Validating...
+                    </>
+                  ) : (
+                    "Continue"
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <form onFocusCapture={scrollOnFocus} onSubmit={handleSetup} className="space-y-4">
+                <div className="rounded-md bg-green-50 border border-green-200 p-3 flex items-center gap-2 text-sm text-green-800">
+                  <Check className="h-4 w-4" />
+                  Organization verified: {orgName}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="setup-store-url">Employee Store Website</Label>
+                  <p className="text-xs text-muted-foreground">Enter the website where your employees will browse and pick items</p>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="setup-store-url"
+                      type="url"
+                      placeholder="https://yourstore.com"
+                      className="pl-9"
+                      value={storeUrl}
+                      onChange={(e) => setStoreUrl(e.target.value)}
+                      required
+                      data-testid="input-setup-store-url"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="setup-fullname">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="setup-fullname"
+                      placeholder="John Doe"
+                      className="pl-9"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                      data-testid="input-setup-fullname"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Verification Method</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={contactMethod === "email" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setContactMethod("email")}
+                      data-testid="button-method-email"
+                    >
+                      <Mail className="mr-1 h-3 w-3" /> Email
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={contactMethod === "phone" ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setContactMethod("phone")}
+                      data-testid="button-method-phone"
+                    >
+                      <Phone className="mr-1 h-3 w-3" /> Phone
+                    </Button>
+                  </div>
+                  {contactMethod === "email" ? (
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="setup-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        className="pl-9"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        data-testid="input-setup-email"
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="setup-phone"
+                        type="tel"
+                        placeholder="+1 (555) 123-4567"
+                        className="pl-9"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                        data-testid="input-setup-phone"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="setup-username">Username</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="setup-username"
+                      placeholder="Choose a username"
+                      className="pl-9"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      minLength={3}
+                      required
+                      data-testid="input-setup-username"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="setup-password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="setup-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="At least 6 characters"
+                      className="pl-9 pr-9"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      minLength={6}
+                      required
+                      data-testid="input-setup-password"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                      data-testid="button-toggle-password"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="setup-confirm">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="setup-confirm"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm your password"
+                      className="pl-9 pr-9"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      data-testid="input-setup-confirm"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      data-testid="button-toggle-confirm-password"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 transition-all duration-300"
+                  disabled={isSettingUp}
+                  data-testid="button-create-prime"
+                >
+                  {isSettingUp ? (
+                    <>
+                      <SpinningLogo className="mr-2 h-4 w-4" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Create Admin Account
+                    </>
+                  )}
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      <SiteFooter absolute />
+    </div>
+  );
+}

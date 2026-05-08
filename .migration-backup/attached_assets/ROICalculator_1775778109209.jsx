@@ -1,0 +1,178 @@
+import { useState, useEffect } from "react";
+
+const BENCHMARKS = [
+  { num: "26–28%", color: "#c0392b", desc: "avg annual turnover in manufacturing (Manufacturers Alliance 2024)" },
+  { num: "49%",    color: "#c0392b", desc: "warehouse worker turnover rate (U.S. Bureau of Labor Statistics)" },
+  { num: "$18,600",color: "#1a6fb5", desc: "avg cost to replace one warehouse worker (KPI Solutions / BLS)" },
+  { num: "21%",    color: "#5a42cc", desc: "productivity gain from engaged employees (Gallup / Bucketlist research)" },
+];
+
+const BARS = [
+  { label: "Turnover reduction", range: "15–20%", width: "20%", bg: "#e6f7f1", color: "#065c3d", source: "industry avg 20–28%" },
+  { label: "Productivity lift",  range: "15–21%", width: "21%", bg: "#e8f2fb", color: "#0c447c", source: "Gallup / Bucketlist" },
+  { label: "Absenteeism drop",  range: "10–15%", width: "16%", bg: "#f0eeff", color: "#26215C", source: "SHRM data" },
+  { label: "Engagement score",  range: "+15–30 pts", width: "25%", bg: "#fef5e7", color: "#412402", source: "Gapp Group ROI Model" },
+];
+
+function fmt(n) {
+  if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000)     return "$" + Math.round(n / 1_000) + "K";
+  return "$" + Math.round(n);
+}
+
+function SliderRow({ label, min, max, step, value, onChange, display }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 70px", alignItems: "center", gap: 14 }}>
+      <span style={{ fontSize: 13, color: "#6b6963" }}>{label}</span>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        style={{ width: "100%", accentColor: "#0a8a5c", cursor: "pointer" }}
+      />
+      <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 600, textAlign: "right" }}>{display}</span>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, sub }) {
+  return (
+    <div style={{ background: "#f8f7f4", borderRadius: 10, padding: "14px 16px" }}>
+      <p style={{ fontSize: 11, color: "#9d9b96", marginBottom: 4 }}>{label}</p>
+      <p style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 700, color: "#1a1916" }}>{value}</p>
+      <p style={{ fontSize: 10, color: "#9d9b96", marginTop: 2 }}>{sub}</p>
+    </div>
+  );
+}
+
+export default function ROICalculator() {
+  const [emp,  setEmp]  = useState(150);
+  const [wage, setWage] = useState(20);
+  const [turn, setTurn] = useState(35);
+
+  const annualWage    = wage * 2080;
+  const leavers       = Math.round(emp * turn / 100);
+  const replaceCost   = Math.round(annualWage * 0.40);
+  const totalTurnover = leavers * replaceCost;
+  const laborBudget   = emp * annualWage;
+  const otCost        = Math.round(laborBudget * 0.05);
+  const savTurn       = Math.round(totalTurnover * 0.15);
+  const savOT         = Math.round(otCost * 0.10);
+  const savProd       = Math.round(laborBudget * 0.03);
+  const totalROI      = savTurn + savOT + savProd;
+
+  const card = {
+    background: "#fff",
+    border: "1px solid #e4e2dc",
+    borderRadius: 16,
+    padding: "1.5rem",
+    marginBottom: "1.25rem",
+  };
+
+  const sectionLabel = {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
+    color: "#9d9b96",
+    marginBottom: "1.25rem",
+  };
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: "#f8f7f4", minHeight: "100vh", padding: "2rem 1rem" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+          <span style={{ display: "inline-block", background: "#0a8a5c", color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 999, marginBottom: "1rem" }}>
+            Better Bucks
+          </span>
+          <h1 style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", fontWeight: 700, lineHeight: 1.2, marginBottom: "0.6rem" }}>
+            How much is turnover<br />costing your operation?
+          </h1>
+          <p style={{ fontSize: 15, color: "#6b6963", maxWidth: 500, margin: "0 auto", lineHeight: 1.6 }}>
+            Plug in your numbers. See what structured employee incentives can realistically save you.
+          </p>
+        </div>
+
+        {/* Sliders */}
+        <div style={card}>
+          <p style={sectionLabel}>Your operation</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+            <SliderRow label="Employees"          min={50}  max={500} step={10} value={emp}  onChange={setEmp}  display={emp} />
+            <SliderRow label="Avg hourly wage"    min={15}  max={35}  step={1}  value={wage} onChange={setWage} display={"$" + wage} />
+            <SliderRow label="Annual turnover %"  min={20}  max={60}  step={1}  value={turn} onChange={setTurn} display={turn + "%"} />
+          </div>
+        </div>
+
+        {/* Current pain */}
+        <div style={card}>
+          <p style={sectionLabel}>What turnover is costing you today</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+            <MetricCard label="Workers leaving per year"   value={leavers}           sub="at current turnover rate" />
+            <MetricCard label="Cost to replace one worker" value={fmt(replaceCost)}  sub="hard + soft costs combined" />
+            <MetricCard label="Annual turnover cost"       value={fmt(totalTurnover)} sub="lost every year" />
+            <MetricCard label="Overtime + absenteeism"    value={fmt(otCost)}        sub="additional hidden cost" />
+          </div>
+        </div>
+
+        {/* Improvement bars */}
+        <div style={card}>
+          <p style={sectionLabel}>What Better Bucks realistically delivers</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {BARS.map(b => (
+              <div key={b.label} style={{ display: "grid", gridTemplateColumns: "130px 1fr 90px", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 12, color: "#6b6963" }}>{b.label}</span>
+                <div style={{ height: 24, background: "#f8f7f4", borderRadius: 6, overflow: "hidden" }}>
+                  <div style={{ width: b.width, height: "100%", background: b.bg, borderRadius: 6, display: "flex", alignItems: "center", padding: "0 10px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: b.color, whiteSpace: "nowrap" }}>{b.range}</span>
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, color: "#9d9b96", textAlign: "right" }}>{b.source}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ROI total */}
+        <div style={card}>
+          <p style={sectionLabel}>Estimated annual value to your business</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: "1.25rem" }}>
+            {[
+              ["Turnover savings (conservative 15% reduction)", savTurn],
+              ["Overtime + absenteeism savings (10%)",          savOT],
+              ["Productivity value (3% of total labor budget)", savProd],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#6b6963" }}>{label}</span>
+                <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 600, color: "#0a8a5c", whiteSpace: "nowrap" }}>+{fmt(val)}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ borderTop: "1px solid #e4e2dc", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>Total estimated annual savings</span>
+            <span style={{ fontFamily: "monospace", fontSize: 30, fontWeight: 700, color: "#0a8a5c" }}>{fmt(totalROI)}/yr</span>
+          </div>
+        </div>
+
+        {/* Benchmarks */}
+        <div style={card}>
+          <p style={sectionLabel}>Industry benchmarks — backed by BLS + Manufacturers Alliance</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+            {BENCHMARKS.map(b => (
+              <div key={b.num} style={{ border: "1px solid #e4e2dc", borderRadius: 10, padding: "14px 16px" }}>
+                <p style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 700, color: b.color, marginBottom: 4 }}>{b.num}</p>
+                <p style={{ fontSize: 11, color: "#6b6963", lineHeight: 1.4 }}>{b.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p style={{ fontSize: 10, color: "#9d9b96", textAlign: "center", marginTop: "1.5rem", lineHeight: 1.6 }}>
+          Sources: U.S. Bureau of Labor Statistics JOLTS · Manufacturers Alliance 2024 Workforce Trends Report · KPI Solutions · Gallup State of the Global Workplace · Gapp Group Incentive ROI Model · SHRM Human Capital Benchmarking<br />
+          Conservative estimates used throughout. Actual results may vary by operation size, industry segment, and program design.
+        </p>
+
+      </div>
+    </div>
+  );
+}

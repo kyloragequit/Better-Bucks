@@ -1,0 +1,189 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, buildUrl } from "@shared/routes";
+import { insertUserSchema } from "@shared/schema";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+
+export function useUsers() {
+  return useQuery({
+    queryKey: [api.users.list.path],
+    queryFn: async () => {
+      const res = await fetch(api.users.list.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch users");
+      return api.users.list.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useUserDetails(id: number) {
+  return useQuery({
+    queryKey: [api.users.get.path, id],
+    queryFn: async () => {
+      const url = buildUrl(api.users.get.path, { id });
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch user details");
+      return api.users.get.responses[200].parse(await res.json());
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: z.infer<typeof insertUserSchema>) => {
+      const res = await fetch(api.users.create.path, {
+        method: api.users.create.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      
+      if (!res.ok) {
+        if (res.status === 400) {
+          const error = api.users.create.responses[400].parse(await res.json());
+          throw new Error(error.message);
+        }
+        throw new Error("Failed to create user");
+      }
+      
+      return api.users.create.responses[201].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      toast({
+        title: "Success",
+        description: "Employee created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useUpdateBalance() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, amount, reason, categoryId }: { id: number; amount: number; reason: string; categoryId?: number }) => {
+      const url = buildUrl(api.users.updateBalance.path, { id });
+      const res = await fetch(url, {
+        method: api.users.updateBalance.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, reason, ...(categoryId ? { categoryId } : {}) }),
+        credentials: "include",
+      });
+      
+      if (!res.ok) throw new Error("Failed to update balance");
+      
+      return api.users.updateBalance.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.users.get.path, variables.id] });
+      queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
+      toast({
+        title: "Balance Updated",
+        description: `Successfully adjusted balance by ${variables.amount}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, role }: { id: number; role: "admin" | "employee" }) => {
+      const url = buildUrl(api.users.updateRole.path, { id });
+      const res = await fetch(url, {
+        method: api.users.updateRole.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+        credentials: "include",
+      });
+      
+      if (!res.ok) throw new Error("Failed to update role");
+      
+      return api.users.updateRole.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.users.get.path, variables.id] });
+      queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      
+      toast({
+        title: "Role Updated",
+        description: `User role changed to ${variables.role}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, username, password, email, departmentId, fullName }: { id: number; username?: string; password?: string; email?: string; departmentId?: number | null; fullName?: string }) => {
+      const url = buildUrl(api.users.updateProfile.path, { id });
+      const res = await fetch(url, {
+        method: api.users.updateProfile.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, email, departmentId, fullName }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update profile");
+      return api.users.updateProfile.responses[200].parse(await res.json());
+    },
+    onSuccess: (user) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: [api.users.get.path, user.id] });
+      toast({ title: "Success", description: "Profile updated successfully" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.users.deleteUser.path, { id });
+      const res = await fetch(url, { method: api.users.deleteUser.method, credentials: "include" });
+      if (!res.ok) throw new Error("Failed to delete user");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.users.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/my-org"] });
+      toast({ title: "Success", description: "User deleted successfully" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}

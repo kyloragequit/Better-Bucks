@@ -33,6 +33,8 @@ export const organizations = pgTable("organizations", {
   marketingOptIn: boolean("marketing_opt_in").default(false).notNull(),
   budgetSetByName: text("budget_set_by_name"),
   signupPrice: integer("signup_price"),
+  maxFailedAttempts: integer("max_failed_attempts").default(10).notNull(),
+  lockoutDurationMinutes: integer("lockout_duration_minutes").default(15).notNull(),
 });
 
 export const departments = pgTable("departments", {

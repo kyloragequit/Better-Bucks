@@ -105,6 +105,7 @@ export interface IStorage {
 
   updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean): Promise<Organization>;
   updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number, budgetSetByName?: string): Promise<Organization>;
+  updateOrganizationLockoutSettings(id: number, maxFailedAttempts: number, lockoutDurationMinutes: number): Promise<Organization>;
   setOrganizationDefaultPin(orgId: number, hashedPin: string | null, plainPin?: string | null): Promise<Organization>;
   setOrganizationReportRecipients(orgId: number, userIds: number[] | null): Promise<Organization>;
 
@@ -882,6 +883,11 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async updateOrganizationLockoutSettings(id: number, maxFailedAttempts: number, lockoutDurationMinutes: number): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ maxFailedAttempts, lockoutDurationMinutes }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
   async setOrganizationReportRecipients(orgId: number, userIds: number[] | null): Promise<Organization> {
     const val = userIds === null ? null : JSON.stringify(userIds);
     const [updated] = await db.update(organizations).set({ reportRecipientIds: val }).where(eq(organizations.id, orgId)).returning();
@@ -999,25 +1005,49 @@ export class DatabaseStorage implements IStorage {
   }
 
   async recordFailedLogin(userId: number): Promise<User> {
-    const MAX_FAILED_ATTEMPTS = Math.max(
+    const ENV_MAX_ATTEMPTS = Math.max(
       1,
       parseInt(process.env.LOCKOUT_MAX_ATTEMPTS ?? "10", 10) || 10,
     );
-    const LOCKOUT_DURATION_MS =
-      Math.max(1, parseInt(process.env.LOCKOUT_DURATION_MINUTES ?? "15", 10) || 15) *
-      60 * 1000;
+    const ENV_LOCKOUT_MINUTES = Math.max(
+      1,
+      parseInt(process.env.LOCKOUT_DURATION_MINUTES ?? "15", 10) || 15,
+    );
 
     // Use a serializable transaction with a FOR UPDATE row lock so that
     // concurrent failed attempts for the same user cannot race and lose
     // increments, which would delay or prevent lockout from firing.
     const [updated] = await db.transaction(async (tx) => {
       const [current] = await tx
-        .select({ failedLoginAttempts: users.failedLoginAttempts, lockedUntil: users.lockedUntil })
+        .select({
+          failedLoginAttempts: users.failedLoginAttempts,
+          lockedUntil: users.lockedUntil,
+          organizationId: users.organizationId,
+        })
         .from(users)
         .where(eq(users.id, userId))
         .for("update")
         .limit(1);
       if (!current) throw new Error("User not found");
+
+      // Resolve org-level lockout settings, falling back to env/defaults.
+      let maxFailedAttempts = ENV_MAX_ATTEMPTS;
+      let lockoutDurationMinutes = ENV_LOCKOUT_MINUTES;
+      if (current.organizationId !== null) {
+        const [org] = await tx
+          .select({
+            maxFailedAttempts: organizations.maxFailedAttempts,
+            lockoutDurationMinutes: organizations.lockoutDurationMinutes,
+          })
+          .from(organizations)
+          .where(eq(organizations.id, current.organizationId))
+          .limit(1);
+        if (org) {
+          maxFailedAttempts = Math.max(1, org.maxFailedAttempts);
+          lockoutDurationMinutes = Math.max(1, org.lockoutDurationMinutes);
+        }
+      }
+      const LOCKOUT_DURATION_MS = lockoutDurationMinutes * 60 * 1000;
 
       // A streak resets only when a previous lockout was set and has since
       // expired. A null lockedUntil means we are mid-streak with no lock yet,
@@ -1027,7 +1057,7 @@ export class DatabaseStorage implements IStorage {
       // If the previous lockout window has passed, treat this as the first
       // failure of a new streak rather than continuing the old count.
       const newCount = lockoutExpired ? 1 : current.failedLoginAttempts + 1;
-      const shouldLock = newCount >= MAX_FAILED_ATTEMPTS;
+      const shouldLock = newCount >= maxFailedAttempts;
       const newLockedUntil = shouldLock
         ? new Date(Date.now() + LOCKOUT_DURATION_MS)
         : null;

@@ -181,6 +181,34 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const [lockoutMaxAttempts, setLockoutMaxAttempts] = useState<string>("");
+  const [lockoutDurationMinutes, setLockoutDurationMinutes] = useState<string>("");
+  const [editingLockout, setEditingLockout] = useState(false);
+
+  const { data: securitySettings } = useQuery<{ maxFailedAttempts: number; lockoutDurationMinutes: number }>({
+    queryKey: ["/api/org/security-settings"],
+    enabled: user?.role === "prime_admin",
+  });
+
+  const { mutate: updateSecuritySettings, isPending: isSavingLockout } = useMutation({
+    mutationFn: async (body: { maxFailedAttempts: number; lockoutDurationMinutes: number }) => {
+      const res = await apiRequest("PATCH", "/api/org/security-settings", body);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to save security settings");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org/security-settings"] });
+      toast({ title: "Security Settings Saved", description: "Lockout thresholds have been updated." });
+      setEditingLockout(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Save", description: error.message, variant: "destructive" });
+    },
+  });
+
   const [showPinForm, setShowPinForm] = useState(false);
   const [pinValue, setPinValue] = useState("");
   const [confirmPinValue, setConfirmPinValue] = useState("");
@@ -525,6 +553,116 @@ export default function AdminSettingsPage() {
                 )}
               </CardContent>
             </Card>
+
+            {user?.role === "prime_admin" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Login Security
+                  </CardTitle>
+                  <CardDescription>
+                    Control how many failed login attempts are allowed before an account is temporarily locked, and how long the lockout lasts.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!editingLockout ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground">Max Failed Attempts</div>
+                          <div className="font-medium" data-testid="text-max-failed-attempts">
+                            {securitySettings?.maxFailedAttempts ?? 10} attempts
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Lockout Duration</div>
+                          <div className="font-medium" data-testid="text-lockout-duration">
+                            {securitySettings?.lockoutDurationMinutes ?? 15} minutes
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setLockoutMaxAttempts(String(securitySettings?.maxFailedAttempts ?? 10));
+                            setLockoutDurationMinutes(String(securitySettings?.lockoutDurationMinutes ?? 15));
+                            setEditingLockout(true);
+                          }}
+                          data-testid="button-edit-lockout-settings"
+                        >
+                          <Pencil className="mr-2 h-3 w-3" />
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="input-max-attempts">Max Failed Attempts</Label>
+                          <Input
+                            id="input-max-attempts"
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={lockoutMaxAttempts}
+                            onChange={(e) => setLockoutMaxAttempts(e.target.value)}
+                            data-testid="input-max-failed-attempts"
+                          />
+                          <p className="text-xs text-muted-foreground">1–100 attempts before lockout</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="input-lockout-duration">Lockout Duration (minutes)</Label>
+                          <Input
+                            id="input-lockout-duration"
+                            type="number"
+                            min={1}
+                            max={10080}
+                            value={lockoutDurationMinutes}
+                            onChange={(e) => setLockoutDurationMinutes(e.target.value)}
+                            data-testid="input-lockout-duration"
+                          />
+                          <p className="text-xs text-muted-foreground">1–10,080 minutes (up to 1 week)</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingLockout(false)}
+                          data-testid="button-cancel-lockout-settings"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={isSavingLockout || !lockoutMaxAttempts || !lockoutDurationMinutes}
+                          onClick={() => {
+                            const maxAttempts = parseInt(lockoutMaxAttempts, 10);
+                            const durationMins = parseInt(lockoutDurationMinutes, 10);
+                            if (!maxAttempts || maxAttempts < 1 || maxAttempts > 100) {
+                              toast({ title: "Invalid value", description: "Max attempts must be between 1 and 100.", variant: "destructive" });
+                              return;
+                            }
+                            if (!durationMins || durationMins < 1 || durationMins > 10080) {
+                              toast({ title: "Invalid value", description: "Lockout duration must be between 1 and 10,080 minutes.", variant: "destructive" });
+                              return;
+                            }
+                            updateSecuritySettings({ maxFailedAttempts: maxAttempts, lockoutDurationMinutes: durationMins });
+                          }}
+                          data-testid="button-save-lockout-settings"
+                        >
+                          {isSavingLockout ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>

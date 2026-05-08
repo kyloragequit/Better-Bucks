@@ -3847,6 +3847,31 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ bucksPerDollar: updated.bucksPerDollar, monthlyBudgetBucks: updated.monthlyBudgetBucks, budgetSetByName: updated.budgetSetByName ?? null });
   });
 
+  // Security settings (lockout) - get (prime_admin only)
+  app.get("/api/org/security-settings", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const org = await storage.getOrganization(user.organizationId);
+    res.json({
+      maxFailedAttempts: org?.maxFailedAttempts ?? 10,
+      lockoutDurationMinutes: org?.lockoutDurationMinutes ?? 15,
+    });
+  });
+
+  // Security settings (lockout) - update (prime_admin only)
+  app.patch("/api/org/security-settings", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { maxFailedAttempts, lockoutDurationMinutes } = z.object({
+      maxFailedAttempts: z.number().int().min(1).max(100),
+      lockoutDurationMinutes: z.number().int().min(1).max(10080),
+    }).parse(req.body);
+    const updated = await storage.updateOrganizationLockoutSettings(user.organizationId, maxFailedAttempts, lockoutDurationMinutes);
+    res.json({ maxFailedAttempts: updated.maxFailedAttempts, lockoutDurationMinutes: updated.lockoutDurationMinutes });
+  });
+
   // Get bucks credited to admins this month (prime_admin only)
   app.get("/api/org/admin-credits", async (req, res) => {
     const user = req.user as User | undefined;

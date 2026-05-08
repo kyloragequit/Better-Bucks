@@ -1,12 +1,12 @@
 import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect } from "react";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -19,11 +19,14 @@ export default function HomeScreen() {
   }, [loading, token]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 32 }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom + 32 },
+      ]}
+    >
       <View style={styles.center}>
-        <Logo size={140} />
-        <Text style={styles.wordmark}>Better Bucks</Text>
-        <Text style={styles.tagline}>Reward your team. Build your culture.</Text>
+        <Logo size={160} />
       </View>
 
       <View style={styles.actions}>
@@ -55,20 +58,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-  },
-  wordmark: {
-    color: brand.white,
-    fontFamily: "Inter_700Bold",
-    fontSize: 32,
-    letterSpacing: 0.5,
-    marginTop: 12,
-  },
-  tagline: {
-    color: "rgba(255,255,255,0.7)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    textAlign: "center",
   },
   actions: {
     paddingTop: 16,

@@ -2,18 +2,22 @@
  * Mobile app runtime configuration.
  *
  * Required env vars (set via Expo `extra` or `EXPO_PUBLIC_*`):
- *   - EXPO_PUBLIC_API_URL — base URL for the Better Bucks API server
- *                          (e.g. https://betterbucks.net). Falls back to
- *                          the workspace dev domain when running in Replit.
- *   - EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY — Stripe publishable key (pk_live_…
- *                          or pk_test_…). REQUIRED for the signup flow.
+ *   - EXPO_PUBLIC_API_URL — base URL for the Better Bucks API server.
+ *                          REQUIRED. No production fallback is hardcoded.
+ *   - EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY — Stripe publishable key
+ *                          (pk_live_… or pk_test_…). REQUIRED for signup.
  */
 
-const devDomain = process.env.EXPO_PUBLIC_DOMAIN;
+const RAW_API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-export const API_URL: string =
-  process.env.EXPO_PUBLIC_API_URL ??
-  (devDomain ? `https://${devDomain}` : "https://betterbucks.net");
+if (!RAW_API_URL || RAW_API_URL.trim().length === 0) {
+  throw new Error(
+    "EXPO_PUBLIC_API_URL is not set. Configure it in app.json `extra` or " +
+      "as an environment variable before starting the app.",
+  );
+}
+
+export const API_URL: string = RAW_API_URL;
 
 export const STRIPE_PUBLISHABLE_KEY: string =
   process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";

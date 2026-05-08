@@ -10,20 +10,20 @@ import { useSignup } from "@/contexts/SignupContext";
 
 export default function SignupConfirmationScreen() {
   const { reset } = useSignup();
-  const { token } = useAuth();
+  const { signOut } = useAuth();
   const params = useLocalSearchParams<{ contact?: string }>();
   const isContactPending = params.contact === "1";
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     reset();
     if (isContactPending) {
       router.replace("/");
-    } else if (token) {
-      // Signup already signed the user in — drop them straight on the dashboard.
-      router.replace("/dashboard");
-    } else {
-      router.replace("/login");
+      return;
     }
+    // Per product spec: confirmation always hands off to the Log In screen
+    // so the user explicitly authenticates before reaching the dashboard.
+    await signOut();
+    router.replace("/login");
   };
 
   return (
@@ -42,13 +42,7 @@ export default function SignupConfirmationScreen() {
         <View style={{ height: 24 }} />
         <Button
           testID="confirmation-continue"
-          title={
-            isContactPending
-              ? "Back to home"
-              : token
-                ? "Go to dashboard"
-                : "Log in"
-          }
+          title={isContactPending ? "Back to home" : "Log in"}
           onPress={handleContinue}
         />
       </View>

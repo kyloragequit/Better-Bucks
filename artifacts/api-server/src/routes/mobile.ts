@@ -1,10 +1,25 @@
 import { Express, Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import type Stripe from "stripe";
 import { z } from "zod/v4";
 import { storage } from "../storage";
 import { hashPassword, verifyPassword } from "../auth";
 import { ensureStripeReady } from "../stripeLazy";
 import { getUncachableStripeClient } from "../stripeClient";
+import type {
+  InsertOrganization,
+  InsertUser,
+  User,
+} from "@workspace/db";
+
+interface MobileRequest extends Request {
+  mobileUser: User;
+}
+
+function safeUser(user: User): Omit<User, "password"> {
+  const { password: _pw, ...rest } = user;
+  return rest;
+}
 
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -66,8 +81,9 @@ export async function mobileAuthMiddleware(
   if (!userId) return res.status(401).json({ message: "Invalid token" });
   const user = await storage.getUser(userId);
   if (!user) return res.status(401).json({ message: "User not found" });
-  (req as any).mobileUser = user;
+  (req as MobileRequest).mobileUser = user;
   next();
+  return;
 }
 
 const TIER_CONFIG = {
@@ -123,26 +139,28 @@ export function registerMobileRoutes(app: Express) {
         user = await storage.getUserByEmailGlobal(username);
       }
       if (!user) {
-        return res
+        res
           .status(401)
           .json({ message: "Incorrect username or password" });
+        return;
       }
 
       const match = await verifyPassword(password, user.password);
       if (!match) {
-        return res
+        res
           .status(401)
           .json({ message: "Incorrect username or password" });
+        return;
       }
 
       const token = signMobileToken(user.id);
-      const { password: _pw, ...safeUser } = user as any;
-      res.json({ token, user: safeUser });
+      res.json({ token, user: safeUser(user) });
     } catch (err: any) {
       if (err?.issues) {
-        return res
+        res
           .status(400)
           .json({ message: err.issues[0]?.message ?? "Invalid input" });
+        return;
       }
       console.error("[mobile/login]", err);
       res.status(500).json({ message: "Login failed" });
@@ -151,9 +169,8 @@ export function registerMobileRoutes(app: Express) {
 
   // Authenticated: current user
   app.get("/api/mobile/me", mobileAuthMiddleware, async (req, res) => {
-    const user = (req as any).mobileUser;
-    const { password: _pw, ...safeUser } = user;
-    res.json(safeUser);
+    const user = (req as MobileRequest).mobileUser;
+    res.json(safeUser(user));
   });
 
   // Account deletion — required by Apple App Store guideline 5.1.1(v)
@@ -161,7 +178,7 @@ export function registerMobileRoutes(app: Express) {
     "/api/mobile/account/delete",
     mobileAuthMiddleware,
     async (req, res) => {
-      const user = (req as any).mobileUser;
+      const user = (req as MobileRequest).mobileUser;
       try {
         // If this user is the prime admin of an org, also cancel the org's
         // Stripe subscription and mark the org deleted.
@@ -184,7 +201,11 @@ export function registerMobileRoutes(app: Express) {
             await storage.updateOrganizationStatus(org.id, "deleted");
           }
         }
-        await storage.deleteUser(user.id);
+        await (
+          storage as typeof storage & {
+            deleteUser: (id: number) => Promise<void>;
+          }
+        ).deleteUser(user.id);
         res.json({ success: true });
       } catch (err) {
         console.error("[mobile/account/delete]", err);
@@ -204,13 +225,14 @@ export function registerMobileRoutes(app: Express) {
       paymentMethodId: z.string().min(1).optional(),
       licenseAccepted: z.literal(true),
     });
-    let parsed;
+    let parsed: z.infer<typeof Body>;
     try {
       parsed = Body.parse(req.body);
     } catch (err: any) {
-      return res
+      res
         .status(400)
         .json({ message: err?.issues?.[0]?.message ?? "Invalid input" });
+      return;
     }
     const {
       organizationName,
@@ -226,35 +248,37 @@ export function registerMobileRoutes(app: Express) {
 
     // Enterprise — no payment, just record the lead and return contactPending
     if (tier === "enterprise") {
-      return res.json({
+      res.json({
         contactPending: true,
         message:
           "Enterprise plans are quoted custom — we'll reach out shortly.",
       });
+      return;
     }
 
     if (!paymentMethodId) {
-      return res
-        .status(400)
-        .json({ message: "Payment method is required" });
+      res.status(400).json({ message: "Payment method is required" });
+      return;
     }
 
     // Confirm Stripe is configured
     try {
       await ensureStripeReady();
     } catch {
-      return res
+      res
         .status(503)
         .json({ message: "Payments are temporarily unavailable. Please try again later." });
+      return;
     }
 
-    let stripe;
+    let stripe: Stripe;
     try {
       stripe = await getUncachableStripeClient();
     } catch {
-      return res
+      res
         .status(503)
         .json({ message: "Payments are temporarily unavailable." });
+      return;
     }
 
     // Reject duplicate username/email upfront
@@ -262,9 +286,10 @@ export function registerMobileRoutes(app: Express) {
       (await storage.getUserByUsername(email)) ||
       (await storage.getUserByEmailGlobal(email));
     if (existing) {
-      return res
+      res
         .status(409)
         .json({ message: "An account with this email already exists." });
+      return;
     }
 
     const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -279,39 +304,47 @@ export function registerMobileRoutes(app: Express) {
         metadata: { source: "mobile_app", tier, organizationName },
       });
 
+      // Create a Product for this tier (Subscription price_data requires a
+      // pre-existing Product ID, not product_data inline).
+      const product = await stripe.products.create({
+        name: `Better Bucks – ${config.name}`,
+        metadata: { tier, source: "mobile_app" },
+      });
+
       // Create subscription with 60-day trial
-      const subscription = await stripe.subscriptions.create({
+      const subscriptionItem: Stripe.SubscriptionCreateParams.Item = {
+        price_data: {
+          currency: "usd",
+          product: product.id,
+          unit_amount: config.price,
+          recurring: { interval: "month" },
+          tax_behavior: "exclusive",
+        },
+      };
+      const subscriptionParams: Stripe.SubscriptionCreateParams = {
         customer: customer.id,
-        items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: `Better Bucks – ${config.name}`,
-              },
-              unit_amount: config.price,
-              recurring: { interval: "month" },
-              tax_behavior: "exclusive",
-            },
-          } as any,
-        ],
+        items: [subscriptionItem],
         trial_period_days: 60,
         trial_settings: {
           end_behavior: { missing_payment_method: "cancel" },
         },
         default_payment_method: paymentMethodId,
         metadata: { tier, orgCode, source: "mobile_app" },
-      });
+      };
+      const subscription = await stripe.subscriptions.create(
+        subscriptionParams,
+      );
 
       // Create org
-      const org = await storage.createOrganization({
+      const orgInsert: InsertOrganization = {
         name: organizationName,
         code: orgCode,
         tier,
         maxEmployees: config.maxEmployees,
         licenseAcceptedAt: licenseAccepted ? new Date() : null,
         marketingOptIn: false,
-      } as any);
+      };
+      const org = await storage.createOrganization(orgInsert);
 
       await storage.updateOrganizationStripe(
         org.id,
@@ -327,12 +360,17 @@ export function registerMobileRoutes(app: Express) {
         .randomBytes(3)
         .toString("hex")
         .toUpperCase()}`;
-      const user = await storage.createUser({
+      // status is omitted from the InsertUser schema (so it defaults to
+      // "pending" in normal flows). For mobile signup the prime admin pays
+      // upfront, so we mark them "active" by combining the typed insert
+      // with the underlying users-table status enum.
+      const userInsert: InsertUser & {
+        status: "active" | "inactive" | "pending" | "paused" | "deleted";
+      } = {
         username: email,
         password: hashed,
         role: "prime_admin",
-        status: "approved",
-        balance: 0,
+        status: "active",
         barcode,
         fullName,
         email,
@@ -340,15 +378,15 @@ export function registerMobileRoutes(app: Express) {
         emailVerified: false,
         marketingOptIn: false,
         termsAcceptedAt: new Date(),
-      } as any);
+      };
+      const user = await storage.createUser(userInsert);
 
       const token = signMobileToken(user.id);
-      const { password: _pw, ...safeUser } = user as any;
 
       res.json({
         success: true,
         token,
-        user: safeUser,
+        user: safeUser(user),
         orgCode,
         trialDays: 60,
       });

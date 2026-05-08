@@ -7,12 +7,10 @@ import { Button } from "@/components/Button";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { apiUrl, STRIPE_PUBLISHABLE_KEY } from "@/constants/api";
 import { brand } from "@/constants/colors";
-import { useAuth } from "@/contexts/AuthContext";
 import { useSignup } from "@/contexts/SignupContext";
 
 export default function SignupPaymentScreen() {
   const { draft } = useSignup();
-  const { signIn } = useAuth();
   const { createPaymentMethod } = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -67,11 +65,6 @@ export default function SignupPaymentScreen() {
         return;
       }
 
-      // Optimistically sign the new user in so the dashboard is reachable
-      // immediately after they tap "Log in" on the confirmation screen.
-      if (data.token && data.user) {
-        await signIn(data.token, data.user);
-      }
       router.replace("/signup/confirmation");
     } catch (err: any) {
       setError(err?.message ?? "Network error.");

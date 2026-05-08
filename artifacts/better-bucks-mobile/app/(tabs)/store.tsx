@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
@@ -46,7 +47,7 @@ type Employee = {
 type SortOrder = "none" | "asc" | "desc";
 
 function EmployeeStore() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
@@ -66,6 +67,16 @@ function EmployeeStore() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("none");
   const [purchasing, setPurchasing] = useState<number | null>(null);
 
+  const sortKey = `store_sort_order_${user?.id ?? "guest"}`;
+
+  useEffect(() => {
+    AsyncStorage.getItem(sortKey).then((saved) => {
+      if (saved === "asc" || saved === "desc" || saved === "none") {
+        setSortOrder(saved);
+      }
+    }).catch(() => {});
+  }, [sortKey]);
+
   const filteredItems = (() => {
     const q = search.trim().toLowerCase();
     let result = q
@@ -81,9 +92,11 @@ function EmployeeStore() {
   })();
 
   const cycleSortOrder = () => {
-    setSortOrder((prev) =>
-      prev === "none" ? "asc" : prev === "asc" ? "desc" : "none",
-    );
+    setSortOrder((prev) => {
+      const next: SortOrder = prev === "none" ? "asc" : prev === "asc" ? "desc" : "none";
+      AsyncStorage.setItem(sortKey, next).catch(() => {});
+      return next;
+    });
   };
 
   const sortLabel =

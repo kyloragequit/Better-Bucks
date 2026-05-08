@@ -1,6 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -10,11 +11,31 @@ import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, loginWithBiometrics, enrollBiometrics, biometricCapable, biometricEnrolled } =
+    useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [bioSubmitting, setBioSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (biometricEnrolled) {
+      handleBiometricLogin();
+    }
+  }, [biometricEnrolled]);
+
+  const handleBiometricLogin = async () => {
+    setBioSubmitting(true);
+    setError(null);
+    const result = await loginWithBiometrics();
+    setBioSubmitting(false);
+    if (result.ok) {
+      router.replace("/dashboard");
+    } else if (result.message !== "Cancelled") {
+      setError(result.message);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!username.trim() || !password) {
@@ -29,7 +50,25 @@ export default function LoginScreen() {
       setError(result.message);
       return;
     }
-    router.replace("/dashboard");
+
+    if (biometricCapable && !biometricEnrolled) {
+      Alert.alert(
+        "Enable Face ID / Touch ID?",
+        "Sign in faster next time using biometrics.",
+        [
+          { text: "Not now", style: "cancel", onPress: () => router.replace("/dashboard") },
+          {
+            text: "Enable",
+            onPress: async () => {
+              await enrollBiometrics();
+              router.replace("/dashboard");
+            },
+          },
+        ],
+      );
+    } else {
+      router.replace("/dashboard");
+    }
   };
 
   return (
@@ -41,6 +80,32 @@ export default function LoginScreen() {
           Log in to your Better Bucks account.
         </Text>
       </View>
+
+      {biometricEnrolled ? (
+        <View style={styles.biometricSection}>
+          <Pressable
+            onPress={handleBiometricLogin}
+            style={styles.biometricButton}
+            disabled={bioSubmitting}
+            accessibilityLabel="Sign in with Face ID or Touch ID"
+          >
+            <Ionicons
+              name="finger-print"
+              size={36}
+              color={bioSubmitting ? "rgba(255,255,255,0.3)" : brand.gold}
+            />
+            <Text style={styles.biometricText}>
+              {bioSubmitting ? "Authenticating…" : "Sign in with Face ID / Touch ID"}
+            </Text>
+          </Pressable>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerLabel}>or use password</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        </View>
+      ) : null}
 
       <TextField
         label="Email or username"
@@ -109,5 +174,40 @@ const styles = StyleSheet.create({
     color: "#FCA5A5",
     fontFamily: "Inter_500Medium",
     marginBottom: 8,
+  },
+  biometricSection: {
+    width: "100%",
+    marginBottom: 12,
+  },
+  biometricButton: {
+    alignItems: "center",
+    paddingVertical: 20,
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  biometricText: {
+    color: "rgba(255,255,255,0.85)",
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 4,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  dividerLabel: {
+    color: "rgba(255,255,255,0.4)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
   },
 });

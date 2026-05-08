@@ -1,3 +1,4 @@
+import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import React, {
   createContext,
@@ -12,6 +13,9 @@ import { apiUrl } from "@/constants/api";
 
 const TOKEN_KEY = "bb_mobile_token";
 const USER_KEY = "bb_mobile_user";
+const BIOMETRIC_ENROLLED_KEY = "bb_biometric_enrolled";
+
+const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type AuthUser = {
   id: number;
@@ -26,32 +30,99 @@ type AuthContextValue = {
   loading: boolean;
   token: string | null;
   user: AuthUser | null;
+  biometricCapable: boolean;
+  biometricEnrolled: boolean;
   signIn: (token: string, user: AuthUser) => Promise<void>;
   signOut: () => Promise<void>;
   login: (
     username: string,
     password: string,
   ) => Promise<{ ok: true } | { ok: false; message: string }>;
+  loginWithBiometrics: () => Promise<
+    { ok: true } | { ok: false; message: string }
+  >;
+  enrollBiometrics: () => Promise<boolean>;
+  disableBiometrics: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function decodeTokenExpiry(token: string): number | null {
+  try {
+    const [payloadB64] = token.split(".");
+    if (!payloadB64) return null;
+    const base64 = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const decoded = atob(padded);
+    const parts = decoded.split(".");
+    const exp = Number(parts[parts.length - 1]);
+    return isNaN(exp) ? null : exp;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshTokenIfNeeded(
+  token: string,
+): Promise<{ token: string; user: AuthUser } | null> {
+  const exp = decodeTokenExpiry(token);
+  if (!exp) return null;
+  if (exp - Date.now() > REFRESH_THRESHOLD_MS) return null;
+  try {
+    const res = await fetch(apiUrl("/api/mobile/token/refresh"), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.token) return null;
+    return { token: data.token, user: data.user };
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [biometricCapable, setBiometricCapable] = useState(false);
+  const [biometricEnrolled, setBiometricEnrolled] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const [t, u] = await Promise.all([
+        const [t, u, bioPref, hasHardware, isEnrolled] = await Promise.all([
           SecureStore.getItemAsync(TOKEN_KEY),
           SecureStore.getItemAsync(USER_KEY),
+          SecureStore.getItemAsync(BIOMETRIC_ENROLLED_KEY),
+          LocalAuthentication.hasHardwareAsync(),
+          LocalAuthentication.isEnrolledAsync(),
         ]);
-        if (t) setToken(t);
-        if (u) setUser(JSON.parse(u));
+
+        const deviceCapable = hasHardware && isEnrolled;
+        setBiometricCapable(deviceCapable);
+        setBiometricEnrolled(deviceCapable && bioPref === "true");
+
+        if (t && u) {
+          let activeToken = t;
+          let activeUser: AuthUser = JSON.parse(u);
+
+          const refreshed = await refreshTokenIfNeeded(t);
+          if (refreshed) {
+            await SecureStore.setItemAsync(TOKEN_KEY, refreshed.token);
+            await SecureStore.setItemAsync(
+              USER_KEY,
+              JSON.stringify(refreshed.user),
+            );
+            activeToken = refreshed.token;
+            activeUser = refreshed.user;
+          }
+
+          setToken(activeToken);
+          setUser(activeUser);
+        }
       } catch {
-        // ignore — first launch
       } finally {
         setLoading(false);
       }
@@ -68,8 +139,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_KEY);
+    await SecureStore.deleteItemAsync(BIOMETRIC_ENROLLED_KEY);
     setToken(null);
     setUser(null);
+    setBiometricEnrolled(false);
   }, []);
 
   const login = useCallback<AuthContextValue["login"]>(
@@ -99,9 +172,114 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [signIn],
   );
 
+  const loginWithBiometrics = useCallback<
+    AuthContextValue["loginWithBiometrics"]
+  >(async () => {
+    try {
+      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!storedToken) {
+        return { ok: false as const, message: "No stored session" };
+      }
+      const exp = decodeTokenExpiry(storedToken);
+      if (!exp || Date.now() > exp) {
+        return { ok: false as const, message: "Session expired" };
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Unlock Better Bucks",
+        fallbackLabel: "Use password",
+        cancelLabel: "Cancel",
+        disableDeviceFallback: false,
+      });
+
+      if (!result.success) {
+        return {
+          ok: false as const,
+          message:
+            result.error === "user_cancel" ? "Cancelled" : "Authentication failed",
+        };
+      }
+
+      const u = await SecureStore.getItemAsync(USER_KEY);
+      if (!u) return { ok: false as const, message: "No stored session" };
+
+      let activeToken = storedToken;
+      let activeUser: AuthUser = JSON.parse(u);
+      const refreshed = await refreshTokenIfNeeded(storedToken);
+      if (refreshed) {
+        await SecureStore.setItemAsync(TOKEN_KEY, refreshed.token);
+        await SecureStore.setItemAsync(
+          USER_KEY,
+          JSON.stringify(refreshed.user),
+        );
+        activeToken = refreshed.token;
+        activeUser = refreshed.user;
+      }
+
+      setToken(activeToken);
+      setUser(activeUser);
+      return { ok: true as const };
+    } catch (err: any) {
+      return {
+        ok: false as const,
+        message: err?.message ?? "Biometric authentication failed",
+      };
+    }
+  }, []);
+
+  const enrollBiometrics = useCallback(async (): Promise<boolean> => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !isEnrolled) return false;
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Confirm to enable biometric login",
+        cancelLabel: "Not now",
+        disableDeviceFallback: false,
+      });
+      if (!result.success) return false;
+
+      await SecureStore.setItemAsync(BIOMETRIC_ENROLLED_KEY, "true");
+      setBiometricEnrolled(true);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const disableBiometrics = useCallback(async () => {
+    await SecureStore.deleteItemAsync(BIOMETRIC_ENROLLED_KEY);
+    setBiometricEnrolled(false);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ loading, token, user, signIn, signOut, login }),
-    [loading, token, user, signIn, signOut, login],
+    () => ({
+      loading,
+      token,
+      user,
+      biometricCapable,
+      biometricEnrolled,
+      signIn,
+      signOut,
+      login,
+      loginWithBiometrics,
+      enrollBiometrics,
+      disableBiometrics,
+    }),
+    [
+      loading,
+      token,
+      user,
+      biometricCapable,
+      biometricEnrolled,
+      signIn,
+      signOut,
+      login,
+      loginWithBiometrics,
+      enrollBiometrics,
+      disableBiometrics,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

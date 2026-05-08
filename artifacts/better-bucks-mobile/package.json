@@ -57,6 +57,9 @@
   },
   "dependencies": {
     "@stripe/stripe-react-native": "^0.50.3",
-    "expo-secure-store": "^15.0.8"
+    "expo-file-system": "^19.0.22",
+    "expo-local-authentication": "^17.0.8",
+    "expo-secure-store": "^15.0.8",
+    "expo-sharing": "^14.0.8"
   }
 }

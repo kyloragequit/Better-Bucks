@@ -214,6 +214,14 @@ export function registerMobileRoutes(app: Express) {
     },
   );
 
+  // Token refresh — issues a fresh 30-day token for an authenticated session.
+  // Clients should call this when the token is within ~7 days of expiry.
+  app.post("/api/mobile/token/refresh", mobileAuthMiddleware, (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const token = signMobileToken(user.id);
+    res.json({ token, user: safeUser(user) });
+  });
+
   // Account deletion — required by Apple App Store guideline 5.1.1(v)
   app.post(
     "/api/mobile/account/delete",

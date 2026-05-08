@@ -66,6 +66,14 @@ function EmployeeStore() {
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("none");
   const [purchasing, setPurchasing] = useState<number | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+
+  const minVal = minPrice === "" ? null : Number(minPrice);
+  const maxVal = maxPrice === "" ? null : Number(maxPrice);
+  const priceFilterActive =
+    (minVal !== null && !isNaN(minVal)) || (maxVal !== null && !isNaN(maxVal));
 
   const sortKey = `store_sort_order_${user?.id ?? "guest"}`;
 
@@ -86,10 +94,17 @@ function EmployeeStore() {
             (item.description ?? "").toLowerCase().includes(q),
         )
       : items;
+    if (minVal !== null && !isNaN(minVal)) result = result.filter((item) => item.price >= minVal);
+    if (maxVal !== null && !isNaN(maxVal)) result = result.filter((item) => item.price <= maxVal);
     if (sortOrder === "asc") result = [...result].sort((a, b) => a.price - b.price);
     else if (sortOrder === "desc") result = [...result].sort((a, b) => b.price - a.price);
     return result;
   })();
+
+  const clearPriceFilter = () => {
+    setMinPrice("");
+    setMaxPrice("");
+  };
 
   const cycleSortOrder = () => {
     setSortOrder((prev) => {
@@ -169,46 +184,115 @@ function EmployeeStore() {
         />
       }
       ListHeaderComponent={
-        <View style={storeSearchStyles.headerRow}>
-          <View style={storeSearchStyles.searchBar}>
-            <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" />
-            <TextInput
-              style={storeSearchStyles.searchInput}
-              placeholder="Search items…"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-              value={search}
-              onChangeText={setSearch}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
-                <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
-              </TouchableOpacity>
-            )}
-          </View>
-          <TouchableOpacity
-            style={[
-              storeSearchStyles.sortBtn,
-              sortOrder !== "none" && storeSearchStyles.sortBtnActive,
-            ]}
-            onPress={cycleSortOrder}
-          >
-            <Ionicons
-              name="swap-vertical-outline"
-              size={15}
-              color={sortOrder !== "none" ? brand.navy : brand.gold}
-            />
-            <Text
+        <View>
+          <View style={storeSearchStyles.headerRow}>
+            <View style={storeSearchStyles.searchBar}>
+              <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" />
+              <TextInput
+                style={storeSearchStyles.searchInput}
+                placeholder="Search items…"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+                value={search}
+                onChangeText={setSearch}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity
               style={[
-                storeSearchStyles.sortBtnText,
-                sortOrder !== "none" && storeSearchStyles.sortBtnTextActive,
+                storeSearchStyles.sortBtn,
+                sortOrder !== "none" && storeSearchStyles.sortBtnActive,
               ]}
+              onPress={cycleSortOrder}
             >
-              {sortLabel}
-            </Text>
-          </TouchableOpacity>
+              <Ionicons
+                name="swap-vertical-outline"
+                size={15}
+                color={sortOrder !== "none" ? brand.navy : brand.gold}
+              />
+              <Text
+                style={[
+                  storeSearchStyles.sortBtnText,
+                  sortOrder !== "none" && storeSearchStyles.sortBtnTextActive,
+                ]}
+              >
+                {sortLabel}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                storeSearchStyles.sortBtn,
+                (filterOpen || priceFilterActive) && storeSearchStyles.sortBtnActive,
+              ]}
+              onPress={() => setFilterOpen((v) => !v)}
+            >
+              <Ionicons
+                name="options-outline"
+                size={15}
+                color={(filterOpen || priceFilterActive) ? brand.navy : brand.gold}
+              />
+              <Text
+                style={[
+                  storeSearchStyles.sortBtnText,
+                  (filterOpen || priceFilterActive) && storeSearchStyles.sortBtnTextActive,
+                ]}
+              >
+                Filter{priceFilterActive ? " ●" : ""}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {filterOpen && (
+            <View style={storeSearchStyles.filterPanel}>
+              {minVal !== null && maxVal !== null && !isNaN(minVal) && !isNaN(maxVal) && minVal > maxVal && (
+                <Text style={storeSearchStyles.filterWarn}>
+                  Min must be less than or equal to max
+                </Text>
+              )}
+              <View style={storeSearchStyles.filterRow}>
+                <View style={storeSearchStyles.filterInputWrap}>
+                  <Text style={storeSearchStyles.filterLabel}>Min Bucks</Text>
+                  <TextInput
+                    style={storeSearchStyles.filterInput}
+                    placeholder="0"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={minPrice}
+                    onChangeText={(v) => setMinPrice(v.replace(/[^0-9]/g, ""))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                  />
+                </View>
+                <Text style={storeSearchStyles.filterDash}>–</Text>
+                <View style={storeSearchStyles.filterInputWrap}>
+                  <Text style={storeSearchStyles.filterLabel}>Max Bucks</Text>
+                  <TextInput
+                    style={storeSearchStyles.filterInput}
+                    placeholder="Any"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={maxPrice}
+                    onChangeText={(v) => setMaxPrice(v.replace(/[^0-9]/g, ""))}
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                  />
+                </View>
+                {priceFilterActive && (
+                  <TouchableOpacity
+                    style={storeSearchStyles.clearBtn}
+                    onPress={clearPriceFilter}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
         </View>
       }
       ListEmptyComponent={
@@ -611,6 +695,56 @@ const storeSearchStyles = StyleSheet.create({
   },
   sortBtnTextActive: {
     color: brand.navy,
+  },
+  filterPanel: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  filterInputWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  filterLabel: {
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  filterInput: {
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    color: brand.white,
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  filterDash: {
+    color: "rgba(255,255,255,0.35)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 18,
+    paddingBottom: 8,
+  },
+  clearBtn: {
+    paddingBottom: 8,
+  },
+  filterWarn: {
+    color: "#f87171",
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginBottom: 8,
   },
 });
 

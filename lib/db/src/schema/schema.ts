@@ -563,6 +563,20 @@ export const walletPassDevices = pgTable("wallet_pass_devices", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const stripeOrphans = pgTable("stripe_orphans", {
+  id: serial("id").primaryKey(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status", { enum: ["pending", "processing", "resolved", "failed_permanently"] }).default("pending").notNull(),
+  retryCount: integer("retry_count").default(0).notNull(),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type StripeOrphan = typeof stripeOrphans.$inferSelect;
+export type InsertStripeOrphan = typeof stripeOrphans.$inferInsert;
+
 export const insertMerchantSchema = createInsertSchema(merchants).omit({ id: true, createdAt: true, passwordHash: true }).extend({
   password: z.string().min(6),
 });

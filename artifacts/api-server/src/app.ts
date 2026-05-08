@@ -9,6 +9,7 @@ import { registerMobileRoutes } from "./routes/mobile";
 import healthRouter from "./routes/health";
 import { ensureStripeReady } from "./stripeLazy";
 import { WebhookHandlers } from "./webhookHandlers";
+import { startStripeOrphanRetryJob } from "./stripeOrphanRetry";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -143,6 +144,8 @@ export async function initApp(): Promise<void> {
 
   await registerRoutes(httpServer, app);
   registerMobileRoutes(app);
+
+  startStripeOrphanRetryJob();
 
   // Global error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

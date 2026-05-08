@@ -8,6 +8,7 @@ import { ensureStripeReady } from "../stripeLazy";
 import { getUncachableStripeClient } from "../stripeClient";
 import { logger } from "../lib/logger";
 import { sendGhostStripeAlert } from "../lib/alerts";
+import { recordStripeOrphan } from "../stripeOrphanRetry";
 import type {
   InsertOrganization,
   InsertUser,
@@ -929,6 +930,11 @@ export function registerMobileRoutes(app: Express) {
       }
 
       if (subCancelError || customerDeleteError) {
+        const lastError = [
+          subCancelError instanceof Error ? subCancelError.message : subCancelError ? String(subCancelError) : null,
+          customerDeleteError instanceof Error ? customerDeleteError.message : customerDeleteError ? String(customerDeleteError) : null,
+        ].filter(Boolean).join("; ");
+
         logger.error(
           {
             stripeCustomerId,
@@ -936,13 +942,19 @@ export function registerMobileRoutes(app: Express) {
             subCancelError,
             customerDeleteError,
           },
-          "Stripe rollback failed after DB write error — orphaned Stripe objects require manual cleanup",
+          "Stripe rollback failed — persisting orphan for automated retry",
         );
         void sendGhostStripeAlert({
           stripeCustomerId,
           stripeSubscriptionId,
           subCancelError,
           customerDeleteError,
+        });
+
+        await recordStripeOrphan({
+          stripeCustomerId,
+          stripeSubscriptionId,
+          lastError,
         });
       }
     }

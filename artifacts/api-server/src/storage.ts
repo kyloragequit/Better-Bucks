@@ -123,7 +123,7 @@ export interface IStorage {
   getMarketingSubscribers(): Promise<Array<{ name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null }>>;
   acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
   incrementSuccessfulLoginCount(userId: number): Promise<User>;
-  recordFailedLogin(userId: number): Promise<User>;
+  recordFailedLogin(userId: number): Promise<{ user: User; justLocked: boolean }>;
   recordSuccessfulLogin(userId: number): Promise<User>;
   unlockUser(userId: number): Promise<User>;
   dismissTwoFaPrompt(userId: number): Promise<User>;
@@ -1013,7 +1013,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async recordFailedLogin(userId: number): Promise<User> {
+  async recordFailedLogin(userId: number): Promise<{ user: User; justLocked: boolean }> {
     const ENV_MAX_ATTEMPTS = Math.max(
       1,
       parseInt(process.env.LOCKOUT_MAX_ATTEMPTS ?? "10", 10) || 10,
@@ -1026,7 +1026,7 @@ export class DatabaseStorage implements IStorage {
     // Use a serializable transaction with a FOR UPDATE row lock so that
     // concurrent failed attempts for the same user cannot race and lose
     // increments, which would delay or prevent lockout from firing.
-    const [updated] = await db.transaction(async (tx) => {
+    const { updated, justLocked } = await db.transaction(async (tx) => {
       const [current] = await tx
         .select({
           failedLoginAttempts: users.failedLoginAttempts,
@@ -1066,19 +1066,25 @@ export class DatabaseStorage implements IStorage {
       // If the previous lockout window has passed, treat this as the first
       // failure of a new streak rather than continuing the old count.
       const newCount = lockoutExpired ? 1 : current.failedLoginAttempts + 1;
+      // A lockout is "just triggered" when this attempt pushes the count to
+      // exactly the threshold AND the account was not already locked.
+      const wasAlreadyLocked =
+        current.lockedUntil !== null && new Date() < new Date(current.lockedUntil);
       const shouldLock = newCount >= maxFailedAttempts;
+      const justLocked = shouldLock && !wasAlreadyLocked;
       const newLockedUntil = shouldLock
         ? new Date(Date.now() + LOCKOUT_DURATION_MS)
         : null;
 
-      return tx
+      const rows = await tx
         .update(users)
         .set({ failedLoginAttempts: newCount, lockedUntil: newLockedUntil })
         .where(eq(users.id, userId))
         .returning();
+      return { updated: rows[0], justLocked };
     });
     if (!updated) throw new Error("User not found");
-    return updated;
+    return { user: updated, justLocked };
   }
 
   async recordSuccessfulLogin(userId: number): Promise<User> {

@@ -11,6 +11,7 @@ import { db, pool } from "./db";
 import { User, users } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { deleteSessionDemoOrg } from "./seedDemo";
+import { notifyAdminsOfAccountLockout } from "./lib/lockoutNotify";
 
 export const BCRYPT_ROUNDS = 10;
 
@@ -151,8 +152,11 @@ export function setupAuth(app: Express) {
         }
         if (!match) {
           // Record the failed attempt; this may trigger a lockout
-          await storage.recordFailedLogin(user.id);
+          const { user: updatedUser, justLocked } = await storage.recordFailedLogin(user.id);
           invalidateUserCache(user.id);
+          if (justLocked) {
+            void notifyAdminsOfAccountLockout(updatedUser);
+          }
           return done(null, false, { message: "Incorrect username or password" });
         }
         // Successful credential match — reset the lockout counter

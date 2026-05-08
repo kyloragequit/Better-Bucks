@@ -10,6 +10,7 @@ import { logger } from "../lib/logger";
 import { sendGhostStripeAlert } from "../lib/alerts";
 import { recordStripeOrphan } from "../stripeOrphanRetry";
 import { verifyAppleIdentityToken, verifyGoogleIdToken } from "../socialAuth";
+import { notifyAdminsOfAccountLockout } from "../lib/lockoutNotify";
 import { buildPassForEmployee, PassConfigError } from "../walletPass";
 import { buildGoogleWalletSaveUrl, GoogleWalletConfigError } from "../googleWalletPass";
 import type {
@@ -205,7 +206,10 @@ export function registerMobileRoutes(app: Express) {
 
       const match = await verifyPassword(password, user.password);
       if (!match) {
-        await storage.recordFailedLogin(user.id);
+        const { user: updatedUser, justLocked } = await storage.recordFailedLogin(user.id);
+        if (justLocked) {
+          void notifyAdminsOfAccountLockout(updatedUser);
+        }
         res
           .status(401)
           .json({ message: "Incorrect username or password" });

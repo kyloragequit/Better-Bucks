@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader } from "@/components/ui/loader";
@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
-import { Plus, Trash2, KeyRound, Power, Eye, Copy, Check } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { Plus, Trash2, KeyRound, Power, Eye, Copy, Check, Search } from "lucide-react";
 
 type Merchant = { id: number; name: string; email: string; status: "active" | "disabled"; createdAt: string };
 type Tx = { id: number; bucksAmount: number; createdAt: string; employee?: { id: number; fullName: string; email: string } | null };
@@ -20,6 +21,17 @@ export default function AdminMerchantsPage() {
   const { toast } = useToast();
   const scrollOnFocus = useScrollIntoViewOnFocus();
   const { data: merchants = [], isLoading } = useQuery<Merchant[]>({ queryKey: ["/api/admin/merchants"] });
+
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
+
+  const filteredMerchants = useMemo(() =>
+    merchants.filter(m =>
+      m.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      m.email.toLowerCase().includes(debouncedSearch.toLowerCase())
+    ),
+    [merchants, debouncedSearch]
+  );
 
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -128,14 +140,27 @@ export default function AdminMerchantsPage() {
             <CardTitle className="text-base">All merchants</CardTitle>
             <CardDescription>{merchants.length} total</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by name or email…"
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                data-testid="input-search-merchants"
+              />
+            </div>
             {isLoading ? (
               <Loader />
             ) : merchants.length === 0 ? (
               <div className="text-sm text-muted-foreground py-6 text-center" data-testid="text-no-merchants">No merchants yet. Click "Add merchant" to create one.</div>
+            ) : filteredMerchants.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">No merchants match your search.</div>
             ) : (
               <ul className="divide-y">
-                {merchants.map((m) => (
+                {filteredMerchants.map((m) => (
                   <li key={m.id} className="py-3 flex items-center justify-between gap-3 flex-wrap" data-testid={`row-merchant-${m.id}`}>
                     <div className="min-w-0">
                       <div className="font-medium truncate">{m.name}</div>

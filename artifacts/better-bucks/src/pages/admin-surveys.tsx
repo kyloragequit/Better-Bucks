@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/use-debounce";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { apiRequest } from "@/lib/queryClient";
-import { ClipboardList, Plus, Trash2, Eye, Play, Square, Users, ChevronDown, ChevronUp, X, Download, Target } from "lucide-react";
+import { ClipboardList, Plus, Trash2, Eye, Play, Square, Users, ChevronDown, ChevronUp, X, Download, Target, Search } from "lucide-react";
 import type { Survey, SurveyQuestion } from "@shared/schema";
 import { useUser } from "@/hooks/use-auth";
 
@@ -507,6 +508,8 @@ function SurveyCard({ survey, goalMap }: { survey: SurveyWithMeta; goalMap: Reco
 
 export default function AdminSurveysPage() {
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
   const { data: surveys = [], isLoading } = useQuery<SurveyWithMeta[]>({
     queryKey: ["/api/surveys"],
   });
@@ -517,9 +520,17 @@ export default function AdminSurveysPage() {
   const goalMap: Record<number, Goal> = {};
   for (const g of goals) goalMap[g.id] = g;
 
-  const active = surveys.filter(s => s.status === "active");
-  const draft = surveys.filter(s => s.status === "draft");
-  const closed = surveys.filter(s => s.status === "closed");
+  const filteredSurveys = useMemo(() =>
+    surveys.filter(s =>
+      s.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (s.description ?? "").toLowerCase().includes(debouncedSearch.toLowerCase())
+    ),
+    [surveys, debouncedSearch]
+  );
+
+  const active = filteredSurveys.filter(s => s.status === "active");
+  const draft = filteredSurveys.filter(s => s.status === "draft");
+  const closed = filteredSurveys.filter(s => s.status === "closed");
 
   return (
     <AdminLayout>
@@ -535,12 +546,29 @@ export default function AdminSurveysPage() {
 
         {creating && <CreateSurveyDialog onClose={() => setCreating(false)} />}
 
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search surveys…"
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            data-testid="input-search-surveys"
+          />
+        </div>
+
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground">Loading surveys…</div>
         ) : surveys.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
             <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-30" />
             <p>No surveys yet. Create one to gather team feedback.</p>
+          </div>
+        ) : filteredSurveys.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground">
+            <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p>No surveys match your search.</p>
           </div>
         ) : (
           <div className="space-y-6">

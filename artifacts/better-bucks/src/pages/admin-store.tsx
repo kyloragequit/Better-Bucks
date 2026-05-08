@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/layout-admin";
 import { usePublicDemo } from "@/hooks/use-demo";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus"
 import { Loader } from "@/components/ui/loader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2, Ruler, Palette } from "lucide-react";
+import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2, Ruler, Palette, Search } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -137,6 +138,16 @@ export default function AdminStorePage() {
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useQuery<StoreItem[]>({ queryKey: ["/api/store-items"] });
   const { data: wishlists } = useQuery<WishlistEntry[]>({ queryKey: ["/api/admin/wishlists"] });
+
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
+
+  const filteredItems = useMemo(() =>
+    items?.filter(item =>
+      item.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+    ) ?? [],
+    [items, debouncedSearch]
+  );
 
   const [showHelp, setShowHelp] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -380,7 +391,18 @@ export default function AdminStorePage() {
               Store Items ({items?.length ?? 0})
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search items…"
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                data-testid="input-search-store-items"
+              />
+            </div>
             {isLoading ? (
               <div className="py-6"><Loader /></div>
             ) : !items || items.length === 0 ? (
@@ -389,9 +411,14 @@ export default function AdminStorePage() {
                 <p className="font-medium">No items yet</p>
                 <p className="text-sm mt-1">Click "Add Item" to add your first store item.</p>
               </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <ShoppingBag className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">No items match your search.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <div key={item.id} className="flex gap-3 border rounded-lg p-3" data-testid={`store-item-row-${item.id}`}>
                     <img
                       src={item.imageUrl}

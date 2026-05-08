@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import ExcelJS from "exceljs/dist/exceljs.min.js";
 import { usePublicDemo } from "@/hooks/use-demo";
@@ -35,6 +36,7 @@ export default function AdminEmployeesPage() {
   const { getRoleLabel } = useRoleLabels();
   const isPrimeAdmin = currentUser?.role === "prime_admin";
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search);
   const [deptFilter, setDeptFilter] = usePersistedState<string>("bb_filter_emp_deptId", "all");
   const [mgrFilter, setMgrFilter] = usePersistedState<string>("bb_filter_emp_mgrId", "all");
   const [roleFilter, setRoleFilter] = usePersistedState<string>("bb_filter_emp_role", "all");
@@ -79,9 +81,9 @@ export default function AdminEmployeesPage() {
     },
   });
 
-  const filteredUsers = users?.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      user.username.toLowerCase().includes(search.toLowerCase());
+  const filteredUsers = useMemo(() => users?.filter(user => {
+    const matchesSearch = user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      user.username.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesDept = deptFilter === "all" || 
       (deptFilter === "none" && !user.departmentId) ||
       (user.departmentId?.toString() === deptFilter);
@@ -90,7 +92,7 @@ export default function AdminEmployeesPage() {
       (user.managerId?.toString() === mgrFilter);
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     return matchesSearch && matchesDept && matchesMgr && matchesRole;
-  });
+  }), [users, debouncedSearch, deptFilter, mgrFilter, roleFilter]);
 
   return (
     <AdminLayout>

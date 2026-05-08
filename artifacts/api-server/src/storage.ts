@@ -24,6 +24,7 @@ export interface IStorage {
   updateUserEmailVerification(userId: number, code: string | null, verified: boolean): Promise<User>;
   setPasswordResetToken(userId: number, token: string | null, expiry: Date | null): Promise<User>;
   setTutorialCompleted(userId: number, completed: boolean): Promise<User>;
+  updateUserPushToken(userId: number, token: string | null): Promise<User>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransactionsByUser(userId: number): Promise<(Transaction & { performedByName: string | null })[]>;
@@ -804,6 +805,11 @@ export class DatabaseStorage implements IStorage {
 
   async setTutorialCompleted(userId: number, completed: boolean): Promise<User> {
     const [updated] = await db.update(users).set({ tutorialCompleted: completed }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async updateUserPushToken(userId: number, token: string | null): Promise<User> {
+    const [updated] = await db.update(users).set({ expoPushToken: token }).where(eq(users.id, userId)).returning();
     return updated;
   }
 

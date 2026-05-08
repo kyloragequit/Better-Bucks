@@ -1,6 +1,8 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as LocalAuthentication from "expo-local-authentication";
+import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import React, {
   createContext,
   useCallback,
@@ -99,6 +101,35 @@ async function refreshTokenIfNeeded(
   }
 }
 
+async function registerPushToken(authToken: string): Promise<void> {
+  try {
+    if (Platform.OS === "web") return;
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") return;
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const pushToken = tokenData.data;
+    const res = await fetch(apiUrl("/api/mobile/push-token"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ token: pushToken }),
+    });
+    if (!res.ok) {
+      console.warn("[pushToken] registration failed:", res.status);
+    }
+  } catch (err) {
+    console.warn("[pushToken] registration error:", err);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
@@ -151,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await SecureStore.setItemAsync(USER_KEY, JSON.stringify(u));
     setToken(t);
     setUser(u);
+    registerPushToken(t);
   }, []);
 
   const signOut = useCallback(async () => {

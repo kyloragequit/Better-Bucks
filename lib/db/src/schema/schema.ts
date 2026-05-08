@@ -71,6 +71,7 @@ export const users = pgTable("users", {
   managerId: integer("manager_id"),
   failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
   lockedUntil: timestamp("locked_until"),
+  expoPushToken: text("expo_push_token"),
 });
 
 export const transactionCategories = pgTable("transaction_categories", {

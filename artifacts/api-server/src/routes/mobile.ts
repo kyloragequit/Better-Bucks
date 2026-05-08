@@ -22,6 +22,25 @@ interface MobileRequest extends Request {
   mobileUser: User;
 }
 
+async function sendExpoPushNotification(
+  expoPushToken: string,
+  title: string,
+  body: string,
+): Promise<void> {
+  const response = await fetch("https://exp.host/--/api/v2/push/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "Accept-Encoding": "gzip, deflate",
+    },
+    body: JSON.stringify({ to: expoPushToken, title, body, sound: "default" }),
+  });
+  if (!response.ok) {
+    throw new Error(`Expo push API returned ${response.status}`);
+  }
+}
+
 function safeUser(user: User): Omit<User, "password"> {
   const { password: _pw, ...rest } = user;
   return rest;
@@ -791,6 +810,28 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
+  // ─── Push Token Registration ───────────────────────────────────────────────
+
+  app.post(
+    "/api/mobile/push-token",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      const bodySchema = z.object({ token: z.string().min(1).max(500) });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid push token" });
+      }
+      try {
+        await storage.updateUserPushToken(user.id, parsed.data.token);
+        return res.json({ success: true });
+      } catch (err) {
+        logger.error({ err }, "[mobile/push-token] failed to save push token");
+        return res.status(500).json({ message: "Failed to save push token" });
+      }
+    },
+  );
+
   // ─── Admin: Employees & Rewards ────────────────────────────────────────────
 
   app.get(
@@ -860,13 +901,24 @@ export function registerMobileRoutes(app: Express) {
         });
 
         const updated = await storage.getUser(employeeId);
+
+        if (employee.expoPushToken) {
+          sendExpoPushNotification(
+            employee.expoPushToken,
+            "You just earned Bucks! 🎉",
+            `You just earned ${parsed.data.amount} Bucks for "${parsed.data.reason}"`,
+          ).catch((err) =>
+            logger.error({ err }, "[mobile/reward] push notification failed"),
+          );
+        }
+
         return res.json({
           success: true,
           newBalance: updated?.balance ?? 0,
           employee: updated ? safeUser(updated) : null,
         });
       } catch (err) {
-        console.error("[mobile/employees/reward]", err);
+        logger.error({ err }, "[mobile/employees/reward] failed to send reward");
         return res.status(500).json({ message: "Failed to send reward" });
       }
     },

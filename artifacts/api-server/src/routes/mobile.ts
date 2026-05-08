@@ -22,7 +22,7 @@ interface MobileRequest extends Request {
   mobileUser: User;
 }
 
-async function sendExpoPushNotification(
+export async function sendExpoPushNotification(
   expoPushToken: string,
   title: string,
   body: string,

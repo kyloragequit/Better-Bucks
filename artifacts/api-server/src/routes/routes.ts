@@ -31,7 +31,7 @@ async function getStripePubKey() {
 }
 import { sql, eq, and, gte, lte, gt, lt, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
-import { organizations, users, infoRequests, affiliateApplications, transactions, orders, customItemTransactions, transactionCategories } from "@workspace/db";
+import { organizations, users, infoRequests, affiliateApplications, transactions, orders, customItemTransactions, transactionCategories, stripeOrphans } from "@workspace/db";
 import cron from "node-cron";
 import type { User, Merchant } from "@workspace/db";
 
@@ -6651,6 +6651,37 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       },
     },
   ];
+
+  // GET /api/developer/stripe-orphans — list all stripe_orphans rows for the developer dashboard
+  app.get("/api/developer/stripe-orphans", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const rows = await db.select().from(stripeOrphans).orderBy(stripeOrphans.createdAt);
+    const counts: Record<string, number> = { pending: 0, processing: 0, resolved: 0, failed_permanently: 0 };
+    for (const row of rows) {
+      counts[row.status] = (counts[row.status] ?? 0) + 1;
+    }
+    res.json({ rows, counts });
+  }));
+
+  // PATCH /api/developer/stripe-orphans/:id — manually mark a row as resolved
+  app.patch("/api/developer/stripe-orphans/:id", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+    const updated = await db
+      .update(stripeOrphans)
+      .set({ status: "resolved", updatedAt: new Date() })
+      .where(eq(stripeOrphans.id, id))
+      .returning();
+    if (!updated.length) return res.status(404).json({ message: "Record not found" });
+    res.json(updated[0]);
+  }));
 
   // GET /api/developer/mcp-config — returns MCP connection info for the setup panel
   app.get("/api/developer/mcp-config", (req, res) => {

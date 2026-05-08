@@ -14,7 +14,7 @@ import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail, Bot, Send, RotateCcw, Download, Megaphone } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail, Bot, Send, RotateCcw, Download, Megaphone, CreditCard, CheckCircle2, Clock, AlertOctagon, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
@@ -92,7 +92,7 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude" | "marketing">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude" | "marketing" | "stripe-orphans">("orgs");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
@@ -449,6 +449,25 @@ export default function DeveloperDashboardPage() {
     enabled: activeTab === "marketing",
   });
 
+  type StripeOrphanRow = { id: number; stripeCustomerId: string | null; stripeSubscriptionId: string | null; status: string; retryCount: number; lastError: string | null; createdAt: string; updatedAt: string };
+  type StripeOrphansData = { rows: StripeOrphanRow[]; counts: Record<string, number> };
+  const { data: stripeOrphansData, isLoading: stripeOrphansLoading, refetch: refetchStripeOrphans } = useQuery<StripeOrphansData>({
+    queryKey: ["/api/developer/stripe-orphans"],
+    enabled: activeTab === "stripe-orphans",
+  });
+  const resolveOrphanMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("PATCH", `/api/developer/stripe-orphans/${id}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "Marked resolved", description: "The record has been marked as resolved." });
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/stripe-orphans"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to mark record as resolved.", variant: "destructive" });
+    },
+  });
+
   function downloadMarketingCsv(rows: MarketingSubscriber[]) {
     const headers = ["Name", "Email", "Organization", "Role", "Source", "Date Opted In"];
     const escape = (v: string | null | undefined) => {
@@ -593,7 +612,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : activeTab === "marketing" ? "Everyone who opted in to marketing communications — export to CSV for email campaigns." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : activeTab === "marketing" ? "Everyone who opted in to marketing communications — export to CSV for email campaigns." : activeTab === "stripe-orphans" ? "Stripe cleanup records that could not be automatically linked — manually mark resolved when Stripe already cleaned them up." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -679,6 +698,16 @@ export default function DeveloperDashboardPage() {
             >
               <Megaphone className="mr-1.5 h-4 w-4" />
               Marketing
+            </Button>
+            <Button
+              variant={activeTab === "stripe-orphans" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("stripe-orphans"); setBlogForm(null); }}
+              data-testid="button-tab-stripe-orphans"
+              className={activeTab === "stripe-orphans" ? "" : "border-orange-300 text-orange-700 hover:bg-orange-50"}
+            >
+              <CreditCard className="mr-1.5 h-4 w-4" />
+              Stripe Cleanup
             </Button>
           </div>
         </div>
@@ -1983,6 +2012,146 @@ export default function DeveloperDashboardPage() {
               )}
             </div>
           </Card>
+        )}
+
+        {activeTab === "stripe-orphans" && (
+          <div className="space-y-6">
+            {/* Status count cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {(["pending", "processing", "failed_permanently", "resolved"] as const).map((status) => {
+                const count = stripeOrphansData?.counts[status] ?? 0;
+                const config = {
+                  pending: { label: "Pending", icon: Clock, bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", iconBg: "bg-yellow-100" },
+                  processing: { label: "Processing", icon: RefreshCw, bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", iconBg: "bg-blue-100" },
+                  failed_permanently: { label: "Perm. Failed", icon: AlertOctagon, bg: "bg-red-50", border: "border-red-200", text: "text-red-700", iconBg: "bg-red-100" },
+                  resolved: { label: "Resolved", icon: CheckCircle2, bg: "bg-green-50", border: "border-green-200", text: "text-green-700", iconBg: "bg-green-100" },
+                }[status];
+                const Icon = config.icon;
+                return (
+                  <Card key={status} className={`${config.bg} ${config.border} border`}>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${config.iconBg}`}>
+                          <Icon className={`h-5 w-5 ${config.text}`} />
+                        </div>
+                        <div>
+                          <p className={`text-2xl font-bold ${config.text}`}>{stripeOrphansLoading ? "—" : count}</p>
+                          <p className={`text-xs font-medium ${config.text} opacity-80`}>{config.label}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Grouped status sections */}
+            {stripeOrphansLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : !stripeOrphansData?.rows.length ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                  <CheckCircle2 className="h-10 w-10 text-green-400" />
+                  <p className="text-muted-foreground text-sm font-medium">No stripe cleanup records found.</p>
+                  <p className="text-muted-foreground text-xs">The queue is clear — all Stripe objects were linked successfully.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => refetchStripeOrphans()}
+                    data-testid="button-refresh-stripe-orphans"
+                  >
+                    <RefreshCw className="mr-1.5 h-4 w-4" />
+                    Refresh
+                  </Button>
+                </div>
+                {(["pending", "processing", "failed_permanently", "resolved"] as const).map((status) => {
+                  const groupRows = stripeOrphansData.rows.filter((r) => r.status === status);
+                  if (!groupRows.length) return null;
+                  const sectionConfig = {
+                    pending: { label: "Pending", headerBg: "bg-yellow-50", headerBorder: "border-yellow-200", badgeClass: "bg-yellow-100 text-yellow-700", icon: Clock },
+                    processing: { label: "Processing", headerBg: "bg-blue-50", headerBorder: "border-blue-200", badgeClass: "bg-blue-100 text-blue-700", icon: RefreshCw },
+                    failed_permanently: { label: "Permanently Failed", headerBg: "bg-red-50", headerBorder: "border-red-200", badgeClass: "bg-red-100 text-red-700", icon: AlertOctagon },
+                    resolved: { label: "Resolved", headerBg: "bg-green-50", headerBorder: "border-green-200", badgeClass: "bg-green-100 text-green-700", icon: CheckCircle2 },
+                  }[status];
+                  const SectionIcon = sectionConfig.icon;
+                  return (
+                    <Card key={status} className={`border ${sectionConfig.headerBorder}`} data-testid={`section-stripe-orphans-${status}`}>
+                      <CardHeader className={`${sectionConfig.headerBg} rounded-t-lg py-3 px-4 flex flex-row items-center gap-2`}>
+                        <SectionIcon className="h-4 w-4" />
+                        <CardTitle className="text-sm font-semibold">{sectionConfig.label}</CardTitle>
+                        <span className={`ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sectionConfig.badgeClass}`}>
+                          {groupRows.length} record{groupRows.length !== 1 ? "s" : ""}
+                        </span>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-12">ID</TableHead>
+                                <TableHead>Customer ID</TableHead>
+                                <TableHead>Subscription ID</TableHead>
+                                <TableHead className="w-16">Retries</TableHead>
+                                <TableHead>Last Error</TableHead>
+                                <TableHead>Created</TableHead>
+                                <TableHead>Updated</TableHead>
+                                {status !== "resolved" && <TableHead className="w-28">Action</TableHead>}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {groupRows.map((row) => (
+                                <TableRow key={row.id} data-testid={`row-stripe-orphan-${row.id}`}>
+                                  <TableCell className="font-mono text-xs text-muted-foreground">{row.id}</TableCell>
+                                  <TableCell className="font-mono text-xs">
+                                    {row.stripeCustomerId ?? <span className="text-muted-foreground">—</span>}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs">
+                                    {row.stripeSubscriptionId ?? <span className="text-muted-foreground">—</span>}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-center">{row.retryCount}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground max-w-48 truncate" title={row.lastError ?? undefined}>
+                                    {row.lastError ?? <span className="italic">—</span>}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {new Date(row.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {new Date(row.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                                  </TableCell>
+                                  {status !== "resolved" && (
+                                    <TableCell>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-green-300 text-green-700 hover:bg-green-50 text-xs h-7"
+                                        disabled={resolveOrphanMutation.isPending}
+                                        onClick={() => resolveOrphanMutation.mutate(row.id)}
+                                        data-testid={`button-resolve-orphan-${row.id}`}
+                                      >
+                                        <CheckCircle2 className="mr-1 h-3 w-3" />
+                                        Resolve
+                                      </Button>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </>
+            )}
+          </div>
         )}
 
         {activeTab === "marketing" && (

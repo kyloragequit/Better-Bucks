@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle, MoreVertical } from "lucide-react";
+import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle, MoreVertical, Lock } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,10 @@ import { useRoleLabels } from "@/hooks/use-role-labels";
 import { useUser } from "@/hooks/use-auth";
 import { AppLogo } from "@/components/app-logo";
 import type { InsertUser, Department, User, Organization, Invitation } from "@shared/schema";
+
+function isCurrentlyLocked(user: User): boolean {
+  return !!user.lockedUntil && new Date() < new Date(user.lockedUntil);
+}
 
 export default function AdminEmployeesPage() {
   const isPublicDemo = usePublicDemo();
@@ -273,11 +277,16 @@ function EmployeeVirtualList({
                 }}
               >
                 <Link href={`/admin/employees/${user.id}`}>
-                  <div className="bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 active:bg-muted/30 transition-colors" data-testid={`card-employee-${user.id}`}>
+                  <div className={`bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 active:bg-muted/30 transition-colors ${isCurrentlyLocked(user) ? "border-red-300 bg-red-50/30" : ""}`} data-testid={`card-employee-${user.id}`}>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium text-sm truncate">{user.fullName}</p>
                         <Badge variant="outline" className="text-xs shrink-0">{getRoleLabel(user.role)}</Badge>
+                        {isCurrentlyLocked(user) && (
+                          <Badge variant="outline" className="text-xs shrink-0 bg-red-50 text-red-700 border-red-300 gap-1" data-testid={`badge-locked-${user.id}`}>
+                            <Lock className="h-3 w-3" /> Locked
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="font-mono text-xs text-muted-foreground">{user.username}</span>
@@ -333,8 +342,17 @@ function EmployeeVirtualList({
             {desktopVirtualItems.map((virtualRow) => {
               const user = filteredUsers[virtualRow.index];
               return (
-                <TableRow key={user.id} className="group hover:bg-muted/20 transition-colors">
-                  <TableCell className="font-medium">{user.fullName}</TableCell>
+                <TableRow key={user.id} className={`group hover:bg-muted/20 transition-colors ${isCurrentlyLocked(user) ? "bg-red-50/30" : ""}`}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {user.fullName}
+                      {isCurrentlyLocked(user) && (
+                        <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-300 gap-1" data-testid={`badge-locked-${user.id}`}>
+                          <Lock className="h-3 w-3" /> Locked
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
                       {user.username}

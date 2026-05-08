@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail, Copy } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail, Copy, Lock, LockOpen } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
@@ -530,6 +530,10 @@ function ManageEmployeesDialog({ adminId, adminName }: { adminId: number; adminN
   );
 }
 
+function isCurrentlyLocked(user: any): boolean {
+  return !!user.lockedUntil && new Date() < new Date(user.lockedUntil);
+}
+
 export default function AdminEmployeeDetailPage() {
   const [, params] = useRoute("/admin/employees/:id");
   const [, setLocation] = useLocation();
@@ -537,6 +541,23 @@ export default function AdminEmployeeDetailPage() {
   const { data: user, isLoading, error } = useUserDetails(id);
   const { data: currentUser } = useUser();
   const { getRoleLabel } = useRoleLabels();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const unlockMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/users/${id}/unlock`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Account unlocked", description: `${user?.fullName}'s account has been unlocked.` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to unlock the account.", variant: "destructive" });
+    },
+  });
 
   if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
   if (error || !user) return <AdminLayout><div className="p-8 text-center text-destructive">User not found</div></AdminLayout>;
@@ -544,6 +565,7 @@ export default function AdminEmployeeDetailPage() {
   const isPrime = currentUser?.role === "prime_admin";
   const canDelete = isPrime ? (user.role !== "prime_admin") : (user.role === "employee");
   const canEditProfile = isPrime || currentUser?.id === user.id;
+  const locked = isCurrentlyLocked(user);
 
   return (
     <AdminLayout>
@@ -552,11 +574,16 @@ export default function AdminEmployeeDetailPage() {
           <ChevronLeft className="h-4 w-4 mr-1" /> Back to Employees
         </Link>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-display font-bold">{user.fullName}</h1>
             <Badge variant={user.role === 'admin' ? "default" : "secondary"}>
               {getRoleLabel(user.role)}
             </Badge>
+            {locked && (
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 gap-1" data-testid="badge-account-locked">
+                <Lock className="h-3.5 w-3.5" /> Locked Out
+              </Badge>
+            )}
           </div>
           <div className="flex gap-2">
             {isPrime && user.role === "admin" && <ManageEmployeesDialog adminId={user.id} adminName={user.fullName} />}
@@ -565,6 +592,36 @@ export default function AdminEmployeeDetailPage() {
           </div>
         </div>
       </div>
+
+      {locked && (
+        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4" data-testid="lockout-banner">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Lock className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-red-800">Account Locked Out</p>
+                <p className="text-sm text-red-700 mt-0.5">
+                  {user.failedLoginAttempts > 0 && (
+                    <span>{user.failedLoginAttempts} failed login attempt{user.failedLoginAttempts !== 1 ? "s" : ""}. </span>
+                  )}
+                  Lock expires {format(new Date(user.lockedUntil), "MMM d, yyyy 'at' h:mm a")}.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800 shrink-0"
+              onClick={() => unlockMutation.mutate()}
+              disabled={unlockMutation.isPending}
+              data-testid="button-unlock-account"
+            >
+              <LockOpen className="h-4 w-4 mr-1.5" />
+              {unlockMutation.isPending ? "Unlocking…" : "Unlock Account"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-8">
         {/* Balance Card */}

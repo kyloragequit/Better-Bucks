@@ -8494,13 +8494,15 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     if (parsed.data.status === "refunded" && dispute.transaction) {
       const tx = dispute.transaction;
       const merchantName = tx.merchant?.name ?? "Merchant";
+      const refundReason = `Dispute refund: ${merchantName} charge reversed`;
       await storage.updateUserBalance(dispute.employeeId, tx.bucksAmount);
       await storage.createTransaction({
         userId: dispute.employeeId,
         amount: tx.bucksAmount,
-        reason: `Dispute refund: ${merchantName} charge reversed`,
+        reason: refundReason,
         performedBy: u.id,
       });
+      void notifyEmployeeBalanceChange(dispute.employeeId, tx.bucksAmount, refundReason);
     }
 
     const updated = await storage.updateDispute(id, {

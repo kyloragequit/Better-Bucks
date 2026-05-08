@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   Platform,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -22,35 +22,7 @@ import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboarding } from "@/hooks/useOnboarding";
-
-type Transaction = {
-  id: number;
-  amount: number;
-  reason: string | null;
-  createdAt: string;
-  performedByName?: string | null;
-};
-
-type Goal = {
-  id: number;
-  name: string;
-  type: string;
-  targetQuantity: number | null;
-  currentQuantity: number | null;
-  bucksReward: number;
-  deadline: string | null;
-};
-
-type DashboardData = {
-  balance: number;
-  recentTransactions: Transaction[];
-  activeGoals: Goal[];
-  adminStats: {
-    totalEmployees: number;
-    pendingOrdersCount: number;
-    totalBucksGiven: number;
-  } | null;
-};
+import { useDashboardData, type Goal, type Transaction } from "@/hooks/useDashboardData";
 
 type MonthlySummary = {
   earned: number;
@@ -71,6 +43,17 @@ function formatPassDate(isoStr: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatLastUpdated(cachedAt: number): string {
+  const diffMs = Date.now() - cachedAt;
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1) return "just now";
+  if (diffMins === 1) return "1 minute ago";
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours === 1) return "1 hour ago";
+  return `${diffHours} hours ago`;
+}
+
 export default function HomeTab() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -81,6 +64,23 @@ export default function HomeTab() {
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isEmployee = user?.role === "employee";
+  const admin = user?.role === "admin" || user?.role === "prime_admin";
+
+  const { data, isLoading, isFetching, isFromCache, cachedAt, refetch } =
+    useDashboardData(token, user?.id ?? null);
+
+  const { data: summary, refetch: refetchSummary } = useQuery<MonthlySummary>({
+    queryKey: ["mobile-monthly-summary", token],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/mobile/summary"), {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to load summary");
+      return res.json();
+    },
+    enabled: !!token && isEmployee,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     if (!user?.id) {
@@ -91,6 +91,12 @@ export default function HomeTab() {
       setPassAddedAt(val ?? null);
     });
   }, [user?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    };
+  }, []);
 
   async function handleAddToWallet() {
     if (!token) return;
@@ -137,43 +143,9 @@ export default function HomeTab() {
     }
   }
 
-  useEffect(() => {
-    return () => {
-      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-    };
-  }, []);
-
-  const { data, isLoading, refetch, isRefetching } = useQuery<DashboardData>({
-    queryKey: ["mobile-dashboard", token],
-    queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/dashboard"), {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (!res.ok) throw new Error("Failed to load dashboard");
-      return res.json();
-    },
-    enabled: !!token,
-    staleTime: 30_000,
-  });
-
-  const { data: summary, refetch: refetchSummary } = useQuery<MonthlySummary>({
-    queryKey: ["mobile-monthly-summary", token],
-    queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/summary"), {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (!res.ok) throw new Error("Failed to load summary");
-      return res.json();
-    },
-    enabled: !!token && isEmployee,
-    staleTime: 30_000,
-  });
-
   async function handleRefresh() {
     await Promise.all([refetch(), refetchSummary()]);
   }
-
-  const admin = user?.role === "admin" || user?.role === "prime_admin";
 
   return (
     <>
@@ -183,161 +155,166 @@ export default function HomeTab() {
       />
       <ScrollView
         style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        { paddingBottom: insets.bottom + 32 },
-      ]}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefetching}
-          onRefresh={handleRefresh}
-          tintColor={brand.gold}
-        />
-      }
-    >
-      <View style={styles.greeting}>
-        <Text style={styles.greetingText}>
-          Hello, {user?.fullName?.split(" ")[0] ?? "there"} 👋
-        </Text>
-      </View>
-
-      {/* Balance card */}
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>
-          {admin ? "Your Bucks Balance" : "Your Balance"}
-        </Text>
-        {isLoading ? (
-          <ActivityIndicator color={brand.gold} size="large" style={{ marginVertical: 12 }} />
-        ) : (
-          <Text style={styles.balanceAmount}>
-            {(data?.balance ?? 0).toLocaleString()}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={handleRefresh}
+            tintColor={brand.gold}
+          />
+        }
+      >
+        <View style={styles.greeting}>
+          <Text style={styles.greetingText}>
+            Hello, {user?.fullName?.split(" ")[0] ?? "there"} 👋
           </Text>
-        )}
-        <Text style={styles.balanceUnit}>Bucks</Text>
-      </View>
+        </View>
 
-      {/* Monthly earned/spent summary — employees only */}
-      {isEmployee && summary && (
-        <View style={styles.summaryBar}>
-          <Text style={styles.summaryBarLabel}>
-            {new Date().toLocaleString("default", { month: "long" })} summary
+        {/* Balance card */}
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>
+            {admin ? "Your Bucks Balance" : "Your Balance"}
           </Text>
-          <View style={styles.summaryBarRow}>
-            <View style={styles.summaryBarItem}>
-              <Ionicons name="arrow-down-circle" size={18} color="#4ADE80" />
-              <View>
-                <Text style={styles.summaryBarItemLabel}>Earned</Text>
-                <Text style={[styles.summaryBarItemValue, { color: "#4ADE80" }]}>
-                  {summary.earned.toLocaleString()} Bucks
-                </Text>
+          {isLoading ? (
+            <ActivityIndicator color={brand.gold} size="large" style={{ marginVertical: 12 }} />
+          ) : (
+            <Text style={styles.balanceAmount}>
+              {(data?.balance ?? 0).toLocaleString()}
+            </Text>
+          )}
+          <Text style={styles.balanceUnit}>Bucks</Text>
+          {isFromCache && cachedAt !== null && (
+            <Text style={styles.cachedLabel}>
+              Last updated {formatLastUpdated(cachedAt)}
+            </Text>
+          )}
+        </View>
+
+        {/* Monthly earned/spent summary — employees only */}
+        {isEmployee && summary && (
+          <View style={styles.summaryBar}>
+            <Text style={styles.summaryBarLabel}>
+              {new Date().toLocaleString("default", { month: "long" })} summary
+            </Text>
+            <View style={styles.summaryBarRow}>
+              <View style={styles.summaryBarItem}>
+                <Ionicons name="arrow-down-circle" size={18} color="#4ADE80" />
+                <View>
+                  <Text style={styles.summaryBarItemLabel}>Earned</Text>
+                  <Text style={[styles.summaryBarItemValue, { color: "#4ADE80" }]}>
+                    {summary.earned.toLocaleString()} Bucks
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.summaryBarDivider} />
-            <View style={styles.summaryBarItem}>
-              <Ionicons name="arrow-up-circle" size={18} color="#FCA5A5" />
-              <View>
-                <Text style={styles.summaryBarItemLabel}>Spent</Text>
-                <Text style={[styles.summaryBarItemValue, { color: "#FCA5A5" }]}>
-                  {summary.spent.toLocaleString()} Bucks
-                </Text>
+              <View style={styles.summaryBarDivider} />
+              <View style={styles.summaryBarItem}>
+                <Ionicons name="arrow-up-circle" size={18} color="#FCA5A5" />
+                <View>
+                  <Text style={styles.summaryBarItemLabel}>Spent</Text>
+                  <Text style={[styles.summaryBarItemValue, { color: "#FCA5A5" }]}>
+                    {summary.spent.toLocaleString()} Bucks
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* Wallet pass section — employees only */}
-      {isEmployee && (
-        <View style={styles.walletSection}>
-          {showConfirmation && (
-            <View style={styles.confirmationBanner}>
-              <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
-              <Text style={styles.confirmationText}>Pass Added! Open the Wallet app to view your Bucks card.</Text>
-            </View>
-          )}
-          <Pressable
-            style={({ pressed }) => [
-              styles.walletButton,
-              passAddedAt ? styles.walletButtonUpdate : null,
-              pressed && { opacity: 0.75 },
-              walletLoading && { opacity: 0.6 },
-            ]}
-            onPress={handleAddToWallet}
-            disabled={walletLoading}
-            accessibilityLabel={passAddedAt ? "Re-download Bucks card to Wallet" : "Add to Apple Wallet"}
-            accessibilityRole="button"
-          >
-            {walletLoading ? (
-              <ActivityIndicator color={passAddedAt ? brand.gold : brand.navy} size="small" />
-            ) : (
-              <Ionicons
-                name="wallet-outline"
-                size={18}
-                color={passAddedAt ? brand.gold : brand.navy}
-              />
+        {/* Wallet pass section — employees only */}
+        {isEmployee && (
+          <View style={styles.walletSection}>
+            {showConfirmation && (
+              <View style={styles.confirmationBanner}>
+                <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
+                <Text style={styles.confirmationText}>Pass Added! Open the Wallet app to view your Bucks card.</Text>
+              </View>
             )}
-            <Text style={[styles.walletButtonText, passAddedAt ? styles.walletButtonTextUpdate : null]}>
-              {walletLoading ? "Downloading…" : passAddedAt ? "Update Pass" : "Add to Wallet"}
-            </Text>
-          </Pressable>
-          {passAddedAt && !showConfirmation && (
-            <View style={styles.passStatusRow}>
-              <Ionicons name="checkmark-circle-outline" size={13} color="#4ADE80" />
-              <Text style={styles.passStatusText}>Added on {formatPassDate(passAddedAt)}</Text>
-            </View>
-          )}
-        </View>
-      )}
+            <Pressable
+              style={({ pressed }) => [
+                styles.walletButton,
+                passAddedAt ? styles.walletButtonUpdate : null,
+                pressed && { opacity: 0.75 },
+                walletLoading && { opacity: 0.6 },
+              ]}
+              onPress={handleAddToWallet}
+              disabled={walletLoading}
+              accessibilityLabel={passAddedAt ? "Re-download Bucks card to Wallet" : "Add to Apple Wallet"}
+              accessibilityRole="button"
+            >
+              {walletLoading ? (
+                <ActivityIndicator color={passAddedAt ? brand.gold : brand.navy} size="small" />
+              ) : (
+                <Ionicons
+                  name="wallet-outline"
+                  size={18}
+                  color={passAddedAt ? brand.gold : brand.navy}
+                />
+              )}
+              <Text style={[styles.walletButtonText, passAddedAt ? styles.walletButtonTextUpdate : null]}>
+                {walletLoading ? "Downloading…" : passAddedAt ? "Update Pass" : "Add to Wallet"}
+              </Text>
+            </Pressable>
+            {passAddedAt && !showConfirmation && (
+              <View style={styles.passStatusRow}>
+                <Ionicons name="checkmark-circle-outline" size={13} color="#4ADE80" />
+                <Text style={styles.passStatusText}>Added on {formatPassDate(passAddedAt)}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
-      {/* Admin stats */}
-      {admin && data?.adminStats && (
-        <View style={styles.statsRow}>
-          <StatCard
-            icon="people"
-            label="Employees"
-            value={String(data.adminStats.totalEmployees)}
-          />
-          <StatCard
-            icon="time"
-            label="Pending Orders"
-            value={String(data.adminStats.pendingOrdersCount)}
-            accent={data.adminStats.pendingOrdersCount > 0}
-          />
-          <StatCard
-            icon="trending-up"
-            label="Bucks Given"
-            value={(data.adminStats.totalBucksGiven ?? 0).toLocaleString()}
-          />
-        </View>
-      )}
+        {/* Admin stats */}
+        {admin && data?.adminStats && (
+          <View style={styles.statsRow}>
+            <StatCard
+              icon="people"
+              label="Employees"
+              value={String(data.adminStats.totalEmployees)}
+            />
+            <StatCard
+              icon="time"
+              label="Pending Orders"
+              value={String(data.adminStats.pendingOrdersCount)}
+              accent={data.adminStats.pendingOrdersCount > 0}
+            />
+            <StatCard
+              icon="trending-up"
+              label="Bucks Given"
+              value={(data.adminStats.totalBucksGiven ?? 0).toLocaleString()}
+            />
+          </View>
+        )}
 
-      {/* Active goals */}
-      {(data?.activeGoals ?? []).length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Active Goals</Text>
-          {data!.activeGoals.map((goal) => (
-            <GoalCard key={goal.id} goal={goal} />
-          ))}
-        </View>
-      )}
+        {/* Active goals */}
+        {(data?.activeGoals ?? []).length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Active Goals</Text>
+            {data!.activeGoals.map((goal) => (
+              <GoalCard key={goal.id} goal={goal} />
+            ))}
+          </View>
+        )}
 
-      {/* Recent transactions */}
-      {(data?.recentTransactions ?? []).length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          {data!.recentTransactions.map((tx) => (
-            <TransactionRow key={tx.id} tx={tx} />
-          ))}
-        </View>
-      )}
+        {/* Recent transactions */}
+        {(data?.recentTransactions ?? []).length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            {data!.recentTransactions.map((tx) => (
+              <TransactionRow key={tx.id} tx={tx} />
+            ))}
+          </View>
+        )}
 
-      {!isLoading && (data?.recentTransactions ?? []).length === 0 && (
-        <View style={styles.emptyState}>
-          <Ionicons name="receipt-outline" size={40} color="rgba(255,255,255,0.3)" />
-          <Text style={styles.emptyText}>No activity yet</Text>
-        </View>
-      )}
-    </ScrollView>
+        {!isLoading && (data?.recentTransactions ?? []).length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="receipt-outline" size={40} color="rgba(255,255,255,0.3)" />
+            <Text style={styles.emptyText}>No activity yet</Text>
+          </View>
+        )}
+      </ScrollView>
     </>
   );
 }
@@ -576,6 +553,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     marginTop: 4,
+  },
+  cachedLabel: {
+    color: "rgba(255,255,255,0.35)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 6,
   },
   walletSection: {
     marginBottom: 20,

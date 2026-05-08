@@ -14,6 +14,7 @@ import React, {
 
 import { apiUrl } from "@/constants/api";
 import { setPendingSocialSignup } from "@/lib/socialSignupStore";
+import { clearDashboardCache } from "@/hooks/useDashboardData";
 
 const TOKEN_KEY = "bb_mobile_token";
 const USER_KEY = "bb_mobile_user";
@@ -187,13 +188,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    const currentUser = user;
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_KEY);
     await SecureStore.deleteItemAsync(BIOMETRIC_ENROLLED_KEY);
+    if (currentUser?.id) {
+      await clearDashboardCache(currentUser.id);
+    }
     setToken(null);
     setUser(null);
     setBiometricEnrolled(false);
-  }, []);
+  }, [user]);
 
   const login = useCallback<AuthContextValue["login"]>(
     async (username, password) => {

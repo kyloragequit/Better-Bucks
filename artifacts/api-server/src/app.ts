@@ -5,6 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { logger } from "./lib/logger";
 import { registerRoutes } from "./routes/routes";
+import { registerMobileRoutes } from "./routes/mobile";
 import healthRouter from "./routes/health";
 import { ensureStripeReady } from "./stripeLazy";
 import { WebhookHandlers } from "./webhookHandlers";
@@ -120,6 +121,7 @@ export async function initApp(): Promise<void> {
   app.use(compression({ level: 6, threshold: 1024 }));
 
   await registerRoutes(httpServer, app);
+  registerMobileRoutes(app);
 
   // Global error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

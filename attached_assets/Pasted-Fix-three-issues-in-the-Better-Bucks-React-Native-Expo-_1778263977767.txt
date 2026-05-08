@@ -1,0 +1,25 @@
+Fix three issues in the Better Bucks React Native (Expo) mobile app:
+Fix 1 — Forgot Password Email Collection:
+On the “Forgot Password” flow, before sending the reset email, require the user to first input their email address on a dedicated screen. The flow should be:
+	1.	User taps “Forgot Password?” on the Log In screen
+	2.	Navigate to a Forgot Password screen with a single email input field and a “Send Reset Link” button
+	3.	On submit, call the backend forgot-password endpoint with the provided email
+	4.	Show a confirmation message: “If that email is on file, you’ll receive a reset link shortly.”
+	5.	Button to return to Log In
+Do not auto-populate the email field from anything previously entered on the Log In screen.
+Fix 2 — Order Form Popup Scroll Issue:
+The order/signup form popup is not fully scrollable when the keyboard is open, cutting off the bottom of the form. Fix this by:
+	•	Wrapping the popup content in a KeyboardAvoidingView with behavior="padding" on iOS
+	•	Placing all form fields inside a ScrollView with keyboardShouldPersistTaps="handled" and contentContainerStyle={{ flexGrow: 1 }}
+	•	Setting automaticallyAdjustKeyboardInsets={true} on the ScrollView
+	•	If the popup uses a Modal component, ensure the Modal has statusBarTranslucent set and the inner container uses flex: 1 so the scroll area fills available space above the keyboard
+	•	Test that the user can scroll to every field while the keyboard is open without any field being hidden behind it
+Fix 3 — Recovery Email Required on Password Change:
+When an authenticated user changes their password from within the app (e.g., from a Settings or Security screen), require them to provide a recovery email before the password change is accepted. The flow should be:
+	1.	User enters their current password, new password, and confirm new password
+	2.	Below those fields, add a Recovery Email input (email keyboard type)
+	3.	Validate that the recovery email is a valid email format before allowing submission
+	4.	On submit, send both the new password and recovery email to the backend update-password endpoint
+	5.	Store or update the recovery email on the user’s account server-side
+	6.	If the user already has a recovery email on file, pre-populate the field but still require them to confirm it before submitting
+	7.	Show a success message: “Password updated. Recovery email saved.”

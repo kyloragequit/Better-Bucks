@@ -1,0 +1,364 @@
+import { Express, Request, Response, NextFunction } from "express";
+import crypto from "crypto";
+import { z } from "zod/v4";
+import { storage } from "../storage";
+import { hashPassword, verifyPassword } from "../auth";
+import { ensureStripeReady } from "../stripeLazy";
+import { getUncachableStripeClient } from "../stripeClient";
+
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function getTokenSecret(): string {
+  const s = process.env.SESSION_SECRET;
+  if (!s || s.length < 16) {
+    throw new Error(
+      "SESSION_SECRET must be set (min 16 chars) for mobile token signing",
+    );
+  }
+  return s;
+}
+
+function signMobileToken(userId: number): string {
+  const exp = Date.now() + TOKEN_TTL_MS;
+  const payload = `${userId}.${exp}`;
+  const sig = crypto
+    .createHmac("sha256", getTokenSecret())
+    .update(payload)
+    .digest("base64url");
+  return `${Buffer.from(payload).toString("base64url")}.${sig}`;
+}
+
+export function verifyMobileToken(token: string): number | null {
+  try {
+    const [payloadB64, sig] = token.split(".");
+    if (!payloadB64 || !sig) return null;
+    const payload = Buffer.from(payloadB64, "base64url").toString();
+    const expectedSig = crypto
+      .createHmac("sha256", getTokenSecret())
+      .update(payload)
+      .digest("base64url");
+    if (
+      sig.length !== expectedSig.length ||
+      !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))
+    ) {
+      return null;
+    }
+    const [userIdStr, expStr] = payload.split(".");
+    const userId = Number(userIdStr);
+    const exp = Number(expStr);
+    if (!userId || !exp || Date.now() > exp) return null;
+    return userId;
+  } catch {
+    return null;
+  }
+}
+
+export async function mobileAuthMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Missing token" });
+  }
+  const userId = verifyMobileToken(header.slice(7).trim());
+  if (!userId) return res.status(401).json({ message: "Invalid token" });
+  const user = await storage.getUser(userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+  (req as any).mobileUser = user;
+  next();
+}
+
+const TIER_CONFIG = {
+  small: {
+    price: 879,
+    maxEmployees: 25,
+    name: "A Little Better",
+    description: "25 employee logins — 60-day free pilot.",
+  },
+  mid: {
+    price: 1519,
+    maxEmployees: 75,
+    name: "Much Better",
+    description: "75 employee logins — 60-day free pilot.",
+  },
+  large: {
+    price: 2399,
+    maxEmployees: 150,
+    name: "A LOT Better",
+    description: "150 employee logins — 60-day free pilot.",
+  },
+  enterprise: {
+    price: 0,
+    maxEmployees: -1,
+    name: "How much Better?",
+    description: "Unlimited logins — contact us for custom pricing.",
+  },
+} as const;
+
+export function registerMobileRoutes(app: Express) {
+  // Public: list pricing tiers
+  app.get("/api/mobile/tiers", (_req, res) => {
+    res.json(
+      Object.entries(TIER_CONFIG).map(([key, val]) => ({
+        key,
+        name: val.name,
+        priceCents: val.price,
+        maxEmployees: val.maxEmployees,
+        description: val.description,
+      })),
+    );
+  });
+
+  // Login — JSON token instead of cookie session
+  app.post("/api/mobile/login", async (req, res) => {
+    try {
+      const { username, password } = z
+        .object({ username: z.string().min(1), password: z.string().min(1) })
+        .parse(req.body);
+
+      let user = await storage.getUserByUsername(username);
+      if (!user && username.includes("@")) {
+        user = await storage.getUserByEmailGlobal(username);
+      }
+      if (!user) {
+        return res
+          .status(401)
+          .json({ message: "Incorrect username or password" });
+      }
+
+      const match = await verifyPassword(password, user.password);
+      if (!match) {
+        return res
+          .status(401)
+          .json({ message: "Incorrect username or password" });
+      }
+
+      const token = signMobileToken(user.id);
+      const { password: _pw, ...safeUser } = user as any;
+      res.json({ token, user: safeUser });
+    } catch (err: any) {
+      if (err?.issues) {
+        return res
+          .status(400)
+          .json({ message: err.issues[0]?.message ?? "Invalid input" });
+      }
+      console.error("[mobile/login]", err);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Authenticated: current user
+  app.get("/api/mobile/me", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as any).mobileUser;
+    const { password: _pw, ...safeUser } = user;
+    res.json(safeUser);
+  });
+
+  // Account deletion — required by Apple App Store guideline 5.1.1(v)
+  app.post(
+    "/api/mobile/account/delete",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as any).mobileUser;
+      try {
+        // If this user is the prime admin of an org, also cancel the org's
+        // Stripe subscription and mark the org deleted.
+        if (user.role === "prime_admin" && user.organizationId) {
+          const org = await storage.getOrganization(user.organizationId);
+          if (org?.stripeSubscriptionId &&
+              !org.stripeSubscriptionId.startsWith("promo_") &&
+              !org.stripeSubscriptionId.startsWith("pending_")) {
+            try {
+              await ensureStripeReady();
+              const stripe = await getUncachableStripeClient();
+              await stripe.subscriptions
+                .cancel(org.stripeSubscriptionId)
+                .catch(() => undefined);
+            } catch {
+              // Stripe unavailable — proceed with account deletion anyway
+            }
+          }
+          if (org) {
+            await storage.updateOrganizationStatus(org.id, "deleted");
+          }
+        }
+        await storage.deleteUser(user.id);
+        res.json({ success: true });
+      } catch (err) {
+        console.error("[mobile/account/delete]", err);
+        res.status(500).json({ message: "Could not delete account" });
+      }
+    },
+  );
+
+  // Signup with Stripe payment method (mobile uses native CardField, not Checkout)
+  app.post("/api/mobile/organizations/signup", async (req, res) => {
+    const Body = z.object({
+      organizationName: z.string().min(2),
+      fullName: z.string().min(2),
+      email: z.string().email(),
+      password: z.string().min(6),
+      tier: z.enum(["small", "mid", "large", "enterprise"]),
+      paymentMethodId: z.string().min(1).optional(),
+      licenseAccepted: z.literal(true),
+    });
+    let parsed;
+    try {
+      parsed = Body.parse(req.body);
+    } catch (err: any) {
+      return res
+        .status(400)
+        .json({ message: err?.issues?.[0]?.message ?? "Invalid input" });
+    }
+    const {
+      organizationName,
+      fullName,
+      email,
+      password,
+      tier,
+      paymentMethodId,
+      licenseAccepted,
+    } = parsed;
+
+    const config = TIER_CONFIG[tier];
+
+    // Enterprise — no payment, just record the lead and return contactPending
+    if (tier === "enterprise") {
+      return res.json({
+        contactPending: true,
+        message:
+          "Enterprise plans are quoted custom — we'll reach out shortly.",
+      });
+    }
+
+    if (!paymentMethodId) {
+      return res
+        .status(400)
+        .json({ message: "Payment method is required" });
+    }
+
+    // Confirm Stripe is configured
+    try {
+      await ensureStripeReady();
+    } catch {
+      return res
+        .status(503)
+        .json({ message: "Payments are temporarily unavailable. Please try again later." });
+    }
+
+    let stripe;
+    try {
+      stripe = await getUncachableStripeClient();
+    } catch {
+      return res
+        .status(503)
+        .json({ message: "Payments are temporarily unavailable." });
+    }
+
+    // Reject duplicate username/email upfront
+    const existing =
+      (await storage.getUserByUsername(email)) ||
+      (await storage.getUserByEmailGlobal(email));
+    if (existing) {
+      return res
+        .status(409)
+        .json({ message: "An account with this email already exists." });
+    }
+
+    const orgCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+
+    try {
+      // Create customer + attach payment method
+      const customer = await stripe.customers.create({
+        email,
+        name: organizationName,
+        payment_method: paymentMethodId,
+        invoice_settings: { default_payment_method: paymentMethodId },
+        metadata: { source: "mobile_app", tier, organizationName },
+      });
+
+      // Create subscription with 60-day trial
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `Better Bucks – ${config.name}`,
+              },
+              unit_amount: config.price,
+              recurring: { interval: "month" },
+              tax_behavior: "exclusive",
+            },
+          } as any,
+        ],
+        trial_period_days: 60,
+        trial_settings: {
+          end_behavior: { missing_payment_method: "cancel" },
+        },
+        default_payment_method: paymentMethodId,
+        metadata: { tier, orgCode, source: "mobile_app" },
+      });
+
+      // Create org
+      const org = await storage.createOrganization({
+        name: organizationName,
+        code: orgCode,
+        tier,
+        maxEmployees: config.maxEmployees,
+        licenseAcceptedAt: licenseAccepted ? new Date() : null,
+        marketingOptIn: false,
+      } as any);
+
+      await storage.updateOrganizationStripe(
+        org.id,
+        customer.id,
+        subscription.id,
+      );
+      await storage.updateOrganizationStatus(org.id, "active");
+      await storage.updateOrganizationSignupPrice(org.id, config.price);
+
+      // Create prime admin user for the org
+      const hashed = await hashPassword(password);
+      const barcode = `BB-${orgCode}-${crypto
+        .randomBytes(3)
+        .toString("hex")
+        .toUpperCase()}`;
+      const user = await storage.createUser({
+        username: email,
+        password: hashed,
+        role: "prime_admin",
+        status: "approved",
+        balance: 0,
+        barcode,
+        fullName,
+        email,
+        organizationId: org.id,
+        emailVerified: false,
+        marketingOptIn: false,
+        termsAcceptedAt: new Date(),
+      } as any);
+
+      const token = signMobileToken(user.id);
+      const { password: _pw, ...safeUser } = user as any;
+
+      res.json({
+        success: true,
+        token,
+        user: safeUser,
+        orgCode,
+        trialDays: 60,
+      });
+    } catch (err: any) {
+      console.error("[mobile/signup]", err);
+      const msg =
+        err?.raw?.message ||
+        err?.message ||
+        "Signup failed. Please try again.";
+      res.status(500).json({ message: msg });
+    }
+  });
+}

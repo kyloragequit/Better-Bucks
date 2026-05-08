@@ -8233,7 +8233,7 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       (req.session as any).merchantId = m.id;
       req.session.save((err) => {
         if (err) return res.status(500).json({ message: "Failed to start session" });
-        res.json({ id: m.id, name: m.name, email: m.email, orgId: m.orgId });
+        res.json({ id: m.id, name: m.name, email: m.email, orgId: m.orgId, mustChangePassword: m.mustChangePassword });
       });
     } catch (e: any) {
       console.error("[merchant/login]", e);
@@ -8249,7 +8249,22 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
   app.get("/api/merchant/me", async (req, res) => {
     const m = await loadMerchant(req);
     if (!m) return res.status(401).json({ message: "Not logged in" });
-    res.json({ id: m.id, name: m.name, email: m.email, orgId: m.orgId });
+    res.json({ id: m.id, name: m.name, email: m.email, orgId: m.orgId, mustChangePassword: m.mustChangePassword });
+  });
+
+  app.post("/api/merchant/change-password", async (req, res) => {
+    try {
+      const m = await loadMerchant(req);
+      if (!m) return res.status(401).json({ message: "Not logged in" });
+      const schema = z.object({ password: z.string().min(8) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Password must be at least 8 characters" });
+      const passwordHash = await hashPassword(parsed.data.password);
+      await storage.updateMerchant(m.id, { passwordHash, mustChangePassword: false });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ message: "Failed to change password" });
+    }
   });
 
   app.get("/api/merchant/transactions", requireMerchant, async (req, res) => {
@@ -8395,7 +8410,7 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     let tempPassword = "";
     for (let i = 0; i < 12; i++) tempPassword += alphabet[bytes[i] % alphabet.length];
     const passwordHash = await hashPassword(tempPassword);
-    await storage.updateMerchant(id, { passwordHash });
+    await storage.updateMerchant(id, { passwordHash, mustChangePassword: true });
     res.json({ tempPassword });
   });
 

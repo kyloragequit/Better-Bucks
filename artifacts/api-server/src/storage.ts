@@ -207,7 +207,7 @@ export interface IStorage {
   getMerchant(id: number): Promise<Merchant | undefined>;
   getMerchantsByOrg(orgId: number): Promise<Merchant[]>;
   getMerchantByEmail(email: string): Promise<Merchant | undefined>;
-  updateMerchant(id: number, data: Partial<{ name: string; email: string; passwordHash: string; status: "active" | "disabled" }>): Promise<Merchant>;
+  updateMerchant(id: number, data: Partial<{ name: string; email: string; passwordHash: string; status: "active" | "disabled"; mustChangePassword: boolean }>): Promise<Merchant>;
   deleteMerchant(id: number): Promise<void>;
   createMerchantTransaction(data: InsertMerchantTransaction): Promise<MerchantTransaction>;
   getMerchantTransactions(merchantId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User })[]>;

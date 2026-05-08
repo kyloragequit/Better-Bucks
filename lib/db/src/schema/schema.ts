@@ -540,6 +540,7 @@ export const merchants = pgTable("merchants", {
   email: text("email").notNull(),
   passwordHash: text("password_hash").notNull(),
   status: text("status", { enum: ["active", "disabled"] }).default("active").notNull(),
+  mustChangePassword: boolean("must_change_password").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

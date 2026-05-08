@@ -11,7 +11,7 @@ import { LogOut, ScanLine, RefreshCw, CheckCircle2, AlertCircle } from "lucide-r
 import { Html5Qrcode } from "html5-qrcode";
 import { FullPageLoader } from "@/components/ui/loader";
 
-type MerchantMe = { id: number; email: string; name: string; orgId: number };
+type MerchantMe = { id: number; email: string; name: string; orgId: number; mustChangePassword: boolean };
 type MerchantTx = { id: number; bucksAmount: number; createdAt: string; employee?: { id: number; fullName: string; email: string } | null };
 
 type LastResult =
@@ -33,6 +33,7 @@ export default function MerchantScannerPage() {
 
   useEffect(() => {
     if (!isLoading && !me) setLocation("/merchant/login");
+    if (!isLoading && me?.mustChangePassword) setLocation("/merchant/change-password");
   }, [isLoading, me, setLocation]);
 
   const { data: txs = [] } = useQuery<MerchantTx[]>({

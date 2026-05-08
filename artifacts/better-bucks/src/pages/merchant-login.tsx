@@ -23,9 +23,9 @@ export default function MerchantLoginPage() {
   const loginMut = useMutation({
     mutationFn: () =>
       apiRequest("POST", "/api/merchant/login", { email, password }).then((r) => r.json()),
-    onSuccess: () => {
+    onSuccess: (data: { mustChangePassword?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
-      setLocation("/merchant/scanner");
+      setLocation(data.mustChangePassword ? "/merchant/change-password" : "/merchant/scanner");
     },
   });
 

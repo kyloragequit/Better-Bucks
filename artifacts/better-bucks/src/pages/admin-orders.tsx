@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePublicDemo } from "@/hooks/use-demo";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { AdminLayout } from "@/components/layout-admin";
@@ -187,102 +188,12 @@ export default function AdminOrdersPage() {
           {(!orders || orders.length === 0) ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground px-4">No orders yet.</div>
           ) : (
-            <>
-              {/* Mobile card layout */}
-              <div className="sm:hidden space-y-3 px-4">
-                {orders.map((order) => (
-                  <div key={order.id} className="border rounded-lg p-3 space-y-2" data-testid={`row-order-${order.id}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate" title={order.user?.fullName || "Unknown"}>{order.user?.fullName || "Unknown"}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2 break-words" title={order.description}>{order.description}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-bold tabular-nums text-primary text-sm whitespace-nowrap">{order.pointsCost.toLocaleString()} bcks</p>
-                        <Badge variant={statusVariant(order.status)} className="capitalize text-xs mt-0.5" data-testid={`badge-status-${order.id}`}>{order.status}</Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
-                        <Button variant="ghost" size="sm" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => setSelectedOrder(order)} aria-label={`View order from ${order.user?.fullName || "Unknown"}`} data-testid={`button-view-photos-${order.id}`}>
-                          <Eye className="h-4 w-4 sm:mr-1" />
-                          <span className="hidden sm:inline text-xs">View</span>
-                        </Button>
-                      </div>
-                      <div className="flex gap-1.5">
-                        {isPrime && !isPublicDemo && order.status === "pending" && (
-                          <>
-                            <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                            <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                          </>
-                        )}
-                        {isPrime && !isPublicDemo && order.status === "approved" && (
-                          <OrderActionButton orderId={order.id} action="completed" label="Complete" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Desktop table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Bucks</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Details</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id} data-testid={`row-order-desktop-${order.id}`}>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
-                          {format(new Date(order.createdAt), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
-                        <TableCell className="font-bold tabular-nums text-primary">
-                          {order.pointsCost.toLocaleString()} bcks
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {order.convertedValue || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-desktop-${order.id}`}>
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedOrder(order)} data-testid={`button-view-photos-desktop-${order.id}`}>
-                            <Eye className="mr-1 h-4 w-4" />
-                            {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
-                            {order.itemUrl ? " Link" : ""}
-                          </Button>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {isPrime && !isPublicDemo && order.status === "pending" && (
-                            <div className="flex justify-end gap-2">
-                              <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                              <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                            </div>
-                          )}
-                          {isPrime && !isPublicDemo && order.status === "approved" && (
-                            <OrderActionButton orderId={order.id} action="completed" label="Complete" />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+            <AllOrdersVirtualList
+              orders={orders}
+              isPrime={!!isPrime}
+              isPublicDemo={isPublicDemo}
+              onViewOrder={setSelectedOrder}
+            />
           )}
         </CardContent>
       </Card>
@@ -295,6 +206,178 @@ export default function AdminOrdersPage() {
         <ShoppingListDialog onClose={() => setShowShoppingList(false)} />
       )}
     </AdminLayout>
+  );
+}
+
+function AllOrdersVirtualList({
+  orders,
+  isPrime,
+  isPublicDemo,
+  onViewOrder,
+}: {
+  orders: OrderWithUser[];
+  isPrime: boolean;
+  isPublicDemo: boolean;
+  onViewOrder: (order: OrderWithUser) => void;
+}) {
+  const mobileParentRef = useRef<HTMLDivElement>(null);
+  const desktopParentRef = useRef<HTMLDivElement>(null);
+
+  const mobileVirtualizer = useVirtualizer({
+    count: orders.length,
+    getScrollElement: () => mobileParentRef.current,
+    estimateSize: () => 110,
+    overscan: 6,
+  });
+
+  const desktopVirtualizer = useVirtualizer({
+    count: orders.length,
+    getScrollElement: () => desktopParentRef.current,
+    estimateSize: () => 53,
+    overscan: 10,
+  });
+
+  const mobileVirtualItems = mobileVirtualizer.getVirtualItems();
+  const desktopVirtualItems = desktopVirtualizer.getVirtualItems();
+
+  const desktopPaddingTop = desktopVirtualItems.length > 0 ? desktopVirtualItems[0].start : 0;
+  const desktopPaddingBottom =
+    desktopVirtualItems.length > 0
+      ? desktopVirtualizer.getTotalSize() - desktopVirtualItems[desktopVirtualItems.length - 1].end
+      : 0;
+
+  return (
+    <>
+      {/* Mobile card layout — virtualized */}
+      <div
+        ref={mobileParentRef}
+        className="sm:hidden overflow-y-auto px-4"
+        style={{ height: "min(600px, 70vh)" }}
+      >
+        <div style={{ height: mobileVirtualizer.getTotalSize(), position: "relative" }}>
+          {mobileVirtualItems.map((virtualRow) => {
+            const order = orders[virtualRow.index];
+            return (
+              <div
+                key={order.id}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                  paddingBottom: "12px",
+                }}
+              >
+                <div className="border rounded-lg p-3 space-y-2" data-testid={`row-order-${order.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate" title={order.user?.fullName || "Unknown"}>{order.user?.fullName || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words" title={order.description}>{order.description}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold tabular-nums text-primary text-sm whitespace-nowrap">{order.pointsCost.toLocaleString()} bcks</p>
+                      <Badge variant={statusVariant(order.status)} className="capitalize text-xs mt-0.5" data-testid={`badge-status-${order.id}`}>{order.status}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{format(new Date(order.createdAt), "MMM d")}</span>
+                      <Button variant="ghost" size="sm" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => onViewOrder(order)} aria-label={`View order from ${order.user?.fullName || "Unknown"}`} data-testid={`button-view-photos-${order.id}`}>
+                        <Eye className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline text-xs">View</span>
+                      </Button>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {isPrime && !isPublicDemo && order.status === "pending" && (
+                        <>
+                          <OrderActionButton orderId={order.id} action="approved" label="Approve" />
+                          <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+                        </>
+                      )}
+                      {isPrime && !isPublicDemo && order.status === "approved" && (
+                        <OrderActionButton orderId={order.id} action="completed" label="Complete" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop table — virtualized */}
+      <div
+        ref={desktopParentRef}
+        className="hidden sm:block overflow-x-auto overflow-y-auto"
+        style={{ height: "min(600px, 70vh)" }}
+      >
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-card">
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Employee</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Bucks</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Details</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {desktopPaddingTop > 0 && (
+              <tr><td style={{ height: desktopPaddingTop }} /></tr>
+            )}
+            {desktopVirtualItems.map((virtualRow) => {
+              const order = orders[virtualRow.index];
+              return (
+                <TableRow key={order.id} data-testid={`row-order-desktop-${order.id}`}>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {format(new Date(order.createdAt), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell className="font-medium">{order.user?.fullName || "Unknown"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">{order.description}</TableCell>
+                  <TableCell className="font-bold tabular-nums text-primary">
+                    {order.pointsCost.toLocaleString()} bcks
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {order.convertedValue || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-desktop-${order.id}`}>
+                      {order.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => onViewOrder(order)} data-testid={`button-view-photos-desktop-${order.id}`}>
+                      <Eye className="mr-1 h-4 w-4" />
+                      {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
+                      {order.itemUrl ? " Link" : ""}
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {isPrime && !isPublicDemo && order.status === "pending" && (
+                      <div className="flex justify-end gap-2">
+                        <OrderActionButton orderId={order.id} action="approved" label="Approve" />
+                        <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
+                      </div>
+                    )}
+                    {isPrime && !isPublicDemo && order.status === "approved" && (
+                      <OrderActionButton orderId={order.id} action="completed" label="Complete" />
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {desktopPaddingBottom > 0 && (
+              <tr><td style={{ height: desktopPaddingBottom }} /></tr>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import ExcelJS from "exceljs/dist/exceljs.min.js";
 import { usePublicDemo } from "@/hooks/use-demo";
@@ -178,131 +179,232 @@ export default function AdminEmployeesPage() {
           No employees found
         </div>
       ) : (
-        <>
-          {/* Mobile card layout */}
-          <div className="md:hidden space-y-2">
-            {filteredUsers?.map((user) => (
-              <Link key={user.id} href={`/admin/employees/${user.id}`}>
-                <div className="bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 active:bg-muted/30 transition-colors" data-testid={`card-employee-${user.id}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-sm truncate">{user.fullName}</p>
-                      <Badge variant="outline" className="text-xs shrink-0">{getRoleLabel(user.role)}</Badge>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="font-mono text-xs text-muted-foreground">{user.username}</span>
-                      {user.departmentId && deptMap.get(user.departmentId) && (
-                        <>
-                          <span className="text-muted-foreground/40">·</span>
-                          <span className="text-xs text-muted-foreground truncate">{deptMap.get(user.departmentId)}</span>
-                        </>
-                      )}
-                      {user.managerId && adminMap.get(user.managerId) && (
-                        <>
-                          <span className="text-muted-foreground/40">·</span>
-                          <span className="text-xs text-muted-foreground truncate">Mgr: {adminMap.get(user.managerId)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-bold text-primary tabular-nums text-sm">{user.balance.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">bcks</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-              </Link>
-            ))}
-          </div>
-          {/* Desktop table layout */}
-          <div className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow>
-                  <TableHead>Employee Name</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Manager</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers?.map((user) => (
-                  <TableRow key={user.id} className="group hover:bg-muted/20 transition-colors">
-                    <TableCell className="font-medium">{user.fullName}</TableCell>
-                    <TableCell>
-                      <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                        {user.username}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
-                    <TableCell>
-                      {isPrimeAdmin ? (
-                        <Select
-                          value={user.departmentId?.toString() || "none"}
-                          onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}
-                        >
-                          <SelectTrigger className="min-h-8 w-auto min-w-[120px] max-w-[180px] text-xs" data-testid={`select-dept-${user.id}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {departments?.map(d => (
-                              <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {user.departmentId ? deptMap.get(user.departmentId) || "—" : "—"}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isPrimeAdmin && user.role === "employee" ? (
-                        <Select
-                          value={user.managerId?.toString() || "none"}
-                          onValueChange={(val) => assignMgrMutation.mutate({ userId: user.id, managerId: val === "none" ? null : parseInt(val) })}
-                        >
-                          <SelectTrigger className="min-h-8 w-auto min-w-[120px] max-w-[180px] text-xs" data-testid={`select-mgr-${user.id}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {admins?.filter(a => a.role === "admin").map(a => (
-                              <SelectItem key={a.id} value={a.id.toString()}>{a.fullName}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {user.managerId ? adminMap.get(user.managerId) || "—" : "—"}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-primary tabular-nums">
-                      {user.balance.toLocaleString()} bcks
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/admin/employees/${user.id}`}>
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          Details <ChevronRight className="ml-1 h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+        <EmployeeVirtualList
+          filteredUsers={filteredUsers ?? []}
+          isPrimeAdmin={!!isPrimeAdmin}
+          departments={departments}
+          admins={admins}
+          deptMap={deptMap}
+          adminMap={adminMap}
+          getRoleLabel={getRoleLabel}
+          assignDeptMutation={assignDeptMutation}
+          assignMgrMutation={assignMgrMutation}
+        />
       )}
 
       {isPrimeAdmin && <PendingAccountsList />}
       {isPrimeAdmin && <PendingInvitesList />}
     </AdminLayout>
+  );
+}
+
+type EmployeeVirtualListProps = {
+  filteredUsers: User[];
+  isPrimeAdmin: boolean;
+  departments: Department[] | undefined;
+  admins: { id: number; fullName: string; role: string }[] | undefined;
+  deptMap: Map<number, string>;
+  adminMap: Map<number, string>;
+  getRoleLabel: (role: string) => string;
+  assignDeptMutation: ReturnType<typeof useMutation<any, Error, { userId: number; departmentId: number | null }>>;
+  assignMgrMutation: ReturnType<typeof useMutation<any, Error, { userId: number; managerId: number | null }>>;
+};
+
+function EmployeeVirtualList({
+  filteredUsers,
+  isPrimeAdmin,
+  departments,
+  admins,
+  deptMap,
+  adminMap,
+  getRoleLabel,
+  assignDeptMutation,
+  assignMgrMutation,
+}: EmployeeVirtualListProps) {
+  const mobileParentRef = useRef<HTMLDivElement>(null);
+  const desktopParentRef = useRef<HTMLDivElement>(null);
+
+  const mobileVirtualizer = useVirtualizer({
+    count: filteredUsers.length,
+    getScrollElement: () => mobileParentRef.current,
+    estimateSize: () => 84,
+    overscan: 8,
+  });
+
+  const desktopVirtualizer = useVirtualizer({
+    count: filteredUsers.length,
+    getScrollElement: () => desktopParentRef.current,
+    estimateSize: () => 53,
+    overscan: 10,
+  });
+
+  const mobileVirtualItems = mobileVirtualizer.getVirtualItems();
+  const desktopVirtualItems = desktopVirtualizer.getVirtualItems();
+
+  const desktopPaddingTop = desktopVirtualItems.length > 0 ? desktopVirtualItems[0].start : 0;
+  const desktopPaddingBottom =
+    desktopVirtualItems.length > 0
+      ? desktopVirtualizer.getTotalSize() - desktopVirtualItems[desktopVirtualItems.length - 1].end
+      : 0;
+
+  return (
+    <>
+      {/* Mobile card layout — virtualized */}
+      <div
+        ref={mobileParentRef}
+        className="md:hidden overflow-y-auto"
+        style={{ height: "min(600px, 70vh)" }}
+      >
+        <div
+          style={{ height: mobileVirtualizer.getTotalSize(), position: "relative" }}
+        >
+          {mobileVirtualItems.map((virtualRow) => {
+            const user = filteredUsers[virtualRow.index];
+            return (
+              <div
+                key={user.id}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                  paddingBottom: "8px",
+                }}
+              >
+                <Link href={`/admin/employees/${user.id}`}>
+                  <div className="bg-card rounded-xl border shadow-sm p-4 flex items-center gap-3 active:bg-muted/30 transition-colors" data-testid={`card-employee-${user.id}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm truncate">{user.fullName}</p>
+                        <Badge variant="outline" className="text-xs shrink-0">{getRoleLabel(user.role)}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="font-mono text-xs text-muted-foreground">{user.username}</span>
+                        {user.departmentId && deptMap.get(user.departmentId) && (
+                          <>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="text-xs text-muted-foreground truncate">{deptMap.get(user.departmentId)}</span>
+                          </>
+                        )}
+                        {user.managerId && adminMap.get(user.managerId) && (
+                          <>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="text-xs text-muted-foreground truncate">Mgr: {adminMap.get(user.managerId)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-primary tabular-nums text-sm">{user.balance.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">bcks</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop table layout — virtualized */}
+      <div
+        ref={desktopParentRef}
+        className="hidden md:block bg-card rounded-xl border shadow-sm overflow-x-auto overflow-y-auto"
+        style={{ height: "min(600px, 70vh)" }}
+      >
+        <Table>
+          <TableHeader className="bg-muted/30 sticky top-0 z-10">
+            <TableRow>
+              <TableHead>Employee Name</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Manager</TableHead>
+              <TableHead className="text-right">Balance</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {desktopPaddingTop > 0 && (
+              <tr><td style={{ height: desktopPaddingTop }} /></tr>
+            )}
+            {desktopVirtualItems.map((virtualRow) => {
+              const user = filteredUsers[virtualRow.index];
+              return (
+                <TableRow key={user.id} className="group hover:bg-muted/20 transition-colors">
+                  <TableCell className="font-medium">{user.fullName}</TableCell>
+                  <TableCell>
+                    <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                      {user.username}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
+                  <TableCell>
+                    {isPrimeAdmin ? (
+                      <Select
+                        value={user.departmentId?.toString() || "none"}
+                        onValueChange={(val) => assignDeptMutation.mutate({ userId: user.id, departmentId: val === "none" ? null : parseInt(val) })}
+                      >
+                        <SelectTrigger className="min-h-8 w-auto min-w-[120px] max-w-[180px] text-xs" data-testid={`select-dept-${user.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {departments?.map(d => (
+                            <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {user.departmentId ? deptMap.get(user.departmentId) || "—" : "—"}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isPrimeAdmin && user.role === "employee" ? (
+                      <Select
+                        value={user.managerId?.toString() || "none"}
+                        onValueChange={(val) => assignMgrMutation.mutate({ userId: user.id, managerId: val === "none" ? null : parseInt(val) })}
+                      >
+                        <SelectTrigger className="min-h-8 w-auto min-w-[120px] max-w-[180px] text-xs" data-testid={`select-mgr-${user.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {admins?.filter(a => a.role === "admin").map(a => (
+                            <SelectItem key={a.id} value={a.id.toString()}>{a.fullName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {user.managerId ? adminMap.get(user.managerId) || "—" : "—"}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-bold text-primary tabular-nums">
+                    {user.balance.toLocaleString()} bcks
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link href={`/admin/employees/${user.id}`}>
+                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        Details <ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {desktopPaddingBottom > 0 && (
+              <tr><td style={{ height: desktopPaddingBottom }} /></tr>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 

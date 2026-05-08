@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { useUser } from "@/hooks/use-auth";
 import { useUserDetails } from "@/hooks/use-users";
@@ -117,68 +118,135 @@ export default function EmployeeOrdersPage() {
               No orders yet. Browse the store and submit your first order!
             </div>
           ) : (
-            <>
-              {/* Mobile card layout */}
-              <div className="sm:hidden space-y-3 px-4">
-                {orders.map((order) => (
-                  <div key={order.id} className="border rounded-lg p-3 space-y-1" data-testid={`row-order-${order.id}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{order.description}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(order.createdAt), "MMM d, yyyy")}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-bold tabular-nums text-primary text-sm">{order.pointsCost.toLocaleString()} bcks</p>
-                        <Badge variant={statusVariant(order.status)} className="capitalize text-xs mt-0.5" data-testid={`badge-status-${order.id}`}>{order.status}</Badge>
-                      </div>
-                    </div>
-                    {order.adminNotes && <p className="text-xs text-muted-foreground">{order.adminNotes}</p>}
-                  </div>
-                ))}
-              </div>
-              {/* Desktop table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Bucks</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id} data-testid={`row-order-desktop-${order.id}`}>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
-                          {format(new Date(order.createdAt), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell className="font-medium max-w-[200px] truncate">{order.description}</TableCell>
-                        <TableCell className="font-bold tabular-nums text-primary">
-                          {order.pointsCost.toLocaleString()} bcks
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {order.convertedValue || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-desktop-${order.id}`}>
-                            {order.status}
-                          </Badge>
-                          {order.adminNotes && (
-                            <p className="text-xs text-muted-foreground mt-1">{order.adminNotes}</p>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+            <EmployeeOrdersVirtualList orders={orders} />
           )}
         </CardContent>
       </Card>
     </EmployeeLayout>
+  );
+}
+
+function EmployeeOrdersVirtualList({ orders }: { orders: Order[] }) {
+  const mobileParentRef = useRef<HTMLDivElement>(null);
+  const desktopParentRef = useRef<HTMLDivElement>(null);
+
+  const mobileVirtualizer = useVirtualizer({
+    count: orders.length,
+    getScrollElement: () => mobileParentRef.current,
+    estimateSize: () => 90,
+    overscan: 6,
+  });
+
+  const desktopVirtualizer = useVirtualizer({
+    count: orders.length,
+    getScrollElement: () => desktopParentRef.current,
+    estimateSize: () => 53,
+    overscan: 10,
+  });
+
+  const mobileVirtualItems = mobileVirtualizer.getVirtualItems();
+  const desktopVirtualItems = desktopVirtualizer.getVirtualItems();
+
+  const desktopPaddingTop = desktopVirtualItems.length > 0 ? desktopVirtualItems[0].start : 0;
+  const desktopPaddingBottom =
+    desktopVirtualItems.length > 0
+      ? desktopVirtualizer.getTotalSize() - desktopVirtualItems[desktopVirtualItems.length - 1].end
+      : 0;
+
+  return (
+    <>
+      {/* Mobile card layout — virtualized */}
+      <div
+        ref={mobileParentRef}
+        className="sm:hidden overflow-y-auto px-4"
+        style={{ height: "min(500px, 65vh)" }}
+      >
+        <div style={{ height: mobileVirtualizer.getTotalSize(), position: "relative" }}>
+          {mobileVirtualItems.map((virtualRow) => {
+            const order = orders[virtualRow.index];
+            return (
+              <div
+                key={order.id}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                  paddingBottom: "12px",
+                }}
+              >
+                <div className="border rounded-lg p-3 space-y-1" data-testid={`row-order-${order.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{order.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(order.createdAt), "MMM d, yyyy")}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold tabular-nums text-primary text-sm">{order.pointsCost.toLocaleString()} bcks</p>
+                      <Badge variant={statusVariant(order.status)} className="capitalize text-xs mt-0.5" data-testid={`badge-status-${order.id}`}>{order.status}</Badge>
+                    </div>
+                  </div>
+                  {order.adminNotes && <p className="text-xs text-muted-foreground">{order.adminNotes}</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop table — virtualized */}
+      <div
+        ref={desktopParentRef}
+        className="hidden sm:block overflow-x-auto overflow-y-auto"
+        style={{ height: "min(500px, 65vh)" }}
+      >
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-card">
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Bucks</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {desktopPaddingTop > 0 && (
+              <tr><td style={{ height: desktopPaddingTop }} /></tr>
+            )}
+            {desktopVirtualItems.map((virtualRow) => {
+              const order = orders[virtualRow.index];
+              return (
+                <TableRow key={order.id} data-testid={`row-order-desktop-${order.id}`}>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {format(new Date(order.createdAt), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell className="font-medium max-w-[200px] truncate">{order.description}</TableCell>
+                  <TableCell className="font-bold tabular-nums text-primary">
+                    {order.pointsCost.toLocaleString()} bcks
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {order.convertedValue || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(order.status)} className="capitalize" data-testid={`badge-status-desktop-${order.id}`}>
+                      {order.status}
+                    </Badge>
+                    {order.adminNotes && (
+                      <p className="text-xs text-muted-foreground mt-1">{order.adminNotes}</p>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {desktopPaddingBottom > 0 && (
+              <tr><td style={{ height: desktopPaddingBottom }} /></tr>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 

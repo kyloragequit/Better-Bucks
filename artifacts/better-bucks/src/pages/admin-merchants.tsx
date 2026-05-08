@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader } from "@/components/ui/loader";
@@ -159,34 +160,13 @@ export default function AdminMerchantsPage() {
             ) : filteredMerchants.length === 0 ? (
               <div className="text-sm text-muted-foreground py-6 text-center">No merchants match your search.</div>
             ) : (
-              <ul className="divide-y">
-                {filteredMerchants.map((m) => (
-                  <li key={m.id} className="py-3 flex items-center justify-between gap-3 flex-wrap" data-testid={`row-merchant-${m.id}`}>
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{m.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{m.email}</div>
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <Badge variant={m.status === "active" ? "default" : "secondary"} data-testid={`badge-status-${m.id}`}>{m.status}</Badge>
-                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => setTxMerchant(m)} aria-label={`Transactions for ${m.name}`} data-testid={`button-tx-${m.id}`}>
-                        <Eye className="h-3.5 w-3.5 sm:mr-1" />
-                        <span className="hidden sm:inline">Transactions</span>
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => { setPwdMerchant(m); setTempPwd(null); setCopied(false); }} aria-label={`Reset password for ${m.name}`} data-testid={`button-pwd-${m.id}`}>
-                        <KeyRound className="h-3.5 w-3.5 sm:mr-1" />
-                        <span className="hidden sm:inline">Reset password</span>
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => updateMut.mutate({ id: m.id, data: { status: m.status === "active" ? "disabled" : "active" } })} aria-label={m.status === "active" ? `Disable ${m.name}` : `Enable ${m.name}`} data-testid={`button-toggle-${m.id}`}>
-                        <Power className="h-3.5 w-3.5 sm:mr-1" />
-                        <span className="hidden sm:inline">{m.status === "active" ? "Disable" : "Enable"}</span>
-                      </Button>
-                      <Button size="sm" variant="destructive" className="h-9 w-9" onClick={() => { if (confirm(`Delete merchant "${m.name}"?`)) deleteMut.mutate(m.id); }} aria-label={`Delete ${m.name}`} data-testid={`button-delete-${m.id}`}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <MerchantVirtualList
+                merchants={filteredMerchants}
+                updateMut={updateMut}
+                deleteMut={deleteMut}
+                onViewTx={(m) => setTxMerchant(m)}
+                onResetPwd={(m) => { setPwdMerchant(m); setTempPwd(null); setCopied(false); }}
+              />
             )}
           </CardContent>
         </Card>
@@ -281,5 +261,81 @@ export default function AdminMerchantsPage() {
         </DialogContent>
       </Dialog>
     </AdminLayout>
+  );
+}
+
+function MerchantVirtualList({
+  merchants,
+  updateMut,
+  deleteMut,
+  onViewTx,
+  onResetPwd,
+}: {
+  merchants: Merchant[];
+  updateMut: ReturnType<typeof useMutation<any, Error, { id: number; data: any }>>;
+  deleteMut: ReturnType<typeof useMutation<any, Error, number>>;
+  onViewTx: (m: Merchant) => void;
+  onResetPwd: (m: Merchant) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: merchants.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 68,
+    overscan: 8,
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
+
+  return (
+    <div
+      ref={parentRef}
+      className="overflow-y-auto"
+      style={{ height: "min(600px, 70vh)" }}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        {virtualItems.map((virtualRow) => {
+          const m = merchants[virtualRow.index];
+          return (
+            <div
+              key={m.id}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <div className="py-3 flex items-center justify-between gap-3 flex-wrap border-b" data-testid={`row-merchant-${m.id}`}>
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{m.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{m.email}</div>
+                </div>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Badge variant={m.status === "active" ? "default" : "secondary"} data-testid={`badge-status-${m.id}`}>{m.status}</Badge>
+                  <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => onViewTx(m)} aria-label={`Transactions for ${m.name}`} data-testid={`button-tx-${m.id}`}>
+                    <Eye className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Transactions</span>
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => onResetPwd(m)} aria-label={`Reset password for ${m.name}`} data-testid={`button-pwd-${m.id}`}>
+                    <KeyRound className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Reset password</span>
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-9 w-9 sm:w-auto sm:px-3" onClick={() => updateMut.mutate({ id: m.id, data: { status: m.status === "active" ? "disabled" : "active" } })} aria-label={m.status === "active" ? `Disable ${m.name}` : `Enable ${m.name}`} data-testid={`button-toggle-${m.id}`}>
+                    <Power className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">{m.status === "active" ? "Disable" : "Enable"}</span>
+                  </Button>
+                  <Button size="sm" variant="destructive" className="h-9 w-9" onClick={() => { if (confirm(`Delete merchant "${m.name}"?`)) deleteMut.mutate(m.id); }} aria-label={`Delete ${m.name}`} data-testid={`button-delete-${m.id}`}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

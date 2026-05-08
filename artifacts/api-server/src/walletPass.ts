@@ -184,7 +184,11 @@ export async function buildPassForEmployee(
   return { buffer, serialNumber: pass.serialNumber, authToken: pass.authToken, updatedTag };
 }
 
-/** Trigger an APNs push to all devices that registered the employee's pass. No-op if APNs not configured. */
+/** Trigger an APNs push to all devices that registered the employee's pass. No-op if APNs not configured.
+ *
+ * Failed pushes are retried with exponential back-off. Any token Apple marks as permanently
+ * invalid (HTTP 410) is removed from the database so it is never used again.
+ * Errors are swallowed so a push failure never breaks a balance update. */
 export async function pushPassUpdateForEmployee(employeeId: number): Promise<void> {
   try {
     const pass = await storage.getActiveWalletPassForEmployee(employeeId);
@@ -193,7 +197,11 @@ export async function pushPassUpdateForEmployee(employeeId: number): Promise<voi
     const devices = await storage.listWalletDevicesForSerial(pass.serialNumber);
     if (!devices.length) return;
     const tokens = Array.from(new Set(devices.map((d) => d.pushToken)));
-    await pushPassUpdate(tokens);
+    const result = await pushPassUpdate(tokens);
+    if (result.invalidTokens.length) {
+      console.warn(`[walletPass] removing ${result.invalidTokens.length} invalid device token(s) for employee ${employeeId}`);
+      await storage.deleteWalletDevicesByPushToken(result.invalidTokens);
+    }
   } catch (err: any) {
     console.error("[walletPass] pushPassUpdateForEmployee failed:", err?.message ?? err);
   }

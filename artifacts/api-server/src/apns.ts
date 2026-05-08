@@ -40,45 +40,127 @@ function getJwt(cfg: { key: string; keyId: string; teamId: string }) {
   return tok;
 }
 
+/** Returns true for HTTP status codes that represent a transient APNs failure worth retrying. */
+function isTransientStatus(status: number): boolean {
+  return status === 429 || (status >= 500 && status < 600);
+}
+
+/** APNs error reasons in a 400 response that mean the device token is permanently invalid. */
+const INVALID_TOKEN_REASONS = new Set(["BadDeviceToken", "DeviceTokenNotForTopic"]);
+
+/** Parse APNs JSON error body and return the `reason` string, or undefined if not parseable. */
+function parseApnsReason(body: string): string | undefined {
+  try {
+    const parsed = JSON.parse(body) as { reason?: string };
+    return parsed.reason;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Send a single APNs push to one device token over an existing HTTP/2 client.
+ * Returns the HTTP status and response body.
+ */
+function sendOne(
+  client: http2.ClientHttp2Session,
+  token: string,
+  topic: string,
+  jwt: string,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve) => {
+    const req = client.request({
+      ":method": "POST",
+      ":path": `/3/device/${token}`,
+      "apns-topic": topic,
+      "apns-push-type": "background",
+      authorization: `bearer ${jwt}`,
+    });
+    req.setEncoding("utf8");
+    let status = 0;
+    req.on("response", (h) => { status = Number(h[":status"]) || 0; });
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => resolve({ status, body }));
+    req.on("error", (err) => {
+      console.warn(`[apns] request error for token ${token.slice(0, 8)}…:`, err?.message);
+      resolve({ status: 0, body: err?.message ?? "request error" });
+    });
+    req.end(JSON.stringify({}));
+  });
+}
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 500;
+
 /**
  * Sends an empty-body APNs push to the given device tokens telling Apple Wallet
  * to refresh the pass. Returns gracefully (no-op) when APNs is not configured.
+ *
+ * Failed pushes are retried up to MAX_RETRIES times with exponential back-off.
+ * Tokens that Apple rejects as permanently invalid (HTTP 410, or HTTP 400 with
+ * reason BadDeviceToken/DeviceTokenNotForTopic) are collected in `invalidTokens`
+ * so the caller can remove them from the database.
  */
-export async function pushPassUpdate(deviceTokens: string[]): Promise<{ sent: number; configured: boolean; errors: number }> {
+export async function pushPassUpdate(
+  deviceTokens: string[],
+): Promise<{ sent: number; configured: boolean; errors: number; invalidTokens: string[] }> {
   const cfg = getApnsConfig();
   if (!cfg) {
     if (deviceTokens.length) console.warn(`[apns] Skipping pass push to ${deviceTokens.length} device(s) — Apple credentials not configured`);
-    return { sent: 0, configured: false, errors: 0 };
+    return { sent: 0, configured: false, errors: 0, invalidTokens: [] };
   }
-  if (!deviceTokens.length) return { sent: 0, configured: true, errors: 0 };
+  if (!deviceTokens.length) return { sent: 0, configured: true, errors: 0, invalidTokens: [] };
+
   const jwt = getJwt(cfg);
   const client = http2.connect("https://api.push.apple.com:443");
-  let sent = 0, errors = 0;
-  await new Promise<void>((resolve) => {
-    let pending = deviceTokens.length;
-    const finish = () => { if (--pending === 0) resolve(); };
-    for (const token of deviceTokens) {
-      const req = client.request({
-        ":method": "POST",
-        ":path": `/3/device/${token}`,
-        "apns-topic": cfg.topic,
-        "apns-push-type": "background",
-        authorization: `bearer ${jwt}`,
-      });
-      req.setEncoding("utf8");
-      let status = 0;
-      req.on("response", (h) => { status = Number(h[":status"]) || 0; });
-      let body = "";
-      req.on("data", (c) => { body += c; });
-      req.on("end", () => {
-        if (status >= 200 && status < 300) sent++;
-        else { errors++; console.warn(`[apns] push to ${token.slice(0,8)}… status=${status} body=${body}`); }
-        finish();
-      });
-      req.on("error", (err) => { errors++; console.warn(`[apns] push error:`, err?.message); finish(); });
-      req.end(JSON.stringify({}));
-    }
-  });
+
+  let sent = 0;
+  let errors = 0;
+  const invalidTokens: string[] = [];
+
+  await Promise.all(
+    deviceTokens.map(async (token) => {
+      let attempt = 0;
+      while (attempt < MAX_RETRIES) {
+        const { status, body } = await sendOne(client, token, cfg.topic, jwt);
+
+        if (status >= 200 && status < 300) {
+          sent++;
+          return;
+        }
+
+        if (status === 410) {
+          // Token is permanently invalid; no point retrying.
+          console.warn(`[apns] token ${token.slice(0, 8)}… rejected as invalid (410) — will be removed`);
+          invalidTokens.push(token);
+          return;
+        }
+
+        if (status === 400) {
+          const reason = parseApnsReason(body);
+          if (reason && INVALID_TOKEN_REASONS.has(reason)) {
+            // Apple explicitly told us the token is bad; remove it and don't retry.
+            console.warn(`[apns] token ${token.slice(0, 8)}… rejected with reason=${reason} (400) — will be removed`);
+            invalidTokens.push(token);
+            return;
+          }
+        }
+
+        attempt++;
+        if (attempt < MAX_RETRIES && (status === 0 || isTransientStatus(status))) {
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+          console.warn(`[apns] push to ${token.slice(0, 8)}… status=${status} body=${body} — retrying in ${delay}ms (attempt ${attempt}/${MAX_RETRIES})`);
+          await new Promise((r) => setTimeout(r, delay));
+        } else {
+          errors++;
+          console.warn(`[apns] push to ${token.slice(0, 8)}… failed after ${attempt} attempt(s) status=${status} body=${body}`);
+          return;
+        }
+      }
+    }),
+  );
+
   client.close();
-  return { sent, configured: true, errors };
+  return { sent, configured: true, errors, invalidTokens };
 }

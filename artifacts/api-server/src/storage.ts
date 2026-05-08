@@ -225,6 +225,7 @@ export interface IStorage {
   unregisterWalletDevice(deviceLibraryIdentifier: string, serial: string): Promise<void>;
   listWalletDevicesForSerial(serial: string): Promise<WalletPassDevice[]>;
   listWalletSerialsForDevice(deviceLibraryIdentifier: string, passTypeId: string): Promise<string[]>;
+  deleteWalletDevicesByPushToken(pushTokens: string[]): Promise<void>;
   redeemForMerchant(args: { employeeId: number; merchantId: number; amount: number; reason: string }):
     Promise<{ ok: true; newBalance: number; transaction: Transaction; merchantTransaction: MerchantTransaction } | { ok: false; reason: "insufficient"; currentBalance: number } | { ok: false; reason: "missing" }>;
 
@@ -1594,6 +1595,7 @@ export interface DatabaseStorage {
   unregisterWalletDevice: IStorage["unregisterWalletDevice"];
   listWalletDevicesForSerial: IStorage["listWalletDevicesForSerial"];
   listWalletSerialsForDevice: IStorage["listWalletSerialsForDevice"];
+  deleteWalletDevicesByPushToken: IStorage["deleteWalletDevicesByPushToken"];
   redeemForMerchant: IStorage["redeemForMerchant"];
   tryDeductBalance: IStorage["tryDeductBalance"];
   getSocialLinkByProvider: IStorage["getSocialLinkByProvider"];
@@ -1749,6 +1751,10 @@ DatabaseStorage.prototype.listWalletSerialsForDevice = async function (deviceLib
   const rows = await db.select().from(walletPassDevices)
     .where(eq(walletPassDevices.deviceLibraryIdentifier, deviceLibraryIdentifier));
   return rows.map((r) => r.serialNumber);
+};
+DatabaseStorage.prototype.deleteWalletDevicesByPushToken = async function (pushTokens) {
+  if (!pushTokens.length) return;
+  await db.delete(walletPassDevices).where(inArray(walletPassDevices.pushToken, pushTokens));
 };
 DatabaseStorage.prototype.getSocialLinkByProvider = async function (provider, providerUserId) {
   const [link] = await db.select().from(userSocialLinks)

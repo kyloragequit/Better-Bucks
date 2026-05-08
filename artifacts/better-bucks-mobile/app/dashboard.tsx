@@ -1,13 +1,16 @@
 import { router } from "expo-router";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { Logo } from "@/components/Logo";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 export default function DashboardScreen() {
   const { user, token, signOut } = useAuth();
+  const { visible: onboardingVisible, dismiss: dismissOnboarding } = useOnboarding();
 
   const handleSignOut = async () => {
     await signOut();
@@ -53,6 +56,10 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
+      <OnboardingModal
+        visible={onboardingVisible}
+        onDismiss={dismissOnboarding}
+      />
       <Logo size={88} />
       <Text style={styles.welcome}>Welcome to Better Bucks.</Text>
       {user?.fullName ? (

@@ -130,12 +130,13 @@ async function notifyEmployeeBalanceChange(userId: number, change: number, reaso
     if (target.role !== "employee") return;
 
     if (change > 0 && target.expoPushToken) {
-      sendExpoPushNotification(
-        target.expoPushToken,
-        "You just earned Bucks! 🎉",
-        `You just earned ${change} Bucks for "${reason}"`,
-      ).catch((err: unknown) => {
+      const notifTitle = "You just earned Bucks! 🎉";
+      const notifBody = `You just earned ${change} Bucks for "${reason}"`;
+      sendExpoPushNotification(target.expoPushToken, notifTitle, notifBody).catch((err: unknown) => {
         console.error(`[BalanceNotify] Push failed for user ${userId}:`, err);
+      });
+      storage.createNotificationLog({ userId, title: notifTitle, body: notifBody }).catch((err: unknown) => {
+        console.error(`[BalanceNotify] Notification log failed for user ${userId}:`, err);
       });
     }
 

@@ -621,6 +621,19 @@ export const userSocialLinks = pgTable("user_social_links", {
 export type UserSocialLink = typeof userSocialLinks.$inferSelect;
 export type InsertUserSocialLink = typeof userSocialLinks.$inferInsert;
 
+// ── Notification log ───────────────────────────────────────────────────────────
+export const notificationLogs = pgTable("notification_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
+export const insertNotificationLogSchema = createInsertSchema(notificationLogs).omit({ id: true, sentAt: true });
+export type NotificationLog = typeof notificationLogs.$inferSelect;
+export type InsertNotificationLog = z.infer<typeof insertNotificationLogSchema>;
+
 // ── Merchant transaction disputes ─────────────────────────────────────────────
 export const merchantTransactionDisputes = pgTable("merchant_transaction_disputes", {
   id: serial("id").primaryKey(),

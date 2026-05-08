@@ -92,6 +92,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Alerts",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="notifications" focused={focused} />
+          ),
+          headerTitle: "Notifications",
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",

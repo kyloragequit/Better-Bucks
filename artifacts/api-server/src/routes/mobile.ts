@@ -1042,12 +1042,13 @@ export function registerMobileRoutes(app: Express) {
         const updated = await storage.getUser(employeeId);
 
         if (employee.expoPushToken) {
-          sendExpoPushNotification(
-            employee.expoPushToken,
-            "You just earned Bucks! 🎉",
-            `You just earned ${parsed.data.amount} Bucks for "${parsed.data.reason}"`,
-          ).catch((err) =>
+          const notifTitle = "You just earned Bucks! 🎉";
+          const notifBody = `You just earned ${parsed.data.amount} Bucks for "${parsed.data.reason}"`;
+          sendExpoPushNotification(employee.expoPushToken, notifTitle, notifBody).catch((err) =>
             logger.error({ err }, "[mobile/reward] push notification failed"),
+          );
+          storage.createNotificationLog({ userId: employeeId, title: notifTitle, body: notifBody }).catch((err) =>
+            logger.error({ err }, "[mobile/reward] notification log failed"),
           );
         }
 
@@ -1062,6 +1063,19 @@ export function registerMobileRoutes(app: Express) {
       }
     },
   );
+
+  // ─── Notification Log ──────────────────────────────────────────────────────
+
+  app.get("/api/mobile/notifications", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    try {
+      const logs = await storage.getNotificationLogsByUser(user.id, 100);
+      return res.json(logs);
+    } catch (err) {
+      logger.error({ err }, "[mobile/notifications] failed to fetch notification logs");
+      return res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
 
   // ─── Wallet Pass ───────────────────────────────────────────────────────────
 

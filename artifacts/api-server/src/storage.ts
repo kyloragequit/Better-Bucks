@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute } from "@workspace/db";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog } from "@workspace/db";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -240,6 +240,10 @@ export interface IStorage {
   getDisputeForTransaction(transactionId: number, employeeId: number): Promise<MerchantTransactionDispute | undefined>;
   getDisputesByOrg(orgId: number): Promise<(MerchantTransactionDispute & { employee?: Pick<User, "id" | "fullName" | "email">; transaction?: MerchantTransaction & { merchant?: Merchant } })[]>;
   updateDispute(id: number, data: { status: "refunded" | "dismissed"; adminNotes?: string; resolvedByUserId: number }): Promise<MerchantTransactionDispute>;
+
+  // Notification log
+  createNotificationLog(data: { userId: number; title: string; body: string }): Promise<void>;
+  getNotificationLogsByUser(userId: number, limit?: number): Promise<NotificationLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1620,6 +1624,8 @@ export interface DatabaseStorage {
   getSocialLinksByUser: IStorage["getSocialLinksByUser"];
   createSocialLink: IStorage["createSocialLink"];
   deleteSocialLink: IStorage["deleteSocialLink"];
+  createNotificationLog: IStorage["createNotificationLog"];
+  getNotificationLogsByUser: IStorage["getNotificationLogsByUser"];
 }
 DatabaseStorage.prototype.createMerchant = async function (data) {
   const [m] = await db.insert(merchants).values(data).returning();
@@ -1876,6 +1882,19 @@ DatabaseStorage.prototype.updateDispute = async function (id, { status, adminNot
     .where(eq(merchantTransactionDisputes.id, id))
     .returning();
   return updated;
+};
+
+DatabaseStorage.prototype.createNotificationLog = async function ({ userId, title, body }) {
+  await db.insert(notificationLogs).values({ userId, title, body });
+};
+
+DatabaseStorage.prototype.getNotificationLogsByUser = async function (userId, limit = 50) {
+  return db
+    .select()
+    .from(notificationLogs)
+    .where(eq(notificationLogs.userId, userId))
+    .orderBy(desc(notificationLogs.sentAt))
+    .limit(limit);
 };
 
 export const storage: IStorage = new DatabaseStorage();

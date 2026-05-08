@@ -468,6 +468,21 @@ export default function DeveloperDashboardPage() {
     },
   });
 
+  const retryOrphanMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/developer/stripe-orphans/${id}/retry`, {});
+      return res.json() as Promise<{ status: string }>;
+    },
+    onSuccess: (data) => {
+      const label = data.status === "resolved" ? "Resolved" : data.status === "failed_permanently" ? "Still failing" : "Retried";
+      toast({ title: label, description: `Retry complete — new status: ${data.status}.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/developer/stripe-orphans"] });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Retry failed", description: e.message, variant: "destructive" });
+    },
+  });
+
   function downloadMarketingCsv(rows: MarketingSubscriber[]) {
     const headers = ["Name", "Email", "Organization", "Role", "Source", "Date Opted In"];
     const escape = (v: string | null | undefined) => {
@@ -2102,7 +2117,7 @@ export default function DeveloperDashboardPage() {
                                 <TableHead>Last Error</TableHead>
                                 <TableHead>Created</TableHead>
                                 <TableHead>Updated</TableHead>
-                                {status !== "resolved" && <TableHead className="w-28">Action</TableHead>}
+                                {status !== "resolved" && <TableHead className="w-44">Actions</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -2127,17 +2142,30 @@ export default function DeveloperDashboardPage() {
                                   </TableCell>
                                   {status !== "resolved" && (
                                     <TableCell>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-green-300 text-green-700 hover:bg-green-50 text-xs h-7"
-                                        disabled={resolveOrphanMutation.isPending}
-                                        onClick={() => resolveOrphanMutation.mutate(row.id)}
-                                        data-testid={`button-resolve-orphan-${row.id}`}
-                                      >
-                                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                                        Resolve
-                                      </Button>
+                                      <div className="flex items-center gap-1.5">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs h-7"
+                                          disabled={retryOrphanMutation.isPending || resolveOrphanMutation.isPending}
+                                          onClick={() => retryOrphanMutation.mutate(row.id)}
+                                          data-testid={`button-retry-orphan-${row.id}`}
+                                        >
+                                          <RotateCcw className="mr-1 h-3 w-3" />
+                                          Retry Now
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="border-green-300 text-green-700 hover:bg-green-50 text-xs h-7"
+                                          disabled={resolveOrphanMutation.isPending || retryOrphanMutation.isPending}
+                                          onClick={() => resolveOrphanMutation.mutate(row.id)}
+                                          data-testid={`button-resolve-orphan-${row.id}`}
+                                        >
+                                          <CheckCircle2 className="mr-1 h-3 w-3" />
+                                          Resolve
+                                        </Button>
+                                      </div>
                                     </TableCell>
                                   )}
                                 </TableRow>

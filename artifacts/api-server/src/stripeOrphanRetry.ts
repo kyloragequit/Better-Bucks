@@ -233,6 +233,44 @@ async function retryPendingOrphans(): Promise<void> {
   }
 }
 
+/**
+ * Immediately retries a single orphan row by ID, regardless of its current
+ * status. Resets retry_count to 0 so permanently-failed records get a fresh
+ * attempt. Intended for use by the developer dashboard "Retry Now" action.
+ */
+export async function retryOrphanNow(id: number): Promise<{ status: string }> {
+  let stripe: Awaited<ReturnType<typeof getUncachableStripeClient>>;
+  try {
+    stripe = await getUncachableStripeClient();
+  } catch {
+    throw new Error("Stripe client unavailable — check STRIPE_SECRET_KEY configuration");
+  }
+
+  const claimResult = await db.execute<typeof stripeOrphans.$inferSelect>(
+    sql`
+      UPDATE stripe_orphans
+      SET    status      = 'processing',
+             retry_count = 0,
+             updated_at  = NOW()
+      WHERE  id = ${id}
+        AND  status != 'resolved'
+      RETURNING *
+    `,
+  );
+
+  const rows = claimResult.rows as (typeof stripeOrphans.$inferSelect)[];
+  if (!rows.length) {
+    throw new Error("Record not found or already resolved");
+  }
+
+  const row = rows[0];
+  logger.info({ id }, "[stripeOrphanRetry] Developer-triggered immediate retry");
+  await processRow(row, stripe);
+
+  const [updated] = await db.select().from(stripeOrphans).where(eq(stripeOrphans.id, id));
+  return { status: updated?.status ?? "unknown" };
+}
+
 export function startStripeOrphanRetryJob(): void {
   const interval = setInterval(() => {
     retryPendingOrphans().catch((err: unknown) => {

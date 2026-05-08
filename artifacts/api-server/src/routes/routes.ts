@@ -6576,6 +6576,23 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     res.json({ rows, counts });
   }));
 
+  // POST /api/developer/stripe-orphans/:id/retry — immediately retry a single orphan row
+  app.post("/api/developer/stripe-orphans/:id/retry", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+    const { retryOrphanNow } = await import("../stripeOrphanRetry");
+    try {
+      const result = await retryOrphanNow(id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Retry failed" });
+    }
+  }));
+
   // PATCH /api/developer/stripe-orphans/:id — manually mark a row as resolved
   app.patch("/api/developer/stripe-orphans/:id", asyncHandler(async (req, res) => {
     const user = req.user as User | undefined;

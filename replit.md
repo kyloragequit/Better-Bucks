@@ -46,7 +46,7 @@ Better Bucks is an employee rewards platform that lets companies give, track, an
 
 ## Gotchas
 
-- `bcrypt` requires native build approval: run `pnpm approve-builds` to enable bcrypt compilation.
+- Password hashing uses `bcryptjs` (pure-JS, no native build required). The old `bcrypt` native addon has been removed.
 - Always push DB schema with `pnpm --filter @workspace/db run push` after schema changes.
 - Do NOT import from `@workspace/db` (index) in the frontend — it triggers the pg pool connection. Use `@shared/schema` (alias) instead, which points to just the schema file.
 - `zod/v4` is a subpath export of `zod@^3.24`; add `zod` to any package that needs `zod/v4`.

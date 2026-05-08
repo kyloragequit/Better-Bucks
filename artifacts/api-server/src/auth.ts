@@ -4,7 +4,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { storage } from "./storage";
 import { db, pool } from "./db";

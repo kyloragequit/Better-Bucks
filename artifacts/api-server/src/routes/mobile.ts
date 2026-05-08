@@ -10,6 +10,8 @@ import { logger } from "../lib/logger";
 import { sendGhostStripeAlert } from "../lib/alerts";
 import { recordStripeOrphan } from "../stripeOrphanRetry";
 import { verifyAppleIdentityToken, verifyGoogleIdToken } from "../socialAuth";
+import { buildPassForEmployee, PassConfigError } from "../walletPass";
+import { buildGoogleWalletSaveUrl, GoogleWalletConfigError } from "../googleWalletPass";
 import type {
   InsertOrganization,
   InsertUser,
@@ -869,6 +871,49 @@ export function registerMobileRoutes(app: Express) {
       }
     },
   );
+
+  // ─── Wallet Pass ───────────────────────────────────────────────────────────
+
+  // iOS: download a .pkpass file that opens in Apple Wallet
+  app.get("/api/mobile/wallet-pass", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (user.role !== "employee") {
+      return res.status(403).json({ message: "Only employees can download a wallet pass" });
+    }
+    try {
+      const built = await buildPassForEmployee(user.id, req);
+      res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="betterbucks-${user.id}.pkpass"`,
+      );
+      return res.send(built.buffer);
+    } catch (err) {
+      if (err instanceof PassConfigError) {
+        return res.status(503).json({ message: err.message });
+      }
+      logger.error({ err }, "[mobile/wallet-pass] Failed to build pass");
+      return res.status(500).json({ message: "Could not generate wallet pass. Please try again later." });
+    }
+  });
+
+  // Android: return a Google Wallet save URL that the client opens via Linking
+  app.get("/api/mobile/wallet-pass/android", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (user.role !== "employee") {
+      return res.status(403).json({ message: "Only employees can add a wallet pass" });
+    }
+    try {
+      const saveUrl = await buildGoogleWalletSaveUrl(user.id);
+      return res.json({ saveUrl });
+    } catch (err) {
+      if (err instanceof GoogleWalletConfigError) {
+        return res.status(503).json({ message: err.message });
+      }
+      logger.error({ err }, "[mobile/wallet-pass/android] Failed to build Google Wallet pass");
+      return res.status(500).json({ message: "Could not generate wallet pass. Please try again later." });
+    }
+  });
 
   // ─── Admin: Stats ──────────────────────────────────────────────────────────
 

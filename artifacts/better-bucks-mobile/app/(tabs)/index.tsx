@@ -1,8 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
-import { ScrollView, StyleSheet, Text, View, RefreshControl, ActivityIndicator } from "react-native";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  RefreshControl,
+  ActivityIndicator,
+} from "react-native";
+import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { OnboardingModal } from "@/components/OnboardingModal";
+import { File as EFSFile, Paths } from "expo-file-system";
+import * as Linking from "expo-linking";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +58,46 @@ export default function HomeTab() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const { visible: onboardingVisible, dismiss: dismissOnboarding } = useOnboarding();
+  const [walletLoading, setWalletLoading] = useState(false);
+
+  const isEmployee = user?.role === "employee";
+
+  async function handleAddToWallet() {
+    if (!token) return;
+    setWalletLoading(true);
+    try {
+      if (Platform.OS === "android") {
+        const res = await fetch(apiUrl("/api/mobile/wallet-pass/android"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          Alert.alert(
+            "Google Wallet",
+            (body as any)?.message ?? "Could not generate your wallet pass. Please try again.",
+          );
+          return;
+        }
+        const { saveUrl } = (await res.json()) as { saveUrl: string };
+        await Linking.openURL(saveUrl);
+      } else {
+        const url = apiUrl("/api/mobile/wallet-pass");
+        const destFile = new EFSFile(Paths.cache, "betterbucks.pkpass");
+        const downloaded = await EFSFile.downloadFileAsync(url, destFile, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!downloaded.exists) {
+          Alert.alert("Apple Wallet", "Could not download your wallet pass. Please try again.");
+          return;
+        }
+        await Linking.openURL(downloaded.uri);
+      }
+    } catch {
+      Alert.alert("Wallet Pass", "Something went wrong. Please try again.");
+    } finally {
+      setWalletLoading(false);
+    }
+  }
 
   const { data, isLoading, refetch, isRefetching } = useQuery<DashboardData>({
     queryKey: ["mobile-dashboard", token],
@@ -101,6 +154,30 @@ export default function HomeTab() {
         )}
         <Text style={styles.balanceUnit}>Bucks</Text>
       </View>
+
+      {/* Add to Wallet — employees only */}
+      {isEmployee && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.walletButton,
+            pressed && { opacity: 0.75 },
+            walletLoading && { opacity: 0.6 },
+          ]}
+          onPress={handleAddToWallet}
+          disabled={walletLoading}
+          accessibilityLabel="Add to Apple Wallet"
+          accessibilityRole="button"
+        >
+          {walletLoading ? (
+            <ActivityIndicator color={brand.navy} size="small" />
+          ) : (
+            <Ionicons name="wallet-outline" size={18} color={brand.navy} />
+          )}
+          <Text style={styles.walletButtonText}>
+            {walletLoading ? "Downloading…" : "Add to Wallet"}
+          </Text>
+        </Pressable>
+      )}
 
       {/* Admin stats */}
       {admin && data?.adminStats && (
@@ -383,6 +460,21 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     marginTop: 4,
+  },
+  walletButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: brand.gold,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+  walletButtonText: {
+    color: brand.navy,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
   },
   statsRow: {
     flexDirection: "row",

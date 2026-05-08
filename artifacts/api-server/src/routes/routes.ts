@@ -16,8 +16,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { execSync as execSyncMcp } from "child_process";
-import nodemailer from "nodemailer";
-import { ReplitConnectors } from "@replit/connectors-sdk";
+import { sendEmail, maskEmail } from "../lib/email";
 import { ensureStripeReady } from "../stripeLazy";
 import { getUncachableStripeClient, getStripePublishableKey } from "../stripeClient";
 import { pushPassUpdateForEmployee as _pushPassUpdateForEmployee } from "../walletPass";
@@ -66,12 +65,6 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!domain) return "***";
-  return `${local.slice(0, 2)}***@${domain}`;
-}
-
 function maskPhone(phone: string): string {
   return phone.slice(0, -4).replace(/\d/g, "*") + phone.slice(-4);
 }
@@ -100,81 +93,6 @@ setInterval(() => {
     if (job.status !== "running" && job.createdAt < cutoff) importJobs.delete(id);
   }
 }, 30 * 60 * 1000).unref();
-
-let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
-let cachedSmtpKey = "";
-let gmailConnectors: ReplitConnectors | null = null;
-
-function getGmailConnectors(): ReplitConnectors {
-  if (!gmailConnectors) gmailConnectors = new ReplitConnectors();
-  return gmailConnectors;
-}
-
-function getTransporter(): ReturnType<typeof nodemailer.createTransport> | null {
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  if (!smtpUser || !smtpPass) return null;
-  const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-  const smtpPort = parseInt(process.env.SMTP_PORT || "587");
-  const key = `${smtpHost}:${smtpPort}:${smtpUser}`;
-  if (cachedTransporter && cachedSmtpKey === key) return cachedTransporter;
-  cachedTransporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-    pool: true,
-    maxConnections: 3,
-    maxMessages: 100,
-  });
-  cachedSmtpKey = key;
-  return cachedTransporter;
-}
-
-function buildRfc2822Message({ from, to, subject, html, text }: {
-  from: string;
-  to: string | string[];
-  subject: string;
-  html: string;
-  text?: string;
-}): string {
-  const toStr = Array.isArray(to) ? to.join(", ") : to;
-  const boundary = `bb_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`;
-  const b64Lines = (data: string): string => data.match(/.{1,76}/g)?.join("\r\n") ?? data;
-
-  const lines: string[] = [
-    `From: "Better Bucks" <${from}>`,
-    `To: ${toStr}`,
-    `Subject: ${encodedSubject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    ``,
-  ];
-
-  if (text) {
-    lines.push(
-      `--${boundary}`,
-      `Content-Type: text/plain; charset=UTF-8`,
-      `Content-Transfer-Encoding: base64`,
-      ``,
-      b64Lines(Buffer.from(text).toString("base64")),
-      ``,
-    );
-  }
-
-  lines.push(
-    `--${boundary}`,
-    `Content-Type: text/html; charset=UTF-8`,
-    `Content-Transfer-Encoding: base64`,
-    ``,
-    b64Lines(Buffer.from(html).toString("base64")),
-    ``,
-    `--${boundary}--`,
-  );
-
-  return lines.join("\r\n");
-}
 
 /**
  * Fire-and-forget email notification to an employee whose balance just changed.
@@ -256,64 +174,6 @@ async function notifyEmployeeBalanceChange(userId: number, change: number, reaso
     await sendEmail({ to: target.email, subject, html });
   } catch (err: any) {
     console.error(`[BalanceNotify] Failed for user ${userId}:`, err?.message ?? err);
-  }
-}
-
-async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }): Promise<void> {
-  const FROM = "miles.chase@betterbucks.net";
-
-  const recipients = (Array.isArray(to) ? to : [to]).map(r => String(r).trim().toLowerCase());
-  const isToMiles = recipients.length === 1 && recipients[0] === "miles.chase@betterbucks.net";
-  const finalHtml = isToMiles
-    ? html
-    : `${html}\n<div style="text-align:center;color:#bdbdbd;font-size:10px;font-family:Arial,sans-serif;margin-top:16px;">[auto-generated5738]</div>`;
-  const finalText = text
-    ? (isToMiles ? text : `${text}\n\n[auto-generated5738]`)
-    : undefined;
-
-  // Primary: Gmail API via OAuth (better deliverability, shows in Sent folder)
-  try {
-    const connectors = getGmailConnectors();
-    const raw = buildRfc2822Message({ from: FROM, to, subject, html: finalHtml, text: finalText });
-    const base64url = Buffer.from(raw).toString("base64url");
-    const resp = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ raw: base64url }),
-    });
-    if (!resp.ok) {
-      const errText = await resp.text();
-      throw new Error(`Gmail API ${resp.status}: ${errText.slice(0, 300)}`);
-    }
-    console.log(`[Email] Sent "${subject}" to ${maskEmail(to)} via Gmail API`);
-    return;
-  } catch (gmailErr: unknown) {
-    const gmailMsg = gmailErr instanceof Error ? gmailErr.message : String(gmailErr);
-    console.warn(`[Email] Gmail API failed, falling back to SMTP: ${gmailMsg}`);
-  }
-
-  // Fallback: SMTP
-  const smtpUser = process.env.SMTP_USER;
-  if (!smtpUser || !process.env.SMTP_PASS) {
-    throw new Error(`Email not configured — Gmail API unavailable and SMTP credentials missing. Cannot send "${subject}".`);
-  }
-  const transporter = getTransporter();
-  if (!transporter) throw new Error("Email not configured");
-  try {
-    await transporter.sendMail({
-      from: `"Better Bucks" <${smtpUser}>`,
-      to,
-      subject,
-      html: finalHtml,
-      ...(finalText ? { text: finalText } : {}),
-    });
-    console.log(`[Email] Sent "${subject}" to ${maskEmail(to)} via SMTP fallback`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[Email] SMTP fallback failed for "${subject}" to ${maskEmail(to)}: ${msg}`);
-    cachedTransporter = null;
-    cachedSmtpKey = "";
-    throw err instanceof Error ? err : new Error(msg);
   }
 }
 

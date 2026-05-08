@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { sendEmail } from "./email";
 import { logger } from "./logger";
 
 export interface GhostStripeAlertPayload {
@@ -173,27 +173,11 @@ async function sendOrphanSlackAlert(
 }
 
 async function sendEmailAlert(adminEmail: string, payload: GhostStripeAlertPayload): Promise<void> {
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  if (!smtpUser || !smtpPass) {
-    throw new Error("ADMIN_ALERT_EMAIL is set but SMTP_USER/SMTP_PASS are not configured");
-  }
-
-  const smtpHost = process.env.SMTP_HOST ?? "smtp.gmail.com";
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? "587", 10);
-
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-  });
-
-  await transporter.sendMail({
-    from: `"Better Bucks Alerts" <${smtpUser}>`,
+  await sendEmail({
     to: adminEmail,
     subject: "[Better Bucks] ACTION REQUIRED: Stripe rollback failed — orphaned customer/subscription",
     html: buildEmailHtml(payload),
+    appendFooter: false,
   });
 }
 

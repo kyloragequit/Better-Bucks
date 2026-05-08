@@ -56,10 +56,12 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@hcaptcha/react-native-hcaptcha": "^4.0.0",
     "@stripe/stripe-react-native": "^0.50.3",
     "expo-file-system": "^19.0.22",
     "expo-local-authentication": "^17.0.8",
     "expo-secure-store": "^15.0.8",
-    "expo-sharing": "^14.0.8"
+    "expo-sharing": "^14.0.8",
+    "react-native-webview": "^13.16.1"
   }
 }

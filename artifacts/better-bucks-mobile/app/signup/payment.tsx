@@ -1,24 +1,31 @@
 import { CardField, useStripe } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/Button";
+import { HCaptchaModal, HCaptchaModalHandle } from "@/components/HCaptchaModal";
 import { ScreenContainer } from "@/components/ScreenContainer";
-import { apiUrl, STRIPE_PUBLISHABLE_KEY } from "@/constants/api";
+import {
+  apiUrl,
+  HCAPTCHA_SITE_KEY,
+  STRIPE_PUBLISHABLE_KEY,
+} from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useSignup } from "@/contexts/SignupContext";
 
 export default function SignupPaymentScreen() {
   const { draft } = useSignup();
   const { createPaymentMethod } = useStripe();
+  const captchaRef = useRef<HCaptchaModalHandle>(null);
   const [cardComplete, setCardComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const stripeConfigured = !!STRIPE_PUBLISHABLE_KEY;
+  const captchaEnabled = !!HCAPTCHA_SITE_KEY;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     setError(null);
     if (!stripeConfigured) {
       setError(
@@ -31,6 +38,14 @@ export default function SignupPaymentScreen() {
       return;
     }
 
+    if (captchaEnabled) {
+      captchaRef.current?.show();
+    } else {
+      runSignup("");
+    }
+  };
+
+  const runSignup = async (hcaptchaToken: string) => {
     setSubmitting(true);
     try {
       const pm = await createPaymentMethod({
@@ -56,6 +71,7 @@ export default function SignupPaymentScreen() {
           tier: draft.tier,
           paymentMethodId: pm.paymentMethod.id,
           licenseAccepted: true,
+          hcaptchaToken,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -71,6 +87,19 @@ export default function SignupPaymentScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCaptchaToken = (token: string) => {
+    runSignup(token);
+  };
+
+  const handleCaptchaCancel = () => {
+    setSubmitting(false);
+  };
+
+  const handleCaptchaError = (err: string) => {
+    setError(`Verification failed: ${err}. Please try again.`);
+    setSubmitting(false);
   };
 
   return (
@@ -112,6 +141,16 @@ export default function SignupPaymentScreen() {
         Your card won&apos;t be charged until your free trial ends. You can
         cancel anytime from your dashboard.
       </Text>
+
+      {captchaEnabled ? (
+        <HCaptchaModal
+          ref={captchaRef}
+          siteKey={HCAPTCHA_SITE_KEY}
+          onToken={handleCaptchaToken}
+          onCancel={handleCaptchaCancel}
+          onError={handleCaptchaError}
+        />
+      ) : null}
     </ScreenContainer>
   );
 }

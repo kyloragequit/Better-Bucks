@@ -118,6 +118,25 @@ const TIER_CONFIG = {
 const isAdmin = (user: User) =>
   user.role === "admin" || user.role === "prime_admin";
 
+async function verifyHcaptchaToken(token: string): Promise<boolean> {
+  const secret = process.env.HCAPTCHA_SECRET;
+  if (!secret) {
+    return true;
+  }
+  try {
+    const params = new URLSearchParams({ secret, response: token });
+    const resp = await fetch("https://api.hcaptcha.com/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = (await resp.json()) as { success: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
 export function registerMobileRoutes(app: Express) {
   // Public: list pricing tiers
   app.get("/api/mobile/tiers", (_req, res) => {
@@ -809,6 +828,7 @@ export function registerMobileRoutes(app: Express) {
       tier: z.enum(["small", "mid", "large", "enterprise"]),
       paymentMethodId: z.string().min(1).optional(),
       licenseAccepted: z.literal(true),
+      hcaptchaToken: z.string().min(1, "hCaptcha verification is required"),
     });
     let parsed: z.infer<typeof Body>;
     try {
@@ -827,7 +847,15 @@ export function registerMobileRoutes(app: Express) {
       tier,
       paymentMethodId,
       licenseAccepted,
+      hcaptchaToken,
     } = parsed;
+
+    // Verify hCaptcha token before doing anything else
+    const captchaOk = await verifyHcaptchaToken(hcaptchaToken);
+    if (!captchaOk) {
+      res.status(400).json({ message: "Human verification failed. Please try again." });
+      return;
+    }
 
     const config = TIER_CONFIG[tier];
 

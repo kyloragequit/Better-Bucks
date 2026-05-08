@@ -10,6 +10,10 @@
  *
  * EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY is optional; signup screens show a
  * clear error if it is missing.
+ *
+ * EXPO_PUBLIC_HCAPTCHA_SITE_KEY — hCaptcha site key for human verification
+ *   during signup. When unset, the captcha step is skipped (dev/test only);
+ *   production must always set this.
  */
 
 const rawApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -23,6 +27,9 @@ export const API_URL: string = rawApiUrl
 
 export const STRIPE_PUBLISHABLE_KEY: string =
   process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+
+export const HCAPTCHA_SITE_KEY: string =
+  process.env.EXPO_PUBLIC_HCAPTCHA_SITE_KEY ?? "";
 
 export function apiUrl(path: string): string {
   const base = API_URL.replace(/\/+$/, "");

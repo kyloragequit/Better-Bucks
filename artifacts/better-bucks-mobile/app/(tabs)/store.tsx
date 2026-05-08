@@ -43,6 +43,8 @@ type Employee = {
 
 // ─── Employee: Store ──────────────────────────────────────────────────────────
 
+type SortOrder = "none" | "asc" | "desc";
+
 function EmployeeStore() {
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
@@ -60,7 +62,32 @@ function EmployeeStore() {
     enabled: !!token,
   });
 
+  const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("none");
   const [purchasing, setPurchasing] = useState<number | null>(null);
+
+  const filteredItems = (() => {
+    const q = search.trim().toLowerCase();
+    let result = q
+      ? items.filter(
+          (item) =>
+            item.name.toLowerCase().includes(q) ||
+            (item.description ?? "").toLowerCase().includes(q),
+        )
+      : items;
+    if (sortOrder === "asc") result = [...result].sort((a, b) => a.price - b.price);
+    else if (sortOrder === "desc") result = [...result].sort((a, b) => b.price - a.price);
+    return result;
+  })();
+
+  const cycleSortOrder = () => {
+    setSortOrder((prev) =>
+      prev === "none" ? "asc" : prev === "asc" ? "desc" : "none",
+    );
+  };
+
+  const sortLabel =
+    sortOrder === "asc" ? "Price ↑" : sortOrder === "desc" ? "Price ↓" : "Sort";
 
   const handlePurchase = useCallback(
     async (item: StoreItem) => {
@@ -113,18 +140,9 @@ function EmployeeStore() {
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Ionicons name="storefront-outline" size={48} color="rgba(255,255,255,0.3)" />
-        <Text style={styles.emptyText}>No items in the store yet</Text>
-      </View>
-    );
-  }
-
   return (
     <FlatList
-      data={items}
+      data={filteredItems}
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={[
         styles.listContent,
@@ -136,6 +154,64 @@ function EmployeeStore() {
           onRefresh={refetch}
           tintColor={brand.gold}
         />
+      }
+      ListHeaderComponent={
+        <View style={storeSearchStyles.headerRow}>
+          <View style={storeSearchStyles.searchBar}>
+            <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" />
+            <TextInput
+              style={storeSearchStyles.searchInput}
+              placeholder="Search items…"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              value={search}
+              onChangeText={setSearch}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity
+            style={[
+              storeSearchStyles.sortBtn,
+              sortOrder !== "none" && storeSearchStyles.sortBtnActive,
+            ]}
+            onPress={cycleSortOrder}
+          >
+            <Ionicons
+              name="swap-vertical-outline"
+              size={15}
+              color={sortOrder !== "none" ? brand.navy : brand.gold}
+            />
+            <Text
+              style={[
+                storeSearchStyles.sortBtnText,
+                sortOrder !== "none" && storeSearchStyles.sortBtnTextActive,
+              ]}
+            >
+              {sortLabel}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      }
+      ListEmptyComponent={
+        <View style={styles.center}>
+          {items.length === 0 ? (
+            <>
+              <Ionicons name="storefront-outline" size={48} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.emptyText}>No items in the store yet</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.emptyText}>No items match your search</Text>
+            </>
+          )}
+        </View>
       }
       renderItem={({ item }) => (
         <View style={styles.itemCard}>
@@ -469,6 +545,59 @@ const rewardStyles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     marginTop: 2,
+  },
+});
+
+// ─── Employee Store Search Styles ─────────────────────────────────────────────
+
+const storeSearchStyles = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  searchInput: {
+    flex: 1,
+    color: brand.white,
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    padding: 0,
+  },
+  sortBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  sortBtnActive: {
+    backgroundColor: brand.gold,
+    borderColor: brand.gold,
+  },
+  sortBtnText: {
+    color: brand.gold,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+  },
+  sortBtnTextActive: {
+    color: brand.navy,
   },
 });
 

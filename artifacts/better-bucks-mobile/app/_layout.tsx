@@ -38,6 +38,8 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ title: "Log In" }} />
+      <Stack.Screen name="forgot-password" options={{ title: "Forgot Password" }} />
+      <Stack.Screen name="change-password" options={{ title: "Change Password" }} />
       <Stack.Screen name="signup/account" options={{ title: "Create Account" }} />
       <Stack.Screen name="signup/plan" options={{ title: "Choose Plan" }} />
       <Stack.Screen name="signup/payment" options={{ title: "Payment" }} />

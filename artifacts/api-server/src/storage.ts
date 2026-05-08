@@ -62,6 +62,7 @@ export interface IStorage {
   deleteShopWebsite(id: number): Promise<void>;
 
   updateUserPassword(userId: number, password: string): Promise<User>;
+  updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null }): Promise<User>;
 
   createOrganization(org: InsertOrganization): Promise<Organization>;
   getOrganization(id: number): Promise<Organization | undefined>;

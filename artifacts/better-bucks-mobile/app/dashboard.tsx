@@ -66,6 +66,13 @@ export default function DashboardScreen() {
         </Text>
       </View>
 
+      <Pressable
+        onPress={() => router.push("/change-password")}
+        style={styles.signOut}
+      >
+        <Text style={styles.signOutText}>Change password</Text>
+      </Pressable>
+
       <Pressable onPress={handleSignOut} style={styles.signOut}>
         <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>

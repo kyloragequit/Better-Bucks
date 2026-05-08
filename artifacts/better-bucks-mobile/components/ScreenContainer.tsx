@@ -20,41 +20,75 @@ export function ScreenContainer({
   contentStyle?: any;
 }) {
   const insets = useSafeAreaInsets();
-  const Inner = scroll ? ScrollView : View;
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.root}
     >
-      <Inner
-        contentContainerStyle={
-          scroll
-            ? [
-                styles.scrollContent,
-                {
-                  paddingTop: insets.top + 24,
-                  paddingBottom: insets.bottom + 32,
-                },
-                contentStyle,
-              ]
-            : undefined
-        }
-        style={
-          scroll
-            ? undefined
-            : [
-                styles.viewContent,
-                {
-                  paddingTop: insets.top + 24,
-                  paddingBottom: insets.bottom + 32,
-                },
-                contentStyle,
-              ]
-        }
+      {scroll ? (
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + 24,
+              paddingBottom: insets.bottom + 32,
+            },
+            contentStyle,
+          ]}
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <View
+          style={[
+            styles.viewContent,
+            {
+              paddingTop: insets.top + 24,
+              paddingBottom: insets.bottom + 32,
+            },
+            contentStyle,
+          ]}
+        >
+          {children}
+        </View>
+      )}
+    </KeyboardAvoidingView>
+  );
+}
+
+/**
+ * A scrollable form container for use inside a Modal.
+ * Handles keyboard avoidance, full-height layout, and inset-aware padding.
+ */
+export function ModalFormContainer({
+  children,
+  contentStyle,
+}: {
+  children: ReactNode;
+  contentStyle?: any;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.root}
+    >
+      <ScrollView
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 24,
+            paddingBottom: insets.bottom + 40,
+          },
+          contentStyle,
+        ]}
       >
         {children}
-      </Inner>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

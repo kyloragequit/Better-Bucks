@@ -71,7 +71,14 @@ export default function LoginScreen() {
         style={{ marginTop: 8 }}
       />
 
-      <View style={{ height: 16 }} />
+      <View style={{ height: 8 }} />
+      <Button
+        title="Forgot Password?"
+        variant="ghost"
+        onPress={() => router.push("/forgot-password")}
+      />
+
+      <View style={{ height: 4 }} />
       <Button
         title="Create a new account"
         variant="ghost"

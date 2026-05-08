@@ -173,6 +173,47 @@ export function registerMobileRoutes(app: Express) {
     res.json(safeUser(user));
   });
 
+  // Change password + update recovery email (auth required)
+  app.post(
+    "/api/mobile/change-password",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      let parsed: { currentPassword: string; newPassword: string; recoveryEmail: string };
+      try {
+        parsed = z
+          .object({
+            currentPassword: z.string().min(1),
+            newPassword: z.string().min(6, "New password must be at least 6 characters"),
+            recoveryEmail: z.string().email("Recovery email must be a valid email address"),
+          })
+          .parse(req.body);
+      } catch (err: any) {
+        res
+          .status(400)
+          .json({ message: err?.issues?.[0]?.message ?? "Invalid input" });
+        return;
+      }
+
+      const match = await verifyPassword(parsed.currentPassword, user.password);
+      if (!match) {
+        res.status(401).json({ message: "Current password is incorrect." });
+        return;
+      }
+
+      try {
+        await storage.updateUserPassword(user.id, parsed.newPassword);
+        await storage.updateUserProfile(user.id, {
+          email: parsed.recoveryEmail,
+        });
+        res.json({ message: "Password updated. Recovery email saved." });
+      } catch (err) {
+        console.error("[mobile/change-password]", err);
+        res.status(500).json({ message: "Could not update password. Please try again." });
+      }
+    },
+  );
+
   // Account deletion — required by Apple App Store guideline 5.1.1(v)
   app.post(
     "/api/mobile/account/delete",

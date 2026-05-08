@@ -10,7 +10,8 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -61,13 +62,35 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function walletStorageKey(userId: number | string) {
+  return `wallet_pass_added_at_${userId}`;
+}
+
+function formatPassDate(isoStr: string) {
+  const d = new Date(isoStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function HomeTab() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const { visible: onboardingVisible, dismiss: dismissOnboarding } = useOnboarding();
   const [walletLoading, setWalletLoading] = useState(false);
+  const [passAddedAt, setPassAddedAt] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isEmployee = user?.role === "employee";
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPassAddedAt(null);
+      return;
+    }
+    AsyncStorage.getItem(walletStorageKey(user.id)).then((val) => {
+      setPassAddedAt(val ?? null);
+    });
+  }, [user?.id]);
 
   async function handleAddToWallet() {
     if (!token) return;
@@ -99,12 +122,26 @@ export default function HomeTab() {
         }
         await Linking.openURL(downloaded.uri);
       }
+      const now = new Date().toISOString();
+      setPassAddedAt(now);
+      if (user?.id) {
+        AsyncStorage.setItem(walletStorageKey(user.id), now).catch(() => {});
+      }
+      setShowConfirmation(true);
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = setTimeout(() => setShowConfirmation(false), 4000);
     } catch {
       Alert.alert("Wallet Pass", "Something went wrong. Please try again.");
     } finally {
       setWalletLoading(false);
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    };
+  }, []);
 
   const { data, isLoading, refetch, isRefetching } = useQuery<DashboardData>({
     queryKey: ["mobile-dashboard", token],
@@ -209,28 +246,47 @@ export default function HomeTab() {
         </View>
       )}
 
-      {/* Add to Wallet — employees only */}
+      {/* Wallet pass section — employees only */}
       {isEmployee && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.walletButton,
-            pressed && { opacity: 0.75 },
-            walletLoading && { opacity: 0.6 },
-          ]}
-          onPress={handleAddToWallet}
-          disabled={walletLoading}
-          accessibilityLabel="Add to Apple Wallet"
-          accessibilityRole="button"
-        >
-          {walletLoading ? (
-            <ActivityIndicator color={brand.navy} size="small" />
-          ) : (
-            <Ionicons name="wallet-outline" size={18} color={brand.navy} />
+        <View style={styles.walletSection}>
+          {showConfirmation && (
+            <View style={styles.confirmationBanner}>
+              <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
+              <Text style={styles.confirmationText}>Pass Added! Open the Wallet app to view your Bucks card.</Text>
+            </View>
           )}
-          <Text style={styles.walletButtonText}>
-            {walletLoading ? "Downloading…" : "Add to Wallet"}
-          </Text>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.walletButton,
+              passAddedAt ? styles.walletButtonUpdate : null,
+              pressed && { opacity: 0.75 },
+              walletLoading && { opacity: 0.6 },
+            ]}
+            onPress={handleAddToWallet}
+            disabled={walletLoading}
+            accessibilityLabel={passAddedAt ? "Re-download Bucks card to Wallet" : "Add to Apple Wallet"}
+            accessibilityRole="button"
+          >
+            {walletLoading ? (
+              <ActivityIndicator color={passAddedAt ? brand.gold : brand.navy} size="small" />
+            ) : (
+              <Ionicons
+                name="wallet-outline"
+                size={18}
+                color={passAddedAt ? brand.gold : brand.navy}
+              />
+            )}
+            <Text style={[styles.walletButtonText, passAddedAt ? styles.walletButtonTextUpdate : null]}>
+              {walletLoading ? "Downloading…" : passAddedAt ? "Update Pass" : "Add to Wallet"}
+            </Text>
+          </Pressable>
+          {passAddedAt && !showConfirmation && (
+            <View style={styles.passStatusRow}>
+              <Ionicons name="checkmark-circle-outline" size={13} color="#4ADE80" />
+              <Text style={styles.passStatusText}>Added on {formatPassDate(passAddedAt)}</Text>
+            </View>
+          )}
+        </View>
       )}
 
       {/* Admin stats */}
@@ -521,6 +577,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
+  walletSection: {
+    marginBottom: 20,
+    gap: 8,
+  },
+  confirmationBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(74,222,128,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.25)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  confirmationText: {
+    color: "#4ADE80",
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    flex: 1,
+  },
   walletButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -529,12 +606,30 @@ const styles = StyleSheet.create({
     backgroundColor: brand.gold,
     borderRadius: 14,
     paddingVertical: 14,
-    marginBottom: 20,
+  },
+  walletButtonUpdate: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: brand.gold,
   },
   walletButtonText: {
     color: brand.navy,
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
+  },
+  walletButtonTextUpdate: {
+    color: brand.gold,
+  },
+  passStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  passStatusText: {
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
   },
   statsRow: {
     flexDirection: "row",

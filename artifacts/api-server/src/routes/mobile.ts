@@ -11,6 +11,7 @@ import { sendGhostStripeAlert } from "../lib/alerts";
 import { recordStripeOrphan } from "../stripeOrphanRetry";
 import { verifyAppleIdentityToken, verifyGoogleIdToken } from "../socialAuth";
 import { notifyAdminsOfAccountLockout } from "../lib/lockoutNotify";
+import { sendEmail } from "../lib/email";
 import { buildPassForEmployee, PassConfigError } from "../walletPass";
 import { buildGoogleWalletSaveUrl, GoogleWalletConfigError } from "../googleWalletPass";
 import type {
@@ -544,8 +545,34 @@ export function registerMobileRoutes(app: Express) {
       });
       const links = await storage.getSocialLinksByUser(user.id);
       res.json({ success: true, links: links.map((l) => ({ provider: l.provider, email: l.email })) });
+
+      // Send security notification email (fire-and-forget)
+      if (user.email && user.emailVerified) {
+        const providerName = parsed.provider === "google" ? "Google" : "Apple";
+        const firstName = (user.fullName || "").split(" ")[0] || "there";
+        const eventTime = new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+        const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:520px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#162A4A;color:#fff;padding:18px 22px;font-weight:700;font-size:16px;">Better Bucks</div>
+    <div style="padding:24px 22px;color:#111827;">
+      <p style="margin:0 0 14px;font-size:15px;">Hi ${firstName},</p>
+      <p style="margin:0 0 18px;font-size:15px;">A <strong>${providerName}</strong> account was linked to your Better Bucks account.</p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin:0 0 18px;">
+        <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Date &amp; Time</div>
+        <div style="font-size:14px;color:#111827;">${eventTime}</div>
+      </div>
+      <p style="margin:0 0 18px;font-size:14px;color:#374151;">If you did not make this change, please contact your administrator immediately.</p>
+    </div>
+    <div style="background:#f9fafb;color:#9CA3AF;padding:12px 22px;text-align:center;font-size:11px;">You're receiving this because you have an account on Better Bucks.</div>
+  </div>
+</body></html>`;
+        sendEmail({ to: user.email, subject: `[Better Bucks] ${providerName} account linked to your profile`, html }).catch((err: unknown) => {
+          logger.error({ err }, "[mobile/account/social/link] Failed to send notification email");
+        });
+      }
     } catch (err) {
-      console.error("[mobile/account/social/link]", err);
+      logger.error({ err }, "[mobile/account/social/link]");
       res.status(500).json({ message: "Could not link account" });
     }
   });
@@ -562,8 +589,34 @@ export function registerMobileRoutes(app: Express) {
       await storage.deleteSocialLink(user.id, provider);
       const links = await storage.getSocialLinksByUser(user.id);
       res.json({ success: true, links: links.map((l) => ({ provider: l.provider, email: l.email })) });
+
+      // Send security notification email (fire-and-forget)
+      if (user.email && user.emailVerified) {
+        const providerName = provider === "google" ? "Google" : "Apple";
+        const firstName = (user.fullName || "").split(" ")[0] || "there";
+        const eventTime = new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+        const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:520px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#162A4A;color:#fff;padding:18px 22px;font-weight:700;font-size:16px;">Better Bucks</div>
+    <div style="padding:24px 22px;color:#111827;">
+      <p style="margin:0 0 14px;font-size:15px;">Hi ${firstName},</p>
+      <p style="margin:0 0 18px;font-size:15px;">Your <strong>${providerName}</strong> account has been unlinked from your Better Bucks account.</p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin:0 0 18px;">
+        <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Date &amp; Time</div>
+        <div style="font-size:14px;color:#111827;">${eventTime}</div>
+      </div>
+      <p style="margin:0 0 18px;font-size:14px;color:#374151;">If you did not make this change, please contact your administrator immediately.</p>
+    </div>
+    <div style="background:#f9fafb;color:#9CA3AF;padding:12px 22px;text-align:center;font-size:11px;">You're receiving this because you have an account on Better Bucks.</div>
+  </div>
+</body></html>`;
+        sendEmail({ to: user.email, subject: `[Better Bucks] ${providerName} account unlinked from your profile`, html }).catch((err: unknown) => {
+          logger.error({ err }, "[mobile/account/social/unlink] Failed to send notification email");
+        });
+      }
     } catch (err) {
-      console.error("[mobile/account/social/unlink]", err);
+      logger.error({ err }, "[mobile/account/social/unlink]");
       res.status(500).json({ message: "Could not unlink account" });
     }
   });

@@ -620,3 +620,23 @@ export const userSocialLinks = pgTable("user_social_links", {
 
 export type UserSocialLink = typeof userSocialLinks.$inferSelect;
 export type InsertUserSocialLink = typeof userSocialLinks.$inferInsert;
+
+// ── Merchant transaction disputes ─────────────────────────────────────────────
+export const merchantTransactionDisputes = pgTable("merchant_transaction_disputes", {
+  id: serial("id").primaryKey(),
+  transactionId: integer("transaction_id").notNull(),
+  employeeId: integer("employee_id").notNull(),
+  orgId: integer("org_id").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status", { enum: ["pending", "refunded", "dismissed"] }).default("pending").notNull(),
+  adminNotes: text("admin_notes"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedByUserId: integer("resolved_by_user_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMerchantTransactionDisputeSchema = createInsertSchema(merchantTransactionDisputes).omit({
+  id: true, createdAt: true, resolvedAt: true, resolvedByUserId: true, adminNotes: true, status: true,
+});
+export type MerchantTransactionDispute = typeof merchantTransactionDisputes.$inferSelect;
+export type InsertMerchantTransactionDispute = z.infer<typeof insertMerchantTransactionDisputeSchema>;

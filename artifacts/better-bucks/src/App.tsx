@@ -65,6 +65,7 @@ const MerchantLoginPage = lazy(() => import("@/pages/merchant-login"));
 const MerchantScannerPage = lazy(() => import("@/pages/merchant-scanner"));
 const MerchantChangePasswordPage = lazy(() => import("@/pages/merchant-change-password"));
 const AdminMerchantsPage = lazy(() => import("@/pages/admin-merchants"));
+const AdminMerchantDisputesPage = lazy(() => import("@/pages/admin-merchant-disputes"));
 const AdminInviteLinksPage = lazy(() => import("@/pages/admin-invite-links"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -348,6 +349,9 @@ function Router() {
         <Route path="/merchant/scanner" component={MerchantScannerPage} />
         <Route path="/admin/merchants">
           <ProtectedRoute component={AdminMerchantsPage} adminOnly />
+        </Route>
+        <Route path="/admin/merchant-disputes">
+          <ProtectedRoute component={AdminMerchantDisputesPage} adminOnly />
         </Route>
         <Route path="/admin/invite-links">
           <ProtectedRoute component={AdminInviteLinksPage} adminOnly />

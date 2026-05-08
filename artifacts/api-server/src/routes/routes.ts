@@ -8341,6 +8341,46 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     });
   });
 
+  // ── Dispute a merchant redemption ─────────────────────────────────────────
+  app.post("/api/wallet/redemptions/:id/dispute", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    const transactionId = parseInt(req.params.id);
+    if (!transactionId) return res.status(400).json({ message: "Invalid transaction id" });
+
+    const schema = z.object({ reason: z.string().min(1).max(1000) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "reason is required" });
+
+    const rows = await storage.getMerchantTransactionsForEmployee(u.id, 200);
+    const tx = rows.find((r) => r.id === transactionId);
+    if (!tx) return res.status(404).json({ message: "Redemption not found" });
+
+    const existing = await storage.getDisputeForTransaction(transactionId, u.id);
+    if (existing) return res.status(409).json({ message: "You have already disputed this charge" });
+
+    if (!u.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const dispute = await storage.createDispute({
+      transactionId,
+      employeeId: u.id,
+      orgId: u.organizationId,
+      reason: parsed.data.reason,
+    });
+
+    res.status(201).json(dispute);
+  });
+
+  // ── Employee's own disputes (for status display on redemptions page) ─────
+  app.get("/api/wallet/my-disputes", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    if (!u.organizationId) return res.json([]);
+    const allDisputes = await storage.getDisputesByOrg(u.organizationId);
+    const mine = allDisputes.filter((d) => d.employeeId === u.id);
+    res.json(mine.map((d) => ({ id: d.id, transactionId: d.transactionId, status: d.status })));
+  });
+
   // ── Re-issue a wallet pass (invalidates the prior serial) ─────────────────
   app.post("/api/wallet/reissue", async (req, res) => {
     const u = req.user as User | undefined;
@@ -8412,6 +8452,64 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     const passwordHash = await hashPassword(tempPassword);
     await storage.updateMerchant(id, { passwordHash, mustChangePassword: true });
     res.json({ tempPassword });
+  });
+
+  // ── Admin: merchant dispute management ────────────────────────────────────
+  app.get("/api/admin/merchant-disputes", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    if (!u.organizationId) return res.json([]);
+    const disputes = await storage.getDisputesByOrg(u.organizationId);
+    res.json(disputes.map((d) => ({
+      id: d.id,
+      status: d.status,
+      reason: d.reason,
+      adminNotes: d.adminNotes,
+      createdAt: d.createdAt,
+      resolvedAt: d.resolvedAt,
+      employee: d.employee ? { id: d.employee.id, fullName: d.employee.fullName, email: d.employee.email } : null,
+      transaction: d.transaction ? {
+        id: d.transaction.id,
+        bucksAmount: d.transaction.bucksAmount,
+        createdAt: d.transaction.createdAt,
+        merchant: d.transaction.merchant ? { id: d.transaction.merchant.id, name: d.transaction.merchant.name } : null,
+      } : null,
+    })));
+  });
+
+  app.patch("/api/admin/merchant-disputes/:id", requireAdmin, async (req, res) => {
+    const u = req.user as User;
+    const id = parseInt(req.params.id);
+    const schema = z.object({
+      status: z.enum(["refunded", "dismissed"]),
+      adminNotes: z.string().max(1000).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid data" });
+
+    const disputes = await storage.getDisputesByOrg(u.organizationId!);
+    const dispute = disputes.find((d) => d.id === id);
+    if (!dispute) return res.status(404).json({ message: "Dispute not found" });
+    if (dispute.status !== "pending") return res.status(409).json({ message: "Dispute already resolved" });
+
+    if (parsed.data.status === "refunded" && dispute.transaction) {
+      const tx = dispute.transaction;
+      const merchantName = tx.merchant?.name ?? "Merchant";
+      await storage.updateUserBalance(dispute.employeeId, tx.bucksAmount);
+      await storage.createTransaction({
+        userId: dispute.employeeId,
+        amount: tx.bucksAmount,
+        reason: `Dispute refund: ${merchantName} charge reversed`,
+        performedBy: u.id,
+      });
+    }
+
+    const updated = await storage.updateDispute(id, {
+      status: parsed.data.status,
+      adminNotes: parsed.data.adminNotes,
+      resolvedByUserId: u.id,
+    });
+
+    res.json(updated);
   });
 
   app.delete("/api/admin/merchants/:id", requireAdmin, async (req, res) => {

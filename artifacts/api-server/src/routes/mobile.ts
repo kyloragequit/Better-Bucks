@@ -700,8 +700,60 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
-  // ─── Account ───────────────────────────────────────────────────────────────
+  // ─── Balance & Transactions (granular endpoints) ───────────────────────────
 
+  // Standalone balance — useful for quick targeted refreshes
+  app.get("/api/mobile/balance", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    res.json({ balance: user.balance ?? 0 });
+  });
+
+  // Recent transactions — merges ledger entries + merchant redemptions, sorted newest-first
+  app.get("/api/mobile/transactions", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const limitParam = Number(req.query.limit ?? 30);
+    const limit = isNaN(limitParam) || limitParam < 1 ? 30 : Math.min(limitParam, 100);
+
+    try {
+      const [ledger, merchantTxns] = await Promise.all([
+        storage.getTransactionsByUser(user.id),
+        storage.getMerchantTransactionsForEmployee(user.id, limit),
+      ]);
+
+      const ledgerItems = ledger.slice(0, limit).map((t) => ({
+        id: `tx-${t.id}`,
+        type: (t.amount ?? 0) >= 0 ? "credit" : "debit",
+        amount: t.amount ?? 0,
+        reason: t.reason ?? (t.amount >= 0 ? "Bucks awarded" : "Bucks spent"),
+        performedByName: t.performedByName ?? null,
+        createdAt: t.createdAt,
+      }));
+
+      const merchantItems = merchantTxns.slice(0, limit).map((mt) => ({
+        id: `mt-${mt.id}`,
+        type: "debit" as const,
+        amount: -(mt.bucksAmount ?? 0),
+        reason: mt.merchant?.name ? `Redeemed at ${mt.merchant.name}` : "Merchant redemption",
+        performedByName: null,
+        createdAt: mt.createdAt,
+      }));
+
+      const combined = [...ledgerItems, ...merchantItems]
+        .sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, limit);
+
+      res.json({ transactions: combined });
+    } catch (err) {
+      console.error("[mobile/transactions]", err);
+      res.status(500).json({ message: "Could not load transactions" });
+    }
+  });
+
+  // ─── Account ───────────────────────────────────────────────────────────────
 
   // Account deletion — required by Apple App Store guideline 5.1.1(v)
   app.post(

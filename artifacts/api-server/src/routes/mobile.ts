@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword } from "../auth";
 import { ensureStripeReady } from "../stripeLazy";
 import { getUncachableStripeClient } from "../stripeClient";
 import { logger } from "../lib/logger";
+import { sendGhostStripeAlert } from "../lib/alerts";
 import type {
   InsertOrganization,
   InsertUser,
@@ -909,6 +910,12 @@ export function registerMobileRoutes(app: Express) {
           },
           "Stripe rollback failed after DB write error — orphaned Stripe objects require manual cleanup",
         );
+        void sendGhostStripeAlert({
+          stripeCustomerId,
+          stripeSubscriptionId,
+          subCancelError,
+          customerDeleteError,
+        });
       }
     }
 

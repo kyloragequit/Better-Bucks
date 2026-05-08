@@ -51,6 +51,11 @@ Better Bucks is an employee rewards platform that lets companies give, track, an
 - Do NOT import from `@workspace/db` (index) in the frontend — it triggers the pg pool connection. Use `@shared/schema` (alias) instead, which points to just the schema file.
 - `zod/v4` is a subpath export of `zod@^3.24`; add `zod` to any package that needs `zod/v4`.
 
+## Social auth env vars (mobile)
+
+- `APPLE_BUNDLE_ID` — Apple identity token audience validation. Defaults to `net.betterbucks.app` (from app.json). Override if the bundle ID changes.
+- `GOOGLE_ALLOWED_CLIENT_IDS` — Comma-separated list of allowed Google OAuth client IDs for audience validation (e.g. `123.apps.googleusercontent.com,456.apps.googleusercontent.com`). **Set this in production** to prevent tokens issued for other apps from being accepted. If unset, a warning is logged and the check is skipped (backward-compatible default).
+
 ## User preferences
 
 _Populate as you build._

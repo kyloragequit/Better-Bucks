@@ -69,7 +69,9 @@ export default function LoginScreen() {
     if (result.ok) {
       router.replace("/dashboard");
     } else if (result.message !== "Cancelled") {
-      if ("providerEmail" in result && result.providerEmail) {
+      if ("needsSignup" in result && result.needsSignup) {
+        router.push("/social-signup" as any);
+      } else if ("providerEmail" in result && result.providerEmail) {
         setError(`${result.message} (${result.providerEmail})`);
       } else {
         setError(result.message);

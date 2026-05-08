@@ -13,6 +13,7 @@ import React, {
 } from "react";
 
 import { apiUrl } from "@/constants/api";
+import { setPendingSocialSignup } from "@/lib/socialSignupStore";
 
 const TOKEN_KEY = "bb_mobile_token";
 const USER_KEY = "bb_mobile_user";
@@ -47,10 +48,10 @@ type AuthContextValue = {
     { ok: true } | { ok: false; message: string }
   >;
   loginWithApple: () => Promise<
-    { ok: true } | { ok: false; message: string; providerEmail?: string | null }
+    { ok: true } | { ok: false; message: string; providerEmail?: string | null; needsSignup?: true }
   >;
   loginWithGoogle: (idToken: string) => Promise<
-    { ok: true } | { ok: false; message: string; providerEmail?: string | null }
+    { ok: true } | { ok: false; message: string; providerEmail?: string | null; needsSignup?: true }
   >;
   linkSocialProvider: (
     provider: "google" | "apple",
@@ -280,7 +281,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (
       provider: "google" | "apple",
       identityToken: string,
-    ): Promise<{ ok: true } | { ok: false; message: string; providerEmail?: string | null }> => {
+      providerName?: string | null,
+    ): Promise<{ ok: true } | { ok: false; message: string; providerEmail?: string | null; needsSignup?: true }> => {
       try {
         const res = await fetch(apiUrl("/api/mobile/auth/social"), {
           method: "POST",
@@ -289,6 +291,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+          if (res.status === 404) {
+            setPendingSocialSignup({
+              provider,
+              identityToken,
+              providerEmail: data?.providerEmail ?? null,
+              providerName: providerName ?? null,
+            });
+            return {
+              ok: false as const,
+              needsSignup: true as const,
+              message: data?.message ?? "No account found",
+              providerEmail: data?.providerEmail ?? null,
+            };
+          }
           return {
             ok: false as const,
             message: data?.message ?? "Sign-in failed",
@@ -318,7 +334,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!credential.identityToken) {
         return { ok: false as const, message: "Apple did not return an identity token" };
       }
-      return callSocialAuth("apple", credential.identityToken);
+      const parts = credential.fullName;
+      const providerName =
+        parts
+          ? [parts.givenName, parts.familyName].filter(Boolean).join(" ") || null
+          : null;
+      return callSocialAuth("apple", credential.identityToken, providerName);
     } catch (err: any) {
       if (err?.code === "ERR_REQUEST_CANCELED") {
         return { ok: false as const, message: "Cancelled" };
@@ -329,7 +350,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = useCallback<AuthContextValue["loginWithGoogle"]>(
     async (idToken: string) => {
-      return callSocialAuth("google", idToken);
+      let providerName: string | null = null;
+      try {
+        const parts = idToken.split(".");
+        if (parts.length >= 2) {
+          const padded = parts[1]!.replace(/-/g, "+").replace(/_/g, "/");
+          const payload = JSON.parse(atob(padded + "=".repeat((4 - padded.length % 4) % 4)));
+          providerName = (payload.name as string) ?? null;
+        }
+      } catch { /* ignore decode errors */ }
+      return callSocialAuth("google", idToken, providerName);
     },
     [callSocialAuth],
   );

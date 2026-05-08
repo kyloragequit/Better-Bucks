@@ -36,6 +36,30 @@ function parseJwtUnsafe(token: string): { header: Record<string, string>; payloa
   }
 }
 
+/**
+ * Returns the set of allowed Apple audiences (bundle IDs / service IDs).
+ * Reads APPLE_BUNDLE_ID env var; falls back to the known app bundle ID.
+ */
+function getAllowedAppleAudiences(): string[] {
+  const envVal = process.env.APPLE_BUNDLE_ID;
+  if (envVal) {
+    return envVal.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return ["net.betterbucks.app"];
+}
+
+/**
+ * Returns the set of allowed Google client IDs (aud values).
+ * Reads GOOGLE_ALLOWED_CLIENT_IDS env var (comma-separated).
+ * Returns null when unconfigured — callers should warn but not fail.
+ */
+function getAllowedGoogleClientIds(): string[] | null {
+  const envVal = process.env.GOOGLE_ALLOWED_CLIENT_IDS;
+  if (!envVal) return null;
+  const ids = envVal.split(",").map((s) => s.trim()).filter(Boolean);
+  return ids.length > 0 ? ids : null;
+}
+
 let appleJwksCache: { keys: AppleJwk[]; fetchedAt: number } | null = null;
 const APPLE_JWKS_TTL_MS = 60 * 60 * 1000;
 
@@ -87,6 +111,15 @@ export async function verifyAppleIdentityToken(identityToken: string): Promise<S
   if (!exp || now > exp) throw new Error("Identity token expired");
   if (iss !== "https://appleid.apple.com") throw new Error("Invalid issuer");
 
+  // Validate audience (bundle ID) — prevents tokens issued for other apps from
+  // being accepted by this backend.
+  const allowedAudiences = getAllowedAppleAudiences();
+  if (!aud || !allowedAudiences.includes(aud)) {
+    throw new Error(
+      `Apple identity token audience mismatch: got "${aud}", expected one of [${allowedAudiences.join(", ")}]`,
+    );
+  }
+
   const keys = await fetchAppleJwks();
   const jwk = keys.find((k) => k.kid === kid);
   if (!jwk) throw new Error("No matching Apple public key found");
@@ -132,6 +165,29 @@ export async function verifyGoogleIdToken(idToken: string): Promise<SocialIdenti
 
   const exp = Number(info["exp"]);
   if (!exp || Date.now() / 1000 > exp) throw new Error("Google ID token expired");
+
+  // Validate audience (client ID) — prevents tokens issued for other apps/clients
+  // from being accepted by this backend.
+  // Configure GOOGLE_ALLOWED_CLIENT_IDS (comma-separated) to enable strict
+  // validation. If the env var is absent, we log a warning but continue, so that
+  // deployments which have not yet configured this env var keep working.
+  const aud = info["aud"] as string | undefined;
+  const allowedClientIds = getAllowedGoogleClientIds();
+  if (allowedClientIds) {
+    if (!aud || !allowedClientIds.includes(aud)) {
+      throw new Error(
+        `Google ID token audience mismatch: got "${aud}", expected one of [${allowedClientIds.join(", ")}]`,
+      );
+    }
+  } else {
+    if (!aud) {
+      throw new Error("Google ID token is missing audience claim");
+    }
+    console.warn(
+      "[socialAuth] GOOGLE_ALLOWED_CLIENT_IDS not set — skipping Google aud validation. " +
+      "Set this env var to a comma-separated list of allowed Google client IDs.",
+    );
+  }
 
   const sub = info["sub"] as string | undefined;
   const email = info["email"] as string | undefined;

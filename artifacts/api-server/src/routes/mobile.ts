@@ -355,6 +355,141 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
+  // Create a new employee account via social sign-in (used when no existing account is found)
+  app.post("/api/mobile/auth/social/signup", async (req, res) => {
+    let parsed: {
+      provider: "google" | "apple";
+      identityToken: string;
+      orgCode: string;
+      fullName: string;
+      email: string;
+    };
+    try {
+      parsed = z
+        .object({
+          provider: z.enum(["google", "apple"]),
+          identityToken: z.string().min(1),
+          orgCode: z.string().min(1),
+          fullName: z.string().min(2),
+          email: z.string().email(),
+        })
+        .parse(req.body);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.issues?.[0]?.message ?? "Invalid input" });
+      return;
+    }
+
+    let providerUserId: string;
+    let providerEmail: string | null;
+
+    try {
+      if (parsed.provider === "apple") {
+        const identity = await verifyAppleIdentityToken(parsed.identityToken);
+        providerUserId = identity.providerUserId;
+        providerEmail = identity.email;
+      } else {
+        const identity = await verifyGoogleIdToken(parsed.identityToken);
+        providerUserId = identity.providerUserId;
+        providerEmail = identity.email;
+      }
+    } catch (err: any) {
+      res.status(401).json({ message: err?.message ?? "Identity token verification failed" });
+      return;
+    }
+
+    try {
+      // Reject if this provider sub is already linked (should sign in, not sign up)
+      const existingLink = await storage.getSocialLinkByProvider(parsed.provider, providerUserId);
+      if (existingLink) {
+        res.status(409).json({ message: "This social account is already linked to a Better Bucks account. Please sign in instead." });
+        return;
+      }
+
+      // Look up the org by code
+      const org = await storage.getOrganizationByCode(parsed.orgCode.toUpperCase());
+      if (!org) {
+        res.status(404).json({ message: "Org code not found. Check the code with your employer and try again." });
+        return;
+      }
+
+      // The email we use for the new account's record comes from the client
+      // form field (editable by the user). The *provider* email (when present)
+      // is cryptographically verified and takes priority for any account-matching
+      // logic. We never use the client-supplied email to match/link existing accounts
+      // because that would allow an attacker with any valid social token to take over
+      // an account just by guessing the victim's email.
+      const emailToUse = parsed.email;
+
+      // Auto-link: only when the provider returns a verified email AND that email
+      // already exists in our DB. This is safe because we verified the provider
+      // token above — the provider email is cryptographically trusted.
+      if (providerEmail) {
+        const existing =
+          (await storage.getUserByEmailGlobal(providerEmail)) ??
+          (await storage.getUserByUsername(providerEmail));
+        if (existing) {
+          await storage.createSocialLink({
+            userId: existing.id,
+            provider: parsed.provider,
+            providerUserId,
+            email: providerEmail,
+          });
+          const token = signMobileToken(existing.id);
+          res.json({ token, user: safeUser(existing) });
+          return;
+        }
+      }
+
+      // Reject if the client-supplied email is already taken — the user should
+      // sign in instead (no account-linking, since we can't verify ownership).
+      const emailConflict =
+        (await storage.getUserByEmailGlobal(emailToUse)) ??
+        (await storage.getUserByUsername(emailToUse));
+      if (emailConflict) {
+        res.status(409).json({ message: "An account with this email already exists. Please sign in instead." });
+        return;
+      }
+
+      // Generate a unique barcode for the employee
+      const barcode = `BB-${org.code}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+
+      // Social-only accounts have no user-known password. We store a random
+      // high-entropy hash so password-based auth helpers never encounter null.
+      const randomPassword = await hashPassword(crypto.randomBytes(32).toString("hex"));
+
+      const userInsert: InsertUser & {
+        status: "active" | "inactive" | "pending" | "paused" | "deleted";
+      } = {
+        username: emailToUse,
+        password: randomPassword,
+        role: "employee",
+        status: "active",
+        barcode,
+        fullName: parsed.fullName,
+        email: emailToUse,
+        organizationId: org.id,
+        emailVerified: providerEmail === emailToUse,
+        marketingOptIn: false,
+        termsAcceptedAt: new Date(),
+      };
+
+      const newUser = await storage.createUser(userInsert);
+
+      await storage.createSocialLink({
+        userId: newUser.id,
+        provider: parsed.provider,
+        providerUserId,
+        email: providerEmail,
+      });
+
+      const token = signMobileToken(newUser.id);
+      res.status(201).json({ token, user: safeUser(newUser) });
+    } catch (err) {
+      logger.error({ err }, "[mobile/auth/social/signup] Signup failed");
+      res.status(500).json({ message: "Could not create account. Please try again." });
+    }
+  });
+
   // Link a social provider to the authenticated account
   app.post("/api/mobile/account/social/link", mobileAuthMiddleware, async (req, res) => {
     const user = (req as MobileRequest).mobileUser;

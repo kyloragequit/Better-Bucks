@@ -185,28 +185,12 @@ async function sendOrphanEmailAlert(
   adminEmail: string,
   payload: OrphanPermanentFailurePayload,
 ): Promise<void> {
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  if (!smtpUser || !smtpPass) {
-    throw new Error("ADMIN_ALERT_EMAIL is set but SMTP_USER/SMTP_PASS are not configured");
-  }
-
-  const smtpHost = process.env.SMTP_HOST ?? "smtp.gmail.com";
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? "587", 10);
-
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-  });
-
-  await transporter.sendMail({
-    from: `"Better Bucks Alerts" <${smtpUser}>`,
+  await sendEmail({
     to: adminEmail,
     subject:
       "[Better Bucks] ACTION REQUIRED: Stripe orphan cleanup failed permanently — manual deletion needed",
     html: buildOrphanEmailHtml(payload),
+    appendFooter: false,
   });
 }
 
@@ -237,6 +221,116 @@ export async function sendGhostStripeAlert(payload: GhostStripeAlertPayload): Pr
       logger.error(
         { err: result.reason },
         "Failed to send ghost Stripe alert notification",
+      );
+    }
+  }
+}
+
+export interface OrphanSummaryPayload {
+  count: number;
+  oldestAgeHours: number;
+  orphanIds: number[];
+}
+
+function buildOrphanSummarySlackBody(payload: OrphanSummaryPayload): string {
+  const lines = [
+    ":warning: *Stripe orphan cleanup — stuck records need attention*",
+    "",
+    `*Permanently-failed orphans:* ${payload.count}`,
+    `*Oldest record age:* ~${payload.oldestAgeHours} hours`,
+    `*Orphan IDs:* ${payload.orphanIds.slice(0, 10).join(", ")}${payload.orphanIds.length > 10 ? ` … (+${payload.orphanIds.length - 10} more)` : ""}`,
+    "",
+    "These records have been stuck in `failed_permanently` for over 24 hours.",
+    "Open the developer dashboard → Stripe Orphans to review and mark them resolved once you have deleted them in Stripe.",
+  ];
+  return lines.join("\n");
+}
+
+function buildOrphanSummaryEmailHtml(payload: OrphanSummaryPayload): string {
+  const idList = payload.orphanIds.slice(0, 20).join(", ") + (payload.orphanIds.length > 20 ? ` … (+${payload.orphanIds.length - 20} more)` : "");
+  return `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#92400e;color:#fff;padding:16px 22px;font-weight:700;font-size:16px;">
+      ⚠️ Better Bucks — Stripe Orphans Stuck &gt; 24 Hours
+    </div>
+    <div style="padding:20px 22px;color:#111827;">
+      <p style="margin:0 0 14px;font-size:15px;">
+        <strong>${payload.count} Stripe orphan record${payload.count !== 1 ? "s" : ""}</strong>
+        ${payload.count !== 1 ? "have" : "has"} been stuck in <code>failed_permanently</code>
+        for more than 24 hours. The oldest is ~${payload.oldestAgeHours} hours old.
+        Manual cleanup is required.
+      </p>
+      <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
+        <tr>
+          <td style="padding:8px 12px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb;white-space:nowrap">Stuck records</td>
+          <td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">${payload.count}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb;white-space:nowrap">Oldest age</td>
+          <td style="padding:8px 12px;background:#fff;border:1px solid #e5e7eb">~${payload.oldestAgeHours} hours</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb;white-space:nowrap">Orphan IDs</td>
+          <td style="padding:8px 12px;font-family:monospace;font-size:13px;background:#fff;border:1px solid #e5e7eb">${idList}</td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#6b7280;">
+        Open the developer dashboard → Stripe Orphans tab to review these records, then delete the
+        corresponding objects in the
+        <a href="https://dashboard.stripe.com/customers" style="color:#162A4A;">Stripe dashboard</a>
+        and mark them resolved.
+      </p>
+    </div>
+  </div>
+</body></html>`;
+}
+
+/**
+ * Send a daily digest when one or more stripe_orphans rows have been stuck
+ * in `failed_permanently` for over 24 hours. Respects ALERT_WEBHOOK_URL
+ * (Slack) and ADMIN_ALERT_EMAIL. Silent no-op when neither is configured.
+ */
+export async function sendOrphanSummaryAlert(payload: OrphanSummaryPayload): Promise<void> {
+  const webhookUrl = process.env.ALERT_WEBHOOK_URL;
+  const adminEmail = process.env.ADMIN_ALERT_EMAIL;
+
+  if (!webhookUrl && !adminEmail) return;
+
+  const slackBody = buildOrphanSummarySlackBody(payload);
+  const emailHtml = buildOrphanSummaryEmailHtml(payload);
+
+  const tasks: Promise<void>[] = [];
+
+  if (webhookUrl) {
+    tasks.push(
+      fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: slackBody }),
+      }).then((r) => {
+        if (!r.ok) throw new Error(`Slack webhook returned ${r.status}`);
+      }),
+    );
+  }
+
+  if (adminEmail) {
+    tasks.push(
+      sendEmail({
+        to: adminEmail,
+        subject: `[Better Bucks] ${payload.count} Stripe orphan${payload.count !== 1 ? "s" : ""} stuck > 24 h — manual cleanup needed`,
+        html: emailHtml,
+        appendFooter: false,
+      }),
+    );
+  }
+
+  const results = await Promise.allSettled(tasks);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.error(
+        { err: result.reason },
+        "[stripeOrphanSummary] Failed to send stuck-orphan summary alert",
       );
     }
   }

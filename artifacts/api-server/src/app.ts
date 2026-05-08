@@ -10,6 +10,7 @@ import healthRouter from "./routes/health";
 import { ensureStripeReady } from "./stripeLazy";
 import { WebhookHandlers } from "./webhookHandlers";
 import { startStripeOrphanRetryJob } from "./stripeOrphanRetry";
+import { startStripeOrphanSummaryJob } from "./stripeOrphanSummary";
 import { startBucksReminderJob } from "./bucksReminderJob";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -147,6 +148,7 @@ export async function initApp(): Promise<void> {
   registerMobileRoutes(app);
 
   startStripeOrphanRetryJob();
+  startStripeOrphanSummaryJob();
   startBucksReminderJob();
 
   // Global error handler

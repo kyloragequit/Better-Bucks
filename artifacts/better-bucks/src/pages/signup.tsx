@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Users, Award, ShoppingCart, Shield, Check, Building2, Zap, Crown, Send, Mail, FileText } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { HCaptchaWidget } from "@/components/hcaptcha-widget";
 
 const tiers = [
   {
@@ -76,6 +77,8 @@ export default function SignupPage() {
   const [licenseAccepted, setLicenseAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
+  const [hcaptchaToken, setHcaptchaToken] = useState<string | null>(null);
+
   const [rfiName, setRfiName] = useState("");
   const [rfiEmail, setRfiEmail] = useState("");
   const [rfiPhone, setRfiPhone] = useState("");
@@ -128,6 +131,7 @@ export default function SignupPage() {
         referralCode: referralCode.trim() || undefined,
         licenseAccepted: true,
         marketingOptIn,
+        hcaptchaToken: hcaptchaToken ?? undefined,
       });
       return await res.json();
     },
@@ -480,10 +484,21 @@ export default function SignupPage() {
                     </label>
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <HCaptchaWidget
+                    onToken={setHcaptchaToken}
+                    onExpire={() => setHcaptchaToken(null)}
+                  />
+                  {hcaptchaToken && (
+                    <p className="text-center text-xs text-green-600 font-medium" data-testid="text-captcha-verified">
+                      ✓ Verification complete
+                    </p>
+                  )}
+                </div>
                 <Button
                   type="submit"
                   className="w-full text-base py-6 font-semibold shadow-lg shadow-primary/25 transition-all duration-300"
-                  disabled={isPending || !licenseAccepted}
+                  disabled={isPending || !licenseAccepted || !hcaptchaToken}
                   data-testid="button-subscribe"
                 >
                   {isPending ? (

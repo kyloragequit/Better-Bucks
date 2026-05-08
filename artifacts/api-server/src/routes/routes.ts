@@ -3273,7 +3273,26 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     referralCode: z.string().optional(),
     licenseAccepted: z.boolean().refine(v => v === true, { message: "You must agree to the Terms of Service and Software License Agreement to proceed." }),
     marketingOptIn: z.boolean().optional().default(false),
+    hcaptchaToken: z.string().optional(),
   });
+
+  async function verifyWebHcaptchaToken(token: string | undefined): Promise<boolean> {
+    const secret = process.env.HCAPTCHA_SECRET;
+    if (!secret) return true;
+    if (!token) return false;
+    try {
+      const params = new URLSearchParams({ secret, response: token });
+      const resp = await fetch("https://api.hcaptcha.com/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      });
+      const data = (await resp.json()) as { success: boolean };
+      return data.success === true;
+    } catch {
+      return false;
+    }
+  }
 
   // Shared helper: build and send a signup notification email to the admin
   async function sendSignupNotificationEmail({
@@ -3333,8 +3352,13 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
   app.post("/api/organizations/signup", async (req, res) => {
     try {
-      const { organizationName, email, tier, referralCode, marketingOptIn } = signupSchema.parse(req.body);
+      const { organizationName, email, tier, referralCode, marketingOptIn, hcaptchaToken } = signupSchema.parse(req.body);
       const config = tierConfig[tier];
+
+      const captchaOk = await verifyWebHcaptchaToken(hcaptchaToken);
+      if (!captchaOk) {
+        return res.status(400).json({ message: "Human verification failed. Please complete the captcha and try again." });
+      }
 
       const isPromoSignup = !!(referralCode && referralCode.trim().toUpperCase() === "GOKU11");
 

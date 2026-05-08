@@ -37,10 +37,15 @@ export default function EmployeeDashboard() {
     queryKey: ["/api/goals"],
     enabled: !!authUser,
   });
-  const { data: redemptions = [] } = useQuery<{ id: number; bucksAmount: number; createdAt: string; merchant: { id: number; name: string } | null }[]>({
+  const { data: redemptionsData } = useQuery<{
+    summary: { monthTotal: number; allTimeTotal: number };
+    redemptions: { id: number; bucksAmount: number; createdAt: string; merchant: { id: number; name: string } | null }[];
+  }>({
     queryKey: ["/api/wallet/redemptions"],
     enabled: !!authUser,
   });
+  const redemptions = redemptionsData?.redemptions ?? [];
+  const redemptionMonthTotal = redemptionsData?.summary?.monthTotal;
 
   if (isLoading) return <EmployeeLayout><Loader /></EmployeeLayout>;
   if (!userDetails) return null;
@@ -180,9 +185,19 @@ export default function EmployeeDashboard() {
       {redemptions.length > 0 && (
         <Card className="shadow-md border-border/60 mb-8" data-testid="section-recent-redemptions">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-primary" /> Recent in-store purchases
-            </CardTitle>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-primary" /> Recent in-store purchases
+              </CardTitle>
+              {redemptionMonthTotal !== undefined && (
+                <p className="text-xs text-muted-foreground mt-1" data-testid="text-dashboard-month-total">
+                  {format(new Date(), "MMMM")}:{" "}
+                  <span className="font-semibold text-foreground">
+                    {redemptionMonthTotal.toLocaleString()} bcks spent
+                  </span>
+                </p>
+              )}
+            </div>
             <Link
               href="/redemptions"
               className="text-xs text-primary underline shrink-0"

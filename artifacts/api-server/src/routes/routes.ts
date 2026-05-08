@@ -8311,13 +8311,19 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     const u = req.user as User | undefined;
     if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
     const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "100"), 10) || 100, 1), 200);
-    const rows = await storage.getMerchantTransactionsForEmployee(u.id, limit);
-    res.json(rows.map((r) => ({
-      id: r.id,
-      bucksAmount: r.bucksAmount,
-      createdAt: r.createdAt,
-      merchant: r.merchant ? { id: r.merchant.id, name: r.merchant.name } : null,
-    })));
+    const [rows, summary] = await Promise.all([
+      storage.getMerchantTransactionsForEmployee(u.id, limit),
+      storage.getRedemptionSummaryForEmployee(u.id),
+    ]);
+    res.json({
+      summary,
+      redemptions: rows.map((r) => ({
+        id: r.id,
+        bucksAmount: r.bucksAmount,
+        createdAt: r.createdAt,
+        merchant: r.merchant ? { id: r.merchant.id, name: r.merchant.name } : null,
+      })),
+    });
   });
 
   // ── Re-issue a wallet pass (invalidates the prior serial) ─────────────────

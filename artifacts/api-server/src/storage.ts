@@ -213,6 +213,7 @@ export interface IStorage {
   getMerchantTransactions(merchantId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User })[]>;
   getMerchantTransactionsByOrg(orgId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User; merchant?: Merchant })[]>;
   getMerchantTransactionsForEmployee(employeeId: number, limit?: number): Promise<(MerchantTransaction & { merchant?: Merchant })[]>;
+  getRedemptionSummaryForEmployee(employeeId: number): Promise<{ monthTotal: number; allTimeTotal: number }>;
 
   // Wallet passes
   createWalletPass(data: InsertWalletPass): Promise<WalletPass>;
@@ -1583,6 +1584,7 @@ export interface DatabaseStorage {
   getMerchantTransactions: IStorage["getMerchantTransactions"];
   getMerchantTransactionsByOrg: IStorage["getMerchantTransactionsByOrg"];
   getMerchantTransactionsForEmployee: IStorage["getMerchantTransactionsForEmployee"];
+  getRedemptionSummaryForEmployee: IStorage["getRedemptionSummaryForEmployee"];
   createWalletPass: IStorage["createWalletPass"];
   getWalletPassBySerial: IStorage["getWalletPassBySerial"];
   getActiveWalletPassForEmployee: IStorage["getActiveWalletPassForEmployee"];
@@ -1659,6 +1661,23 @@ DatabaseStorage.prototype.getMerchantTransactionsForEmployee = async function (e
   const merchList = merchIds.length ? await db.select().from(merchants).where(inArray(merchants.id, merchIds)) : [];
   const merchById = new Map(merchList.map((m) => [m.id, m]));
   return rows.map((r) => ({ ...r, merchant: merchById.get(r.merchantId) }));
+};
+
+DatabaseStorage.prototype.getRedemptionSummaryForEmployee = async function (employeeId) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [allTimeRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${merchantTransactions.bucksAmount}), 0)` })
+    .from(merchantTransactions)
+    .where(eq(merchantTransactions.employeeId, employeeId));
+  const [monthRow] = await db
+    .select({ total: sql<string>`coalesce(sum(${merchantTransactions.bucksAmount}), 0)` })
+    .from(merchantTransactions)
+    .where(and(eq(merchantTransactions.employeeId, employeeId), gte(merchantTransactions.createdAt, monthStart)));
+  return {
+    allTimeTotal: parseInt(allTimeRow?.total ?? "0", 10),
+    monthTotal: parseInt(monthRow?.total ?? "0", 10),
+  };
 };
 
 DatabaseStorage.prototype.createWalletPass = async function (data) {

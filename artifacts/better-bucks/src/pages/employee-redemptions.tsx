@@ -3,7 +3,7 @@ import { EmployeeLayout } from "@/components/layout-employee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader } from "@/components/ui/loader";
-import { Store, ArrowLeft } from "lucide-react";
+import { Store, ArrowLeft, TrendingDown, Calendar } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 
@@ -14,10 +14,19 @@ type Redemption = {
   merchant: { id: number; name: string } | null;
 };
 
+type RedemptionsResponse = {
+  summary: { monthTotal: number; allTimeTotal: number };
+  redemptions: Redemption[];
+};
+
 export default function EmployeeRedemptionsPage() {
-  const { data: redemptions, isLoading } = useQuery<Redemption[]>({
+  const { data, isLoading } = useQuery<RedemptionsResponse>({
     queryKey: ["/api/wallet/redemptions"],
   });
+
+  const redemptions = data?.redemptions ?? [];
+  const summary = data?.summary;
+  const monthName = format(new Date(), "MMMM");
 
   return (
     <EmployeeLayout>
@@ -35,6 +44,36 @@ export default function EmployeeRedemptionsPage() {
         </p>
       </div>
 
+      {/* Summary cards */}
+      {!isLoading && summary !== undefined && (
+        <div className="grid grid-cols-2 gap-4 mb-6" data-testid="section-redemption-summary">
+          <Card className="shadow-sm border-border/60">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium mb-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {monthName} spending
+              </div>
+              <p className="text-2xl font-display font-bold tabular-nums text-foreground" data-testid="text-month-total">
+                {summary.monthTotal.toLocaleString()}
+                <span className="text-sm font-normal text-muted-foreground ml-1">bcks</span>
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-border/60">
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium mb-1">
+                <TrendingDown className="h-3.5 w-3.5" />
+                All-time spent
+              </div>
+              <p className="text-2xl font-display font-bold tabular-nums text-foreground" data-testid="text-alltime-total">
+                {summary.allTimeTotal.toLocaleString()}
+                <span className="text-sm font-normal text-muted-foreground ml-1">bcks</span>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card className="shadow-md border-border/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -44,7 +83,7 @@ export default function EmployeeRedemptionsPage() {
         <CardContent className="px-0 sm:px-6">
           {isLoading ? (
             <div className="py-8"><Loader /></div>
-          ) : !redemptions || redemptions.length === 0 ? (
+          ) : redemptions.length === 0 ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground px-4" data-testid="text-no-redemptions">
               No in-store purchases yet.
             </div>

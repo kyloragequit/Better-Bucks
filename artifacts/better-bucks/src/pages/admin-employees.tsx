@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ChevronRight, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle, MoreVertical, Lock } from "lucide-react";
+import { Search, UserPlus, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle, MoreVertical, Lock } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,17 @@ export default function AdminEmployeesPage() {
   const [deptFilter, setDeptFilter] = usePersistedState<string>("bb_filter_emp_deptId", "all");
   const [mgrFilter, setMgrFilter] = usePersistedState<string>("bb_filter_emp_mgrId", "all");
   const [roleFilter, setRoleFilter] = usePersistedState<string>("bb_filter_emp_role", "all");
+  const [sortKey, setSortKey] = usePersistedState<"name" | "balance" | "department">("bb_sort_emp_key", "name");
+  const [sortDir, setSortDir] = usePersistedState<"asc" | "desc">("bb_sort_emp_dir", "asc");
+
+  function handleSort(key: "name" | "balance" | "department") {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
 
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
@@ -86,18 +97,34 @@ export default function AdminEmployeesPage() {
     },
   });
 
-  const filteredUsers = useMemo(() => users?.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      user.username.toLowerCase().includes(debouncedSearch.toLowerCase());
-    const matchesDept = deptFilter === "all" || 
-      (deptFilter === "none" && !user.departmentId) ||
-      (user.departmentId?.toString() === deptFilter);
-    const matchesMgr = mgrFilter === "all" ||
-      (mgrFilter === "none" && !user.managerId) ||
-      (user.managerId?.toString() === mgrFilter);
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    return matchesSearch && matchesDept && matchesMgr && matchesRole;
-  }), [users, debouncedSearch, deptFilter, mgrFilter, roleFilter]);
+  const filteredUsers = useMemo(() => {
+    const filtered = users?.filter(user => {
+      const matchesSearch = user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        user.username.toLowerCase().includes(debouncedSearch.toLowerCase());
+      const matchesDept = deptFilter === "all" || 
+        (deptFilter === "none" && !user.departmentId) ||
+        (user.departmentId?.toString() === deptFilter);
+      const matchesMgr = mgrFilter === "all" ||
+        (mgrFilter === "none" && !user.managerId) ||
+        (user.managerId?.toString() === mgrFilter);
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      return matchesSearch && matchesDept && matchesMgr && matchesRole;
+    }) ?? [];
+
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name") {
+        cmp = a.fullName.localeCompare(b.fullName);
+      } else if (sortKey === "balance") {
+        cmp = a.balance - b.balance;
+      } else if (sortKey === "department") {
+        const da = (a.departmentId ? deptMap.get(a.departmentId) : "") ?? "";
+        const db = (b.departmentId ? deptMap.get(b.departmentId) : "") ?? "";
+        cmp = da.localeCompare(db);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [users, debouncedSearch, deptFilter, mgrFilter, roleFilter, sortKey, sortDir, deptMap]);
 
   return (
     <AdminLayout>
@@ -184,7 +211,7 @@ export default function AdminEmployeesPage() {
         </div>
       ) : (
         <EmployeeVirtualList
-          filteredUsers={filteredUsers ?? []}
+          filteredUsers={filteredUsers}
           isPrimeAdmin={!!isPrimeAdmin}
           departments={departments}
           admins={admins}
@@ -193,6 +220,9 @@ export default function AdminEmployeesPage() {
           getRoleLabel={getRoleLabel}
           assignDeptMutation={assignDeptMutation}
           assignMgrMutation={assignMgrMutation}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={handleSort}
         />
       )}
 
@@ -201,6 +231,9 @@ export default function AdminEmployeesPage() {
     </AdminLayout>
   );
 }
+
+type SortKey = "name" | "balance" | "department";
+type SortDir = "asc" | "desc";
 
 type EmployeeVirtualListProps = {
   filteredUsers: User[];
@@ -212,10 +245,20 @@ type EmployeeVirtualListProps = {
   getRoleLabel: (role: string) => string;
   assignDeptMutation: ReturnType<typeof useMutation<any, Error, { userId: number; departmentId: number | null }>>;
   assignMgrMutation: ReturnType<typeof useMutation<any, Error, { userId: number; managerId: number | null }>>;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (key: SortKey) => void;
 };
 
 const SCROLL_KEY_MOBILE = "bb_emp_list_scroll_mobile";
 const SCROLL_KEY_DESKTOP = "bb_emp_list_scroll_desktop";
+
+function SortIcon({ column, sortKey, sortDir }: { column: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  if (sortKey !== column) return <ChevronsUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/50 inline-block" />;
+  return sortDir === "asc"
+    ? <ChevronUp className="ml-1 h-3.5 w-3.5 text-primary inline-block" />
+    : <ChevronDown className="ml-1 h-3.5 w-3.5 text-primary inline-block" />;
+}
 
 function EmployeeVirtualList({
   filteredUsers,
@@ -227,6 +270,9 @@ function EmployeeVirtualList({
   getRoleLabel,
   assignDeptMutation,
   assignMgrMutation,
+  sortKey,
+  sortDir,
+  onSort,
 }: EmployeeVirtualListProps) {
   const mobileParentRef = useRef<HTMLDivElement>(null);
   const desktopParentRef = useRef<HTMLDivElement>(null);
@@ -280,6 +326,30 @@ function EmployeeVirtualList({
 
   return (
     <>
+      {/* Mobile sort controls */}
+      <div className="md:hidden flex items-center gap-2 mb-3">
+        <span className="text-xs text-muted-foreground font-medium shrink-0">Sort by:</span>
+        {(["name", "balance", "department"] as const).map((key) => (
+          <button
+            key={key}
+            onClick={() => onSort(key)}
+            data-testid={`mobile-sort-${key}`}
+            className={`flex items-center gap-0.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              sortKey === key
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted/40 text-muted-foreground border-transparent hover:border-border"
+            }`}
+          >
+            {key === "name" ? "Name" : key === "balance" ? "Balance" : "Department"}
+            {sortKey === key && (
+              sortDir === "asc"
+                ? <ChevronUp className="h-3 w-3 ml-0.5" />
+                : <ChevronDown className="h-3 w-3 ml-0.5" />
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Mobile card layout — virtualized */}
       <div
         ref={mobileParentRef}
@@ -353,12 +423,42 @@ function EmployeeVirtualList({
         <Table>
           <TableHeader className="bg-muted/30 sticky top-0 z-10">
             <TableRow>
-              <TableHead>Employee Name</TableHead>
+              <TableHead>
+                <button
+                  className="flex items-center font-semibold hover:text-foreground transition-colors cursor-pointer select-none"
+                  onClick={() => onSort("name")}
+                  aria-label="Sort by name"
+                  data-testid="sort-name"
+                >
+                  Employee Name
+                  <SortIcon column="name" sortKey={sortKey} sortDir={sortDir} />
+                </button>
+              </TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Department</TableHead>
+              <TableHead>
+                <button
+                  className="flex items-center font-semibold hover:text-foreground transition-colors cursor-pointer select-none"
+                  onClick={() => onSort("department")}
+                  aria-label="Sort by department"
+                  data-testid="sort-department"
+                >
+                  Department
+                  <SortIcon column="department" sortKey={sortKey} sortDir={sortDir} />
+                </button>
+              </TableHead>
               <TableHead>Manager</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
+              <TableHead className="text-right">
+                <button
+                  className="flex items-center font-semibold hover:text-foreground transition-colors cursor-pointer select-none ml-auto"
+                  onClick={() => onSort("balance")}
+                  aria-label="Sort by balance"
+                  data-testid="sort-balance"
+                >
+                  Balance
+                  <SortIcon column="balance" sortKey={sortKey} sortDir={sortDir} />
+                </button>
+              </TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>

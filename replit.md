@@ -84,6 +84,15 @@ Better Bucks is an employee rewards platform that lets companies give, track, an
 - `APPLE_BUNDLE_ID` — Apple identity token audience validation. Defaults to `net.betterbucks.app` (from app.json). Override if the bundle ID changes.
 - `GOOGLE_ALLOWED_CLIENT_IDS` — Comma-separated list of allowed Google OAuth client IDs for audience validation (e.g. `123.apps.googleusercontent.com,456.apps.googleusercontent.com`). **Set this in production** to prevent tokens issued for other apps from being accepted. If unset, a warning is logged and the check is skipped (backward-compatible default).
 
+## Google Wallet env vars (Android)
+
+- `GOOGLE_WALLET_ISSUER_ID` — Issuer ID from the [Google Pay & Wallet Console](https://pay.google.com/business/console).
+- `GOOGLE_WALLET_CLASS_ID` — The suffix of the loyalty/generic class created in the Wallet Console (the full class ID will be `{GOOGLE_WALLET_ISSUER_ID}.{GOOGLE_WALLET_CLASS_ID}`).
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` — Email of the service account that has the Google Wallet API enabled.
+- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` — RSA private key for the service account (PEM format, or base64-encoded PEM). Literal `\n` sequences are automatically converted to newlines.
+
+The `googleWalletPass.ts` module returns a signed JWT embedded in `https://pay.google.com/gp/v/save/{jwt}`. On Android the mobile app opens this URL via `Linking.openURL` which launches the Google Wallet "Add to Wallet" flow. If any of the four env vars are missing the endpoint returns HTTP 503 with a human-readable message (no crash).
+
 ## User preferences
 
 _Populate as you build._

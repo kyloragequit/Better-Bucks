@@ -9,20 +9,31 @@ function getGoogleWalletEnv() {
   const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID;
   const classId = process.env.GOOGLE_WALLET_CLASS_ID;
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKeyPem = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const privateKeyRaw = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
 
-  if (!issuerId || !classId || !serviceAccountEmail || !privateKeyPem) {
+  if (!issuerId || !classId || !serviceAccountEmail || !privateKeyRaw) {
     const missing = [
       !issuerId && "GOOGLE_WALLET_ISSUER_ID",
       !classId && "GOOGLE_WALLET_CLASS_ID",
       !serviceAccountEmail && "GOOGLE_SERVICE_ACCOUNT_EMAIL",
-      !privateKeyPem && "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
+      !privateKeyRaw && "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
     ]
       .filter(Boolean)
       .join(", ");
     throw new GoogleWalletConfigError(
       `Google Wallet is not configured. Missing secret(s): ${missing}. Ask your administrator to add them in Replit Secrets.`,
     );
+  }
+
+  // Accept the private key as a raw PEM string or as a base64-encoded PEM.
+  // Also replace literal \n sequences with real newlines — common when copying
+  // a multi-line key into a single-line environment variable.
+  let privateKeyPem: string;
+  if (privateKeyRaw.trimStart().startsWith("-----BEGIN")) {
+    privateKeyPem = privateKeyRaw.replace(/\\n/g, "\n");
+  } else {
+    // Assume base64-encoded PEM
+    privateKeyPem = Buffer.from(privateKeyRaw, "base64").toString("utf-8");
   }
 
   return { issuerId, classId, serviceAccountEmail, privateKeyPem };

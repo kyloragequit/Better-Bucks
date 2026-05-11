@@ -17,7 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "@/components/ui/loader";
-import { Plus, Target, Timer, Hash, Trophy, XCircle, Coins, Pencil, Trash2, ChevronUp, CheckCircle, Users, Building2, UserCheck } from "lucide-react";
+import { Plus, Target, Timer, Hash, Trophy, XCircle, Coins, Pencil, Trash2, ChevronUp, CheckCircle, Users, Building2, UserCheck, Search } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
 import type { Goal, Department, User } from "@shared/schema";
 import { differenceInDays, differenceInMinutes, formatDistanceToNow } from "date-fns";
 
@@ -86,6 +87,9 @@ export default function AdminGoalsPage() {
   const isPrimeAdmin = user?.role === "prime_admin" || user?.role === "admin";
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 150);
 
   const [showCreate, setShowCreate] = useState(false);
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
@@ -176,10 +180,16 @@ export default function AdminGoalsPage() {
     }));
   }
 
-  const activeGoals = goals.filter(g => g.status === "active");
-  const pendingGoals = goals.filter(g => g.status === "pending_distribution");
-  const completedGoals = goals.filter(g => g.status === "completed");
-  const failedGoals = goals.filter(g => g.status === "failed");
+  const searchTerm = debouncedSearch.trim().toLowerCase();
+  const filteredGoals = searchTerm
+    ? goals.filter(g => g.title.toLowerCase().includes(searchTerm))
+    : goals;
+
+  const activeGoals = filteredGoals.filter(g => g.status === "active");
+  const pendingGoals = filteredGoals.filter(g => g.status === "pending_distribution");
+  const completedGoals = filteredGoals.filter(g => g.status === "completed");
+  const failedGoals = filteredGoals.filter(g => g.status === "failed");
+  const hasNoResults = searchTerm.length > 0 && filteredGoals.length === 0;
 
   return (
     <AdminLayout>
@@ -197,6 +207,27 @@ export default function AdminGoalsPage() {
 
         {isLoading && <Loader />}
 
+        {/* Search */}
+        {!isLoading && goals.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-9"
+              placeholder="Search goals by title…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              data-testid="input-search-goals"
+            />
+          </div>
+        )}
+
+        {/* No results */}
+        {hasNoResults && (
+          <p className="text-muted-foreground text-sm text-center py-8">
+            No goals match &ldquo;{debouncedSearch.trim()}&rdquo;.
+          </p>
+        )}
+
         {/* Pending Distribution — needs action */}
         {pendingGoals.length > 0 && (
           <div className="space-y-3">
@@ -208,7 +239,7 @@ export default function AdminGoalsPage() {
         {/* Active */}
         <div className="space-y-3">
           <h2 className="text-lg font-semibold flex items-center gap-2"><Target className="h-5 w-5 text-primary" />Active Goals</h2>
-          {activeGoals.length === 0 && (
+          {activeGoals.length === 0 && !hasNoResults && (
             <p className="text-muted-foreground text-sm">
               {isPrimeAdmin ? "No active goals. Create one above." : "No active goals have been set by the Organization Owner yet."}
             </p>

@@ -487,6 +487,36 @@ export function registerMobileRoutes(app: Express) {
         email: providerEmail,
       });
 
+      // Welcome notification to the new employee (fire-and-forget)
+      // Push token is unlikely to exist immediately at signup, but handled if present.
+      if (newUser.expoPushToken) {
+        const welcomeTitle = "Welcome to Better Bucks! 🎉";
+        const welcomeBody = "Your manager can now start rewarding you. Check out the store when you're ready!";
+        sendExpoPushNotification(newUser.expoPushToken, welcomeTitle, welcomeBody).catch((err) =>
+          logger.error({ err }, "[mobile/auth/social/signup] welcome push notification failed"),
+        );
+        storage.createNotificationLog({ userId: newUser.id, title: welcomeTitle, body: welcomeBody }).catch((err) =>
+          logger.error({ err }, "[mobile/auth/social/signup] welcome notification log failed"),
+        );
+      }
+
+      // Notify org admins that a new employee joined via social sign-in (fire-and-forget)
+      storage.getUsersByOrganization(org.id).then((orgUsers) => {
+        const providerLabel = parsed.provider === "apple" ? "Apple" : "Google";
+        const adminTitle = "New employee joined";
+        const adminBody = `${parsed.fullName} joined via ${providerLabel} sign-in and is ready to receive Bucks.`;
+        for (const admin of orgUsers) {
+          if (admin.role !== "admin" && admin.role !== "prime_admin") continue;
+          if (!admin.expoPushToken) continue;
+          sendExpoPushNotification(admin.expoPushToken, adminTitle, adminBody).catch((err) =>
+            logger.error({ err }, "[mobile/auth/social/signup] admin notification push failed"),
+          );
+          storage.createNotificationLog({ userId: admin.id, title: adminTitle, body: adminBody }).catch((err) =>
+            logger.error({ err }, "[mobile/auth/social/signup] admin notification log failed"),
+          );
+        }
+      }).catch((err) => logger.error({ err }, "[mobile/auth/social/signup] failed to notify admins"));
+
       const token = signMobileToken(newUser.id);
       res.status(201).json({ token, user: safeUser(newUser) });
     } catch (err) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { GhostStripeAlertPayload } from "../lib/alerts";
+import type { GhostStripeAlertPayload, OrphanPermanentFailurePayload } from "../lib/alerts";
 
 vi.mock("pino", () => {
   const warn = vi.fn();
@@ -12,6 +12,14 @@ vi.mock("nodemailer", () => {
   const sendMail = vi.fn().mockResolvedValue({ messageId: "test-id" });
   const createTransport = vi.fn(() => ({ sendMail }));
   return { default: { createTransport } };
+});
+
+vi.mock("@replit/connectors-sdk", () => {
+  return {
+    ReplitConnectors: vi.fn(() => ({
+      proxy: vi.fn().mockRejectedValue(new Error("Gmail API unavailable in tests")),
+    })),
+  };
 });
 
 const PAYLOAD: GhostStripeAlertPayload = {
@@ -30,6 +38,30 @@ const PAYLOAD_NULL_IDS: GhostStripeAlertPayload = {
   stripeCustomerId: null,
   stripeSubscriptionId: null,
   subCancelError: new Error("cancel failed"),
+};
+
+const ORPHAN_PAYLOAD: OrphanPermanentFailurePayload = {
+  orphanId: 42,
+  stripeCustomerId: "cus_ORPHAN123",
+  stripeSubscriptionId: "sub_ORPHAN456",
+  lastError: "Stripe rate limit exceeded",
+  retryCount: 5,
+};
+
+const ORPHAN_PAYLOAD_NULL_IDS: OrphanPermanentFailurePayload = {
+  orphanId: 99,
+  stripeCustomerId: null,
+  stripeSubscriptionId: null,
+  lastError: "Connection timeout",
+  retryCount: 5,
+};
+
+const ORPHAN_PAYLOAD_NO_ERROR: OrphanPermanentFailurePayload = {
+  orphanId: 7,
+  stripeCustomerId: "cus_NOERR",
+  stripeSubscriptionId: null,
+  lastError: null,
+  retryCount: 5,
 };
 
 function makeOkFetch() {
@@ -340,6 +372,271 @@ describe("sendGhostStripeAlert", () => {
       expect(mailArgs.to).toBe("oncall@example.com");
       expect(mailArgs.html).toContain(stripeCustomerId);
       expect(mailArgs.html).toContain(stripeSubscriptionId);
+    });
+  });
+});
+
+describe("sendOrphanPermanentFailureAlert", () => {
+  let sendOrphanPermanentFailureAlert: (
+    payload: OrphanPermanentFailurePayload,
+  ) => Promise<void>;
+  let nodemailer: typeof import("nodemailer");
+
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ sendOrphanPermanentFailureAlert } = await import("../lib/alerts"));
+    nodemailer = (await import("nodemailer")).default as unknown as typeof import("nodemailer");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.clearAllMocks();
+  });
+
+  describe("when no alert destination is configured", () => {
+    it("returns without throwing and logs a warning", async () => {
+      vi.stubEnv("ALERT_WEBHOOK_URL", "");
+      vi.stubEnv("ADMIN_ALERT_EMAIL", "");
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const pino = (await import("pino")).default as ReturnType<typeof vi.fn>;
+      const loggerInstance = pino() as { warn: ReturnType<typeof vi.fn> };
+
+      await expect(
+        sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD),
+      ).resolves.toBeUndefined();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(loggerInstance.warn).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("Slack webhook path", () => {
+    const WEBHOOK_URL = "https://hooks.slack.com/services/ORPHAN/TEST";
+
+    beforeEach(() => {
+      vi.stubEnv("ALERT_WEBHOOK_URL", WEBHOOK_URL);
+      vi.stubEnv("ADMIN_ALERT_EMAIL", "");
+    });
+
+    it("POSTs to the Slack webhook URL with JSON content-type", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe(WEBHOOK_URL);
+      expect(init.method).toBe("POST");
+      expect((init.headers as Record<string, string>)["Content-Type"]).toBe(
+        "application/json",
+      );
+    });
+
+    it("includes stripeCustomerId in the Slack message body", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        text: string;
+      };
+      expect(body.text).toContain(ORPHAN_PAYLOAD.stripeCustomerId);
+    });
+
+    it("includes stripeSubscriptionId in the Slack message body", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        text: string;
+      };
+      expect(body.text).toContain(ORPHAN_PAYLOAD.stripeSubscriptionId);
+    });
+
+    it("includes retry count in the Slack message body", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        text: string;
+      };
+      expect(body.text).toContain(String(ORPHAN_PAYLOAD.retryCount));
+    });
+
+    it("includes lastError in the Slack message body", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        text: string;
+      };
+      expect(body.text).toContain(ORPHAN_PAYLOAD.lastError!);
+    });
+
+    it("handles null IDs gracefully in the Slack body", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD_NULL_IDS);
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        text: string;
+      };
+      expect(body.text).toContain("none");
+    });
+
+    it("does not throw when the Slack webhook returns a non-ok status", async () => {
+      vi.stubGlobal("fetch", makeBadFetch(503));
+
+      await expect(
+        sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("email path", () => {
+    const ADMIN_EMAIL = "dev@example.com";
+
+    beforeEach(() => {
+      vi.stubEnv("ALERT_WEBHOOK_URL", "");
+      vi.stubEnv("ADMIN_ALERT_EMAIL", ADMIN_EMAIL);
+      vi.stubEnv("SMTP_USER", "smtp-user@example.com");
+      vi.stubEnv("SMTP_PASS", "smtp-secret");
+    });
+
+    it("sends an email to the configured developer address", async () => {
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const transport = nodemailer.createTransport();
+      expect(transport.sendMail).toHaveBeenCalledOnce();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { to: string; subject: string; html: string };
+      expect(mailArgs.to).toBe(ADMIN_EMAIL);
+    });
+
+    it("uses an ACTION REQUIRED subject line mentioning orphan cleanup", async () => {
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const transport = nodemailer.createTransport();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { to: string; subject: string; html: string };
+      expect(mailArgs.subject).toContain("ACTION REQUIRED");
+      expect(mailArgs.subject).toContain("orphan");
+    });
+
+    it("embeds stripeCustomerId in the email HTML", async () => {
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const transport = nodemailer.createTransport();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { html: string };
+      expect(mailArgs.html).toContain(ORPHAN_PAYLOAD.stripeCustomerId!);
+    });
+
+    it("embeds stripeSubscriptionId in the email HTML", async () => {
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const transport = nodemailer.createTransport();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { html: string };
+      expect(mailArgs.html).toContain(ORPHAN_PAYLOAD.stripeSubscriptionId!);
+    });
+
+    it("embeds retry count in the email HTML", async () => {
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const transport = nodemailer.createTransport();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { html: string };
+      expect(mailArgs.html).toContain(String(ORPHAN_PAYLOAD.retryCount));
+    });
+
+    it("embeds lastError in the email HTML", async () => {
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const transport = nodemailer.createTransport();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { html: string };
+      expect(mailArgs.html).toContain(ORPHAN_PAYLOAD.lastError!);
+    });
+
+    it("renders gracefully when lastError is null", async () => {
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD_NO_ERROR);
+
+      const transport = nodemailer.createTransport();
+      expect(transport.sendMail).toHaveBeenCalledOnce();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { html: string };
+      expect(mailArgs.html).toContain(ORPHAN_PAYLOAD_NO_ERROR.stripeCustomerId!);
+    });
+
+    it("does not throw when SMTP credentials are missing", async () => {
+      vi.stubEnv("SMTP_USER", "");
+      vi.stubEnv("SMTP_PASS", "");
+
+      await expect(
+        sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("both Slack and email paths together", () => {
+    const WEBHOOK_URL = "https://hooks.slack.com/services/ORPHAN/BOTH";
+    const ADMIN_EMAIL = "oncall@example.com";
+
+    beforeEach(() => {
+      vi.stubEnv("ALERT_WEBHOOK_URL", WEBHOOK_URL);
+      vi.stubEnv("ADMIN_ALERT_EMAIL", ADMIN_EMAIL);
+      vi.stubEnv("SMTP_USER", "smtp@example.com");
+      vi.stubEnv("SMTP_PASS", "pass");
+    });
+
+    it("fires both Slack webhook and email in parallel", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const transport = nodemailer.createTransport();
+      expect(transport.sendMail).toHaveBeenCalledOnce();
+    });
+
+    it("carries correct IDs on both channels", async () => {
+      const fetchMock = makeOkFetch();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD);
+
+      const slackBody = JSON.parse(
+        fetchMock.mock.calls[0][1].body as string,
+      ) as { text: string };
+      expect(slackBody.text).toContain(ORPHAN_PAYLOAD.stripeCustomerId);
+      expect(slackBody.text).toContain(ORPHAN_PAYLOAD.stripeSubscriptionId);
+
+      const transport = nodemailer.createTransport();
+      const mailArgs = (transport.sendMail as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { html: string };
+      expect(mailArgs.html).toContain(ORPHAN_PAYLOAD.stripeCustomerId!);
+      expect(mailArgs.html).toContain(ORPHAN_PAYLOAD.stripeSubscriptionId!);
+    });
+
+    it("resolves even if one channel fails", async () => {
+      vi.stubGlobal("fetch", makeBadFetch(503));
+      vi.stubEnv("SMTP_USER", "");
+
+      await expect(
+        sendOrphanPermanentFailureAlert(ORPHAN_PAYLOAD),
+      ).resolves.toBeUndefined();
     });
   });
 });

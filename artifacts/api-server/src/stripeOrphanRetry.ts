@@ -173,6 +173,9 @@ async function processRow(
       { id: row.id, stripeCustomerId: row.stripeCustomerId, stripeSubscriptionId: row.stripeSubscriptionId, lastError },
       "[stripeOrphanRetry] Orphan marked failed_permanently after max retries — manual cleanup required",
     );
+    // Notify the team via email / Slack so the permanent failure is actioned
+    // promptly. sendOrphanPermanentFailureAlert catches its own errors so it
+    // never blocks or throws back into the retry job.
     await sendOrphanPermanentFailureAlert({
       orphanId: row.id,
       stripeCustomerId: row.stripeCustomerId,

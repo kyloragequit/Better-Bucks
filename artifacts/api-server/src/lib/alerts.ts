@@ -351,6 +351,11 @@ export async function sendOrphanPermanentFailureAlert(
   const adminEmail = process.env.ADMIN_ALERT_EMAIL;
 
   if (!webhookUrl && !adminEmail) {
+    logger.warn(
+      { orphanId: payload.orphanId, retryCount: payload.retryCount },
+      "[stripeOrphanRetry] Stripe orphan marked failed_permanently but no alert destination configured. " +
+        "Set ALERT_WEBHOOK_URL or ADMIN_ALERT_EMAIL to receive notifications.",
+    );
     return;
   }
 

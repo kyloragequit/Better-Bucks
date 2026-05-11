@@ -1613,6 +1613,8 @@ export function registerMobileRoutes(app: Express) {
     const bodySchema = z.object({
       amount: z.number().int().refine((n) => n !== 0, { message: "Amount cannot be 0" }),
       reason: z.string().min(1).max(500),
+      categoryId: z.number().int().optional(),
+      hasCashValue: z.boolean().optional(),
     });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1629,6 +1631,8 @@ export function registerMobileRoutes(app: Express) {
         amount: parsed.data.amount,
         reason: parsed.data.reason,
         performedBy: user.id,
+        categoryId: parsed.data.categoryId ?? null,
+        hasCashValue: parsed.data.hasCashValue ?? null,
       });
       void pushPassUpdateForEmployee(empId);
       void pushGoogleWalletUpdateForEmployee(empId);
@@ -2172,6 +2176,68 @@ export function registerMobileRoutes(app: Express) {
     } catch (err) {
       logger.error({ err }, "[mobile/admin/org/labels] update failed");
       return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  // ─── Admin: Categories (for Transfer screen) ──────────────────────────────
+
+  app.get("/api/mobile/admin/categories", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const categories = await storage.getCategoriesByOrg(user.organizationId);
+      return res.json(categories);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/categories] failed");
+      return res.status(500).json({ message: "Failed to load categories" });
+    }
+  });
+
+  // ─── Admin: Bucks Transfer Payment Intent ─────────────────────────────────
+
+  app.post("/api/mobile/transfer/payment-intent", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const bodySchema = z.object({
+      targetUserId: z.number().int(),
+      amount: z.number().int().positive(),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    const { targetUserId, amount } = parsed.data;
+    try {
+      await ensureStripeReady();
+      const stripe = await getUncachableStripeClient();
+      const org = await storage.getOrganization(user.organizationId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      const target = await storage.getUser(targetUserId);
+      if (!target || target.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Employee not found in your organization" });
+      }
+      const bucksPerDollar = org.bucksPerDollar ?? 100;
+      const cents = Math.max(50, Math.round((amount / bucksPerDollar) * 100));
+      const intent = await stripe.paymentIntents.create({
+        amount: cents,
+        currency: "usd",
+        automatic_payment_methods: { enabled: true },
+        metadata: {
+          type: "bucks_transfer",
+          orgId: String(user.organizationId),
+          adminId: String(user.id),
+          targetUserId: String(targetUserId),
+          bucksAmount: String(amount),
+        },
+      });
+      return res.json({ clientSecret: intent.client_secret, amountCents: cents });
+    } catch (err) {
+      logger.error({ err }, "[mobile/transfer/payment-intent] failed");
+      return res.status(500).json({ message: "Could not create payment intent" });
     }
   });
 

@@ -105,6 +105,7 @@ export const api = {
         amount: z.number().int(),
         reason: z.string().min(1),
         categoryId: z.number().int().optional(),
+        hasCashValue: z.boolean().optional(),
       }),
       responses: {
         200: z.custom<typeof users.$inferSelect>(),

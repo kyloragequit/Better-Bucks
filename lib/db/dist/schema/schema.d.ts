@@ -1432,6 +1432,23 @@ export declare const transactions: import("drizzle-orm/pg-core").PgTableWithColu
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        hasCashValue: import("drizzle-orm/pg-core").PgColumn<{
+            name: "has_cash_value";
+            tableName: "transactions";
+            dataType: "boolean";
+            columnType: "PgBoolean";
+            data: boolean;
+            driverParam: boolean;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "transactions";
@@ -4099,6 +4116,7 @@ export declare const insertTransactionSchema: z.ZodObject<{
     reason: z.ZodString;
     performedBy: z.ZodOptional<z.ZodNullable<z.ZodInt>>;
     categoryId: z.ZodOptional<z.ZodNullable<z.ZodInt>>;
+    hasCashValue: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, {
     out: {};
     in: {};

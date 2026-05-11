@@ -75,6 +75,18 @@ export default function TabLayout() {
         }}
       />
 
+      {/* Admin-only: Transfer Bucks */}
+      <Tabs.Screen
+        name="transfer"
+        options={{
+          title: "Transfer",
+          tabBarIcon: ({ focused }) => <TabIcon name="swap-horizontal" focused={focused} />,
+          headerTitle: "Transfer Bucks",
+          tabBarItemStyle: admin ? undefined : { display: "none" },
+          href: admin ? undefined : null,
+        }}
+      />
+
       {/* Employees: Store / Admins: Reward */}
       <Tabs.Screen
         name="store"

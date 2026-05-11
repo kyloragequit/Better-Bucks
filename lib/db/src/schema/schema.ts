@@ -102,6 +102,7 @@ export const transactions = pgTable("transactions", {
   reason: text("reason").notNull(),
   performedBy: integer("performed_by"),
   categoryId: integer("category_id"),
+  hasCashValue: boolean("has_cash_value"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

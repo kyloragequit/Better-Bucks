@@ -2,6 +2,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
 import { Platform } from "react-native";
 import React, {
   createContext,
@@ -198,6 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setBiometricEnrolled(false);
+    router.replace("/login");
   }, [user]);
 
   const login = useCallback<AuthContextValue["login"]>(

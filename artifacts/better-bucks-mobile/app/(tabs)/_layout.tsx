@@ -5,13 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
-function TabIcon({
-  name,
-  focused,
-}: {
-  name: IoniconsName;
-  focused: boolean;
-}) {
+function TabIcon({ name, focused }: { name: IoniconsName; focused: boolean }) {
   return (
     <Ionicons
       name={focused ? name : (`${name}-outline` as IoniconsName)}
@@ -52,62 +46,74 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
           headerTitle: "Better Bucks",
         }}
       />
+
+      {/* Admin-only: Team (employee list) */}
+      <Tabs.Screen
+        name="team"
+        options={{
+          title: "Team",
+          tabBarIcon: ({ focused }) => <TabIcon name="people" focused={focused} />,
+          headerTitle: "My Team",
+          tabBarItemStyle: admin ? undefined : { display: "none" },
+          href: admin ? undefined : null,
+        }}
+      />
+
+      {/* Employees: Store / Admins: Reward */}
       <Tabs.Screen
         name="store"
         options={{
           title: admin ? "Reward" : "Store",
           tabBarIcon: ({ focused }) => (
-            <TabIcon
-              name={admin ? "gift" : "storefront"}
-              focused={focused}
-            />
+            <TabIcon name={admin ? "gift" : "storefront"} focused={focused} />
           ),
           headerTitle: admin ? "Reward Employee" : "Store",
         }}
       />
+
+      {/* Employee-only: Surveys */}
       <Tabs.Screen
         name="surveys"
         options={{
           title: "Surveys",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="document-text" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="document-text" focused={focused} />,
           headerTitle: "Surveys",
+          tabBarItemStyle: admin ? { display: "none" } : undefined,
+          href: admin ? null : undefined,
         }}
       />
+
+      {/* Orders — both roles */}
       <Tabs.Screen
         name="orders"
         options={{
           title: admin ? "Orders" : "My Orders",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="receipt" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="receipt" focused={focused} />,
           headerTitle: admin ? "All Orders" : "My Orders",
         }}
       />
+
+      {/* Employee-only: Notifications */}
       <Tabs.Screen
         name="notifications"
         options={{
           title: "Alerts",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="notifications" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="notifications" focused={focused} />,
           headerTitle: "Notifications",
+          tabBarItemStyle: admin ? { display: "none" } : undefined,
+          href: admin ? null : undefined,
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="person" focused={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon name="person" focused={focused} />,
           headerTitle: "Profile",
         }}
       />

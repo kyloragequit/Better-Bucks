@@ -1459,6 +1459,722 @@ export function registerMobileRoutes(app: Express) {
     },
   );
 
+  // ─── Profile Update ────────────────────────────────────────────────────────
+
+  app.patch("/api/mobile/profile", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const bodySchema = z.object({
+      fullName: z.string().min(1).max(100).optional(),
+      email: z.string().email().nullable().optional(),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const updated = await storage.updateUserProfile(user.id, parsed.data);
+      return res.json({ success: true, user: safeUser(updated) });
+    } catch (err) {
+      logger.error({ err }, "[mobile/profile] update failed");
+      return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  // ─── Wishlist ─────────────────────────────────────────────────────────────
+
+  app.get("/api/mobile/wishlist", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    try {
+      const items = await storage.getWishlistByUser(user.id);
+      return res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/wishlist] get failed");
+      return res.status(500).json({ message: "Failed to load wishlist" });
+    }
+  });
+
+  app.post("/api/mobile/wishlist/:itemId", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const itemId = parseInt(req.params.itemId);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid item ID" });
+    try {
+      const item = await storage.getStoreItem(itemId);
+      if (!item || item.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      const entry = await storage.addToWishlist(user.id, itemId);
+      return res.json(entry);
+    } catch (err: any) {
+      if (err?.code === "23505") return res.status(409).json({ message: "Already in wishlist" });
+      logger.error({ err }, "[mobile/wishlist] add failed");
+      return res.status(500).json({ message: "Failed to add to wishlist" });
+    }
+  });
+
+  app.delete("/api/mobile/wishlist/:itemId", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const itemId = parseInt(req.params.itemId);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid item ID" });
+    try {
+      await storage.removeFromWishlist(user.id, itemId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "[mobile/wishlist] remove failed");
+      return res.status(500).json({ message: "Failed to remove from wishlist" });
+    }
+  });
+
+  // ─── Admin: Employees ─────────────────────────────────────────────────────
+
+  app.get("/api/mobile/admin/employees", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const employees = await storage.getUsersByOrganization(user.organizationId);
+      return res.json(employees.map(safeUser));
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/employees] list failed");
+      return res.status(500).json({ message: "Failed to load employees" });
+    }
+  });
+
+  app.get("/api/mobile/admin/employees/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const empId = parseInt(req.params.id);
+    if (isNaN(empId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const [emp, transactions] = await Promise.all([
+        storage.getUser(empId),
+        storage.getTransactionsByUser(empId),
+      ]);
+      if (!emp || emp.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      return res.json({ ...safeUser(emp), transactions: transactions.slice(0, 30) });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/employees/:id] get failed");
+      return res.status(500).json({ message: "Failed to load employee" });
+    }
+  });
+
+  app.patch("/api/mobile/admin/employees/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const empId = parseInt(req.params.id);
+    if (isNaN(empId)) return res.status(400).json({ message: "Invalid ID" });
+    const bodySchema = z.object({
+      role: z.enum(["admin", "employee"]).optional(),
+      fullName: z.string().min(1).max(100).optional(),
+      email: z.string().email().nullable().optional(),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const emp = await storage.getUser(empId);
+      if (!emp || emp.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      if (emp.role === "prime_admin") {
+        return res.status(403).json({ message: "Cannot modify the organization owner" });
+      }
+      let updated = emp;
+      if (parsed.data.role) {
+        updated = await storage.updateUserRole(empId, parsed.data.role);
+      }
+      if (parsed.data.fullName !== undefined || parsed.data.email !== undefined) {
+        updated = await storage.updateUserProfile(empId, {
+          fullName: parsed.data.fullName,
+          email: parsed.data.email,
+        });
+      }
+      return res.json(safeUser(updated));
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/employees/:id PATCH] failed");
+      return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  app.post("/api/mobile/admin/employees/:id/balance", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const empId = parseInt(req.params.id);
+    if (isNaN(empId)) return res.status(400).json({ message: "Invalid ID" });
+    const bodySchema = z.object({
+      amount: z.number().int().refine((n) => n !== 0, { message: "Amount cannot be 0" }),
+      reason: z.string().min(1).max(500),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const emp = await storage.getUser(empId);
+      if (!emp || emp.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      await storage.updateUserBalance(empId, parsed.data.amount);
+      await storage.createTransaction({
+        userId: empId,
+        amount: parsed.data.amount,
+        reason: parsed.data.reason,
+        performedBy: user.id,
+      });
+      void pushPassUpdateForEmployee(empId);
+      void pushGoogleWalletUpdateForEmployee(empId);
+      const fresh = await storage.getUser(empId);
+      return res.json({ success: true, newBalance: fresh?.balance ?? 0 });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/employees/:id/balance] failed");
+      return res.status(500).json({ message: "Balance update failed" });
+    }
+  });
+
+  app.delete("/api/mobile/admin/employees/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const empId = parseInt(req.params.id);
+    if (isNaN(empId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const emp = await storage.getUser(empId);
+      if (!emp || emp.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      if (emp.role === "prime_admin") {
+        return res.status(403).json({ message: "Cannot delete the organization owner" });
+      }
+      await storage.deleteUser(empId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/employees/:id DELETE] failed");
+      return res.status(500).json({ message: "Delete failed" });
+    }
+  });
+
+  // ─── Admin: Pending Accounts ──────────────────────────────────────────────
+
+  app.get("/api/mobile/admin/pending", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const pending = await storage.getPendingAdminsByOrganization(user.organizationId);
+      return res.json(pending.map(safeUser));
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/pending] list failed");
+      return res.status(500).json({ message: "Failed to load pending accounts" });
+    }
+  });
+
+  app.post("/api/mobile/admin/pending/:id/approve", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const pendingId = parseInt(req.params.id);
+    if (isNaN(pendingId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const pending = await storage.getUser(pendingId);
+      if (!pending || pending.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      const approved = await storage.approveAdminUser(pendingId);
+      return res.json(safeUser(approved));
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/pending/:id/approve] failed");
+      return res.status(500).json({ message: "Approval failed" });
+    }
+  });
+
+  app.delete("/api/mobile/admin/pending/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const pendingId = parseInt(req.params.id);
+    if (isNaN(pendingId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const pending = await storage.getUser(pendingId);
+      if (!pending || pending.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      await storage.deleteUser(pendingId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/pending/:id DELETE] failed");
+      return res.status(500).json({ message: "Delete failed" });
+    }
+  });
+
+  // ─── Admin: Goals ─────────────────────────────────────────────────────────
+
+  app.get("/api/mobile/admin/goals", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const goals = await storage.getGoalsByOrganization(user.organizationId);
+      return res.json(goals);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/goals] list failed");
+      return res.status(500).json({ message: "Failed to load goals" });
+    }
+  });
+
+  app.post("/api/mobile/admin/goals", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const bodySchema = z.object({
+      title: z.string().min(1).max(200),
+      type: z.enum(["time", "quantity"]),
+      bucksReward: z.number().int().min(1),
+      targetQuantity: z.number().int().min(1).optional().nullable(),
+      targetDays: z.number().int().min(1).optional().nullable(),
+      endDate: z.string().datetime().optional().nullable(),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const goal = await storage.createGoal({
+        organizationId: user.organizationId,
+        title: parsed.data.title,
+        type: parsed.data.type,
+        bucksReward: parsed.data.bucksReward,
+        targetQuantity: parsed.data.targetQuantity ?? null,
+        targetDays: parsed.data.targetDays ?? null,
+        endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
+        createdBy: user.id,
+        status: "active",
+        startDate: new Date(),
+        targetType: "all",
+        targetIds: null,
+      });
+      return res.json(goal);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/goals POST] failed");
+      return res.status(500).json({ message: "Failed to create goal" });
+    }
+  });
+
+  app.patch("/api/mobile/admin/goals/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const goalId = parseInt(req.params.id);
+    if (isNaN(goalId)) return res.status(400).json({ message: "Invalid ID" });
+    const bodySchema = z.object({
+      title: z.string().min(1).max(200).optional(),
+      bucksReward: z.number().int().min(1).optional(),
+      targetQuantity: z.number().int().min(1).nullable().optional(),
+      targetDays: z.number().int().min(1).nullable().optional(),
+      status: z.enum(["active", "completed", "failed", "pending_distribution"]).optional(),
+      endDate: z.string().datetime().nullable().optional(),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const goal = await storage.getGoal(goalId);
+      if (!goal || goal.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      const updateData: Record<string, unknown> = {};
+      if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
+      if (parsed.data.bucksReward !== undefined) updateData.bucksReward = parsed.data.bucksReward;
+      if (parsed.data.targetQuantity !== undefined) updateData.targetQuantity = parsed.data.targetQuantity;
+      if (parsed.data.targetDays !== undefined) updateData.targetDays = parsed.data.targetDays;
+      if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
+      if (parsed.data.endDate !== undefined) updateData.endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+      const updated = await storage.updateGoal(goalId, updateData as Parameters<typeof storage.updateGoal>[1]);
+      return res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/goals/:id PATCH] failed");
+      return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  app.delete("/api/mobile/admin/goals/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const goalId = parseInt(req.params.id);
+    if (isNaN(goalId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const goal = await storage.getGoal(goalId);
+      if (!goal || goal.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      await storage.deleteGoal(goalId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/goals/:id DELETE] failed");
+      return res.status(500).json({ message: "Delete failed" });
+    }
+  });
+
+  app.post("/api/mobile/admin/goals/:id/increment", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const goalId = parseInt(req.params.id);
+    if (isNaN(goalId)) return res.status(400).json({ message: "Invalid ID" });
+    const bodySchema = z.object({ amount: z.number().int().min(1).default(1) });
+    const parsed = bodySchema.safeParse(req.body);
+    const amount = parsed.success ? parsed.data.amount : 1;
+    try {
+      const goal = await storage.getGoal(goalId);
+      if (!goal || goal.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      if (goal.type !== "quantity") {
+        return res.status(400).json({ message: "Only quantity goals can be incremented" });
+      }
+      const updated = await storage.incrementGoalQuantity(goalId, amount);
+      if (updated.targetQuantity && updated.currentQuantity >= updated.targetQuantity && updated.status === "active") {
+        await storage.completeGoal(goalId);
+        void storage.distributeGoalBucks(goalId, user.organizationId, user.id).catch(() => {});
+      }
+      return res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/goals/:id/increment] failed");
+      return res.status(500).json({ message: "Increment failed" });
+    }
+  });
+
+  // ─── Admin: Surveys ───────────────────────────────────────────────────────
+
+  app.get("/api/mobile/admin/surveys", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const surveys = await storage.getSurveysByOrganization(user.organizationId);
+      return res.json(surveys);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/surveys] list failed");
+      return res.status(500).json({ message: "Failed to load surveys" });
+    }
+  });
+
+  app.post("/api/mobile/admin/surveys", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const questionSchema = z.object({
+      questionText: z.string().min(1).max(500),
+      questionType: z.enum(["multiple_choice", "written"]),
+      options: z.array(z.string().min(1)).optional().nullable(),
+      orderIndex: z.number().int().default(0),
+    });
+    const bodySchema = z.object({
+      title: z.string().min(1).max(200),
+      description: z.string().max(1000).optional().nullable(),
+      questions: z.array(questionSchema).min(1),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const survey = await storage.createSurvey(
+        {
+          organizationId: user.organizationId,
+          createdBy: user.id,
+          title: parsed.data.title,
+          description: parsed.data.description ?? null,
+          status: "draft",
+          linkedGoalId: null,
+        },
+        parsed.data.questions.map((q, i) => ({
+          questionText: q.questionText,
+          questionType: q.questionType,
+          options: q.options ?? null,
+          orderIndex: q.orderIndex ?? i,
+        })),
+      );
+      return res.json(survey);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/surveys POST] failed");
+      return res.status(500).json({ message: "Failed to create survey" });
+    }
+  });
+
+  app.patch("/api/mobile/admin/surveys/:id/status", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const surveyId = parseInt(req.params.id);
+    if (isNaN(surveyId)) return res.status(400).json({ message: "Invalid ID" });
+    const bodySchema = z.object({ status: z.enum(["draft", "active", "closed"]) });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+    try {
+      const survey = await storage.getSurvey(surveyId);
+      if (!survey || survey.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Survey not found" });
+      }
+      const updated = await storage.updateSurveyStatus(surveyId, parsed.data.status);
+      return res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/surveys/:id/status] failed");
+      return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  app.delete("/api/mobile/admin/surveys/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const surveyId = parseInt(req.params.id);
+    if (isNaN(surveyId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const survey = await storage.getSurvey(surveyId);
+      if (!survey || survey.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Survey not found" });
+      }
+      await storage.deleteSurvey(surveyId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/surveys/:id DELETE] failed");
+      return res.status(500).json({ message: "Delete failed" });
+    }
+  });
+
+  app.get("/api/mobile/admin/surveys/:id/results", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const surveyId = parseInt(req.params.id);
+    if (isNaN(surveyId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const survey = await storage.getSurvey(surveyId);
+      if (!survey || survey.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Survey not found" });
+      }
+      const [results, respondents] = await Promise.all([
+        storage.getSurveyResults(surveyId),
+        storage.getSurveyRespondents(surveyId),
+      ]);
+      return res.json({ survey, results, respondents });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/surveys/:id/results] failed");
+      return res.status(500).json({ message: "Failed to load results" });
+    }
+  });
+
+  // ─── Admin: Store Item Management ────────────────────────────────────────
+
+  app.get("/api/mobile/admin/store-items", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const items = await storage.getStoreItemsByOrganization(user.organizationId);
+      return res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/store-items] list failed");
+      return res.status(500).json({ message: "Failed to load store items" });
+    }
+  });
+
+  app.post("/api/mobile/admin/store-items", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const bodySchema = z.object({
+      name: z.string().min(1).max(200),
+      description: z.string().max(1000).optional().nullable(),
+      price: z.number().int().min(1),
+      imageUrl: z.string().url().optional().nullable(),
+      url: z.string().url().optional().nullable(),
+      available: z.boolean().default(true),
+      requiresSize: z.boolean().default(false),
+      requiresColor: z.boolean().default(false),
+      sizes: z.array(z.string()).optional().nullable(),
+      colors: z.array(z.string()).optional().nullable(),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const item = await storage.createStoreItem({
+        organizationId: user.organizationId,
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        price: parsed.data.price,
+        imageUrl: parsed.data.imageUrl ?? null,
+        url: parsed.data.url ?? null,
+        available: parsed.data.available,
+        requiresSize: parsed.data.requiresSize,
+        requiresColor: parsed.data.requiresColor,
+        sizes: parsed.data.sizes ?? null,
+        colors: parsed.data.colors ?? null,
+      });
+      return res.json(item);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/store-items POST] failed");
+      return res.status(500).json({ message: "Failed to create item" });
+    }
+  });
+
+  app.patch("/api/mobile/admin/store-items/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const itemId = parseInt(req.params.id);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
+    const bodySchema = z.object({
+      name: z.string().min(1).max(200).optional(),
+      description: z.string().max(1000).nullable().optional(),
+      price: z.number().int().min(1).optional(),
+      imageUrl: z.string().url().nullable().optional(),
+      url: z.string().url().nullable().optional(),
+      available: z.boolean().optional(),
+      requiresSize: z.boolean().optional(),
+      requiresColor: z.boolean().optional(),
+      sizes: z.array(z.string()).nullable().optional(),
+      colors: z.array(z.string()).nullable().optional(),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const item = await storage.getStoreItem(itemId);
+      if (!item || item.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      const updated = await storage.updateStoreItem(itemId, parsed.data);
+      return res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/store-items/:id PATCH] failed");
+      return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  app.delete("/api/mobile/admin/store-items/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const itemId = parseInt(req.params.id);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
+    try {
+      const item = await storage.getStoreItem(itemId);
+      if (!item || item.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      await storage.deleteStoreItem(itemId);
+      return res.json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/store-items/:id DELETE] failed");
+      return res.status(500).json({ message: "Delete failed" });
+    }
+  });
+
+  // ─── Admin: Org Settings ──────────────────────────────────────────────────
+
+  app.get("/api/mobile/admin/org", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const org = await storage.getOrganization(user.organizationId);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      return res.json(org);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/org] get failed");
+      return res.status(500).json({ message: "Failed to load org settings" });
+    }
+  });
+
+  app.patch("/api/mobile/admin/org/budget", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const bodySchema = z.object({
+      bucksPerDollar: z.number().int().min(1),
+      monthlyBudgetBucks: z.number().int().min(0),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const updated = await storage.updateOrganizationBudgetSettings(
+        user.organizationId,
+        parsed.data.bucksPerDollar,
+        parsed.data.monthlyBudgetBucks,
+        user.fullName ?? undefined,
+      );
+      return res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/org/budget] update failed");
+      return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  app.patch("/api/mobile/admin/org/labels", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    const bodySchema = z.object({
+      adminLabel: z.string().min(1).max(50),
+      employeeLabel: z.string().min(1).max(50),
+    });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
+    }
+    try {
+      const updated = await storage.updateOrganizationRoleLabels(
+        user.organizationId,
+        parsed.data.adminLabel,
+        parsed.data.employeeLabel,
+      );
+      return res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/org/labels] update failed");
+      return res.status(500).json({ message: "Update failed" });
+    }
+  });
+
   // ─── Signup ────────────────────────────────────────────────────────────────
 
   // Signup with Stripe payment method (mobile uses native CardField, not Checkout)

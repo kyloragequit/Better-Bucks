@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.25)",
   },
   dotActive: {
-    backgroundColor: brand.gold,
+    backgroundColor: brand.white,
     width: 20,
   },
   footer: {
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   nextButton: {
-    backgroundColor: brand.gold,
+    backgroundColor: brand.green,
     borderRadius: 12,
     height: 52,
     alignItems: "center",

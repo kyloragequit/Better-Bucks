@@ -1,5 +1,17 @@
+import { useState } from "react";
 import { router } from "expo-router";
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { apiUrl } from "@/constants/api";
@@ -16,20 +28,19 @@ type MenuRowProps = {
   testID?: string;
 };
 
-function MenuRow({ icon, label, sublabel, onPress, destructive, chevron = true }: MenuRowProps) {
+function MenuRow({ icon, label, sublabel, onPress, destructive, chevron = true, testID }: MenuRowProps) {
   return (
     <TouchableOpacity
       style={styles.menuRow}
       onPress={onPress}
       disabled={!onPress}
       activeOpacity={onPress ? 0.7 : 1}
+      testID={testID}
     >
       <View
         style={[
           styles.menuIcon,
-          destructive
-            ? { backgroundColor: "rgba(198,40,40,0.08)" }
-            : { backgroundColor: brand.offWhite },
+          destructive ? { backgroundColor: "rgba(198,40,40,0.08)" } : { backgroundColor: brand.offWhite },
         ]}
       >
         <Ionicons
@@ -39,24 +50,11 @@ function MenuRow({ icon, label, sublabel, onPress, destructive, chevron = true }
         />
       </View>
       <View style={{ flex: 1 }}>
-        <Text
-          style={[
-            styles.menuLabel,
-            destructive ? { color: brand.danger } : null,
-          ]}
-        >
-          {label}
-        </Text>
-        {sublabel ? (
-          <Text style={styles.menuSublabel}>{sublabel}</Text>
-        ) : null}
+        <Text style={[styles.menuLabel, destructive ? { color: brand.danger } : null]}>{label}</Text>
+        {sublabel ? <Text style={styles.menuSublabel}>{sublabel}</Text> : null}
       </View>
       {chevron && onPress ? (
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={brand.textMuted}
-        />
+        <Ionicons name="chevron-forward" size={16} color={brand.textMuted} />
       ) : null}
     </TouchableOpacity>
   );
@@ -65,8 +63,12 @@ function MenuRow({ icon, label, sublabel, onPress, destructive, chevron = true }
 export default function ProfileTab() {
   const { user, token, signOut } = useAuth();
   const insets = useSafeAreaInsets();
-
   const isAdmin = user?.role === "admin" || user?.role === "prime_admin";
+
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState(user?.fullName ?? "");
+  const [editEmail, setEditEmail] = useState(user?.email ?? "");
+  const [saving, setSaving] = useState(false);
 
   const handleSignOut = async () => {
     Alert.alert("Sign out?", "You'll need to log in again to access your account.", [
@@ -98,24 +100,50 @@ export default function ProfileTab() {
               });
               if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                Alert.alert(
-                  "Couldn't delete account",
-                  data?.message ?? "Please try again later.",
-                );
+                Alert.alert("Couldn't delete account", data?.message ?? "Please try again later.");
                 return;
               }
               await signOut();
               router.replace("/");
             } catch (err: any) {
-              Alert.alert(
-                "Couldn't delete account",
-                err?.message ?? "Network error.",
-              );
+              Alert.alert("Couldn't delete account", err?.message ?? "Network error.");
             }
           },
         },
       ],
     );
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert("Name required", "Please enter your display name.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(apiUrl("/api/mobile/profile"), {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: editName.trim(),
+          email: editEmail.trim() || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        Alert.alert("Save failed", data?.message ?? "Please try again.");
+        return;
+      }
+      setEditModalVisible(false);
+      Alert.alert("Saved", "Your profile has been updated.");
+    } catch (err: any) {
+      Alert.alert("Error", err?.message ?? "Network error.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const roleLabel = (role: string) => {
@@ -128,99 +156,168 @@ export default function ProfileTab() {
   };
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        { paddingBottom: insets.bottom + 40 },
-      ]}
-    >
-      {/* Avatar / identity */}
-      <View style={styles.identityCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user?.fullName?.charAt(0)?.toUpperCase() ?? "?"}
-          </Text>
+    <>
+      <ScrollView
+        style={styles.root}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+      >
+        {/* Avatar / identity */}
+        <View style={styles.identityCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {user?.fullName?.charAt(0)?.toUpperCase() ?? "?"}
+            </Text>
+          </View>
+          <Text style={styles.name}>{user?.fullName ?? "—"}</Text>
+          <Text style={styles.username}>@{user?.username ?? ""}</Text>
+          {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{roleLabel(user?.role ?? "")}</Text>
+          </View>
+          <TouchableOpacity style={styles.editProfileBtn} onPress={() => {
+            setEditName(user?.fullName ?? "");
+            setEditEmail(user?.email ?? "");
+            setEditModalVisible(true);
+          }}>
+            <Ionicons name="pencil-outline" size={14} color={brand.navy} />
+            <Text style={styles.editProfileText}>Edit Profile</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.name}>{user?.fullName ?? "—"}</Text>
-        <Text style={styles.username}>@{user?.username ?? ""}</Text>
-        {user?.email ? (
-          <Text style={styles.email}>{user.email}</Text>
-        ) : null}
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{roleLabel(user?.role ?? "")}</Text>
+
+        {/* Account info */}
+        <Text style={styles.sectionHeader}>Account</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow icon="person-outline" label="Full name" sublabel={user?.fullName ?? "—"} chevron={false} />
+          <MenuRow icon="at-outline" label="Username" sublabel={user?.username ?? "—"} chevron={false} />
+          {user?.email ? (
+            <MenuRow icon="mail-outline" label="Email" sublabel={user.email} chevron={false} />
+          ) : null}
+          {user?.organizationId ? (
+            <MenuRow icon="business-outline" label="Organization ID" sublabel={String(user.organizationId)} chevron={false} />
+          ) : null}
+          <MenuRow
+            icon="lock-closed-outline"
+            label="Change password"
+            onPress={() => router.push("/change-password")}
+          />
         </View>
-      </View>
 
-      {/* Account info */}
-      <Text style={styles.sectionHeader}>Account</Text>
-      <View style={styles.menuGroup}>
-        <MenuRow
-          icon="person-outline"
-          label="Full name"
-          sublabel={user?.fullName ?? "—"}
-          chevron={false}
-        />
-        <MenuRow
-          icon="at-outline"
-          label="Username"
-          sublabel={user?.username ?? "—"}
-          chevron={false}
-        />
-        {user?.email ? (
+        {/* Admin tools */}
+        {isAdmin && (
+          <>
+            <Text style={styles.sectionHeader}>Admin Tools</Text>
+            <View style={styles.menuGroup}>
+              <MenuRow
+                icon="people-outline"
+                label="Pending Accounts"
+                sublabel="Approve or reject new employees"
+                onPress={() => router.push("/admin/pending" as any)}
+              />
+              <MenuRow
+                icon="trophy-outline"
+                label="Goals"
+                sublabel="Create & manage team goals"
+                onPress={() => router.push("/admin/goals" as any)}
+              />
+              <MenuRow
+                icon="document-text-outline"
+                label="Surveys"
+                sublabel="Create & manage surveys"
+                onPress={() => router.push("/admin/surveys" as any)}
+              />
+              <MenuRow
+                icon="storefront-outline"
+                label="Store Items"
+                sublabel="Manage your rewards catalog"
+                onPress={() => router.push("/admin/store-items" as any)}
+              />
+              <MenuRow
+                icon="settings-outline"
+                label="Organization Settings"
+                sublabel="Budget, role labels & more"
+                onPress={() => router.push("/admin/org-settings" as any)}
+              />
+            </View>
+          </>
+        )}
+
+        {/* Session */}
+        <Text style={styles.sectionHeader}>Session</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow icon="log-out-outline" label="Sign out" onPress={handleSignOut} />
+        </View>
+
+        {/* Danger zone */}
+        <Text style={styles.sectionHeader}>Danger zone</Text>
+        <View style={styles.menuGroup}>
           <MenuRow
-            icon="mail-outline"
-            label="Email"
-            sublabel={user.email}
-            chevron={false}
+            icon="trash-outline"
+            label="Delete account"
+            sublabel={
+              isAdmin
+                ? "Cancels your subscription and removes all data"
+                : "Permanently removes your account"
+            }
+            onPress={handleDeleteAccount}
+            destructive
+            testID="delete-account"
           />
-        ) : null}
-        {user?.organizationId ? (
-          <MenuRow
-            icon="business-outline"
-            label="Organization ID"
-            sublabel={String(user.organizationId)}
-            chevron={false}
-          />
-        ) : null}
-      </View>
+        </View>
+      </ScrollView>
 
-      {/* Sign out */}
-      <Text style={styles.sectionHeader}>Session</Text>
-      <View style={styles.menuGroup}>
-        <MenuRow
-          icon="log-out-outline"
-          label="Sign out"
-          onPress={handleSignOut}
-        />
-      </View>
-
-      {/* Danger zone */}
-      <Text style={styles.sectionHeader}>Danger zone</Text>
-      <View style={styles.menuGroup}>
-        <MenuRow
-          icon="trash-outline"
-          label="Delete account"
-          sublabel={
-            isAdmin
-              ? "Cancels your subscription and removes all data"
-              : "Permanently removes your account"
-          }
-          onPress={handleDeleteAccount}
-          destructive
-          testID="delete-account"
-        />
-      </View>
-    </ScrollView>
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        presentationStyle="formSheet"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setEditModalVisible(false)} hitSlop={12}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity onPress={handleSaveProfile} disabled={saving} hitSlop={12}>
+              <Text style={[styles.modalSave, saving && { opacity: 0.5 }]}>
+                {saving ? "Saving…" : "Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.modalBody}>
+            <Text style={styles.fieldLabel}>Display Name</Text>
+            <TextInput
+              style={styles.textInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your full name"
+              placeholderTextColor={brand.textMuted}
+              autoCapitalize="words"
+            />
+            <Text style={styles.fieldLabel}>Email for Notifications</Text>
+            <TextInput
+              style={styles.textInput}
+              value={editEmail}
+              onChangeText={setEditEmail}
+              placeholder="Optional — for order & balance updates"
+              placeholderTextColor={brand.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: brand.white },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
+  content: { paddingHorizontal: 20, paddingTop: 16 },
   identityCard: {
     alignItems: "center",
     backgroundColor: brand.white,
@@ -242,26 +339,10 @@ const styles = StyleSheet.create({
     borderColor: brand.green,
     marginBottom: 8,
   },
-  avatarText: {
-    color: brand.navy,
-    fontFamily: "Inter_700Bold",
-    fontSize: 30,
-  },
-  name: {
-    color: brand.text,
-    fontFamily: "Inter_700Bold",
-    fontSize: 20,
-  },
-  username: {
-    color: brand.textSecondary,
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-  },
-  email: {
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-  },
+  avatarText: { color: brand.navy, fontFamily: "Inter_700Bold", fontSize: 30 },
+  name: { color: brand.text, fontFamily: "Inter_700Bold", fontSize: 20 },
+  username: { color: brand.textSecondary, fontFamily: "Inter_400Regular", fontSize: 14 },
+  email: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 13 },
   roleBadge: {
     marginTop: 8,
     backgroundColor: "rgba(46,125,50,0.08)",
@@ -271,11 +352,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(46,125,50,0.20)",
   },
-  roleText: {
-    color: brand.green,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
+  roleText: { color: brand.green, fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  editProfileBtn: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: brand.border,
+    backgroundColor: brand.offWhite,
   },
+  editProfileText: { color: brand.navy, fontFamily: "Inter_500Medium", fontSize: 13 },
   sectionHeader: {
     color: brand.textMuted,
     fontFamily: "Inter_600SemiBold",
@@ -309,15 +399,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  menuLabel: {
-    color: brand.text,
-    fontFamily: "Inter_500Medium",
-    fontSize: 15,
+  menuLabel: { color: brand.text, fontFamily: "Inter_500Medium", fontSize: 15 },
+  menuSublabel: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 2 },
+  // Modal
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: brand.border,
+    backgroundColor: brand.white,
   },
-  menuSublabel: {
-    color: brand.textMuted,
+  modalTitle: { color: brand.text, fontFamily: "Inter_600SemiBold", fontSize: 17 },
+  modalCancel: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 16 },
+  modalSave: { color: brand.green, fontFamily: "Inter_600SemiBold", fontSize: 16 },
+  modalBody: { padding: 20, gap: 16 },
+  fieldLabel: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: brand.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
     fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 15,
+    color: brand.text,
+    backgroundColor: brand.white,
   },
 });

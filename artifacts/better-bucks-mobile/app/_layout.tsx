@@ -65,6 +65,30 @@ function RootLayoutNav() {
         name="transaction/history"
         options={{ title: "Transaction History" }}
       />
+      <Stack.Screen
+        name="admin/employee/[id]"
+        options={{ title: "Employee" }}
+      />
+      <Stack.Screen
+        name="admin/pending"
+        options={{ title: "Pending Accounts" }}
+      />
+      <Stack.Screen
+        name="admin/goals"
+        options={{ title: "Goals" }}
+      />
+      <Stack.Screen
+        name="admin/surveys"
+        options={{ title: "Surveys" }}
+      />
+      <Stack.Screen
+        name="admin/store-items"
+        options={{ title: "Store Items" }}
+      />
+      <Stack.Screen
+        name="admin/org-settings"
+        options={{ title: "Organization Settings" }}
+      />
     </Stack>
   );
 }

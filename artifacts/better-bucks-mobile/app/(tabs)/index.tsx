@@ -301,10 +301,29 @@ export default function HomeTab() {
         {/* Recent transactions */}
         {(data?.recentTransactions ?? []).length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <Pressable
+                onPress={() => router.push("/transaction/history")}
+                accessibilityRole="button"
+                accessibilityLabel="View all transactions"
+                hitSlop={8}
+              >
+                <Text style={styles.viewAllLink}>View all</Text>
+              </Pressable>
+            </View>
             {data!.recentTransactions.map((tx) => (
               <TransactionRow key={tx.id} tx={tx} />
             ))}
+            <Pressable
+              style={({ pressed }) => [styles.viewAllButton, pressed && { opacity: 0.75 }]}
+              onPress={() => router.push("/transaction/history")}
+              accessibilityRole="button"
+              accessibilityLabel="View full transaction history"
+            >
+              <Text style={styles.viewAllButtonText}>View Full History</Text>
+              <Ionicons name="chevron-forward" size={14} color={brand.gold} />
+            </Pressable>
           </View>
         )}
 
@@ -622,13 +641,40 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 20,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
   sectionTitle: {
     color: "rgba(255,255,255,0.65)",
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.8,
-    marginBottom: 12,
+  },
+  viewAllLink: {
+    color: brand.gold,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    marginTop: 12,
+    paddingVertical: 12,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  viewAllButtonText: {
+    color: brand.gold,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
   },
   emptyState: {
     alignItems: "center",

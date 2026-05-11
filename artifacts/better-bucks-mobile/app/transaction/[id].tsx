@@ -40,10 +40,20 @@ export default function TransactionDetailScreen() {
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
 
+  const isMerchant = typeof id === "string" && id.startsWith("mt-");
+  const numericId = typeof id === "string" && id.startsWith("tx-")
+    ? id.slice(3)
+    : typeof id === "string" && id.startsWith("mt-")
+      ? id.slice(3)
+      : id;
+  const apiPath = isMerchant
+    ? `/api/mobile/merchant-transactions/${numericId}`
+    : `/api/mobile/transactions/${numericId}`;
+
   const { data, isLoading, isError } = useQuery<TransactionDetail>({
     queryKey: ["transaction-detail", id],
     queryFn: async () => {
-      const res = await fetch(apiUrl(`/api/mobile/transactions/${id}`), {
+      const res = await fetch(apiUrl(apiPath), {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       if (!res.ok) throw new Error("Failed to load transaction");

@@ -61,6 +61,10 @@ function RootLayoutNav() {
         name="transaction/[id]"
         options={{ title: "Transaction Details" }}
       />
+      <Stack.Screen
+        name="transaction/history"
+        options={{ title: "Transaction History" }}
+      />
     </Stack>
   );
 }

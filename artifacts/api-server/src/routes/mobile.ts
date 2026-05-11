@@ -1285,14 +1285,16 @@ export function registerMobileRoutes(app: Express) {
     const user = (req as MobileRequest).mobileUser;
     const limitParam = Number(req.query.limit ?? 30);
     const limit = isNaN(limitParam) || limitParam < 1 ? 30 : Math.min(limitParam, 100);
+    const offsetParam = Number(req.query.offset ?? 0);
+    const offset = isNaN(offsetParam) || offsetParam < 0 ? 0 : offsetParam;
 
     try {
       const [ledger, merchantTxns] = await Promise.all([
         storage.getTransactionsByUser(user.id),
-        storage.getMerchantTransactionsForEmployee(user.id, limit),
+        storage.getMerchantTransactionsForEmployee(user.id),
       ]);
 
-      const ledgerItems = ledger.slice(0, limit).map((t) => ({
+      const ledgerItems = ledger.map((t) => ({
         id: `tx-${t.id}`,
         type: (t.amount ?? 0) >= 0 ? "credit" : "debit",
         amount: t.amount ?? 0,
@@ -1301,7 +1303,7 @@ export function registerMobileRoutes(app: Express) {
         createdAt: t.createdAt,
       }));
 
-      const merchantItems = merchantTxns.slice(0, limit).map((mt) => ({
+      const merchantItems = merchantTxns.map((mt) => ({
         id: `mt-${mt.id}`,
         type: "debit" as const,
         amount: -(mt.bucksAmount ?? 0),
@@ -1310,18 +1312,52 @@ export function registerMobileRoutes(app: Express) {
         createdAt: mt.createdAt,
       }));
 
-      const combined = [...ledgerItems, ...merchantItems]
-        .sort((a, b) => {
-          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return bTime - aTime;
-        })
-        .slice(0, limit);
+      const sorted = [...ledgerItems, ...merchantItems].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
 
-      res.json({ transactions: combined });
+      const total = sorted.length;
+      const transactions = sorted.slice(offset, offset + limit);
+
+      res.json({ transactions, total, offset, limit });
     } catch (err) {
-      console.error("[mobile/transactions]", err);
+      logger.error({ err }, "[mobile/transactions] Failed to load transactions");
       res.status(500).json({ message: "Could not load transactions" });
+    }
+  });
+
+  // Merchant transaction detail (user-scoped)
+  app.get("/api/mobile/merchant-transactions/:id", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    const mtId = Number(req.params.id);
+    if (isNaN(mtId) || mtId < 1) {
+      return res.status(400).json({ message: "Invalid merchant transaction id" });
+    }
+
+    try {
+      const all = await storage.getMerchantTransactionsForEmployee(user.id);
+      const mt = all.find((t) => t.id === mtId);
+      if (!mt) {
+        return res.status(404).json({ message: "Merchant transaction not found" });
+      }
+
+      res.json({
+        id: mt.id,
+        amount: -(mt.bucksAmount ?? 0),
+        reason: mt.merchant?.name ? `Redeemed at ${mt.merchant.name}` : "Merchant redemption",
+        type: "debit" as const,
+        createdAt: mt.createdAt,
+        performedByName: null,
+        merchantName: mt.merchant?.name ?? null,
+        categoryId: null,
+        categoryName: null,
+        categoryColor: null,
+      });
+    } catch (err) {
+      logger.error({ err }, "[mobile/merchant-transactions/:id] Failed to load merchant transaction");
+      res.status(500).json({ message: "Could not load transaction" });
     }
   });
 

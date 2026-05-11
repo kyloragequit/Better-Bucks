@@ -1711,11 +1711,13 @@ DatabaseStorage.prototype.getMerchantTransactionsByOrg = async function (orgId, 
   return rows.map((r) => ({ ...r, employee: empById.get(r.employeeId), merchant: merchById.get(r.merchantId) }));
 };
 
-DatabaseStorage.prototype.getMerchantTransactionsForEmployee = async function (employeeId, limit = 100) {
-  const rows = await db.select().from(merchantTransactions)
+DatabaseStorage.prototype.getMerchantTransactionsForEmployee = async function (employeeId, limit) {
+  let query = db.select().from(merchantTransactions)
     .where(eq(merchantTransactions.employeeId, employeeId))
     .orderBy(desc(merchantTransactions.createdAt))
-    .limit(limit);
+    .$dynamic();
+  if (limit !== undefined) query = query.limit(limit);
+  const rows = await query;
   const merchIds = Array.from(new Set(rows.map((r) => r.merchantId)));
   const merchList = merchIds.length ? await db.select().from(merchants).where(inArray(merchants.id, merchIds)) : [];
   const merchById = new Map(merchList.map((m) => [m.id, m]));

@@ -89,6 +89,18 @@ function RootLayoutNav() {
         name="admin/org-settings"
         options={{ title: "Organization Settings" }}
       />
+      <Stack.Screen
+        name="transfer/receive"
+        options={{ title: "Waiting for Recipient", gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="transfer/success"
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="transfer/history"
+        options={{ title: "Transfer History" }}
+      />
     </Stack>
   );
 }

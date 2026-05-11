@@ -51,6 +51,18 @@ export default function TabLayout() {
         }}
       />
 
+      {/* Employees only: Send Bucks */}
+      <Tabs.Screen
+        name="send"
+        options={{
+          title: "Send",
+          tabBarIcon: ({ focused }) => <TabIcon name="paper-plane" focused={focused} />,
+          headerTitle: "Send Bucks",
+          tabBarItemStyle: admin ? { display: "none" } : undefined,
+          href: admin ? null : undefined,
+        }}
+      />
+
       {/* Admin-only: Team (employee list) */}
       <Tabs.Screen
         name="team"

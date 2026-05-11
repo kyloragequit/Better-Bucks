@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePublicDemo } from "@/hooks/use-demo";
 import { SpinningLogo } from "@/components/spinning-logo";
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Package, Check, X, Eye, ExternalLink, Lock, Pencil, ShoppingCart, Download, Send, Mail } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useUser } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -25,6 +25,10 @@ type OrderWithUser = Order & { user: User };
 type ShoppingListVariant = { size: string; color: string; qty: number; employees: string[] };
 type ShoppingListItem = { name: string; variants: ShoppingListVariant[] };
 type ShoppingListData = { items: ShoppingListItem[]; generatedAt: string; totalOrders: number };
+
+type PaginatedOrdersResponse = { orders: OrderWithUser[]; hasMore: boolean; total: number };
+
+const PAGE_LIMIT = 50;
 
 function statusVariant(status: string) {
   switch (status) {
@@ -40,16 +44,46 @@ export default function AdminOrdersPage() {
   const isPublicDemo = usePublicDemo();
   const { data: currentUser } = useUser();
   const isPrime = currentUser?.role === "prime_admin";
-  const { data: orders, isLoading } = useQuery<OrderWithUser[]>({
-    queryKey: ["/api/orders"],
-  });
   const [selectedOrder, setSelectedOrder] = useState<OrderWithUser | null>(null);
   const [showShoppingList, setShowShoppingList] = useState(false);
 
-  if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
+  // Pending orders: fetch all at once (typically few)
+  const { data: pendingOrders = [], isLoading: pendingLoading } = useQuery<OrderWithUser[]>({
+    queryKey: ["/api/orders", "pending"],
+    queryFn: async () => {
+      const res = await fetch("/api/orders?status=pending", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch pending orders");
+      return res.json();
+    },
+  });
 
-  const pendingOrders = orders?.filter(o => o.status === "pending") || [];
-  const otherOrders = orders?.filter(o => o.status !== "pending") || [];
+  // All orders: paginated via infinite query
+  const {
+    data: allOrdersData,
+    isLoading: allOrdersLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery<PaginatedOrdersResponse>({
+    queryKey: ["/api/orders/paginated"],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const page = pageParam as number;
+      const res = await fetch(`/api/orders?page=${page}&limit=${PAGE_LIMIT}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch orders");
+      return res.json();
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage.hasMore) return undefined;
+      return allPages.length + 1;
+    },
+  });
+
+  const allOrders = allOrdersData?.pages.flatMap(p => p.orders) ?? [];
+  const totalCount = allOrdersData?.pages[0]?.total ?? 0;
+  const isLoading = pendingLoading || allOrdersLoading;
+
+  if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
 
   return (
     <AdminLayout>
@@ -182,17 +216,25 @@ export default function AdminOrdersPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" /> All Orders
+            {totalCount > 0 && (
+              <span className="text-sm font-normal text-muted-foreground ml-1">
+                ({allOrders.length.toLocaleString()} of {totalCount.toLocaleString()} loaded)
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0 sm:px-6">
-          {(!orders || orders.length === 0) ? (
+          {allOrders.length === 0 ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground px-4">No orders yet.</div>
           ) : (
             <AllOrdersVirtualList
-              orders={orders}
+              orders={allOrders}
               isPrime={!!isPrime}
               isPublicDemo={isPublicDemo}
               onViewOrder={setSelectedOrder}
+              hasNextPage={!!hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              onLoadMore={fetchNextPage}
             />
           )}
         </CardContent>
@@ -214,11 +256,17 @@ function AllOrdersVirtualList({
   isPrime,
   isPublicDemo,
   onViewOrder,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
 }: {
   orders: OrderWithUser[];
   isPrime: boolean;
   isPublicDemo: boolean;
   onViewOrder: (order: OrderWithUser) => void;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onLoadMore: () => void;
 }) {
   const mobileParentRef = useRef<HTMLDivElement>(null);
   const desktopParentRef = useRef<HTMLDivElement>(null);
@@ -245,6 +293,37 @@ function AllOrdersVirtualList({
     desktopVirtualItems.length > 0
       ? desktopVirtualizer.getTotalSize() - desktopVirtualItems[desktopVirtualItems.length - 1].end
       : 0;
+
+  // Auto-fetch next page when user scrolls near the bottom
+  const handleMobileScroll = useCallback(() => {
+    const el = mobileParentRef.current;
+    if (!el || isFetchingNextPage || !hasNextPage) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+      onLoadMore();
+    }
+  }, [isFetchingNextPage, hasNextPage, onLoadMore]);
+
+  const handleDesktopScroll = useCallback(() => {
+    const el = desktopParentRef.current;
+    if (!el || isFetchingNextPage || !hasNextPage) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+      onLoadMore();
+    }
+  }, [isFetchingNextPage, hasNextPage, onLoadMore]);
+
+  useEffect(() => {
+    const el = mobileParentRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleMobileScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleMobileScroll);
+  }, [handleMobileScroll]);
+
+  useEffect(() => {
+    const el = desktopParentRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleDesktopScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleDesktopScroll);
+  }, [handleDesktopScroll]);
 
   return (
     <>
@@ -305,6 +384,11 @@ function AllOrdersVirtualList({
             );
           })}
         </div>
+        {isFetchingNextPage && (
+          <div className="flex justify-center py-4">
+            <SpinningLogo className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
       </div>
 
       {/* Desktop table — virtualized */}
@@ -374,9 +458,24 @@ function AllOrdersVirtualList({
             {desktopPaddingBottom > 0 && (
               <tr><td style={{ height: desktopPaddingBottom }} /></tr>
             )}
+            {isFetchingNextPage && (
+              <tr>
+                <td colSpan={8} className="py-4 text-center">
+                  <SpinningLogo className="h-5 w-5 text-muted-foreground inline-block" />
+                </td>
+              </tr>
+            )}
           </TableBody>
         </Table>
       </div>
+
+      {hasNextPage && !isFetchingNextPage && (
+        <div className="flex justify-center pt-3 pb-1">
+          <Button variant="outline" size="sm" onClick={() => onLoadMore()} data-testid="button-load-more-orders">
+            Load more orders
+          </Button>
+        </div>
+      )}
     </>
   );
 }
@@ -397,7 +496,8 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", "pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/orders/pending-count"] });
       toast({ title: "Order Updated", description: `Order has been ${action}.` });
     },
@@ -426,6 +526,179 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
         <><Check className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">{label}</span></>
       )}
     </Button>
+  );
+}
+
+function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; onClose: () => void; isPrime: boolean | undefined }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [adminNotes, setAdminNotes] = useState(order.adminNotes ?? "");
+  const [newBucks, setNewBucks] = useState(String(order.pointsCost));
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [savingBucks, setSavingBucks] = useState(false);
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: order.status, adminNotes }),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to save notes");
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", "pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders/paginated"] });
+      toast({ title: "Notes saved" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const handleSaveBucks = async () => {
+    const cost = parseInt(newBucks);
+    if (!cost || cost <= 0) {
+      toast({ title: "Invalid", description: "Enter a valid Bucks amount.", variant: "destructive" });
+      return;
+    }
+    setSavingBucks(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/bucks`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newCost: cost }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to update Bucks");
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/orders", "pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders/paginated"] });
+      toast({ title: "Bucks updated", description: `Order Bucks changed to ${cost.toLocaleString()}.` });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingBucks(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Order Details</DialogTitle>
+          <DialogDescription>
+            {order.user?.fullName || "Unknown"} — {format(new Date(order.createdAt), "MMM d, yyyy")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Description</Label>
+            <p className="mt-1 text-sm">{order.description}</p>
+          </div>
+
+          {order.itemUrl && (
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Item Link</Label>
+              <a
+                href={order.itemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 flex items-center gap-1.5 text-sm text-primary underline break-all"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                {order.itemUrl}
+              </a>
+            </div>
+          )}
+
+          <div className="flex items-center gap-6">
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Bucks</Label>
+              <p className="mt-1 font-bold tabular-nums text-primary">{order.pointsCost.toLocaleString()} bcks</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Status</Label>
+              <div className="mt-1">
+                <Badge variant={statusVariant(order.status)} className="capitalize">{order.status}</Badge>
+              </div>
+            </div>
+            {order.convertedValue && (
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Value</Label>
+                <p className="mt-1 text-sm text-muted-foreground">{order.convertedValue}</p>
+              </div>
+            )}
+          </div>
+
+          {order.photoUrls && order.photoUrls.length > 0 && (
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Photos</Label>
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {order.photoUrls.map((url, idx) => (
+                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-md overflow-hidden border aspect-square hover:opacity-90 transition-opacity">
+                    <img src={url} alt={`Order photo ${idx + 1}`} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isPrime && order.status !== "rejected" && (
+            <div className="space-y-3 pt-2 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="admin-notes" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Pencil className="h-3.5 w-3.5" /> Admin Notes
+                </Label>
+                <Textarea
+                  id="admin-notes"
+                  placeholder="Add notes visible to the employee…"
+                  value={adminNotes}
+                  onChange={e => setAdminNotes(e.target.value)}
+                  rows={3}
+                  data-testid="input-admin-notes"
+                />
+                <Button size="sm" variant="outline" onClick={handleSaveNotes} disabled={savingNotes} data-testid="button-save-notes">
+                  {savingNotes ? <SpinningLogo className="h-4 w-4 mr-1" /> : null}
+                  Save Notes
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bucks-adjust" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Pencil className="h-3.5 w-3.5" /> Adjust Bucks
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="bucks-adjust"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={newBucks}
+                    onChange={e => setNewBucks(e.target.value)}
+                    className="w-36"
+                    data-testid="input-bucks-adjust"
+                  />
+                  <Button size="sm" variant="outline" onClick={handleSaveBucks} disabled={savingBucks} data-testid="button-save-bucks">
+                    {savingBucks ? <SpinningLogo className="h-4 w-4 mr-1" /> : null}
+                    Update Bucks
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Adjusting will update the employee's balance accordingly.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -507,22 +780,18 @@ function ShoppingListDialog({ onClose }: { onClose: () => void }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.items.map((item, itemIdx) =>
-                  item.variants.map((v, vIdx) => (
-                    <TableRow key={`${itemIdx}-${vIdx}`} className={vIdx === 0 && itemIdx > 0 ? "border-t-2 border-muted" : ""}>
+                {data.items.map((item) =>
+                  item.variants.map((variant, vIdx) => (
+                    <TableRow key={`${item.name}-${vIdx}`}>
                       {vIdx === 0 && (
-                        <TableCell
-                          rowSpan={item.variants.length}
-                          className="font-medium align-top max-w-[160px]"
-                          data-testid={`text-shopping-item-${itemIdx}`}
-                        >
+                        <TableCell rowSpan={item.variants.length} className="font-medium align-top py-3">
                           {item.name}
                         </TableCell>
                       )}
-                      <TableCell className="text-sm text-muted-foreground">{v.size || "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{v.color || "—"}</TableCell>
-                      <TableCell className="text-center font-bold text-primary" data-testid={`text-shopping-qty-${itemIdx}-${vIdx}`}>{v.qty}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate" title={v.employees.join(", ")}>{v.employees.join(", ")}</TableCell>
+                      <TableCell className="py-3 text-sm">{variant.size || "—"}</TableCell>
+                      <TableCell className="py-3 text-sm">{variant.color || "—"}</TableCell>
+                      <TableCell className="py-3 text-center font-bold tabular-nums">{variant.qty}</TableCell>
+                      <TableCell className="py-3 text-sm text-muted-foreground">{variant.employees.join(", ")}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -533,198 +802,34 @@ function ShoppingListDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Actions */}
-        <div className="space-y-4 pt-2">
-          {/* Download */}
-          <Button
-            variant="outline"
-            className="w-full flex items-center gap-2"
-            onClick={handleDownload}
-            disabled={!data || data.items.length === 0}
-            data-testid="button-download-shopping-list"
-          >
-            <Download className="h-4 w-4" />
-            Download CSV
+        <div className="space-y-3 pt-2">
+          <Button variant="outline" className="w-full flex items-center gap-2" onClick={handleDownload} data-testid="button-download-csv">
+            <Download className="h-4 w-4" /> Download CSV
           </Button>
-
-          {/* Email */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-sm font-medium">
-              <Mail className="h-4 w-4" />
-              Send to email
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="recipient@example.com"
-                value={emailTo}
-                onChange={(e) => setEmailTo(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendEmail()}
-                disabled={sendingEmail || !data || data.items.length === 0}
-                data-testid="input-shopping-list-email"
-              />
-              <Button
-                onClick={handleSendEmail}
-                disabled={sendingEmail || !emailTo.trim() || !data || data.items.length === 0}
-                className="flex items-center gap-1.5 whitespace-nowrap"
-                data-testid="button-send-shopping-list-email"
-              >
-                {sendingEmail ? <SpinningLogo className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                {sendingEmail ? "Sending…" : "Send"}
-              </Button>
-            </div>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="Send to email…"
+              value={emailTo}
+              onChange={e => setEmailTo(e.target.value)}
+              data-testid="input-email-shopping-list"
+            />
+            <Button
+              variant="outline"
+              onClick={handleSendEmail}
+              disabled={sendingEmail}
+              className="shrink-0 flex items-center gap-2"
+              data-testid="button-send-email-shopping-list"
+            >
+              {sendingEmail ? <SpinningLogo className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+              Send
+            </Button>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; onClose: () => void; isPrime: boolean }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [editingBucks, setEditingBucks] = useState(false);
-  const [newBucks, setNewBucks] = useState(order.pointsCost.toString());
-
-  const adjustBucksMutation = useMutation({
-    mutationFn: async (newCost: number) => {
-      const res = await apiRequest("PATCH", `/api/orders/${order.id}/bucks`, { newCost });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.message || "Failed to adjust Bucks");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      toast({ title: "Bucks Adjusted", description: `Order #${order.id} Bucks updated.` });
-      setEditingBucks(false);
-    },
-    onError: (e: Error) => {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const handleSaveBucks = () => {
-    const parsed = parseInt(newBucks);
-    if (isNaN(parsed) || parsed < 1) {
-      toast({ title: "Invalid amount", description: "Bucks must be at least 1.", variant: "destructive" });
-      return;
-    }
-    if (parsed === order.pointsCost) { setEditingBucks(false); return; }
-    adjustBucksMutation.mutate(parsed);
-  };
-
-  const canAdjustBucks = isPrime && order.status !== "rejected";
-
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Order #{order.id} - Details</DialogTitle>
-          <DialogDescription>
-            Submitted by {order.user?.fullName} on {format(new Date(order.createdAt), "MMM d, yyyy h:mm a")}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="text-sm">
-            <span className="font-medium">Description:</span> {order.description}
-          </div>
-          <div className="text-sm flex items-center gap-2">
-            <span className="font-medium">Bucks:</span>
-            {editingBucks ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number" inputMode="numeric"
-                  min={1}
-                  value={newBucks}
-                  onChange={(e) => setNewBucks(e.target.value)}
-                  className="min-h-7 w-auto min-w-20 text-sm"
-                  autoFocus
-                  data-testid="input-adjust-bucks"
-                />
-                <Button size="sm" className="min-h-7 px-2 text-xs" onClick={handleSaveBucks} disabled={adjustBucksMutation.isPending} data-testid="button-save-bucks">
-                  {adjustBucksMutation.isPending ? "Saving..." : "Save"}
-                </Button>
-                <Button size="sm" variant="ghost" className="min-h-7 px-2 text-xs" onClick={() => { setEditingBucks(false); setNewBucks(order.pointsCost.toString()); }}>
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                {order.pointsCost.toLocaleString()}
-                {canAdjustBucks && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingBucks(true)}
-                    className="inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-5 sm:min-w-5 text-muted-foreground hover:text-primary transition-colors"
-                    title="Adjust Bucks"
-                    aria-label="Adjust Bucks"
-                    data-testid="button-edit-bucks"
-                  >
-                    <Pencil className="h-4 w-4 sm:h-3 sm:w-3" />
-                  </button>
-                )}
-              </span>
-            )}
-          </div>
-          {canAdjustBucks && !editingBucks && (
-            <p className="text-xs text-muted-foreground -mt-1">
-              Adjusting Bucks will refund or charge the difference to the employee's balance.
-            </p>
-          )}
-          {order.convertedValue && (
-            <div className="text-sm">
-              <span className="font-medium">USD Value:</span> {order.convertedValue}
-            </div>
-          )}
-          {(order.quantity ?? 1) > 1 && (
-            <div className="text-sm">
-              <span className="font-medium">Quantity:</span> {order.quantity}
-            </div>
-          )}
-          {order.selectedSize && (
-            <div className="text-sm">
-              <span className="font-medium">Size:</span> {order.selectedSize}
-            </div>
-          )}
-          {order.selectedColor && (
-            <div className="text-sm">
-              <span className="font-medium">Color:</span> {order.selectedColor}
-            </div>
-          )}
-          {order.itemUrl && (
-            <div className="text-sm">
-              <span className="font-medium">Item Link:</span>{" "}
-              <a
-                href={order.itemUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline inline-flex items-center gap-1"
-                data-testid="link-order-item-url"
-              >
-                {order.itemUrl}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          )}
-          {order.photoUrls.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
-              {order.photoUrls.map((url, idx) => (
-                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-md overflow-hidden border aspect-square">
-                  <img src={url} alt={`Order photo ${idx + 1}`} className="w-full h-full object-cover" />
-                </a>
-              ))}
-            </div>
-          )}
-          {order.photoUrls.length === 0 && !order.itemUrl && (
-            <p className="text-sm text-muted-foreground">No photos or links attached</p>
-          )}
-        </div>
       </DialogContent>
     </Dialog>
   );

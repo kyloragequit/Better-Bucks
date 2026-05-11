@@ -2697,9 +2697,31 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
 
     if (user.role === "admin" || user.role === "prime_admin") {
+      const pageParam = req.query.page;
+      const status = typeof req.query.status === "string" ? req.query.status : undefined;
+
+      // Paginated request: ?page=N&limit=M
+      if (pageParam !== undefined) {
+        const page = Math.max(1, parseInt(pageParam as string) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+        if (user.organizationId) {
+          const result = await storage.getOrdersByOrganizationPaginated(user.organizationId, page, limit);
+          return res.json(result);
+        }
+        // Super-admin fallback: fetch all and slice in memory
+        const allOrders = await storage.getAllOrders();
+        const offset = (page - 1) * limit;
+        const sliced = allOrders.slice(offset, offset + limit);
+        return res.json({ orders: sliced, hasMore: offset + sliced.length < allOrders.length, total: allOrders.length });
+      }
+
+      // Non-paginated: supports optional ?status filter (used for pending-only fetch)
       const allOrders = user.organizationId
-        ? await storage.getOrdersByOrganization(user.organizationId)
+        ? await storage.getOrdersByOrganization(user.organizationId, status)
         : await storage.getAllOrders();
+      if (status && !user.organizationId) {
+        return res.json((allOrders as any[]).filter((o: any) => o.status === status));
+      }
       res.json(allOrders);
     } else {
       const userOrders = await storage.getOrdersByUser(user.id);

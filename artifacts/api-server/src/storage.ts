@@ -34,7 +34,8 @@ export interface IStorage {
   getOrder(id: number): Promise<Order | undefined>;
   getOrdersByUser(userId: number): Promise<Order[]>;
   getAllOrders(): Promise<(Order & { user: User })[]>;
-  getOrdersByOrganization(organizationId: number): Promise<(Order & { user: User })[]>;
+  getOrdersByOrganization(organizationId: number, status?: string): Promise<(Order & { user: User })[]>;
+  getOrdersByOrganizationPaginated(organizationId: number, page: number, limit: number): Promise<{ orders: (Order & { user: User })[]; hasMore: boolean; total: number }>;
   updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
   updateOrderPointsCost(id: number, pointsCost: number): Promise<Order>;
 
@@ -464,14 +465,45 @@ export class DatabaseStorage implements IStorage {
     return result.map(row => ({ ...row.order, user: row.user! }));
   }
 
-  async getOrdersByOrganization(organizationId: number): Promise<(Order & { user: User })[]> {
+  async getOrdersByOrganization(organizationId: number, status?: string): Promise<(Order & { user: User })[]> {
+    const whereClause = status
+      ? and(eq(users.organizationId, organizationId), eq(orders.status, status))
+      : eq(users.organizationId, organizationId);
     const result = await db
       .select({ order: orders, user: users })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
-      .where(eq(users.organizationId, organizationId))
+      .where(whereClause)
       .orderBy(desc(orders.createdAt));
     return result.map(row => ({ ...row.order, user: row.user! }));
+  }
+
+  async getOrdersByOrganizationPaginated(organizationId: number, page: number, limit: number): Promise<{ orders: (Order & { user: User })[]; hasMore: boolean; total: number }> {
+    const offset = (page - 1) * limit;
+    const whereClause = eq(users.organizationId, organizationId);
+
+    const [countRow] = await db
+      .select({ count: sql<string>`count(*)` })
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id))
+      .where(whereClause);
+
+    const total = parseInt(countRow?.count ?? "0", 10);
+
+    const result = await db
+      .select({ order: orders, user: users })
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id))
+      .where(whereClause)
+      .orderBy(desc(orders.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      orders: result.map(row => ({ ...row.order, user: row.user! })),
+      hasMore: offset + result.length < total,
+      total,
+    };
   }
 
   async updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order> {

@@ -165,7 +165,7 @@ export async function buildPassForEmployee(
           key: "lastUpdated",
           label: "Balance updated",
           value: new Date(Number(displayTag)).toISOString(),
-          dateStyle: "PKDateStyleNone",
+          dateStyle: "PKDateStyleShort",
           timeStyle: "PKDateStyleShort",
         },
       ],

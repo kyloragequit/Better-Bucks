@@ -20,19 +20,7 @@ import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/Button";
 import { TextField } from "@/components/TextField";
-
-type StoreItem = {
-  id: number;
-  name: string;
-  description: string | null;
-  price: number;
-  imageUrl: string | null;
-  available: boolean;
-  requiresSize: boolean;
-  requiresColor: boolean;
-  sizes: string[] | null;
-  colors: string[] | null;
-};
+import { useStoreCatalog, type StoreItem } from "@/hooks/useStoreCatalog";
 
 type Employee = {
   id: number;
@@ -46,22 +34,24 @@ type Employee = {
 
 type SortOrder = "none" | "asc" | "desc";
 
+function formatCacheAge(cachedAt: number): string {
+  const diffMs = Date.now() - cachedAt;
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1) return "just now";
+  if (diffMins === 1) return "1 minute ago";
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours === 1) return "1 hour ago";
+  return `${diffHours} hours ago`;
+}
+
 function EmployeeStore() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
-  const { data: items = [], isLoading, refetch, isRefetching } = useQuery<StoreItem[]>({
-    queryKey: ["mobile-store", token],
-    queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/store-items"), {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (!res.ok) throw new Error("Failed to load store");
-      return res.json();
-    },
-    enabled: !!token,
-  });
+  const { items, isLoading, isFetching, isFromCache, cachedAt, refetch } =
+    useStoreCatalog(token, user?.id ?? null);
 
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("none");
@@ -178,13 +168,26 @@ function EmployeeStore() {
       ]}
       refreshControl={
         <RefreshControl
-          refreshing={isRefetching}
+          refreshing={isFetching}
           onRefresh={refetch}
           tintColor={brand.gold}
         />
       }
       ListHeaderComponent={
         <View>
+          {isFromCache && cachedAt !== null && (
+            <View style={storeSearchStyles.cacheBanner}>
+              <Ionicons
+                name="time-outline"
+                size={13}
+                color="rgba(255,255,255,0.45)"
+              />
+              <Text style={storeSearchStyles.cacheBannerText}>
+                Last updated {formatCacheAge(cachedAt)}
+                {isFetching ? " · Refreshing…" : ""}
+              </Text>
+            </View>
+          )}
           <View style={storeSearchStyles.headerRow}>
             <View style={storeSearchStyles.searchBar}>
               <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" />
@@ -745,6 +748,18 @@ const storeSearchStyles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     marginBottom: 8,
+  },
+  cacheBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  cacheBannerText: {
+    color: "rgba(255,255,255,0.45)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
   },
 });
 

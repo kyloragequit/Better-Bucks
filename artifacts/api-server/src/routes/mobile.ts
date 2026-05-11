@@ -1622,7 +1622,7 @@ export function registerMobileRoutes(app: Express) {
     }
     try {
       const emp = await storage.getUser(empId);
-      if (!emp || emp.organizationId !== user.organizationId) {
+      if (!emp || emp.organizationId !== user.organizationId || emp.role !== "employee") {
         return res.status(404).json({ message: "Employee not found" });
       }
       await storage.updateUserBalance(empId, parsed.data.amount);
@@ -2217,7 +2217,7 @@ export function registerMobileRoutes(app: Express) {
       const org = await storage.getOrganization(user.organizationId);
       if (!org) return res.status(404).json({ message: "Organization not found" });
       const target = await storage.getUser(targetUserId);
-      if (!target || target.organizationId !== user.organizationId) {
+      if (!target || target.organizationId !== user.organizationId || target.role !== "employee") {
         return res.status(404).json({ message: "Employee not found in your organization" });
       }
       const bucksPerDollar = org.bucksPerDollar ?? 100;

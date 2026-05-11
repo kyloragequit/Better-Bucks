@@ -107,6 +107,7 @@ export default function TransferScreen() {
 
   const filteredEmployees = employees.filter((e) =>
     e.id !== user?.id &&
+    e.role === "employee" &&
     (
       e.fullName.toLowerCase().includes(search.toLowerCase()) ||
       e.username.toLowerCase().includes(search.toLowerCase())
@@ -126,7 +127,12 @@ export default function TransferScreen() {
   const handleCredit = async () => {
     if (!selectedEmployee || parsedAmount <= 0 || !token) return;
 
-    if (txType === "credit" && categories.length > 0 && !categoryId) {
+    if (!reason.trim()) {
+      Alert.alert("Reason Required", "Please enter a reason for this credit.");
+      return;
+    }
+
+    if (categories.length > 0 && !categoryId) {
       Alert.alert("Category Required", "Please select a category for this credit.");
       return;
     }
@@ -186,7 +192,7 @@ export default function TransferScreen() {
           },
           body: JSON.stringify({
             amount: parsedAmount,
-            reason: selectedCat?.name ?? (reason || "Bucks transfer"),
+            reason: reason.trim(),
             categoryId: categoryId ?? undefined,
             hasCashValue: true,
           }),
@@ -425,6 +431,17 @@ export default function TransferScreen() {
 
       {txType === "credit" && (
         <>
+          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Reason</Text>
+          <TextInput
+            style={styles.reasonInput}
+            placeholder="Why are Bucks being credited?"
+            placeholderTextColor={brand.textMuted}
+            multiline
+            numberOfLines={3}
+            value={reason}
+            onChangeText={setReason}
+          />
+
           <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Category</Text>
           {categories.length === 0 ? (
             <View style={styles.infoBox}>

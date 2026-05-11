@@ -214,6 +214,9 @@ type EmployeeVirtualListProps = {
   assignMgrMutation: ReturnType<typeof useMutation<any, Error, { userId: number; managerId: number | null }>>;
 };
 
+const SCROLL_KEY_MOBILE = "bb_emp_list_scroll_mobile";
+const SCROLL_KEY_DESKTOP = "bb_emp_list_scroll_desktop";
+
 function EmployeeVirtualList({
   filteredUsers,
   isPrimeAdmin,
@@ -227,6 +230,30 @@ function EmployeeVirtualList({
 }: EmployeeVirtualListProps) {
   const mobileParentRef = useRef<HTMLDivElement>(null);
   const desktopParentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mobileEl = mobileParentRef.current;
+    const desktopEl = desktopParentRef.current;
+
+    const savedMobile = sessionStorage.getItem(SCROLL_KEY_MOBILE);
+    const savedDesktop = sessionStorage.getItem(SCROLL_KEY_DESKTOP);
+
+    if (mobileEl && savedMobile !== null) {
+      mobileEl.scrollTop = parseFloat(savedMobile);
+    }
+    if (desktopEl && savedDesktop !== null) {
+      desktopEl.scrollTop = parseFloat(savedDesktop);
+    }
+
+    return () => {
+      if (mobileParentRef.current) {
+        sessionStorage.setItem(SCROLL_KEY_MOBILE, String(mobileParentRef.current.scrollTop));
+      }
+      if (desktopParentRef.current) {
+        sessionStorage.setItem(SCROLL_KEY_DESKTOP, String(desktopParentRef.current.scrollTop));
+      }
+    };
+  }, []);
 
   const mobileVirtualizer = useVirtualizer({
     count: filteredUsers.length,

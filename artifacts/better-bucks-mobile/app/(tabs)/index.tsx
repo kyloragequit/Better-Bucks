@@ -172,14 +172,14 @@ export default function HomeTab() {
           <RefreshControl
             refreshing={!isOffline && isFetching}
             onRefresh={handleRefresh}
-            tintColor={brand.gold}
+            tintColor={brand.green}
           />
         }
       >
         {/* Offline banner */}
         {isOffline && (
           <View style={styles.offlineBanner}>
-            <Ionicons name="cloud-offline-outline" size={15} color="#FCA5A5" />
+            <Ionicons name="cloud-offline-outline" size={15} color={brand.danger} />
             <Text style={styles.offlineBannerText}>
               You're offline — pull-to-refresh is unavailable
             </Text>
@@ -192,31 +192,34 @@ export default function HomeTab() {
           </Text>
         </View>
 
-        {/* Balance card */}
+        {/* Balance card — keeps dark navy background per spec */}
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>
-            {admin ? "Your Bucks Balance" : "Your Balance"}
-          </Text>
+          <View style={styles.balanceCardChip}>
+            <Ionicons name="cash-outline" size={14} color={brand.green} />
+            <Text style={styles.balanceLabel}>
+              {admin ? "Your Bucks Balance" : "BetterBucks Balance"}
+            </Text>
+          </View>
           {isLoading ? (
-            <ActivityIndicator color={brand.gold} size="large" style={{ marginVertical: 12 }} />
+            <ActivityIndicator color={brand.white} size="large" style={{ marginVertical: 12 }} />
           ) : (
             <Text style={styles.balanceAmount}>
-              {(data?.balance ?? 0).toLocaleString()}
+              BB {(data?.balance ?? 0).toLocaleString()}
             </Text>
           )}
-          <Text style={styles.balanceUnit}>Bucks</Text>
+          <View style={styles.balanceDivider} />
           {isOffline && isFromCache && cachedAt !== null ? (
             <View style={styles.offlineBadgeRow}>
               <Ionicons name="cloud-offline-outline" size={12} color="#FCA5A5" />
-              <Text style={styles.offlineBadgeText}>
-                Offline – showing saved balance
-              </Text>
+              <Text style={styles.offlineBadgeText}>Offline – showing saved balance</Text>
             </View>
           ) : isFromCache && cachedAt !== null ? (
             <Text style={styles.cachedLabel}>
               Last updated {formatLastUpdated(cachedAt)}
             </Text>
-          ) : null}
+          ) : (
+            <Text style={styles.cachedLabel}> </Text>
+          )}
         </View>
 
         {/* Monthly earned/spent summary — employees only */}
@@ -227,20 +230,20 @@ export default function HomeTab() {
             </Text>
             <View style={styles.summaryBarRow}>
               <View style={styles.summaryBarItem}>
-                <Ionicons name="arrow-down-circle" size={18} color="#4ADE80" />
+                <Ionicons name="arrow-down-circle" size={18} color={brand.green} />
                 <View>
                   <Text style={styles.summaryBarItemLabel}>Earned</Text>
-                  <Text style={[styles.summaryBarItemValue, { color: "#4ADE80" }]}>
+                  <Text style={[styles.summaryBarItemValue, { color: brand.green }]}>
                     {summary.earned.toLocaleString()} Bucks
                   </Text>
                 </View>
               </View>
               <View style={styles.summaryBarDivider} />
               <View style={styles.summaryBarItem}>
-                <Ionicons name="arrow-up-circle" size={18} color="#FCA5A5" />
+                <Ionicons name="arrow-up-circle" size={18} color={brand.danger} />
                 <View>
                   <Text style={styles.summaryBarItemLabel}>Spent</Text>
-                  <Text style={[styles.summaryBarItemValue, { color: "#FCA5A5" }]}>
+                  <Text style={[styles.summaryBarItemValue, { color: brand.danger }]}>
                     {summary.spent.toLocaleString()} Bucks
                   </Text>
                 </View>
@@ -254,7 +257,7 @@ export default function HomeTab() {
           <View style={styles.walletSection}>
             {showConfirmation && (
               <View style={styles.confirmationBanner}>
-                <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
+                <Ionicons name="checkmark-circle" size={16} color={brand.green} />
                 <Text style={styles.confirmationText}>Pass Added! Open the Wallet app to view your Bucks card.</Text>
               </View>
             )}
@@ -271,12 +274,12 @@ export default function HomeTab() {
               accessibilityRole="button"
             >
               {walletLoading ? (
-                <ActivityIndicator color={passAddedAt ? brand.gold : brand.navy} size="small" />
+                <ActivityIndicator color={passAddedAt ? brand.green : brand.white} size="small" />
               ) : (
                 <Ionicons
                   name="wallet-outline"
                   size={18}
-                  color={passAddedAt ? brand.gold : brand.navy}
+                  color={passAddedAt ? brand.green : brand.white}
                 />
               )}
               <Text style={[styles.walletButtonText, passAddedAt ? styles.walletButtonTextUpdate : null]}>
@@ -285,7 +288,7 @@ export default function HomeTab() {
             </Pressable>
             {passAddedAt && !showConfirmation && (
               <View style={styles.passStatusRow}>
-                <Ionicons name="checkmark-circle-outline" size={13} color="#4ADE80" />
+                <Ionicons name="checkmark-circle-outline" size={13} color={brand.green} />
                 <Text style={styles.passStatusText}>Added on {formatPassDate(passAddedAt)}</Text>
               </View>
             )}
@@ -348,14 +351,14 @@ export default function HomeTab() {
               accessibilityLabel="View full transaction history"
             >
               <Text style={styles.viewAllButtonText}>View Full History</Text>
-              <Ionicons name="chevron-forward" size={14} color={brand.gold} />
+              <Ionicons name="chevron-forward" size={14} color={brand.green} />
             </Pressable>
           </View>
         )}
 
         {!isLoading && (data?.recentTransactions ?? []).length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={40} color="rgba(255,255,255,0.3)" />
+            <Ionicons name="receipt-outline" size={40} color={brand.textMuted} />
             <Text style={styles.emptyText}>No activity yet</Text>
           </View>
         )}
@@ -380,9 +383,9 @@ function StatCard({
       <Ionicons
         name={icon}
         size={20}
-        color={accent ? brand.gold : "rgba(255,255,255,0.6)"}
+        color={accent ? brand.warning : brand.green}
       />
-      <Text style={[statStyles.value, accent ? { color: brand.gold } : null]}>
+      <Text style={[statStyles.value, accent ? { color: brand.warning } : null]}>
         {value}
       </Text>
       <Text style={statStyles.label}>{label}</Text>
@@ -393,22 +396,22 @@ function StatCard({
 const statStyles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: brand.white,
     borderRadius: 12,
     padding: 14,
     alignItems: "center",
     gap: 4,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: brand.border,
   },
   value: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 18,
     marginTop: 4,
   },
   label: {
-    color: "rgba(255,255,255,0.6)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
     textAlign: "center",
@@ -443,12 +446,12 @@ function GoalCard({ goal }: { goal: Goal }) {
 
 const goalStyles = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: brand.white,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: brand.border,
     gap: 8,
   },
   header: {
@@ -457,19 +460,19 @@ const goalStyles = StyleSheet.create({
     alignItems: "center",
   },
   name: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     flex: 1,
   },
   reward: {
-    color: brand.gold,
+    color: brand.green,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
   },
   progressBg: {
     height: 6,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: brand.border,
     borderRadius: 3,
     overflow: "hidden",
   },
@@ -479,7 +482,7 @@ const goalStyles = StyleSheet.create({
     borderRadius: 3,
   },
   progressText: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
   },
@@ -497,7 +500,7 @@ function TransactionRow({ tx }: { tx: Transaction }) {
       <View
         style={[
           txStyles.icon,
-          { backgroundColor: positive ? "rgba(78,159,61,0.15)" : "rgba(220,38,38,0.12)" },
+          { backgroundColor: positive ? "rgba(46,125,50,0.10)" : "rgba(198,40,40,0.08)" },
         ]}
       >
         <Ionicons
@@ -512,11 +515,11 @@ function TransactionRow({ tx }: { tx: Transaction }) {
         </Text>
         <Text style={txStyles.date}>{formatDate(tx.createdAt)}</Text>
       </View>
-      <Text style={[txStyles.amount, { color: positive ? brand.green : "#FCA5A5" }]}>
+      <Text style={[txStyles.amount, { color: positive ? brand.green : brand.danger }]}>
         {positive ? "+" : ""}
         {tx.amount.toLocaleString()}
       </Text>
-      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.25)" />
+      <Ionicons name="chevron-forward" size={14} color={brand.textMuted} />
     </Pressable>
   );
 }
@@ -527,7 +530,7 @@ const txStyles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: brand.border,
     gap: 12,
   },
   icon: {
@@ -542,12 +545,12 @@ const txStyles = StyleSheet.create({
     gap: 2,
   },
   reason: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
   },
   date: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
   },
@@ -558,7 +561,7 @@ const txStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: brand.navy },
+  root: { flex: 1, backgroundColor: brand.white },
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -568,30 +571,41 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   greetingText: {
-    color: "rgba(255,255,255,0.75)",
-    fontFamily: "Inter_500Medium",
+    color: brand.text,
+    fontFamily: "Inter_600SemiBold",
     fontSize: 16,
   },
+  // Wallet balance card — dark navy per spec
   balanceCard: {
-    backgroundColor: brand.navyLight,
+    backgroundColor: brand.navyCard,
     borderRadius: 20,
     padding: 28,
     alignItems: "center",
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+  },
+  balanceCardChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
   },
   balanceLabel: {
-    color: "rgba(255,255,255,0.65)",
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    marginBottom: 8,
+    color: brand.green,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
   balanceAmount: {
-    color: brand.gold,
+    color: brand.white,
     fontFamily: "Inter_700Bold",
-    fontSize: 52,
-    lineHeight: 60,
+    fontSize: 44,
+    lineHeight: 52,
+  },
+  balanceDivider: {
+    width: "80%",
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginVertical: 12,
   },
   balanceUnit: {
     color: "rgba(255,255,255,0.5)",
@@ -603,22 +617,21 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.35)",
     fontFamily: "Inter_400Regular",
     fontSize: 11,
-    marginTop: 6,
   },
   offlineBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: "rgba(252,165,165,0.10)",
+    backgroundColor: "rgba(198,40,40,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(252,165,165,0.25)",
+    borderColor: "rgba(198,40,40,0.20)",
     borderRadius: 10,
     paddingVertical: 9,
     paddingHorizontal: 13,
     marginBottom: 16,
   },
   offlineBannerText: {
-    color: "#FCA5A5",
+    color: brand.danger,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     flex: 1,
@@ -627,12 +640,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    marginTop: 6,
   },
   offlineBadgeText: {
     color: "#FCA5A5",
     fontFamily: "Inter_400Regular",
     fontSize: 11,
+  },
+  summaryBar: {
+    backgroundColor: brand.white,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: brand.border,
+    gap: 10,
+  },
+  summaryBarLabel: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  summaryBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  summaryBarItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  summaryBarItemLabel: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+  },
+  summaryBarItemValue: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+  },
+  summaryBarDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: brand.border,
+    marginHorizontal: 12,
   },
   walletSection: {
     marginBottom: 20,
@@ -642,15 +695,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(74,222,128,0.12)",
+    backgroundColor: "rgba(46,125,50,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(74,222,128,0.25)",
+    borderColor: "rgba(46,125,50,0.20)",
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
   confirmationText: {
-    color: "#4ADE80",
+    color: brand.green,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     flex: 1,
@@ -660,22 +713,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: brand.gold,
-    borderRadius: 14,
+    backgroundColor: brand.green,
+    borderRadius: 10,
     paddingVertical: 14,
   },
   walletButtonUpdate: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: brand.gold,
+    backgroundColor: brand.white,
+    borderWidth: 1.5,
+    borderColor: brand.green,
   },
   walletButtonText: {
-    color: brand.navy,
+    color: brand.white,
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
   },
   walletButtonTextUpdate: {
-    color: brand.gold,
+    color: brand.green,
   },
   passStatusRow: {
     flexDirection: "row",
@@ -684,7 +737,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   passStatusText: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
   },
@@ -703,14 +756,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    color: "rgba(255,255,255,0.65)",
+    color: brand.textSecondary,
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   viewAllLink: {
-    color: brand.gold,
+    color: brand.green,
     fontFamily: "Inter_500Medium",
     fontSize: 12,
   },
@@ -719,68 +772,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    marginTop: 12,
-    paddingVertical: 12,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    paddingTop: 14,
   },
   viewAllButtonText: {
-    color: brand.gold,
+    color: brand.green,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
   },
   emptyState: {
     alignItems: "center",
-    paddingVertical: 40,
+    paddingVertical: 48,
     gap: 12,
   },
   emptyText: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
-  },
-  summaryBar: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-  },
-  summaryBarLabel: {
-    color: "rgba(255,255,255,0.45)",
-    fontFamily: "Inter_500Medium",
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  summaryBarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  summaryBarItem: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  summaryBarDivider: {
-    width: 1,
-    height: 34,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    marginHorizontal: 12,
-  },
-  summaryBarItemLabel: {
-    color: "rgba(255,255,255,0.45)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  summaryBarItemValue: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
   },
 });

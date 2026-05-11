@@ -68,8 +68,7 @@ export default function ForgotPasswordScreen() {
         <Logo size={72} />
         <Text style={styles.title}>Forgot Password?</Text>
         <Text style={styles.body}>
-          Enter the email address on your account and we'll send you a reset
-          link.
+          Enter the email address on your account and we'll send you a reset link.
         </Text>
       </View>
 
@@ -118,21 +117,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   title: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 24,
     textAlign: "center",
     marginTop: 4,
   },
   body: {
-    color: "rgba(255,255,255,0.72)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     textAlign: "center",
     lineHeight: 21,
   },
   error: {
-    color: "#FCA5A5",
+    color: brand.danger,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginBottom: 8,

@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -20,8 +21,6 @@ export default function SignupConfirmationScreen() {
       router.replace("/");
       return;
     }
-    // Per product spec: confirmation always hands off to the Log In screen
-    // so the user explicitly authenticates before reaching the dashboard.
     await signOut();
     router.replace("/login");
   };
@@ -30,6 +29,13 @@ export default function SignupConfirmationScreen() {
     <ScreenContainer>
       <View style={styles.center}>
         <Logo size={96} />
+        <View style={styles.iconRow}>
+          <Ionicons
+            name={isContactPending ? "mail" : "checkmark-circle"}
+            size={48}
+            color={brand.green}
+          />
+        </View>
         <Text style={styles.title}>
           {isContactPending ? "We'll be in touch" : "Account created!"}
         </Text>
@@ -58,15 +64,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     gap: 12,
   },
+  iconRow: {
+    marginTop: 8,
+  },
   title: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 26,
-    marginTop: 8,
     textAlign: "center",
   },
   body: {
-    color: "rgba(255,255,255,0.75)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
     textAlign: "center",

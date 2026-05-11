@@ -94,7 +94,7 @@ export function ModalFormContainer({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: brand.navy },
+  root: { flex: 1, backgroundColor: brand.white },
   scrollContent: { paddingHorizontal: 24, flexGrow: 1 },
   viewContent: { flex: 1, paddingHorizontal: 24 },
 });

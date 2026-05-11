@@ -126,9 +126,9 @@ export default function SignupPaymentScreen() {
           postalCodeEnabled
           placeholders={{ number: "4242 4242 4242 4242" }}
           cardStyle={{
-            backgroundColor: "rgba(255,255,255,0.06)",
-            textColor: brand.white,
-            placeholderColor: "rgba(255,255,255,0.45)",
+            backgroundColor: brand.white,
+            textColor: brand.text,
+            placeholderColor: brand.textMuted,
             borderRadius: 10,
           }}
           style={styles.card}
@@ -166,40 +166,41 @@ export default function SignupPaymentScreen() {
 
 const styles = StyleSheet.create({
   heading: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 22,
   },
   sub: {
-    color: "rgba(255,255,255,0.6)",
+    color: brand.textMuted,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginTop: 4,
   },
   label: {
-    color: "rgba(255,255,255,0.85)",
+    color: brand.textSecondary,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginBottom: 6,
   },
   cardWrap: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
+    backgroundColor: brand.white,
+    borderColor: brand.border,
+    borderWidth: 1.5,
     borderRadius: 10,
     padding: 4,
   },
   card: { width: "100%", height: 50 },
   error: {
-    color: "#FCA5A5",
+    color: brand.danger,
     fontFamily: "Inter_500Medium",
     marginTop: 12,
   },
   fine: {
-    color: "rgba(255,255,255,0.55)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     marginTop: 14,
     textAlign: "center",
+    lineHeight: 18,
   },
 });

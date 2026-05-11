@@ -100,7 +100,7 @@ export default function TransactionHistoryScreen() {
   if (initialLoading) {
     return (
       <View style={[styles.centered, { paddingBottom: insets.bottom }]}>
-        <ActivityIndicator color={brand.gold} size="large" />
+        <ActivityIndicator color={brand.green} size="large" />
       </View>
     );
   }
@@ -108,7 +108,7 @@ export default function TransactionHistoryScreen() {
   if (error && items.length === 0) {
     return (
       <View style={[styles.centered, { paddingBottom: insets.bottom }]}>
-        <Ionicons name="alert-circle-outline" size={40} color="rgba(255,255,255,0.35)" />
+        <Ionicons name="alert-circle-outline" size={40} color={brand.textMuted} />
         <Text style={styles.errorText}>{error}</Text>
         <Pressable
           style={styles.retryBtn}
@@ -149,7 +149,7 @@ export default function TransactionHistoryScreen() {
       ListFooterComponent={
         loading && !initialLoading ? (
           <View style={styles.footer}>
-            <ActivityIndicator color={brand.gold} size="small" />
+            <ActivityIndicator color={brand.green} size="small" />
           </View>
         ) : !hasMore && items.length > 0 ? (
           <Text style={styles.endText}>All transactions loaded</Text>
@@ -158,7 +158,7 @@ export default function TransactionHistoryScreen() {
       ListEmptyComponent={
         !loading ? (
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={40} color="rgba(255,255,255,0.3)" />
+            <Ionicons name="receipt-outline" size={40} color={brand.textMuted} />
             <Text style={styles.emptyText}>No transactions yet</Text>
           </View>
         ) : null
@@ -184,7 +184,7 @@ function TransactionRow({ tx }: { tx: TxItem }) {
       <View
         style={[
           txStyles.icon,
-          { backgroundColor: positive ? "rgba(78,159,61,0.15)" : "rgba(220,38,38,0.12)" },
+          { backgroundColor: positive ? "rgba(46,125,50,0.10)" : "rgba(198,40,40,0.08)" },
         ]}
       >
         <Ionicons
@@ -199,11 +199,11 @@ function TransactionRow({ tx }: { tx: TxItem }) {
         </Text>
         <Text style={txStyles.date}>{formatDate(tx.createdAt)}</Text>
       </View>
-      <Text style={[txStyles.amount, { color: positive ? brand.green : "#FCA5A5" }]}>
+      <Text style={[txStyles.amount, { color: positive ? brand.green : brand.danger }]}>
         {positive ? "+" : ""}
         {tx.amount.toLocaleString()}
       </Text>
-      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.25)" />
+      <Ionicons name="chevron-forward" size={14} color={brand.textMuted} />
     </Pressable>
   );
 }
@@ -214,7 +214,7 @@ const txStyles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: brand.border,
     gap: 12,
   },
   icon: {
@@ -229,12 +229,12 @@ const txStyles = StyleSheet.create({
     gap: 2,
   },
   reason: {
-    color: "#FFFFFF",
+    color: brand.text,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
   },
   date: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
   },
@@ -247,7 +247,7 @@ const txStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
   },
   content: {
     paddingHorizontal: 20,
@@ -258,25 +258,25 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   headerTitle: {
-    color: "#FFFFFF",
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 22,
   },
   headerSubtitle: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
   },
   centered: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
     paddingHorizontal: 24,
   },
   errorText: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     textAlign: "center",
@@ -286,11 +286,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 28,
     paddingVertical: 12,
-    backgroundColor: brand.gold,
-    borderRadius: 12,
+    backgroundColor: brand.green,
+    borderRadius: 10,
   },
   retryBtnText: {
-    color: brand.navy,
+    color: brand.white,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
   },
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   endText: {
-    color: "rgba(255,255,255,0.3)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     textAlign: "center",
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyText: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
   },

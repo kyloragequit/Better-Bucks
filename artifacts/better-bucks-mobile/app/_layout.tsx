@@ -32,7 +32,7 @@ function RootLayoutNav() {
         headerStyle: { backgroundColor: brand.navy },
         headerTintColor: brand.white,
         headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
-        contentStyle: { backgroundColor: brand.navy },
+        contentStyle: { backgroundColor: brand.white },
         headerShadowVisible: false,
       }}
     >
@@ -97,7 +97,7 @@ export default function RootLayout() {
               >
                 <AuthProvider>
                   <SignupProvider>
-                    <StatusBar style="light" />
+                    <StatusBar style="dark" />
                     <RootLayoutNav />
                   </SignupProvider>
                 </AuthProvider>

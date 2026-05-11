@@ -1,22 +1,33 @@
 /**
- * Better Bucks brand tokens — synced from the web artifact's
- * artifacts/better-bucks/src/index.css and tailwind.config.ts.
+ * Better Bucks brand tokens — aligned with the spec design system.
  *
- * Brand: navy primary, green secondary, gold accent.
+ * Light theme: white backgrounds, navy text, kelly-green accents.
+ * The wallet balance card is the one exception — it keeps a dark navy background.
  */
 
 export const brand = {
-  navy: "#162A4A",
-  navyLight: "#1F3A5F",
-  green: "#4E9F3D",
-  greenLight: "#62B850",
-  gold: "#F5C842",
+  // Core palette
+  navy: "#1A237E",        // headers, navigation bars, text headings, badges
+  navyCard: "#162A4A",    // wallet balance card background (dark navy)
+  navyCardLight: "#1F3A5F", // slightly lighter card surface
+  green: "#2E7D32",       // primary accent — buttons, active states, icons, progress bars
+  greenLight: "#4CAF50",  // lighter green for hover/pressed states
+
+  // Backgrounds
   white: "#FFFFFF",
-  offWhite: "#F8FAFC",
-  text: "#0F172A",
-  textMuted: "#64748B",
-  border: "#E2E8F0",
-  danger: "#DC2626",
+  offWhite: "#F5F7FA",    // subtle off-white for list separators / input bg tint
+
+  // Text
+  text: "#1A237E",        // primary text — navy
+  textSecondary: "#4A4A4A", // secondary text — dark gray
+  textMuted: "#9E9E9E",   // muted / placeholder text
+
+  // Borders & dividers
+  border: "#E0E0E0",      // card and input borders
+
+  // Status colours
+  danger: "#C62828",      // error red
+  warning: "#F9A825",     // amber warning
 } as const;
 
 const colors = {
@@ -30,17 +41,14 @@ const colors = {
     card: brand.white,
     cardForeground: brand.text,
 
-    primary: brand.navy,
+    primary: brand.green,
     primaryForeground: brand.white,
 
-    secondary: brand.green,
+    secondary: brand.navy,
     secondaryForeground: brand.white,
 
-    muted: "#F1F5F9",
+    muted: brand.offWhite,
     mutedForeground: brand.textMuted,
-
-    accent: brand.gold,
-    accentForeground: brand.navy,
 
     destructive: brand.danger,
     destructiveForeground: brand.white,

@@ -66,7 +66,7 @@ export default function TransactionDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={brand.gold} size="large" />
+        <ActivityIndicator color={brand.green} size="large" />
       </View>
     );
   }
@@ -74,7 +74,7 @@ export default function TransactionDetailScreen() {
   if (isError || !data) {
     return (
       <View style={styles.centered}>
-        <Ionicons name="alert-circle-outline" size={40} color="rgba(255,255,255,0.4)" />
+        <Ionicons name="alert-circle-outline" size={40} color={brand.textMuted} />
         <Text style={styles.errorText}>Could not load transaction</Text>
       </View>
     );
@@ -83,7 +83,7 @@ export default function TransactionDetailScreen() {
   const positive = data.amount >= 0;
   const iconName = positive ? "arrow-down-circle" : "arrow-up-circle";
   const iconColor = positive ? brand.green : brand.danger;
-  const iconBg = positive ? "rgba(78,159,61,0.15)" : "rgba(220,38,38,0.12)";
+  const iconBg = positive ? "rgba(46,125,50,0.10)" : "rgba(198,40,40,0.08)";
   const amountLabel = positive
     ? `+${data.amount.toLocaleString()} Bucks`
     : `${data.amount.toLocaleString()} Bucks`;
@@ -97,7 +97,7 @@ export default function TransactionDetailScreen() {
       <View style={[styles.heroIcon, { backgroundColor: iconBg }]}>
         <Ionicons name={iconName} size={48} color={iconColor} />
       </View>
-      <Text style={[styles.heroAmount, { color: positive ? brand.green : "#FCA5A5" }]}>
+      <Text style={[styles.heroAmount, { color: positive ? brand.green : brand.danger }]}>
         {amountLabel}
       </Text>
       <Text style={styles.heroType}>
@@ -158,7 +158,7 @@ function DetailRow({
   return (
     <View style={rowStyles.row}>
       <View style={rowStyles.iconWrap}>
-        <Ionicons name={icon} size={18} color="rgba(255,255,255,0.45)" />
+        <Ionicons name={icon} size={18} color={brand.textMuted} />
       </View>
       <View style={rowStyles.body}>
         <Text style={rowStyles.label}>{label}</Text>
@@ -183,7 +183,7 @@ const rowStyles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.07)",
+    borderBottomColor: brand.border,
   },
   iconWrap: {
     width: 28,
@@ -195,20 +195,20 @@ const rowStyles = StyleSheet.create({
     gap: 3,
   },
   label: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   value: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_500Medium",
     fontSize: 14,
     lineHeight: 20,
   },
   subtle: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
   },
@@ -217,7 +217,7 @@ const rowStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
   },
   content: {
     paddingHorizontal: 20,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
@@ -245,22 +245,22 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   heroType: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     marginBottom: 32,
   },
   card: {
     width: "100%",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: brand.white,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: brand.border,
     paddingHorizontal: 16,
     overflow: "hidden",
   },
   errorText: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
     marginTop: 8,

@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Button } from "@/components/Button";
 import { ScreenContainer } from "@/components/ScreenContainer";
@@ -69,11 +70,11 @@ export default function ChangePasswordScreen() {
     return (
       <ScreenContainer>
         <View style={styles.center}>
-          <Text style={styles.successIcon}>✓</Text>
-          <Text style={styles.title}>Password updated.</Text>
-          <Text style={styles.body}>
-            Password updated. Recovery email saved.
-          </Text>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark-circle" size={56} color={brand.green} />
+          </View>
+          <Text style={styles.title}>Password updated</Text>
+          <Text style={styles.body}>Your recovery email has also been saved.</Text>
           <View style={{ height: 24 }} />
           <Button
             testID="change-password-done"
@@ -88,9 +89,7 @@ export default function ChangePasswordScreen() {
   return (
     <ScreenContainer>
       <Text style={styles.heading}>Change Password</Text>
-      <Text style={styles.sub}>
-        Enter your current password and choose a new one.
-      </Text>
+      <Text style={styles.sub}>Enter your current password and choose a new one.</Text>
 
       <View style={{ height: 20 }} />
 
@@ -152,19 +151,19 @@ export default function ChangePasswordScreen() {
 
 const styles = StyleSheet.create({
   heading: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 22,
   },
   sub: {
-    color: "rgba(255,255,255,0.65)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     marginTop: 4,
     lineHeight: 20,
   },
   hint: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     lineHeight: 18,
@@ -172,7 +171,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   error: {
-    color: "#FCA5A5",
+    color: brand.danger,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginBottom: 8,
@@ -185,17 +184,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   successIcon: {
-    fontSize: 52,
-    color: brand.green,
+    marginBottom: 4,
   },
   title: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 24,
     textAlign: "center",
   },
   body: {
-    color: "rgba(255,255,255,0.72)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
     textAlign: "center",

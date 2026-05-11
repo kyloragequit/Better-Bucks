@@ -30,8 +30,6 @@ type Employee = {
   role: string;
 };
 
-// ─── Employee: Store ──────────────────────────────────────────────────────────
-
 type SortOrder = "none" | "asc" | "desc";
 
 function formatCacheAge(cachedAt: number): string {
@@ -44,6 +42,8 @@ function formatCacheAge(cachedAt: number): string {
   if (diffHours === 1) return "1 hour ago";
   return `${diffHours} hours ago`;
 }
+
+// ─── Employee: Store ──────────────────────────────────────────────────────────
 
 function EmployeeStore() {
   const { token, user } = useAuth();
@@ -68,11 +68,13 @@ function EmployeeStore() {
   const sortKey = `store_sort_order_${user?.id ?? "guest"}`;
 
   useEffect(() => {
-    AsyncStorage.getItem(sortKey).then((saved) => {
-      if (saved === "asc" || saved === "desc" || saved === "none") {
-        setSortOrder(saved);
-      }
-    }).catch(() => {});
+    AsyncStorage.getItem(sortKey)
+      .then((saved) => {
+        if (saved === "asc" || saved === "desc" || saved === "none") {
+          setSortOrder(saved);
+        }
+      })
+      .catch(() => {});
   }, [sortKey]);
 
   const filteredItems = (() => {
@@ -136,7 +138,7 @@ function EmployeeStore() {
                   return;
                 }
                 queryClient.invalidateQueries({ queryKey: ["mobile-dashboard"] });
-                Alert.alert("Purchased!", `Your order has been placed.`);
+                Alert.alert("Purchased!", "Your order has been placed.");
               } catch (e: any) {
                 Alert.alert("Error", e?.message ?? "Network error.");
               } finally {
@@ -153,7 +155,7 @@ function EmployeeStore() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={brand.gold} size="large" />
+        <ActivityIndicator color={brand.green} size="large" />
       </View>
     );
   }
@@ -162,6 +164,7 @@ function EmployeeStore() {
     <FlatList
       data={filteredItems}
       keyExtractor={(item) => String(item.id)}
+      style={{ backgroundColor: brand.white }}
       contentContainerStyle={[
         styles.listContent,
         { paddingBottom: insets.bottom + 32 },
@@ -170,31 +173,28 @@ function EmployeeStore() {
         <RefreshControl
           refreshing={isFetching}
           onRefresh={refetch}
-          tintColor={brand.gold}
+          tintColor={brand.green}
         />
       }
       ListHeaderComponent={
         <View>
           {isFromCache && cachedAt !== null && (
-            <View style={storeSearchStyles.cacheBanner}>
-              <Ionicons
-                name="time-outline"
-                size={13}
-                color="rgba(255,255,255,0.45)"
-              />
-              <Text style={storeSearchStyles.cacheBannerText}>
+            <View style={searchStyles.cacheBanner}>
+              <Ionicons name="time-outline" size={13} color={brand.textMuted} />
+              <Text style={searchStyles.cacheBannerText}>
                 Last updated {formatCacheAge(cachedAt)}
                 {isFetching ? " · Refreshing…" : ""}
               </Text>
             </View>
           )}
-          <View style={storeSearchStyles.headerRow}>
-            <View style={storeSearchStyles.searchBar}>
-              <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" />
+
+          <View style={searchStyles.headerRow}>
+            <View style={searchStyles.searchBar}>
+              <Ionicons name="search-outline" size={18} color={brand.textMuted} />
               <TextInput
-                style={storeSearchStyles.searchInput}
+                style={searchStyles.searchInput}
                 placeholder="Search items…"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={brand.textMuted}
                 value={search}
                 onChangeText={setSearch}
                 autoCorrect={false}
@@ -203,47 +203,49 @@ function EmployeeStore() {
               />
               {search.length > 0 && (
                 <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="close-circle" size={18} color={brand.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
+
             <TouchableOpacity
               style={[
-                storeSearchStyles.sortBtn,
-                sortOrder !== "none" && storeSearchStyles.sortBtnActive,
+                searchStyles.filterBtn,
+                sortOrder !== "none" && searchStyles.filterBtnActive,
               ]}
               onPress={cycleSortOrder}
             >
               <Ionicons
                 name="swap-vertical-outline"
                 size={15}
-                color={sortOrder !== "none" ? brand.navy : brand.gold}
+                color={sortOrder !== "none" ? brand.white : brand.green}
               />
               <Text
                 style={[
-                  storeSearchStyles.sortBtnText,
-                  sortOrder !== "none" && storeSearchStyles.sortBtnTextActive,
+                  searchStyles.filterBtnText,
+                  sortOrder !== "none" && searchStyles.filterBtnTextActive,
                 ]}
               >
                 {sortLabel}
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               style={[
-                storeSearchStyles.sortBtn,
-                (filterOpen || priceFilterActive) && storeSearchStyles.sortBtnActive,
+                searchStyles.filterBtn,
+                (filterOpen || priceFilterActive) && searchStyles.filterBtnActive,
               ]}
               onPress={() => setFilterOpen((v) => !v)}
             >
               <Ionicons
                 name="options-outline"
                 size={15}
-                color={(filterOpen || priceFilterActive) ? brand.navy : brand.gold}
+                color={(filterOpen || priceFilterActive) ? brand.white : brand.green}
               />
               <Text
                 style={[
-                  storeSearchStyles.sortBtnText,
-                  (filterOpen || priceFilterActive) && storeSearchStyles.sortBtnTextActive,
+                  searchStyles.filterBtnText,
+                  (filterOpen || priceFilterActive) && searchStyles.filterBtnTextActive,
                 ]}
               >
                 Filter{priceFilterActive ? " ●" : ""}
@@ -252,32 +254,36 @@ function EmployeeStore() {
           </View>
 
           {filterOpen && (
-            <View style={storeSearchStyles.filterPanel}>
-              {minVal !== null && maxVal !== null && !isNaN(minVal) && !isNaN(maxVal) && minVal > maxVal && (
-                <Text style={storeSearchStyles.filterWarn}>
-                  Min must be less than or equal to max
-                </Text>
-              )}
-              <View style={storeSearchStyles.filterRow}>
-                <View style={storeSearchStyles.filterInputWrap}>
-                  <Text style={storeSearchStyles.filterLabel}>Min Bucks</Text>
+            <View style={searchStyles.filterPanel}>
+              {minVal !== null &&
+                maxVal !== null &&
+                !isNaN(minVal) &&
+                !isNaN(maxVal) &&
+                minVal > maxVal && (
+                  <Text style={searchStyles.filterWarn}>
+                    Min must be less than or equal to max
+                  </Text>
+                )}
+              <View style={searchStyles.filterRow}>
+                <View style={searchStyles.filterInputWrap}>
+                  <Text style={searchStyles.filterLabel}>Min Bucks</Text>
                   <TextInput
-                    style={storeSearchStyles.filterInput}
+                    style={searchStyles.filterInput}
                     placeholder="0"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    placeholderTextColor={brand.textMuted}
                     value={minPrice}
                     onChangeText={(v) => setMinPrice(v.replace(/[^0-9]/g, ""))}
                     keyboardType="numeric"
                     returnKeyType="done"
                   />
                 </View>
-                <Text style={storeSearchStyles.filterDash}>–</Text>
-                <View style={storeSearchStyles.filterInputWrap}>
-                  <Text style={storeSearchStyles.filterLabel}>Max Bucks</Text>
+                <Text style={searchStyles.filterDash}>–</Text>
+                <View style={searchStyles.filterInputWrap}>
+                  <Text style={searchStyles.filterLabel}>Max Bucks</Text>
                   <TextInput
-                    style={storeSearchStyles.filterInput}
+                    style={searchStyles.filterInput}
                     placeholder="Any"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    placeholderTextColor={brand.textMuted}
                     value={maxPrice}
                     onChangeText={(v) => setMaxPrice(v.replace(/[^0-9]/g, ""))}
                     keyboardType="numeric"
@@ -286,11 +292,11 @@ function EmployeeStore() {
                 </View>
                 {priceFilterActive && (
                   <TouchableOpacity
-                    style={storeSearchStyles.clearBtn}
+                    style={searchStyles.clearBtn}
                     onPress={clearPriceFilter}
                     hitSlop={8}
                   >
-                    <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+                    <Ionicons name="close-circle" size={18} color={brand.textMuted} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -302,12 +308,12 @@ function EmployeeStore() {
         <View style={styles.center}>
           {items.length === 0 ? (
             <>
-              <Ionicons name="storefront-outline" size={48} color="rgba(255,255,255,0.3)" />
+              <Ionicons name="storefront-outline" size={48} color={brand.textMuted} />
               <Text style={styles.emptyText}>No items in the store yet</Text>
             </>
           ) : (
             <>
-              <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.3)" />
+              <Ionicons name="search-outline" size={48} color={brand.textMuted} />
               <Text style={styles.emptyText}>No items match your search</Text>
             </>
           )}
@@ -317,7 +323,7 @@ function EmployeeStore() {
         <View style={styles.itemCard}>
           <View style={styles.itemHeader}>
             <View style={styles.itemIconBox}>
-              <Ionicons name="gift-outline" size={28} color={brand.gold} />
+              <Ionicons name="gift-outline" size={26} color={brand.green} />
             </View>
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
@@ -339,9 +345,11 @@ function EmployeeStore() {
               ]}
               onPress={() => handlePurchase(item)}
               disabled={purchasing === item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Redeem ${item.name} for ${item.price} Bucks`}
             >
               {purchasing === item.id ? (
-                <ActivityIndicator size="small" color={brand.navy} />
+                <ActivityIndicator size="small" color={brand.white} />
               ) : (
                 <Text style={styles.buyBtnText}>Redeem</Text>
               )}
@@ -432,7 +440,7 @@ function AdminReward() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={brand.gold} size="large" />
+        <ActivityIndicator color={brand.green} size="large" />
       </View>
     );
   }
@@ -440,7 +448,7 @@ function AdminReward() {
   if (selected) {
     return (
       <ScrollView
-        style={styles.root}
+        style={{ flex: 1, backgroundColor: brand.white }}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.bottom + 32 },
@@ -450,7 +458,7 @@ function AdminReward() {
           style={rewardStyles.backRow}
           onPress={() => setSelected(null)}
         >
-          <Ionicons name="arrow-back" size={18} color={brand.gold} />
+          <Ionicons name="arrow-back" size={18} color={brand.navy} />
           <Text style={rewardStyles.backText}>Back to employee list</Text>
         </TouchableOpacity>
 
@@ -495,22 +503,28 @@ function AdminReward() {
   }
 
   return (
-    <View style={[styles.root, { flex: 1 }]}>
+    <View style={{ flex: 1, backgroundColor: brand.white }}>
       <View style={[rewardStyles.searchBar, { marginHorizontal: 20, marginTop: 16 }]}>
-        <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.4)" />
+        <Ionicons name="search-outline" size={18} color={brand.textMuted} />
         <TextInput
           style={rewardStyles.searchInput}
           placeholder="Search employees…"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={brand.textMuted}
           value={search}
           onChangeText={setSearch}
           autoCorrect={false}
           autoCapitalize="none"
         />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch("")} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color={brand.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {filtered.length === 0 ? (
         <View style={styles.center}>
+          <Ionicons name="people-outline" size={40} color={brand.textMuted} />
           <Text style={styles.emptyText}>No employees found</Text>
         </View>
       ) : (
@@ -525,6 +539,8 @@ function AdminReward() {
             <TouchableOpacity
               style={rewardStyles.employeeRow}
               onPress={() => setSelected(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Reward ${item.fullName}`}
             >
               <View style={rewardStyles.avatarSmall}>
                 <Text style={rewardStyles.avatarSmallText}>
@@ -537,7 +553,7 @@ function AdminReward() {
                   {(item.balance ?? 0).toLocaleString()} Bucks
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="chevron-forward" size={18} color={brand.textMuted} />
             </TouchableOpacity>
           )}
         />
@@ -546,166 +562,95 @@ function AdminReward() {
   );
 }
 
-const rewardStyles = StyleSheet.create({
-  backRow: {
+// ─── Root: switches between employee store and admin reward ───────────────────
+
+export default function StoreTab() {
+  const { user } = useAuth();
+  const admin = user?.role === "admin" || user?.role === "prime_admin";
+  return admin ? <AdminReward /> : <EmployeeStore />;
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const searchStyles = StyleSheet.create({
+  cacheBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 20,
-  },
-  backText: {
-    color: brand.gold,
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-  },
-  selectedCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: brand.navyLight,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: brand.gold,
-  },
-  avatarText: {
-    color: brand.gold,
-    fontFamily: "Inter_700Bold",
-    fontSize: 22,
-  },
-  selectedName: {
-    color: brand.white,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
-  },
-  selectedBalance: {
-    color: "rgba(255,255,255,0.55)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    marginTop: 2,
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 10,
+    gap: 6,
+    backgroundColor: brand.offWhite,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
+    paddingVertical: 7,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    marginBottom: 4,
+    borderColor: brand.border,
   },
-  searchInput: {
-    flex: 1,
-    color: brand.white,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    padding: 0,
-  },
-  employeeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.07)",
-  },
-  avatarSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: brand.navyLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarSmallText: {
-    color: brand.gold,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
-  },
-  employeeName: {
-    color: brand.white,
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-  },
-  employeeBalance: {
-    color: "rgba(255,255,255,0.5)",
+  cacheBannerText: {
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
-    marginTop: 2,
   },
-});
-
-// ─── Employee Store Search Styles ─────────────────────────────────────────────
-
-const storeSearchStyles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     marginBottom: 12,
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: brand.offWhite,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: brand.border,
   },
   searchInput: {
     flex: 1,
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
     padding: 0,
   },
-  sortBtn: {
+  filterBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    gap: 4,
+    backgroundColor: brand.offWhite,
+    borderRadius: 8,
+    paddingHorizontal: 10,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: brand.border,
   },
-  sortBtnActive: {
-    backgroundColor: brand.gold,
-    borderColor: brand.gold,
+  filterBtnActive: {
+    backgroundColor: brand.green,
+    borderColor: brand.green,
   },
-  sortBtnText: {
-    color: brand.gold,
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
+  filterBtnText: {
+    color: brand.green,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
   },
-  sortBtnTextActive: {
-    color: brand.navy,
+  filterBtnTextActive: {
+    color: brand.white,
   },
   filterPanel: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: brand.offWhite,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
+    gap: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: brand.border,
+  },
+  filterWarn: {
+    color: brand.danger,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
   },
   filterRow: {
     flexDirection: "row",
@@ -717,136 +662,223 @@ const storeSearchStyles = StyleSheet.create({
     gap: 4,
   },
   filterLabel: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
   filterInput: {
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: brand.white,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    color: brand.white,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
+    borderColor: brand.border,
     paddingHorizontal: 10,
     paddingVertical: 8,
+    color: brand.text,
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
   },
   filterDash: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
-    fontSize: 18,
-    paddingBottom: 8,
-  },
-  clearBtn: {
-    paddingBottom: 8,
-  },
-  filterWarn: {
-    color: "#f87171",
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
+    fontSize: 16,
     marginBottom: 8,
   },
-  cacheBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginBottom: 10,
-    paddingHorizontal: 2,
-  },
-  cacheBannerText: {
-    color: "rgba(255,255,255,0.45)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
+  clearBtn: {
+    paddingBottom: 6,
   },
 });
 
-// ─── Export ───────────────────────────────────────────────────────────────────
-
-export default function StoreTab() {
-  const { user } = useAuth();
-  const admin = user?.role === "admin" || user?.role === "prime_admin";
-  return admin ? <AdminReward /> : <EmployeeStore />;
-}
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: brand.navy },
-  center: {
-    flex: 1,
-    backgroundColor: brand.navy,
+const rewardStyles = StyleSheet.create({
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 20,
+  },
+  backText: {
+    color: brand.navy,
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+  },
+  selectedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    backgroundColor: brand.offWhite,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: brand.border,
+  },
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(46,125,50,0.10)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
+    borderWidth: 2,
+    borderColor: brand.green,
+  },
+  avatarText: {
+    color: brand.green,
+    fontFamily: "Inter_700Bold",
+    fontSize: 22,
+  },
+  selectedName: {
+    color: brand.text,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 16,
+  },
+  selectedBalance: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: brand.offWhite,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: brand.border,
+    marginBottom: 4,
+  },
+  searchInput: {
+    flex: 1,
+    color: brand.text,
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    padding: 0,
+  },
+  employeeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: brand.border,
+  },
+  avatarSmall: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(46,125,50,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(46,125,50,0.20)",
+  },
+  avatarSmallText: {
+    color: brand.green,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 16,
+  },
+  employeeName: {
+    color: brand.text,
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+  },
+  employeeBalance: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginTop: 2,
+  },
+});
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: brand.white,
+  },
+  center: {
+    flex: 1,
+    backgroundColor: brand.white,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    paddingTop: 80,
     paddingHorizontal: 24,
+  },
+  emptyText: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    textAlign: "center",
   },
   listContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
   },
   itemCard: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: brand.white,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    gap: 14,
+    borderColor: brand.border,
+    gap: 12,
   },
   itemHeader: {
     flexDirection: "row",
-    gap: 14,
     alignItems: "flex-start",
+    gap: 14,
   },
   itemIconBox: {
     width: 52,
     height: 52,
     borderRadius: 12,
-    backgroundColor: "rgba(245,200,66,0.1)",
+    backgroundColor: "rgba(46,125,50,0.08)",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
-  itemInfo: { flex: 1, gap: 4 },
+  itemInfo: {
+    flex: 1,
+    gap: 4,
+  },
   itemName: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
+    lineHeight: 21,
   },
   itemDesc: {
-    color: "rgba(255,255,255,0.55)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 18,
   },
   itemFooter: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: brand.border,
   },
   itemPrice: {
-    color: brand.gold,
+    color: brand.navy,
     fontFamily: "Inter_700Bold",
     fontSize: 16,
   },
   buyBtn: {
     backgroundColor: brand.green,
     borderRadius: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    minWidth: 80,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    minWidth: 90,
     alignItems: "center",
-    justifyContent: "center",
   },
   buyBtnText: {
     color: brand.white,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-  },
-  emptyText: {
-    color: "rgba(255,255,255,0.4)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    textAlign: "center",
   },
 });

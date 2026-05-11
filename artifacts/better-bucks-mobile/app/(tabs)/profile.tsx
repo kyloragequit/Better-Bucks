@@ -28,14 +28,14 @@ function MenuRow({ icon, label, sublabel, onPress, destructive, chevron = true }
         style={[
           styles.menuIcon,
           destructive
-            ? { backgroundColor: "rgba(220,38,38,0.12)" }
-            : { backgroundColor: "rgba(255,255,255,0.06)" },
+            ? { backgroundColor: "rgba(198,40,40,0.08)" }
+            : { backgroundColor: brand.offWhite },
         ]}
       >
         <Ionicons
           name={icon}
           size={20}
-          color={destructive ? brand.danger : "rgba(255,255,255,0.7)"}
+          color={destructive ? brand.danger : brand.navy}
         />
       </View>
       <View style={{ flex: 1 }}>
@@ -55,7 +55,7 @@ function MenuRow({ icon, label, sublabel, onPress, destructive, chevron = true }
         <Ionicons
           name="chevron-forward"
           size={16}
-          color="rgba(255,255,255,0.25)"
+          color={brand.textMuted}
         />
       ) : null}
     </TouchableOpacity>
@@ -216,68 +216,68 @@ export default function ProfileTab() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: brand.navy },
+  root: { flex: 1, backgroundColor: brand.white },
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
   },
   identityCard: {
     alignItems: "center",
-    backgroundColor: brand.navyLight,
+    backgroundColor: brand.white,
     borderRadius: 20,
     padding: 28,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: brand.border,
     gap: 4,
   },
   avatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.offWhite,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
-    borderColor: brand.gold,
+    borderColor: brand.green,
     marginBottom: 8,
   },
   avatarText: {
-    color: brand.gold,
+    color: brand.navy,
     fontFamily: "Inter_700Bold",
     fontSize: 30,
   },
   name: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 20,
   },
   username: {
-    color: "rgba(255,255,255,0.55)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
   },
   email: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
   },
   roleBadge: {
     marginTop: 8,
-    backgroundColor: "rgba(245,200,66,0.12)",
+    backgroundColor: "rgba(46,125,50,0.08)",
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: "rgba(245,200,66,0.25)",
+    borderColor: "rgba(46,125,50,0.20)",
   },
   roleText: {
-    color: brand.gold,
+    color: brand.green,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
   },
   sectionHeader: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     textTransform: "uppercase",
@@ -286,11 +286,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   menuGroup: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: brand.white,
     borderRadius: 14,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: brand.border,
     overflow: "hidden",
   },
   menuRow: {
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: brand.border,
   },
   menuIcon: {
     width: 38,
@@ -310,12 +310,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   menuLabel: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_500Medium",
     fontSize: 15,
   },
   menuSublabel: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     marginTop: 2,

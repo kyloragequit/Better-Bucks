@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button } from "@/components/Button";
@@ -27,6 +27,7 @@ export default function HomeScreen() {
     >
       <View style={styles.center}>
         <Logo size={160} />
+        <Text style={styles.tagline}>Rewards that actually work.</Text>
       </View>
 
       <View style={styles.actions}>
@@ -51,13 +52,20 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
     paddingHorizontal: 28,
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 16,
+  },
+  tagline: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    textAlign: "center",
   },
   actions: {
     paddingTop: 16,

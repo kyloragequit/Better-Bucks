@@ -6,7 +6,17 @@ import * as Sharing from "expo-sharing";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { Logo } from "@/components/Logo";
@@ -18,6 +28,48 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
+type MenuRowProps = {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  sublabel?: string;
+  onPress?: () => void;
+  destructive?: boolean;
+  right?: React.ReactNode;
+  testID?: string;
+};
+
+function MenuRow({ icon, label, sublabel, onPress, destructive, right, testID }: MenuRowProps) {
+  return (
+    <TouchableOpacity
+      style={styles.menuRow}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      testID={testID}
+    >
+      <View
+        style={[
+          styles.menuIcon,
+          destructive ? { backgroundColor: "rgba(198,40,40,0.08)" } : { backgroundColor: brand.offWhite },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={20}
+          color={destructive ? brand.danger : brand.navy}
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.menuLabel, destructive ? { color: brand.danger } : null]}>
+          {label}
+        </Text>
+        {sublabel ? <Text style={styles.menuSublabel}>{sublabel}</Text> : null}
+      </View>
+      {right ?? (onPress ? <Ionicons name="chevron-forward" size={16} color={brand.textMuted} /> : null)}
+    </TouchableOpacity>
+  );
+}
 
 export default function DashboardScreen() {
   const {
@@ -32,6 +84,7 @@ export default function DashboardScreen() {
     fetchSocialLinks,
   } = useAuth();
   const { visible: onboardingVisible, dismiss: dismissOnboarding } = useOnboarding();
+  const insets = useSafeAreaInsets();
   const [walletLoading, setWalletLoading] = useState(false);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [linkingProvider, setLinkingProvider] = useState<"apple" | "google" | null>(null);
@@ -67,7 +120,10 @@ export default function DashboardScreen() {
     setLinkingProvider(null);
     if (result.ok) {
       setSocialLinks(result.links);
-      Alert.alert("Linked", `Your ${provider === "apple" ? "Apple" : "Google"} account has been linked.`);
+      Alert.alert(
+        "Linked",
+        `Your ${provider === "apple" ? "Apple" : "Google"} account has been linked.`,
+      );
     } else {
       Alert.alert("Could not link account", result.message);
     }
@@ -242,10 +298,7 @@ export default function DashboardScreen() {
               await signOut();
               router.replace("/");
             } catch (err: any) {
-              Alert.alert(
-                "Couldn't delete account",
-                err?.message ?? "Network error.",
-              );
+              Alert.alert("Couldn't delete account", err?.message ?? "Network error.");
             }
           },
         },
@@ -258,261 +311,196 @@ export default function DashboardScreen() {
   const googleLinked = socialLinks.some((l) => l.provider === "google");
 
   return (
-    <View style={styles.container}>
-      <OnboardingModal
-        visible={onboardingVisible}
-        onDismiss={dismissOnboarding}
-      />
-      <Logo size={88} />
-      <Text style={styles.welcome}>Welcome to Better Bucks.</Text>
-      {user?.fullName ? (
-        <Text style={styles.subtle}>Signed in as {user.fullName}</Text>
-      ) : null}
-
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderTitle}>Your dashboard</Text>
-        <Text style={styles.placeholderBody}>
-          Your full Better Bucks experience is coming soon to mobile.
-        </Text>
-      </View>
-
-      <Pressable
-        onPress={handleAddToWallet}
-        style={[styles.walletButton, walletLoading && styles.walletButtonDisabled]}
-        disabled={walletLoading}
-        accessibilityLabel="Add to Apple Wallet"
+    <>
+      <OnboardingModal visible={onboardingVisible} onDismiss={dismissOnboarding} />
+      <ScrollView
+        style={styles.root}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 },
+        ]}
       >
-        <Ionicons name="wallet" size={20} color="#ffffff" />
-        <Text style={styles.walletText}>
-          {walletLoading ? "Loading pass…" : "Add to Apple Wallet"}
-        </Text>
-      </Pressable>
+        {/* Identity */}
+        <View style={styles.identityCard}>
+          <Logo size={64} />
+          <Text style={styles.welcome}>Welcome to Better Bucks.</Text>
+          {user?.fullName ? (
+            <Text style={styles.subtle}>Signed in as {user.fullName}</Text>
+          ) : null}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Linked sign-in accounts</Text>
-        {appleAvailable ? (
-          appleLinked ? (
-            <Pressable
-              onPress={() => handleUnlinkProvider("apple")}
-              style={styles.linkedRow}
-              disabled={linkingProvider !== null}
-            >
-              <Ionicons name="logo-apple" size={18} color={brand.white} />
-              <Text style={styles.linkedText}>Apple ID linked</Text>
-              <Text style={styles.unlinkText}>Remove</Text>
-            </Pressable>
+        {/* Apple Wallet */}
+        <Text style={styles.sectionHeader}>Wallet Pass</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow
+            icon="wallet-outline"
+            label={walletLoading ? "Downloading…" : "Add to Apple Wallet"}
+            onPress={walletLoading ? undefined : handleAddToWallet}
+          />
+        </View>
+
+        {/* Social sign-in */}
+        <Text style={styles.sectionHeader}>Linked Sign-In Accounts</Text>
+        <View style={styles.menuGroup}>
+          {appleAvailable ? (
+            appleLinked ? (
+              <MenuRow
+                icon="logo-apple"
+                label="Apple ID linked"
+                right={
+                  <Pressable onPress={() => handleUnlinkProvider("apple")} hitSlop={8}>
+                    <Text style={styles.unlinkText}>Remove</Text>
+                  </Pressable>
+                }
+              />
+            ) : (
+              <MenuRow
+                icon="logo-apple"
+                label={linkingProvider === "apple" ? "Linking…" : "Link Apple ID"}
+                onPress={linkingProvider === null ? handleLinkApple : undefined}
+              />
+            )
+          ) : null}
+
+          {googleLinked ? (
+            <MenuRow
+              icon="logo-google"
+              label="Google account linked"
+              right={
+                <Pressable onPress={() => handleUnlinkProvider("google")} hitSlop={8}>
+                  <Text style={styles.unlinkText}>Remove</Text>
+                </Pressable>
+              }
+            />
           ) : (
-            <Pressable
-              onPress={handleLinkApple}
-              style={styles.linkRow}
-              disabled={linkingProvider !== null}
-            >
-              <Ionicons name="logo-apple" size={18} color={brand.white} />
-              <Text style={styles.linkText}>
-                {linkingProvider === "apple" ? "Linking…" : "Link Apple ID"}
-              </Text>
-            </Pressable>
-          )
-        ) : null}
+            <MenuRow
+              icon="logo-google"
+              label={linkingProvider === "google" ? "Linking…" : "Link Google account"}
+              onPress={linkingProvider === null ? handleLinkGoogle : undefined}
+            />
+          )}
+        </View>
 
-        {googleLinked ? (
-          <Pressable
-            onPress={() => handleUnlinkProvider("google")}
-            style={styles.linkedRow}
-            disabled={linkingProvider !== null}
-          >
-            <Text style={styles.googleG}>G</Text>
-            <Text style={styles.linkedText}>Google account linked</Text>
-            <Text style={styles.unlinkText}>Remove</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={handleLinkGoogle}
-            style={styles.linkRow}
-            disabled={linkingProvider !== null}
-          >
-            <Text style={styles.googleG}>G</Text>
-            <Text style={styles.linkText}>
-              {linkingProvider === "google" ? "Linking…" : "Link Google account"}
-            </Text>
-          </Pressable>
-        )}
-      </View>
+        {/* Security */}
+        <Text style={styles.sectionHeader}>Security</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow
+            icon="finger-print"
+            label={biometricEnrolled ? "Disable Face ID / Touch ID" : "Enable Face ID / Touch ID"}
+            onPress={handleToggleBiometrics}
+          />
+          <MenuRow
+            icon="lock-closed-outline"
+            label="Change password"
+            onPress={() => router.push("/change-password")}
+          />
+        </View>
 
-      <Pressable onPress={handleToggleBiometrics} style={styles.secondaryAction}>
-        <Text style={styles.secondaryText}>
-          {biometricEnrolled
-            ? "Disable Face ID / Touch ID"
-            : "Enable Face ID / Touch ID"}
-        </Text>
-      </Pressable>
+        {/* Session */}
+        <Text style={styles.sectionHeader}>Session</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow
+            icon="log-out-outline"
+            label="Sign out"
+            onPress={handleSignOut}
+          />
+        </View>
 
-      <Pressable
-        onPress={() => router.push("/change-password")}
-        style={styles.signOut}
-      >
-        <Text style={styles.signOutText}>Change password</Text>
-      </Pressable>
-
-      <Pressable onPress={handleSignOut} style={styles.signOut}>
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={handleDeleteAccount}
-        style={styles.signOut}
-        testID="delete-account"
-      >
-        <Text style={[styles.signOutText, { color: "#FCA5A5" }]}>
-          Delete account
-        </Text>
-      </Pressable>
-    </View>
+        {/* Danger zone */}
+        <Text style={styles.sectionHeader}>Danger zone</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow
+            icon="trash-outline"
+            label="Delete account"
+            sublabel="Permanently removes your account and subscription"
+            onPress={handleDeleteAccount}
+            destructive
+            testID="delete-account"
+          />
+        </View>
+      </ScrollView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
+  },
+  content: {
+    paddingHorizontal: 20,
+    gap: 0,
+  },
+  identityCard: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-    gap: 12,
+    backgroundColor: brand.white,
+    borderRadius: 20,
+    padding: 28,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: brand.border,
+    gap: 6,
   },
   welcome: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
-    fontSize: 24,
+    fontSize: 20,
     textAlign: "center",
     marginTop: 8,
   },
   subtle: {
-    color: "rgba(255,255,255,0.7)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
   },
-  placeholder: {
-    marginTop: 28,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 18,
-    width: "100%",
-  },
-  placeholderTitle: {
-    color: brand.gold,
+  sectionHeader: {
+    color: brand.textMuted,
     fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  placeholderBody: {
-    color: "rgba(255,255,255,0.78)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  walletButton: {
-    marginTop: 20,
-    backgroundColor: "#000000",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    width: "100%",
-    justifyContent: "center",
-  },
-  walletButtonDisabled: {
-    opacity: 0.6,
-  },
-  walletText: {
-    color: "#ffffff",
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-  },
-  section: {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    overflow: "hidden",
-  },
-  sectionTitle: {
-    color: "rgba(255,255,255,0.5)",
-    fontFamily: "Inter_500Medium",
     fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: 0.8,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 6,
+    marginBottom: 10,
+    marginTop: 4,
   },
-  linkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
-  },
-  linkText: {
-    color: "rgba(255,255,255,0.75)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-  },
-  linkedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
-  },
-  linkedText: {
-    flex: 1,
-    color: brand.white,
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-  },
-  unlinkText: {
-    color: "#FCA5A5",
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-  },
-  googleG: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#4285F4",
-    color: "#ffffff",
-    textAlign: "center",
-    fontFamily: "Inter_700Bold",
-    fontSize: 11,
-    lineHeight: 18,
+  menuGroup: {
+    backgroundColor: brand.white,
+    borderRadius: 14,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: brand.border,
     overflow: "hidden",
   },
-  secondaryAction: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: brand.border,
   },
-  secondaryText: {
-    color: "rgba(255,255,255,0.55)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
+  menuIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  signOut: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  signOutText: {
-    color: "rgba(255,255,255,0.6)",
+  menuLabel: {
+    color: brand.text,
     fontFamily: "Inter_500Medium",
-    fontSize: 14,
+    fontSize: 15,
+  },
+  menuSublabel: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  unlinkText: {
+    color: brand.danger,
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
   },
 });

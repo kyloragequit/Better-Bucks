@@ -55,25 +55,21 @@ export function Button({
 function paletteFor(v: Variant) {
   switch (v) {
     case "secondary":
-      return { bg: brand.green, fg: brand.white, border: brand.green };
+      return { bg: brand.white, fg: brand.navy, border: brand.navy };
     case "outline":
-      return {
-        bg: "transparent",
-        fg: brand.white,
-        border: "rgba(255,255,255,0.6)",
-      };
+      return { bg: "transparent", fg: brand.navy, border: brand.navy };
     case "ghost":
-      return { bg: "transparent", fg: brand.white, border: "transparent" };
+      return { bg: "transparent", fg: brand.navy, border: "transparent" };
     case "primary":
     default:
-      return { bg: brand.gold, fg: brand.navy, border: brand.gold };
+      return { bg: brand.green, fg: brand.white, border: brand.green };
   }
 }
 
 const styles = StyleSheet.create({
   base: {
     height: 52,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,

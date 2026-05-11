@@ -16,7 +16,7 @@ function TabIcon({
     <Ionicons
       name={focused ? name : (`${name}-outline` as IoniconsName)}
       size={24}
-      color={focused ? brand.gold : "rgba(255,255,255,0.5)"}
+      color={focused ? brand.green : "#9E9E9E"}
     />
   );
 }
@@ -33,14 +33,14 @@ export default function TabLayout() {
         headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
         headerShadowVisible: false,
         tabBarStyle: {
-          backgroundColor: brand.navyLight,
-          borderTopColor: "rgba(255,255,255,0.1)",
+          backgroundColor: brand.white,
+          borderTopColor: brand.border,
           borderTopWidth: 1,
           height: 64,
           paddingBottom: 8,
         },
-        tabBarActiveTintColor: brand.gold,
-        tabBarInactiveTintColor: "rgba(255,255,255,0.5)",
+        tabBarActiveTintColor: brand.green,
+        tabBarInactiveTintColor: "#9E9E9E",
         tabBarLabelStyle: {
           fontFamily: "Inter_500Medium",
           fontSize: 11,

@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Button } from "@/components/Button";
 import { ScreenContainer } from "@/components/ScreenContainer";
@@ -12,6 +13,7 @@ type Tier = {
   blurb: string;
   monthlyCents: number | null;
   employees: string;
+  popular?: boolean;
 };
 
 const TIERS: Tier[] = [
@@ -28,6 +30,7 @@ const TIERS: Tier[] = [
     blurb: "Most popular for growing teams.",
     monthlyCents: 1519,
     employees: "Up to 75 employees",
+    popular: true,
   },
   {
     key: "large",
@@ -104,12 +107,38 @@ function PlanCard({
       onPress={onSelect}
       style={[planStyles.card, selected ? planStyles.cardSelected : null]}
     >
-      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={planStyles.name}>{tier.name}</Text>
-        <Text style={planStyles.price}>{priceLabel}</Text>
+      <View style={planStyles.cardHeader}>
+        <Text style={[planStyles.name, selected ? { color: brand.navy } : null]}>
+          {tier.name}
+        </Text>
+        <View style={planStyles.priceRow}>
+          {tier.popular && (
+            <View style={planStyles.popularBadge}>
+              <Text style={planStyles.popularText}>Popular</Text>
+            </View>
+          )}
+          <Text style={[planStyles.price, selected ? { color: brand.green } : null]}>
+            {priceLabel}
+          </Text>
+        </View>
       </View>
       <Text style={planStyles.blurb}>{tier.blurb}</Text>
-      <Text style={planStyles.meta}>{tier.employees}</Text>
+      <View style={planStyles.metaRow}>
+        <Ionicons
+          name="people-outline"
+          size={13}
+          color={selected ? brand.green : brand.textMuted}
+        />
+        <Text style={[planStyles.meta, selected ? { color: brand.green } : null]}>
+          {tier.employees}
+        </Text>
+      </View>
+      {selected && (
+        <View style={planStyles.checkRow}>
+          <Ionicons name="checkmark-circle" size={16} color={brand.green} />
+          <Text style={planStyles.checkText}>Selected</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -122,49 +151,92 @@ function formatPrice(cents: number | null): string {
 
 const planStyles = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: brand.white,
+    borderColor: brand.border,
     borderWidth: 1.5,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 10,
-    gap: 4,
+    gap: 6,
   },
   cardSelected: {
-    borderColor: brand.gold,
-    backgroundColor: "rgba(245,200,66,0.08)",
+    borderColor: brand.green,
+    backgroundColor: "rgba(46,125,50,0.04)",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   name: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
+    fontSize: 15,
+    flex: 1,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  popularBadge: {
+    backgroundColor: "rgba(46,125,50,0.10)",
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: "rgba(46,125,50,0.20)",
+  },
+  popularText: {
+    color: brand.green,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
   },
   price: {
-    color: brand.gold,
+    color: brand.textSecondary,
     fontFamily: "Inter_700Bold",
-    fontSize: 16,
+    fontSize: 15,
   },
   blurb: {
-    color: "rgba(255,255,255,0.7)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
   },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
+  },
   meta: {
-    color: "rgba(255,255,255,0.55)",
+    color: brand.textMuted,
     fontFamily: "Inter_500Medium",
     fontSize: 12,
-    marginTop: 2,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(46,125,50,0.15)",
+  },
+  checkText: {
+    color: brand.green,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
   },
 });
 
 const styles = StyleSheet.create({
   heading: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 22,
   },
   sub: {
-    color: "rgba(255,255,255,0.6)",
+    color: brand.textMuted,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginTop: 4,

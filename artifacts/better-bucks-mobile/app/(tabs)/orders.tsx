@@ -32,11 +32,11 @@ const STATUS_CONFIG: Record<
   Order["status"],
   { label: string; color: string; icon: React.ComponentProps<typeof Ionicons>["name"] }
 > = {
-  pending: { label: "Pending", color: brand.gold, icon: "time-outline" },
+  pending: { label: "Pending", color: brand.warning, icon: "time-outline" },
   approved: { label: "Approved", color: brand.green, icon: "checkmark-circle-outline" },
   denied: { label: "Denied", color: brand.danger, icon: "close-circle-outline" },
-  shipped: { label: "Shipped", color: "#60A5FA", icon: "airplane-outline" },
-  fulfilled: { label: "Fulfilled", color: "rgba(255,255,255,0.5)", icon: "archive-outline" },
+  shipped: { label: "Shipped", color: "#1565C0", icon: "airplane-outline" },
+  fulfilled: { label: "Fulfilled", color: brand.textMuted, icon: "archive-outline" },
 };
 
 function formatDate(dateStr: string) {
@@ -108,7 +108,7 @@ export default function OrdersTab() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={brand.gold} size="large" />
+        <ActivityIndicator color={brand.green} size="large" />
       </View>
     );
   }
@@ -116,7 +116,7 @@ export default function OrdersTab() {
   if (orders.length === 0) {
     return (
       <View style={styles.center}>
-        <Ionicons name="receipt-outline" size={48} color="rgba(255,255,255,0.3)" />
+        <Ionicons name="receipt-outline" size={48} color={brand.textMuted} />
         <Text style={styles.emptyText}>
           {admin ? "No orders yet" : "No orders placed yet"}
         </Text>
@@ -133,7 +133,7 @@ export default function OrdersTab() {
     <FlatList
       data={orders}
       keyExtractor={(o) => String(o.id)}
-      style={{ backgroundColor: brand.navy }}
+      style={{ backgroundColor: brand.white }}
       contentContainerStyle={[
         { paddingHorizontal: 20, paddingTop: 16 },
         { paddingBottom: insets.bottom + 32 },
@@ -142,7 +142,7 @@ export default function OrdersTab() {
         <RefreshControl
           refreshing={isRefetching}
           onRefresh={refetch}
-          tintColor={brand.gold}
+          tintColor={brand.green}
         />
       }
       renderItem={({ item }) => {
@@ -161,7 +161,7 @@ export default function OrdersTab() {
               <View
                 style={[
                   styles.statusBadge,
-                  { borderColor: statusCfg.color + "55" },
+                  { borderColor: statusCfg.color + "55", backgroundColor: statusCfg.color + "10" },
                 ]}
               >
                 <Ionicons
@@ -202,7 +202,7 @@ export default function OrdersTab() {
             {admin && item.status === "pending" && (
               <View style={styles.adminActions}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: brand.green }]}
+                  style={[styles.actionBtn, { borderColor: brand.green, backgroundColor: "rgba(46,125,50,0.06)" }]}
                   onPress={() => handleStatusChange(item, "approved")}
                 >
                   <Ionicons name="checkmark" size={16} color={brand.green} />
@@ -211,7 +211,7 @@ export default function OrdersTab() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: brand.danger }]}
+                  style={[styles.actionBtn, { borderColor: brand.danger, backgroundColor: "rgba(198,40,40,0.06)" }]}
                   onPress={() => handleStatusChange(item, "denied")}
                 >
                   <Ionicons name="close" size={16} color={brand.danger} />
@@ -222,11 +222,11 @@ export default function OrdersTab() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: "#60A5FA" }]}
+                  style={[styles.actionBtn, { borderColor: "#1565C0", backgroundColor: "rgba(21,101,192,0.06)" }]}
                   onPress={() => handleStatusChange(item, "shipped")}
                 >
-                  <Ionicons name="airplane-outline" size={16} color="#60A5FA" />
-                  <Text style={[styles.actionBtnText, { color: "#60A5FA" }]}>
+                  <Ionicons name="airplane-outline" size={16} color="#1565C0" />
+                  <Text style={[styles.actionBtnText, { color: "#1565C0" }]}>
                     Ship
                   </Text>
                 </TouchableOpacity>
@@ -236,31 +236,25 @@ export default function OrdersTab() {
             {admin && item.status === "approved" && (
               <View style={styles.adminActions}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { borderColor: "#60A5FA" }]}
+                  style={[styles.actionBtn, { borderColor: "#1565C0", backgroundColor: "rgba(21,101,192,0.06)" }]}
                   onPress={() => handleStatusChange(item, "shipped")}
                 >
-                  <Ionicons name="airplane-outline" size={16} color="#60A5FA" />
-                  <Text style={[styles.actionBtnText, { color: "#60A5FA" }]}>
+                  <Ionicons name="airplane-outline" size={16} color="#1565C0" />
+                  <Text style={[styles.actionBtnText, { color: "#1565C0" }]}>
                     Mark Shipped
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.actionBtn,
-                    { borderColor: "rgba(255,255,255,0.3)" },
-                  ]}
+                  style={[styles.actionBtn, { borderColor: brand.border }]}
                   onPress={() => handleStatusChange(item, "fulfilled")}
                 >
                   <Ionicons
                     name="archive-outline"
                     size={16}
-                    color="rgba(255,255,255,0.6)"
+                    color={brand.textMuted}
                   />
                   <Text
-                    style={[
-                      styles.actionBtnText,
-                      { color: "rgba(255,255,255,0.6)" },
-                    ]}
+                    style={[styles.actionBtnText, { color: brand.textMuted }]}
                   >
                     Fulfilled
                   </Text>
@@ -271,22 +265,16 @@ export default function OrdersTab() {
             {admin && item.status === "shipped" && (
               <View style={styles.adminActions}>
                 <TouchableOpacity
-                  style={[
-                    styles.actionBtn,
-                    { borderColor: "rgba(255,255,255,0.3)" },
-                  ]}
+                  style={[styles.actionBtn, { borderColor: brand.border }]}
                   onPress={() => handleStatusChange(item, "fulfilled")}
                 >
                   <Ionicons
                     name="archive-outline"
                     size={16}
-                    color="rgba(255,255,255,0.6)"
+                    color={brand.textMuted}
                   />
                   <Text
-                    style={[
-                      styles.actionBtnText,
-                      { color: "rgba(255,255,255,0.6)" },
-                    ]}
+                    style={[styles.actionBtnText, { color: brand.textMuted }]}
                   >
                     Mark Fulfilled
                   </Text>
@@ -303,31 +291,31 @@ export default function OrdersTab() {
 const styles = StyleSheet.create({
   center: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
     paddingHorizontal: 24,
   },
   emptyText: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textSecondary,
     fontFamily: "Inter_500Medium",
     fontSize: 16,
     textAlign: "center",
   },
   emptySubtext: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     textAlign: "center",
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: brand.white,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: brand.border,
     gap: 10,
   },
   cardHeader: {
@@ -336,14 +324,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   desc: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     lineHeight: 20,
     flex: 1,
   },
   empName: {
-    color: "rgba(255,255,255,0.55)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     marginTop: 2,
@@ -368,12 +356,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   metaItem: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
   },
   adminNotes: {
-    color: "rgba(255,255,255,0.45)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     fontStyle: "italic",

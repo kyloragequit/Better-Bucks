@@ -92,12 +92,12 @@ export default function SignupAccountScreen() {
 
 const styles = StyleSheet.create({
   heading: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 22,
   },
   sub: {
-    color: "rgba(255,255,255,0.6)",
+    color: brand.textMuted,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginTop: 4,

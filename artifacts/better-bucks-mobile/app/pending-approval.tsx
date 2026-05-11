@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -20,6 +21,7 @@ export default function PendingApprovalScreen() {
         <Logo size={72} />
 
         <View style={styles.badge}>
+          <Ionicons name="time-outline" size={14} color={brand.warning} />
           <Text style={styles.badgeText}>Pending Approval</Text>
         </View>
 
@@ -31,15 +33,30 @@ export default function PendingApprovalScreen() {
 
         <View style={styles.infoBox}>
           <Text style={styles.infoTitle}>What happens next?</Text>
-          <Text style={styles.infoItem}>
-            1. Your admin has been notified of your sign-up request.
-          </Text>
-          <Text style={styles.infoItem}>
-            2. Once approved, you can log in with your {"\u00A0"}social account.
-          </Text>
-          <Text style={styles.infoItem}>
-            3. If you have questions, contact your manager directly.
-          </Text>
+          <View style={styles.infoRow}>
+            <View style={styles.stepDot}>
+              <Text style={styles.stepNum}>1</Text>
+            </View>
+            <Text style={styles.infoItem}>
+              Your admin has been notified of your sign-up request.
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <View style={styles.stepDot}>
+              <Text style={styles.stepNum}>2</Text>
+            </View>
+            <Text style={styles.infoItem}>
+              Once approved, you can log in with your social account.
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <View style={styles.stepDot}>
+              <Text style={styles.stepNum}>3</Text>
+            </View>
+            <Text style={styles.infoItem}>
+              If you have questions, contact your manager directly.
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -55,7 +72,7 @@ export default function PendingApprovalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
     paddingHorizontal: 28,
     justifyContent: "space-between",
   },
@@ -66,52 +83,78 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   badge: {
-    backgroundColor: "rgba(255,193,7,0.18)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(249,168,37,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(255,193,7,0.4)",
+    borderColor: "rgba(249,168,37,0.30)",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 6,
     marginTop: 8,
   },
   badgeText: {
-    color: "#FFC107",
+    color: brand.warning,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
     letterSpacing: 0.3,
   },
   title: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 26,
     textAlign: "center",
     marginTop: 4,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.7)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
   },
   infoBox: {
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 12,
+    backgroundColor: brand.offWhite,
+    borderRadius: 14,
     padding: 18,
     width: "100%",
     marginTop: 8,
-    gap: 8,
+    borderWidth: 1,
+    borderColor: brand.border,
+    gap: 12,
   },
   infoTitle: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  stepDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: brand.green,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  stepNum: {
+    color: brand.white,
+    fontFamily: "Inter_700Bold",
+    fontSize: 12,
   },
   infoItem: {
-    color: "rgba(255,255,255,0.65)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 20,
+    flex: 1,
   },
 });

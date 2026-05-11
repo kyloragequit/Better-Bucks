@@ -1,5 +1,4 @@
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
@@ -165,7 +164,7 @@ export default function LoginScreen() {
             <Ionicons
               name="finger-print"
               size={36}
-              color={bioSubmitting ? "rgba(255,255,255,0.3)" : brand.gold}
+              color={bioSubmitting ? brand.textMuted : brand.green}
             />
             <Text style={styles.biometricText}>
               {bioSubmitting ? "Authenticating…" : "Sign in with Face ID / Touch ID"}
@@ -183,7 +182,7 @@ export default function LoginScreen() {
       {appleAvailable ? (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
           cornerRadius={10}
           style={styles.appleButton}
           onPress={handleAppleSignIn}
@@ -269,18 +268,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 26,
     marginTop: 4,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.7)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
   },
   error: {
-    color: "#FCA5A5",
+    color: brand.danger,
     fontFamily: "Inter_500Medium",
     marginBottom: 8,
   },
@@ -292,13 +291,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 20,
     gap: 8,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: brand.offWhite,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1.5,
+    borderColor: brand.border,
   },
   biometricText: {
-    color: "rgba(255,255,255,0.85)",
+    color: brand.text,
     fontFamily: "Inter_500Medium",
     fontSize: 15,
   },
@@ -312,10 +311,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: brand.border,
   },
   dividerLabel: {
-    color: "rgba(255,255,255,0.4)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
   },
@@ -329,17 +328,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#ffffff",
+    backgroundColor: brand.white,
     borderRadius: 10,
     height: 48,
     width: "100%",
     marginBottom: 4,
+    borderWidth: 1.5,
+    borderColor: brand.border,
   },
   socialButtonDisabled: {
     opacity: 0.6,
   },
   googleText: {
-    color: "#1f1f1f",
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
   },

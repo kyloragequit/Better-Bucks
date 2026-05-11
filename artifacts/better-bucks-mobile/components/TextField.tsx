@@ -17,7 +17,7 @@ export function TextField({
     <View style={{ marginBottom: 14 }}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        placeholderTextColor="rgba(255,255,255,0.45)"
+        placeholderTextColor={brand.textMuted}
         style={[styles.input, error ? { borderColor: brand.danger } : null]}
         autoCapitalize="none"
         autoCorrect={false}
@@ -30,24 +30,24 @@ export function TextField({
 
 const styles = StyleSheet.create({
   label: {
-    color: "rgba(255,255,255,0.85)",
+    color: brand.text,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
+    backgroundColor: brand.white,
+    borderColor: brand.border,
+    borderWidth: 1.5,
     borderRadius: 10,
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_400Regular",
     fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
   error: {
-    color: "#FCA5A5",
+    color: brand.danger,
     fontSize: 12,
     marginTop: 4,
     fontFamily: "Inter_500Medium",

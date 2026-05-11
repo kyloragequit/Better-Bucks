@@ -39,7 +39,7 @@ function NotificationItem({ item }: { item: NotificationLog }) {
   return (
     <View style={styles.item}>
       <View style={styles.iconWrap}>
-        <Ionicons name="gift" size={18} color={brand.gold} />
+        <Ionicons name="gift" size={18} color={brand.green} />
       </View>
       <View style={styles.itemContent}>
         <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
@@ -71,7 +71,7 @@ export default function NotificationsTab() {
     <View style={[styles.root, { paddingBottom: insets.bottom }]}>
       {isLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={brand.gold} size="large" />
+          <ActivityIndicator color={brand.green} size="large" />
         </View>
       ) : (
         <FlatList
@@ -86,13 +86,13 @@ export default function NotificationsTab() {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor={brand.gold}
+              tintColor={brand.green}
             />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="notifications-off-outline" size={44} color="rgba(255,255,255,0.25)" />
+              <Ionicons name="notifications-off-outline" size={44} color={brand.textMuted} />
               <Text style={styles.emptyText}>No notifications yet</Text>
               <Text style={styles.emptySubtext}>
                 Reward alerts will appear here once you receive Bucks.
@@ -108,7 +108,7 @@ export default function NotificationsTab() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
   },
   centered: {
     flex: 1,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "rgba(212,175,55,0.12)",
+    backgroundColor: "rgba(46,125,50,0.10)",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 2,
@@ -140,26 +140,26 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   itemTitle: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     lineHeight: 20,
   },
   itemBody: {
-    color: "rgba(255,255,255,0.65)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 18,
   },
   itemTime: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
     marginTop: 2,
   },
   separator: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: brand.border,
   },
   empty: {
     alignItems: "center",
@@ -168,12 +168,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    color: "rgba(255,255,255,0.5)",
+    color: brand.textSecondary,
     fontFamily: "Inter_600SemiBold",
     fontSize: 16,
   },
   emptySubtext: {
-    color: "rgba(255,255,255,0.3)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     textAlign: "center",

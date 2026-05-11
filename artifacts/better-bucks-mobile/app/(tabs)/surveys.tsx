@@ -121,7 +121,7 @@ function SurveyRespond({
       ]}
     >
       <TouchableOpacity style={surveyStyles.backRow} onPress={onDone}>
-        <Ionicons name="arrow-back" size={18} color={brand.gold} />
+        <Ionicons name="arrow-back" size={18} color={brand.navy} />
         <Text style={surveyStyles.backText}>Back to surveys</Text>
       </TouchableOpacity>
 
@@ -131,7 +131,7 @@ function SurveyRespond({
       ) : null}
       {survey.bucksReward > 0 ? (
         <View style={surveyStyles.rewardBadge}>
-          <Ionicons name="star" size={14} color={brand.gold} />
+          <Ionicons name="star" size={14} color={brand.green} />
           <Text style={surveyStyles.rewardText}>
             Earn {survey.bucksReward.toLocaleString()} Bucks
           </Text>
@@ -193,7 +193,9 @@ function QuestionBlock({
                 answer?.selectedOption === i ? questionStyles.radioSelected : null,
               ]}
             />
-            <Text style={questionStyles.optionText}>{opt}</Text>
+            <Text style={[questionStyles.optionText, answer?.selectedOption === i ? { color: brand.navy } : null]}>
+              {opt}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -266,7 +268,7 @@ function QuestionBlock({
         <Text
           style={[
             questionStyles.textAreaPlaceholder,
-            answer?.answerText ? { color: brand.white } : null,
+            answer?.answerText ? { color: brand.text } : null,
           ]}
         >
           {answer?.answerText ?? "Tap to write your answer…"}
@@ -282,7 +284,7 @@ const questionStyles = StyleSheet.create({
     gap: 10,
   },
   text: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_500Medium",
     fontSize: 14,
     lineHeight: 20,
@@ -294,27 +296,27 @@ const questionStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1.5,
+    borderColor: brand.border,
+    backgroundColor: brand.white,
   },
   optionSelected: {
-    borderColor: brand.gold,
-    backgroundColor: "rgba(245,200,66,0.08)",
+    borderColor: brand.green,
+    backgroundColor: "rgba(46,125,50,0.06)",
   },
   radio: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: brand.border,
   },
   radioSelected: {
-    borderColor: brand.gold,
-    backgroundColor: brand.gold,
+    borderColor: brand.green,
+    backgroundColor: brand.green,
   },
   optionText: {
-    color: brand.white,
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     flex: 1,
@@ -327,46 +329,47 @@ const questionStyles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderWidth: 1.5,
+    borderColor: brand.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: brand.white,
   },
   ratingBtnSelected: {
-    borderColor: brand.gold,
-    backgroundColor: "rgba(245,200,66,0.15)",
+    borderColor: brand.green,
+    backgroundColor: "rgba(46,125,50,0.08)",
   },
   ratingBtnText: {
-    color: "rgba(255,255,255,0.6)",
+    color: brand.textSecondary,
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
   },
   ratingBtnTextSelected: {
-    color: brand.gold,
+    color: brand.green,
   },
   ratingLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   ratingLabelText: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 11,
   },
   textArea: {
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1.5,
+    borderColor: brand.border,
     borderRadius: 10,
     padding: 14,
     minHeight: 80,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: brand.offWhite,
   },
   textAreaFilled: {
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: brand.green,
+    backgroundColor: brand.white,
   },
   textAreaPlaceholder: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     lineHeight: 20,
@@ -374,7 +377,7 @@ const questionStyles = StyleSheet.create({
 });
 
 const surveyStyles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: brand.navy },
+  root: { flex: 1, backgroundColor: brand.white },
   content: { paddingHorizontal: 20, paddingTop: 16 },
   backRow: {
     flexDirection: "row",
@@ -383,18 +386,18 @@ const surveyStyles = StyleSheet.create({
     marginBottom: 20,
   },
   backText: {
-    color: brand.gold,
+    color: brand.navy,
     fontFamily: "Inter_500Medium",
     fontSize: 14,
   },
   surveyTitle: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 20,
     marginBottom: 8,
   },
   surveyDesc: {
-    color: "rgba(255,255,255,0.65)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     lineHeight: 20,
@@ -404,16 +407,16 @@ const surveyStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(245,200,66,0.1)",
+    backgroundColor: "rgba(46,125,50,0.08)",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "rgba(245,200,66,0.25)",
+    borderColor: "rgba(46,125,50,0.20)",
   },
   rewardText: {
-    color: brand.gold,
+    color: brand.green,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
   },
@@ -466,7 +469,7 @@ export default function SurveysTab() {
   if (isLoading) {
     return (
       <View style={listStyles.center}>
-        <ActivityIndicator color={brand.gold} size="large" />
+        <ActivityIndicator color={brand.green} size="large" />
       </View>
     );
   }
@@ -474,7 +477,7 @@ export default function SurveysTab() {
   if (surveys.length === 0) {
     return (
       <View style={listStyles.center}>
-        <Ionicons name="document-text-outline" size={48} color="rgba(255,255,255,0.3)" />
+        <Ionicons name="document-text-outline" size={48} color={brand.textMuted} />
         <Text style={listStyles.emptyText}>No surveys available</Text>
       </View>
     );
@@ -484,7 +487,7 @@ export default function SurveysTab() {
     <FlatList
       data={surveys}
       keyExtractor={(s) => String(s.id)}
-      style={{ backgroundColor: brand.navy }}
+      style={{ backgroundColor: brand.white }}
       contentContainerStyle={[
         { paddingHorizontal: 20, paddingTop: 16 },
         { paddingBottom: insets.bottom + 32 },
@@ -493,7 +496,7 @@ export default function SurveysTab() {
         <RefreshControl
           refreshing={isRefetching}
           onRefresh={refetch}
-          tintColor={brand.gold}
+          tintColor={brand.green}
         />
       }
       renderItem={({ item }) => (
@@ -512,17 +515,17 @@ export default function SurveysTab() {
               ) : null}
             </View>
             {loadingId === item.id ? (
-              <ActivityIndicator size="small" color={brand.gold} />
+              <ActivityIndicator size="small" color={brand.green} />
             ) : item.responded ? (
               <Ionicons name="checkmark-circle" size={22} color={brand.green} />
             ) : (
-              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+              <Ionicons name="chevron-forward" size={18} color={brand.textMuted} />
             )}
           </View>
           <View style={listStyles.cardFooter}>
             {item.bucksReward > 0 && !item.responded ? (
               <View style={listStyles.rewardBadge}>
-                <Ionicons name="star" size={12} color={brand.gold} />
+                <Ionicons name="star" size={12} color={brand.green} />
                 <Text style={listStyles.rewardText}>
                   +{item.bucksReward.toLocaleString()} Bucks
                 </Text>
@@ -545,23 +548,23 @@ export default function SurveysTab() {
 const listStyles = StyleSheet.create({
   center: {
     flex: 1,
-    backgroundColor: brand.navy,
+    backgroundColor: brand.white,
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
   },
   emptyText: {
-    color: "rgba(255,255,255,0.4)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: brand.white,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: brand.border,
     gap: 12,
   },
   cardDone: {
@@ -573,12 +576,12 @@ const listStyles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    color: brand.white,
+    color: brand.text,
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
   },
   desc: {
-    color: "rgba(255,255,255,0.55)",
+    color: brand.textSecondary,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 18,
@@ -592,15 +595,15 @@ const listStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(245,200,66,0.1)",
+    backgroundColor: "rgba(46,125,50,0.08)",
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: "rgba(245,200,66,0.2)",
+    borderColor: "rgba(46,125,50,0.20)",
   },
   rewardText: {
-    color: brand.gold,
+    color: brand.green,
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
   },
@@ -610,12 +613,12 @@ const listStyles = StyleSheet.create({
     fontSize: 13,
   },
   noRewardText: {
-    color: "rgba(255,255,255,0.3)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 13,
   },
   responsesText: {
-    color: "rgba(255,255,255,0.35)",
+    color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
   },

@@ -184,8 +184,10 @@ export default function AdminSettingsPage() {
   const [lockoutMaxAttempts, setLockoutMaxAttempts] = useState<string>("");
   const [lockoutDurationMinutes, setLockoutDurationMinutes] = useState<string>("");
   const [editingLockout, setEditingLockout] = useState(false);
+  const [editingAlertEmail, setEditingAlertEmail] = useState(false);
+  const [alertEmailValue, setAlertEmailValue] = useState<string>("");
 
-  const { data: securitySettings } = useQuery<{ maxFailedAttempts: number; lockoutDurationMinutes: number }>({
+  const { data: securitySettings } = useQuery<{ maxFailedAttempts: number; lockoutDurationMinutes: number; securityAlertEmail: string | null }>({
     queryKey: ["/api/org/security-settings"],
     enabled: user?.role === "prime_admin",
   });
@@ -203,6 +205,25 @@ export default function AdminSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/org/security-settings"] });
       toast({ title: "Security Settings Saved", description: "Lockout thresholds have been updated." });
       setEditingLockout(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Save", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const { mutate: updateAlertEmail, isPending: isSavingAlertEmail } = useMutation({
+    mutationFn: async (securityAlertEmail: string | null) => {
+      const res = await apiRequest("PATCH", "/api/org/security-alert-email", { securityAlertEmail });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to save security alert email");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org/security-settings"] });
+      toast({ title: "Alert Email Saved", description: "Security lockout alerts will now go to the configured address." });
+      setEditingAlertEmail(false);
     },
     onError: (error: Error) => {
       toast({ title: "Failed to Save", description: error.message, variant: "destructive" });
@@ -565,7 +586,7 @@ export default function AdminSettingsPage() {
                     Control how many failed login attempts are allowed before an account is temporarily locked, and how long the lockout lasts.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   {!editingLockout ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-4">
@@ -660,6 +681,94 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                   )}
+
+                  <div className="border-t pt-4 space-y-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Security Alert Email</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        When set, all lockout alerts go to this address instead of every admin in your organization.
+                      </p>
+                    </div>
+                    {!editingAlertEmail ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="text-sm" data-testid="text-security-alert-email">
+                          {securitySettings?.securityAlertEmail
+                            ? <span className="font-mono">{securitySettings.securityAlertEmail}</span>
+                            : <span className="text-muted-foreground italic">Not set — alerts go to all admins</span>
+                          }
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          {securitySettings?.securityAlertEmail && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateAlertEmail(null)}
+                              disabled={isSavingAlertEmail}
+                              data-testid="button-remove-alert-email"
+                            >
+                              Remove
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setAlertEmailValue(securitySettings?.securityAlertEmail ?? "");
+                              setEditingAlertEmail(true);
+                            }}
+                            data-testid="button-edit-alert-email"
+                          >
+                            <Pencil className="mr-2 h-3 w-3" />
+                            {securitySettings?.securityAlertEmail ? "Change" : "Set"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="input-alert-email">Alert Email Address</Label>
+                          <Input
+                            id="input-alert-email"
+                            type="email"
+                            placeholder="e.g. security@company.com"
+                            value={alertEmailValue}
+                            onChange={(e) => setAlertEmailValue(e.target.value)}
+                            data-testid="input-alert-email"
+                          />
+                          <p className="text-xs text-muted-foreground">Lockout alerts will be sent exclusively to this address.</p>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingAlertEmail(false)}
+                            data-testid="button-cancel-alert-email"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={isSavingAlertEmail || !alertEmailValue}
+                            onClick={() => {
+                              const trimmed = alertEmailValue.trim();
+                              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                              if (!emailRegex.test(trimmed)) {
+                                toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+                                return;
+                              }
+                              updateAlertEmail(trimmed);
+                            }}
+                            data-testid="button-save-alert-email"
+                          >
+                            {isSavingAlertEmail ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}

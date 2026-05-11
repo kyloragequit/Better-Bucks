@@ -107,6 +107,7 @@ export interface IStorage {
   updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean, requireSocialSignupApproval: boolean): Promise<Organization>;
   updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number, budgetSetByName?: string): Promise<Organization>;
   updateOrganizationLockoutSettings(id: number, maxFailedAttempts: number, lockoutDurationMinutes: number): Promise<Organization>;
+  updateOrganizationSecurityAlertEmail(id: number, securityAlertEmail: string | null): Promise<Organization>;
   setOrganizationDefaultPin(orgId: number, hashedPin: string | null, plainPin?: string | null): Promise<Organization>;
   setOrganizationReportRecipients(orgId: number, userIds: number[] | null): Promise<Organization>;
 
@@ -934,6 +935,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrganizationLockoutSettings(id: number, maxFailedAttempts: number, lockoutDurationMinutes: number): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ maxFailedAttempts, lockoutDurationMinutes }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async updateOrganizationSecurityAlertEmail(id: number, securityAlertEmail: string | null): Promise<Organization> {
+    const [updated] = await db.update(organizations).set({ securityAlertEmail }).where(eq(organizations.id, id)).returning();
     return updated;
   }
 

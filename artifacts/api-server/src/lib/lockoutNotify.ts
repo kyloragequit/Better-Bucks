@@ -26,26 +26,34 @@ function formatLockExpiry(lockedUntil: Date | null): string {
 
 /**
  * Send a lockout alert email to all approved admins (prime_admin + admin) of
- * the locked employee's organization. Fire-and-forget: errors are logged but
- * never propagate to the caller so a mail failure never blocks the auth flow.
+ * the locked employee's organization, or to a dedicated security inbox if one
+ * has been configured. Fire-and-forget: errors are logged but never propagate
+ * to the caller so a mail failure never blocks the auth flow.
  */
 export async function notifyAdminsOfAccountLockout(lockedUser: User): Promise<void> {
   if (lockedUser.role !== "employee") return;
   if (!lockedUser.organizationId) return;
   try {
-    const orgUsers = await storage.getUsersByOrganization(lockedUser.organizationId);
-    const adminEmails = [
-      ...new Set(
-        orgUsers
-          .filter(
-            (u) =>
-              (u.role === "prime_admin" || u.role === "admin") &&
-              u.email &&
-              u.status === "approved",
-          )
-          .map((u) => u.email as string),
-      ),
-    ];
+    const org = await storage.getOrganization(lockedUser.organizationId);
+
+    let adminEmails: string[];
+    if (org?.securityAlertEmail) {
+      adminEmails = [org.securityAlertEmail];
+    } else {
+      const orgUsers = await storage.getUsersByOrganization(lockedUser.organizationId);
+      adminEmails = [
+        ...new Set(
+          orgUsers
+            .filter(
+              (u) =>
+                (u.role === "prime_admin" || u.role === "admin") &&
+                u.email &&
+                u.status === "approved",
+            )
+            .map((u) => u.email as string),
+        ),
+      ];
+    }
     if (!adminEmails.length) return;
 
     const employeeName = escapeHtml(lockedUser.fullName || lockedUser.username);

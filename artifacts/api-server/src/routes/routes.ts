@@ -3890,6 +3890,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({
       maxFailedAttempts: org?.maxFailedAttempts ?? 10,
       lockoutDurationMinutes: org?.lockoutDurationMinutes ?? 15,
+      securityAlertEmail: org?.securityAlertEmail ?? null,
     });
   });
 
@@ -3903,7 +3904,19 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       lockoutDurationMinutes: z.number().int().min(1).max(10080),
     }).parse(req.body);
     const updated = await storage.updateOrganizationLockoutSettings(user.organizationId, maxFailedAttempts, lockoutDurationMinutes);
-    res.json({ maxFailedAttempts: updated.maxFailedAttempts, lockoutDurationMinutes: updated.lockoutDurationMinutes });
+    res.json({ maxFailedAttempts: updated.maxFailedAttempts, lockoutDurationMinutes: updated.lockoutDurationMinutes, securityAlertEmail: updated.securityAlertEmail ?? null });
+  });
+
+  // Security alert email override - update (prime_admin only)
+  app.patch("/api/org/security-alert-email", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { securityAlertEmail } = z.object({
+      securityAlertEmail: z.string().email().nullable(),
+    }).parse(req.body);
+    const updated = await storage.updateOrganizationSecurityAlertEmail(user.organizationId, securityAlertEmail);
+    res.json({ securityAlertEmail: updated.securityAlertEmail ?? null });
   });
 
   // Get bucks credited to admins this month (prime_admin only)

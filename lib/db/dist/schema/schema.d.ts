@@ -530,6 +530,26 @@ export declare const organizations: import("drizzle-orm/pg-core").PgTableWithCol
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+<<<<<<< HEAD
+=======
+        securityAlertEmail: import("drizzle-orm/pg-core").PgColumn<{
+            name: "security_alert_email";
+            tableName: "organizations";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+>>>>>>> e25717b (feat: Let admins set a custom email address for security alerts (task #143))
     };
     dialect: "pg";
 }>;
@@ -4035,6 +4055,10 @@ export declare const insertOrganizationSchema: z.ZodObject<{
     maxFailedAttempts: z.ZodOptional<z.ZodInt>;
     lockoutDurationMinutes: z.ZodOptional<z.ZodInt>;
     requireSocialSignupApproval: z.ZodOptional<z.ZodBoolean>;
+<<<<<<< HEAD
+=======
+    securityAlertEmail: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+>>>>>>> e25717b (feat: Let admins set a custom email address for security alerts (task #143))
 }, {
     out: {};
     in: {};

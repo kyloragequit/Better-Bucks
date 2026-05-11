@@ -36,6 +36,7 @@ export const organizations = pgTable("organizations", {
   maxFailedAttempts: integer("max_failed_attempts").default(10).notNull(),
   lockoutDurationMinutes: integer("lockout_duration_minutes").default(15).notNull(),
   requireSocialSignupApproval: boolean("require_social_signup_approval").default(false).notNull(),
+  securityAlertEmail: text("security_alert_email"),
 });
 
 export const departments = pgTable("departments", {

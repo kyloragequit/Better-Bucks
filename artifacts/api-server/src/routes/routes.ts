@@ -8531,6 +8531,27 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     for (let i = 0; i < 12; i++) tempPassword += alphabet[bytes[i] % alphabet.length];
     const passwordHash = await hashPassword(tempPassword);
     await storage.updateMerchant(id, { passwordHash, mustChangePassword: true });
+
+    // Fire-and-forget — email failure must not block the API response
+    const merchantLoginUrl = `${getAppBaseUrl(req)}/merchant/login`;
+    sendEmail({
+      to: merch.email,
+      subject: "Your Better Bucks merchant password has been reset",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+          ${emailLogoHeader}
+          <p>Hi ${escapeHtml(merch.name)},</p>
+          <p>An admin has reset your Better Bucks merchant account password. Your temporary password is:</p>
+          <div style="background: #EEF4FB; padding: 16px; border-radius: 8px; text-align: center; font-size: 28px; letter-spacing: 4px; font-weight: bold; color: #162A4A;">${escapeHtml(tempPassword)}</div>
+          <p style="margin-top: 16px; color: #666;">Please <a href="${escapeHtml(merchantLoginUrl)}" style="color:#162A4A;font-weight:bold;">log in here</a> and change your password immediately. This temporary password should not be shared with anyone.</p>
+          <p style="margin-top: 16px; color: #666; font-size: 12px;">Need help? Contact <a href="mailto:miles.chase@betterbucks.net">miles.chase@betterbucks.net</a>.</p>
+        </div>
+      `,
+      text: `Hi ${merch.name},\n\nAn admin has reset your Better Bucks merchant account password.\n\nYour temporary password is: ${tempPassword}\n\nPlease log in at ${merchantLoginUrl} and change your password immediately.`,
+    }).catch((err: unknown) => {
+      req.log.error({ err, merchantId: id }, "[MerchantPasswordReset] Failed to send email");
+    });
+
     res.json({ tempPassword });
   });
 

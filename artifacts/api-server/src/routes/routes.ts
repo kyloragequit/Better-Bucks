@@ -8622,6 +8622,20 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
         performedBy: u.id,
       });
       void notifyEmployeeBalanceChange(dispute.employeeId, tx.bucksAmount, refundReason);
+    } else if (parsed.data.status === "dismissed") {
+      const dismissedTitle = "Dispute update";
+      const dismissedBody = "Your dispute was reviewed — no refund was issued.";
+      const employee = await storage.getUser(dispute.employeeId);
+      if (employee?.expoPushToken) {
+        sendExpoPushNotification(employee.expoPushToken, dismissedTitle, dismissedBody).catch((err: unknown) => {
+          req.log.warn({ err, userId: dispute.employeeId }, "[DisputeDismissed] Push notification failed");
+        });
+      }
+      if (employee) {
+        storage.createNotificationLog({ userId: dispute.employeeId, title: dismissedTitle, body: dismissedBody }).catch((err: unknown) => {
+          req.log.warn({ err, userId: dispute.employeeId }, "[DisputeDismissed] Notification log failed");
+        });
+      }
     }
 
     const updated = await storage.updateDispute(id, {

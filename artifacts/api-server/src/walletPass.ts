@@ -140,7 +140,7 @@ export async function buildPassForEmployee(
     serialNumber: pass.serialNumber,
     teamIdentifier: env.teamId,
     organizationName: org?.name || "Better Bucks",
-    description: `${org?.name || "Better Bucks"} balance`,
+    description: `${org?.name || "Better Bucks"} Bucks balance`,
     logoText: org?.name || "Better Bucks",
     foregroundColor: "rgb(255, 255, 255)",
     backgroundColor: "rgb(22, 42, 74)",
@@ -152,7 +152,7 @@ export async function buildPassForEmployee(
     ],
     storeCard: {
       headerFields: [
-        { key: "balance", label: "Balance", value: `${employee.balance ?? 0}`, textAlignment: "PKTextAlignmentRight" },
+        { key: "balance", label: "Bucks", value: `${employee.balance ?? 0}`, textAlignment: "PKTextAlignmentRight" },
       ],
       primaryFields: [
         { key: "name", label: "Member", value: employee.fullName || employee.email || "Member" },
@@ -161,10 +161,9 @@ export async function buildPassForEmployee(
         { key: "org", label: "Workplace", value: org?.name || "Better Bucks" },
       ],
       auxiliaryFields: [
-        { key: "balance2", label: "Bucks balance", value: `${employee.balance ?? 0}` },
         {
           key: "lastUpdated",
-          label: "Last updated",
+          label: "Balance updated",
           value: new Date(Number(displayTag)).toISOString(),
           dateStyle: "PKDateStyleNone",
           timeStyle: "PKDateStyleShort",
@@ -172,6 +171,7 @@ export async function buildPassForEmployee(
       ],
       backFields: [
         { key: "instructions", label: "How to use", value: "Show this pass to a participating merchant. They will scan the QR code to redeem your Bucks. The QR code refreshes every few minutes for security." },
+        { key: "balanceBack", label: "Current Bucks balance", value: `${employee.balance ?? 0}` },
       ],
     },
   };
@@ -193,7 +193,13 @@ export async function buildPassForEmployee(
     wwdr: env.wwdr,
   });
   const buffer = await passInstance.getAsBuffer();
-  await storage.updateWalletPassTag(pass.serialNumber, updatedTag);
+  // Only write the tag when the pass has never been tagged (brand-new serial).
+  // Existing tags are set by pushPassUpdateForEmployee when the balance actually
+  // changes, so overwriting them here would replace the balance-change timestamp
+  // with the pass-fetch time, making the "Balance updated" field inaccurate.
+  if (!pass.lastUpdatedTag) {
+    await storage.updateWalletPassTag(pass.serialNumber, updatedTag);
+  }
   return { buffer, serialNumber: pass.serialNumber, authToken: pass.authToken, updatedTag };
 }
 

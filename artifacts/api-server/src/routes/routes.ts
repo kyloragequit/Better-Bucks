@@ -8756,6 +8756,10 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       const built = await buildPassForEmployee(pass.employeeId, req, { serialNumber: pass.serialNumber });
       res.setHeader("Content-Type", "application/vnd.apple.pkpass");
       res.setHeader("Last-Modified", new Date().toUTCString());
+      // Prevent HTTP-level caching so Apple always receives the freshest balance.
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.send(built.buffer);
     } catch (err: any) {
       if (err instanceof PassConfigError) return res.status(503).json({ message: err.message });

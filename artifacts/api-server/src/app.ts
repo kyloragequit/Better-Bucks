@@ -12,6 +12,7 @@ import { WebhookHandlers } from "./webhookHandlers";
 import { startStripeOrphanRetryJob } from "./stripeOrphanRetry";
 import { startStripeOrphanSummaryJob } from "./stripeOrphanSummary";
 import { startBucksReminderJob } from "./bucksReminderJob";
+import { startApnsPushRetryJob } from "./apnsPushRetry";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -158,6 +159,7 @@ export async function initApp(): Promise<void> {
   startStripeOrphanRetryJob();
   startStripeOrphanSummaryJob();
   startBucksReminderJob();
+  startApnsPushRetryJob();
 
   // Global error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

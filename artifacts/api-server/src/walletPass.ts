@@ -1,6 +1,8 @@
 import { storage } from "./storage";
 import { signWalletQr } from "./walletQrToken";
 import { pushPassUpdate } from "./apns";
+import { recordApnsPushRetry } from "./apnsPushRetry";
+import { logger } from "./lib/logger";
 import crypto from "crypto";
 import forge from "node-forge";
 
@@ -197,9 +199,12 @@ export async function buildPassForEmployee(
 
 /** Trigger an APNs push to all devices that registered the employee's pass. No-op if APNs not configured.
  *
- * Failed pushes are retried with exponential back-off. Any token Apple marks as permanently
- * invalid (HTTP 410) is removed from the database so it is never used again.
- * Errors are swallowed so a push failure never breaks a balance update. */
+ * Transient failures are retried inline by apns.ts (up to 3 attempts with exponential back-off).
+ * If all inline retries are exhausted, or if the connection itself fails, the push is queued in
+ * the database and the background APNs retry job will attempt it again up to 5 times.
+ * Any token Apple marks as permanently invalid (HTTP 410) is removed from the database
+ * immediately so it is never used again. Errors are swallowed so a push failure never
+ * breaks a balance update. */
 export async function pushPassUpdateForEmployee(employeeId: number): Promise<void> {
   try {
     const pass = await storage.getActiveWalletPassForEmployee(employeeId);
@@ -210,10 +215,20 @@ export async function pushPassUpdateForEmployee(employeeId: number): Promise<voi
     const tokens = Array.from(new Set(devices.map((d) => d.pushToken)));
     const result = await pushPassUpdate(tokens);
     if (result.invalidTokens.length) {
-      console.warn(`[walletPass] removing ${result.invalidTokens.length} invalid device token(s) for employee ${employeeId}`);
+      logger.warn(
+        { employeeId, count: result.invalidTokens.length },
+        "[walletPass] Removing invalid device token(s)",
+      );
       await storage.deleteWalletDevicesByPushToken(result.invalidTokens);
     }
+    if (result.errors > 0) {
+      const errMsg = `${result.errors} of ${tokens.length} token(s) failed all inline APNs send attempts`;
+      logger.warn({ employeeId, errors: result.errors, total: tokens.length }, `[walletPass] ${errMsg} — queuing for background retry`);
+      await recordApnsPushRetry(employeeId, errMsg);
+    }
   } catch (err: any) {
-    console.error("[walletPass] pushPassUpdateForEmployee failed:", err?.message ?? err);
+    const errMsg = err?.message ?? String(err);
+    logger.error({ err, employeeId }, "[walletPass] pushPassUpdateForEmployee failed — queuing for background retry");
+    await recordApnsPushRetry(employeeId, errMsg);
   }
 }

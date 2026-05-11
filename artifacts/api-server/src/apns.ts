@@ -1,5 +1,6 @@
 import http2 from "http2";
 import crypto from "crypto";
+import { logger } from "./lib/logger";
 
 let cachedJwt: { token: string; createdAt: number } | null = null;
 
@@ -14,7 +15,7 @@ function getApnsConfig() {
     key = Buffer.from(keyB64, "base64").toString("utf8");
     if (!key.includes("BEGIN")) throw new Error("decoded APNs key is not PEM");
   } catch (e: any) {
-    console.error("[apns] APPLE_APN_KEY is not valid base64-encoded PEM:", e?.message);
+    logger.error({ err: e }, "[apns] APPLE_APN_KEY is not valid base64-encoded PEM");
     return null;
   }
   return { key, keyId, teamId, topic };
@@ -83,7 +84,7 @@ function sendOne(
     req.on("data", (c) => { body += c; });
     req.on("end", () => resolve({ status, body }));
     req.on("error", (err) => {
-      console.warn(`[apns] request error for token ${token.slice(0, 8)}…:`, err?.message);
+      logger.warn({ err, tokenPrefix: token.slice(0, 8) }, "[apns] request error for device token");
       resolve({ status: 0, body: err?.message ?? "request error" });
     });
     req.end(JSON.stringify({}));
@@ -107,7 +108,7 @@ export async function pushPassUpdate(
 ): Promise<{ sent: number; configured: boolean; errors: number; invalidTokens: string[] }> {
   const cfg = getApnsConfig();
   if (!cfg) {
-    if (deviceTokens.length) console.warn(`[apns] Skipping pass push to ${deviceTokens.length} device(s) — Apple credentials not configured`);
+    if (deviceTokens.length) logger.warn({ count: deviceTokens.length }, "[apns] Skipping pass push — Apple credentials not configured");
     return { sent: 0, configured: false, errors: 0, invalidTokens: [] };
   }
   if (!deviceTokens.length) return { sent: 0, configured: true, errors: 0, invalidTokens: [] };
@@ -132,7 +133,7 @@ export async function pushPassUpdate(
 
         if (status === 410) {
           // Token is permanently invalid; no point retrying.
-          console.warn(`[apns] token ${token.slice(0, 8)}… rejected as invalid (410) — will be removed`);
+          logger.warn({ tokenPrefix: token.slice(0, 8), status }, "[apns] Token rejected as permanently invalid — will be removed");
           invalidTokens.push(token);
           return;
         }
@@ -141,7 +142,7 @@ export async function pushPassUpdate(
           const reason = parseApnsReason(body);
           if (reason && INVALID_TOKEN_REASONS.has(reason)) {
             // Apple explicitly told us the token is bad; remove it and don't retry.
-            console.warn(`[apns] token ${token.slice(0, 8)}… rejected with reason=${reason} (400) — will be removed`);
+            logger.warn({ tokenPrefix: token.slice(0, 8), reason }, "[apns] Token rejected with permanent error — will be removed");
             invalidTokens.push(token);
             return;
           }
@@ -150,11 +151,11 @@ export async function pushPassUpdate(
         attempt++;
         if (attempt < MAX_RETRIES && (status === 0 || isTransientStatus(status))) {
           const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
-          console.warn(`[apns] push to ${token.slice(0, 8)}… status=${status} body=${body} — retrying in ${delay}ms (attempt ${attempt}/${MAX_RETRIES})`);
+          logger.warn({ tokenPrefix: token.slice(0, 8), status, attempt, maxRetries: MAX_RETRIES, delayMs: delay }, "[apns] Transient push failure — retrying");
           await new Promise((r) => setTimeout(r, delay));
         } else {
           errors++;
-          console.warn(`[apns] push to ${token.slice(0, 8)}… failed after ${attempt} attempt(s) status=${status} body=${body}`);
+          logger.warn({ tokenPrefix: token.slice(0, 8), status, attempt }, "[apns] Push failed after all inline retry attempts");
           return;
         }
       }

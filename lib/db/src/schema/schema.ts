@@ -611,6 +611,25 @@ export type InsertWalletPass = typeof walletPasses.$inferInsert;
 export type WalletPassDevice = typeof walletPassDevices.$inferSelect;
 export type InsertWalletPassDevice = typeof walletPassDevices.$inferInsert;
 
+export const apnsPushRetries = pgTable("apns_push_retries", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employee_id").notNull(),
+  status: text("status", { enum: ["pending", "processing", "resolved", "failed_permanently"] }).default("pending").notNull(),
+  retryCount: integer("retry_count").default(0).notNull(),
+  lastError: text("last_error"),
+  nextAttemptAt: timestamp("next_attempt_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+},
+(table) => [
+  uniqueIndex("apns_push_retries_pending_employee_idx")
+    .on(table.employeeId)
+    .where(sql`${table.status} = 'pending'`),
+]);
+
+export type ApnsPushRetry = typeof apnsPushRetries.$inferSelect;
+export type InsertApnsPushRetry = typeof apnsPushRetries.$inferInsert;
+
 export const userSocialLinks = pgTable("user_social_links", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),

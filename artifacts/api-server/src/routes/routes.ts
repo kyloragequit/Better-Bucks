@@ -2700,19 +2700,26 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       const pageParam = req.query.page;
       const status = typeof req.query.status === "string" ? req.query.status : undefined;
 
-      // Paginated request: ?page=N&limit=M
+      // Paginated request: ?page=N&limit=M[&search=...]
       if (pageParam !== undefined) {
         const page = Math.max(1, parseInt(pageParam as string) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+        const search = typeof req.query.search === "string" ? req.query.search : undefined;
         if (user.organizationId) {
-          const result = await storage.getOrdersByOrganizationPaginated(user.organizationId, page, limit);
+          const result = await storage.getOrdersByOrganizationPaginated(user.organizationId, page, limit, search);
           return res.json(result);
         }
         // Super-admin fallback: fetch all and slice in memory
         const allOrders = await storage.getAllOrders();
+        const filteredOrders = search && search.trim()
+          ? allOrders.filter((o: any) =>
+              (o.user?.fullName ?? "").toLowerCase().includes(search.trim().toLowerCase()) ||
+              (o.description ?? "").toLowerCase().includes(search.trim().toLowerCase())
+            )
+          : allOrders;
         const offset = (page - 1) * limit;
-        const sliced = allOrders.slice(offset, offset + limit);
-        return res.json({ orders: sliced, hasMore: offset + sliced.length < allOrders.length, total: allOrders.length });
+        const sliced = filteredOrders.slice(offset, offset + limit);
+        return res.json({ orders: sliced, hasMore: offset + sliced.length < filteredOrders.length, total: filteredOrders.length });
       }
 
       // Non-paginated: supports optional ?status filter (used for pending-only fetch)

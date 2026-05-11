@@ -35,7 +35,7 @@ export interface IStorage {
   getOrdersByUser(userId: number): Promise<Order[]>;
   getAllOrders(): Promise<(Order & { user: User })[]>;
   getOrdersByOrganization(organizationId: number, status?: string): Promise<(Order & { user: User })[]>;
-  getOrdersByOrganizationPaginated(organizationId: number, page: number, limit: number): Promise<{ orders: (Order & { user: User })[]; hasMore: boolean; total: number }>;
+  getOrdersByOrganizationPaginated(organizationId: number, page: number, limit: number, search?: string): Promise<{ orders: (Order & { user: User })[]; hasMore: boolean; total: number }>;
   updateOrderStatus(id: number, status: string, adminNotes?: string): Promise<Order>;
   updateOrderPointsCost(id: number, pointsCost: number): Promise<Order>;
 
@@ -478,9 +478,12 @@ export class DatabaseStorage implements IStorage {
     return result.map(row => ({ ...row.order, user: row.user! }));
   }
 
-  async getOrdersByOrganizationPaginated(organizationId: number, page: number, limit: number): Promise<{ orders: (Order & { user: User })[]; hasMore: boolean; total: number }> {
+  async getOrdersByOrganizationPaginated(organizationId: number, page: number, limit: number, search?: string): Promise<{ orders: (Order & { user: User })[]; hasMore: boolean; total: number }> {
     const offset = (page - 1) * limit;
-    const whereClause = eq(users.organizationId, organizationId);
+    const orgClause = eq(users.organizationId, organizationId);
+    const whereClause = search && search.trim()
+      ? and(orgClause, or(ilike(users.fullName, `%${search.trim()}%`), ilike(orders.description, `%${search.trim()}%`)))
+      : orgClause;
 
     const [countRow] = await db
       .select({ count: sql<string>`count(*)` })

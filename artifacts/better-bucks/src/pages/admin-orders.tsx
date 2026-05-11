@@ -11,13 +11,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Package, Check, X, Eye, ExternalLink, Lock, Pencil, ShoppingCart, Download, Send, Mail } from "lucide-react";
+import { Package, Check, X, Eye, ExternalLink, Lock, Pencil, ShoppingCart, Download, Send, Mail, Search } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useUser } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { useDebounce } from "@/hooks/use-debounce";
 import type { Order, User } from "@shared/schema";
 
 type OrderWithUser = Order & { user: User };
@@ -46,6 +47,8 @@ export default function AdminOrdersPage() {
   const isPrime = currentUser?.role === "prime_admin";
   const [selectedOrder, setSelectedOrder] = useState<OrderWithUser | null>(null);
   const [showShoppingList, setShowShoppingList] = useState(false);
+  const [searchRaw, setSearchRaw] = useState("");
+  const search = useDebounce(searchRaw, 150);
 
   // Pending orders: fetch all at once (typically few)
   const { data: pendingOrders = [], isLoading: pendingLoading } = useQuery<OrderWithUser[]>({
@@ -57,7 +60,7 @@ export default function AdminOrdersPage() {
     },
   });
 
-  // All orders: paginated via infinite query
+  // All orders: paginated via infinite query, search is server-side
   const {
     data: allOrdersData,
     isLoading: allOrdersLoading,
@@ -65,11 +68,15 @@ export default function AdminOrdersPage() {
     fetchNextPage,
     hasNextPage,
   } = useInfiniteQuery<PaginatedOrdersResponse>({
-    queryKey: ["/api/orders/paginated"],
+    queryKey: ["/api/orders/paginated", search],
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const page = pageParam as number;
-      const res = await fetch(`/api/orders?page=${page}&limit=${PAGE_LIMIT}`, { credentials: "include" });
+      const url = new URL("/api/orders", window.location.origin);
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("limit", String(PAGE_LIMIT));
+      if (search.trim()) url.searchParams.set("search", search.trim());
+      const res = await fetch(url.toString(), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch orders");
       return res.json();
     },
@@ -83,15 +90,41 @@ export default function AdminOrdersPage() {
   const totalCount = allOrdersData?.pages[0]?.total ?? 0;
   const isLoading = pendingLoading || allOrdersLoading;
 
+  // Pending orders are fetched all at once — filter client-side (small list)
+  const matchesSearch = (order: OrderWithUser) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (order.user?.fullName ?? "").toLowerCase().includes(q) ||
+      (order.description ?? "").toLowerCase().includes(q)
+    );
+  };
+
+  const filteredPendingOrders = pendingOrders.filter(matchesSearch);
+  // allOrders are already filtered server-side
+  const filteredAllOrders = allOrders;
+
   if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
 
   return (
     <AdminLayout>
-      <div className="mb-8 animate-in">
+      <div className="mb-6 animate-in">
         <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground" data-testid="text-admin-orders-title">
           Orders
         </h1>
         <p className="text-muted-foreground mt-1">Review and manage employee orders</p>
+      </div>
+
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          type="search"
+          placeholder="Search by employee name or item…"
+          value={searchRaw}
+          onChange={(e) => setSearchRaw(e.target.value)}
+          className="pl-9"
+          data-testid="input-orders-search"
+        />
       </div>
 
       {!isPrime && (
@@ -103,14 +136,14 @@ export default function AdminOrdersPage() {
         </div>
       )}
 
-      {pendingOrders.length > 0 && (
+      {(pendingOrders.length > 0 && filteredPendingOrders.length > 0) && (
         <Card className="shadow-md mb-6 border-primary/20">
           <CardHeader>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5 text-primary" />
                 Pending Orders
-                <Badge variant="secondary" className="ml-2">{pendingOrders.length}</Badge>
+                <Badge variant="secondary" className="ml-2">{filteredPendingOrders.length}</Badge>
               </CardTitle>
               <Button
                 variant="outline"
@@ -133,7 +166,7 @@ export default function AdminOrdersPage() {
           <CardContent className="px-0 sm:px-6">
             {/* Mobile card layout */}
             <div className="sm:hidden space-y-3 px-4">
-              {pendingOrders.map((order) => (
+              {filteredPendingOrders.map((order) => (
                 <div key={order.id} className="border rounded-lg p-3 space-y-2" data-testid={`row-pending-order-${order.id}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
@@ -175,7 +208,7 @@ export default function AdminOrdersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pendingOrders.map((order) => (
+                  {filteredPendingOrders.map((order) => (
                     <TableRow key={order.id} data-testid={`row-pending-order-desktop-${order.id}`}>
                       <TableCell className="text-muted-foreground whitespace-nowrap">
                         {format(new Date(order.createdAt), "MMM d, yyyy")}
@@ -218,17 +251,23 @@ export default function AdminOrdersPage() {
             <Package className="h-5 w-5" /> All Orders
             {totalCount > 0 && (
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                ({allOrders.length.toLocaleString()} of {totalCount.toLocaleString()} loaded)
+                {search.trim()
+                  ? `(${totalCount.toLocaleString()} matching)`
+                  : `(${allOrders.length.toLocaleString()} of ${totalCount.toLocaleString()} loaded)`}
               </span>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0 sm:px-6">
-          {allOrders.length === 0 ? (
+          {allOrders.length === 0 && !search.trim() ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground px-4">No orders yet.</div>
+          ) : allOrders.length === 0 ? (
+            <div className="h-24 flex items-center justify-center text-muted-foreground px-4" data-testid="text-orders-no-results">
+              No orders match your search.
+            </div>
           ) : (
             <AllOrdersVirtualList
-              orders={allOrders}
+              orders={filteredAllOrders}
               isPrime={!!isPrime}
               isPublicDemo={isPublicDemo}
               onViewOrder={setSelectedOrder}

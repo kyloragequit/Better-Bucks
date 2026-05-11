@@ -25,6 +25,34 @@ export interface OrphanRetryWarningPayload {
   maxRetries: number;
 }
 
+const MAX_ALERT_ATTEMPTS = 3;
+const BASE_DELAY_MS = 1000;
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+  maxAttempts = MAX_ALERT_ATTEMPTS,
+  baseDelayMs = BASE_DELAY_MS,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        const delayMs = baseDelayMs * 2 ** (attempt - 1);
+        logger.warn(
+          { err, attempt, nextDelayMs: delayMs },
+          `${label} attempt ${attempt} failed — retrying in ${delayMs}ms`,
+        );
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
+
 function buildSlackBody(payload: GhostStripeAlertPayload): string {
   const lines = [
     ":rotating_light: *Stripe rollback failed — ghost objects require manual cleanup*",
@@ -287,7 +315,9 @@ async function sendOrphanEmailAlert(
 /**
  * Fire-and-forget alert sent when rollbackStripe fails, leaving orphaned
  * Stripe objects. Respects ALERT_WEBHOOK_URL (Slack) and ADMIN_ALERT_EMAIL.
- * Errors are caught and logged so they never bubble up to the caller.
+ * Each channel is retried up to MAX_ALERT_ATTEMPTS times with exponential
+ * back-off before giving up. Errors are caught and logged so they never
+ * bubble up to the caller.
  */
 export async function sendGhostStripeAlert(payload: GhostStripeAlertPayload): Promise<void> {
   const webhookUrl = process.env.ALERT_WEBHOOK_URL;
@@ -302,15 +332,19 @@ export async function sendGhostStripeAlert(payload: GhostStripeAlertPayload): Pr
   }
 
   const results = await Promise.allSettled([
-    webhookUrl ? sendSlackAlert(webhookUrl, payload) : Promise.resolve(),
-    adminEmail ? sendEmailAlert(adminEmail, payload) : Promise.resolve(),
+    webhookUrl
+      ? withRetry(() => sendSlackAlert(webhookUrl, payload), "sendGhostStripeAlert[slack]")
+      : Promise.resolve(),
+    adminEmail
+      ? withRetry(() => sendEmailAlert(adminEmail, payload), "sendGhostStripeAlert[email]")
+      : Promise.resolve(),
   ]);
 
   for (const result of results) {
     if (result.status === "rejected") {
       logger.error(
-        { err: result.reason },
-        "Failed to send ghost Stripe alert notification",
+        { err: result.reason, payload },
+        "Failed to send ghost Stripe alert notification after all retries",
       );
     }
   }
@@ -466,7 +500,9 @@ export async function sendOrphanRetryWarningAlert(
  * ADMIN_ALERT_EMAIL — the alert is opt-in and only fires when at least one
  * of those env vars is set.
  *
- * Errors are caught and logged so they never surface to the retry job itself.
+ * Each channel is retried up to MAX_ALERT_ATTEMPTS times with exponential
+ * back-off. Errors are caught and logged so they never surface to the retry
+ * job itself.
  */
 export async function sendOrphanPermanentFailureAlert(
   payload: OrphanPermanentFailurePayload,
@@ -484,15 +520,25 @@ export async function sendOrphanPermanentFailureAlert(
   }
 
   const results = await Promise.allSettled([
-    webhookUrl ? sendOrphanSlackAlert(webhookUrl, payload) : Promise.resolve(),
-    adminEmail ? sendOrphanEmailAlert(adminEmail, payload) : Promise.resolve(),
+    webhookUrl
+      ? withRetry(
+          () => sendOrphanSlackAlert(webhookUrl, payload),
+          "sendOrphanPermanentFailureAlert[slack]",
+        )
+      : Promise.resolve(),
+    adminEmail
+      ? withRetry(
+          () => sendOrphanEmailAlert(adminEmail, payload),
+          "sendOrphanPermanentFailureAlert[email]",
+        )
+      : Promise.resolve(),
   ]);
 
   for (const result of results) {
     if (result.status === "rejected") {
       logger.error(
-        { err: result.reason },
-        "[stripeOrphanRetry] Failed to send permanent failure alert",
+        { err: result.reason, payload },
+        "[stripeOrphanRetry] Failed to send permanent failure alert after all retries",
       );
     }
   }

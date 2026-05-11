@@ -15,6 +15,7 @@ type TransactionDetail = {
   type: "credit" | "debit";
   createdAt: string;
   performedByName: string | null;
+  merchantName?: string | null;
   categoryId: number | null;
   categoryName: string | null;
   categoryColor: string | null;
@@ -105,7 +106,11 @@ export default function TransactionDetailScreen() {
 
       {/* Detail rows */}
       <View style={styles.card}>
-        <DetailRow icon="document-text-outline" label="Reason" value={data.reason || "No reason provided"} />
+        {data.merchantName ? (
+          <DetailRow icon="storefront-outline" label="Merchant" value={data.merchantName} />
+        ) : (
+          <DetailRow icon="document-text-outline" label="Reason" value={data.reason || "No reason provided"} />
+        )}
 
         <DetailRow
           icon="calendar-outline"

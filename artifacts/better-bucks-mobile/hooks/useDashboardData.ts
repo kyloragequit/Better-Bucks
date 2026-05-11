@@ -5,7 +5,7 @@ import { apiUrl } from "@/constants/api";
 const CACHE_KEY_PREFIX = "bb_dashboard_cache_";
 
 export type Transaction = {
-  id: number;
+  id: string;
   amount: number;
   reason: string | null;
   createdAt: string;

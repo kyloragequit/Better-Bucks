@@ -700,16 +700,40 @@ export function registerMobileRoutes(app: Express) {
   app.get("/api/mobile/dashboard", mobileAuthMiddleware, async (req, res) => {
     const user = (req as MobileRequest).mobileUser;
     try {
-      const [freshUser, transactions, goals] = await Promise.all([
+      const [freshUser, transactions, merchantTxns, goals] = await Promise.all([
         storage.getUser(user.id),
         storage.getTransactionsByUser(user.id),
+        storage.getMerchantTransactionsForEmployee(user.id),
         user.organizationId
           ? storage.getGoalsByOrganization(user.organizationId)
           : Promise.resolve([]),
       ]);
 
       const activeGoals = goals.filter((g) => g.status === "active");
-      const recentTransactions = transactions.slice(0, 15);
+
+      const ledgerItems = transactions.map((t) => ({
+        id: `tx-${t.id}`,
+        amount: t.amount ?? 0,
+        reason: t.reason ?? ((t.amount ?? 0) >= 0 ? "Bucks awarded" : "Bucks spent"),
+        createdAt: t.createdAt,
+        performedByName: t.performedByName ?? null,
+      }));
+
+      const merchantItems = merchantTxns.map((mt) => ({
+        id: `mt-${mt.id}`,
+        amount: -(mt.bucksAmount ?? 0),
+        reason: mt.merchant?.name ? `Redeemed at ${mt.merchant.name}` : "Merchant redemption",
+        createdAt: mt.createdAt,
+        performedByName: null,
+      }));
+
+      const recentTransactions = [...ledgerItems, ...merchantItems]
+        .sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 15);
 
       let adminStats: {
         totalEmployees: number;
@@ -741,7 +765,7 @@ export function registerMobileRoutes(app: Express) {
         adminStats,
       });
     } catch (err) {
-      console.error("[mobile/dashboard]", err);
+      logger.error({ err }, "[mobile/dashboard] Failed to load dashboard");
       res.status(500).json({ message: "Failed to load dashboard" });
     }
   });

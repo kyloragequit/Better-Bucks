@@ -214,6 +214,7 @@ export interface IStorage {
   getMerchantTransactionsByOrg(orgId: number, limit?: number): Promise<(MerchantTransaction & { employee?: User; merchant?: Merchant })[]>;
   getMerchantTransactionsForEmployee(employeeId: number, limit?: number): Promise<(MerchantTransaction & { merchant?: Merchant })[]>;
   getRedemptionSummaryForEmployee(employeeId: number): Promise<{ monthTotal: number; allTimeTotal: number }>;
+  getRedemptionHistoryByMonth(employeeId: number, months?: number): Promise<{ month: string; total: number }[]>;
   getMonthlyBucksSummary(userId: number): Promise<{ earned: number; spent: number }>;
 
   // Wallet passes
@@ -1687,6 +1688,23 @@ DatabaseStorage.prototype.getMerchantTransactionsForEmployee = async function (e
   const merchList = merchIds.length ? await db.select().from(merchants).where(inArray(merchants.id, merchIds)) : [];
   const merchById = new Map(merchList.map((m) => [m.id, m]));
   return rows.map((r) => ({ ...r, merchant: merchById.get(r.merchantId) }));
+};
+
+DatabaseStorage.prototype.getRedemptionHistoryByMonth = async function (employeeId, months = 12) {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - months + 1);
+  cutoff.setDate(1);
+  cutoff.setHours(0, 0, 0, 0);
+  const rows = await db
+    .select({
+      month: sql<string>`to_char(date_trunc('month', ${merchantTransactions.createdAt}), 'YYYY-MM')`,
+      total: sql<string>`coalesce(sum(${merchantTransactions.bucksAmount}), 0)`,
+    })
+    .from(merchantTransactions)
+    .where(and(eq(merchantTransactions.employeeId, employeeId), gte(merchantTransactions.createdAt, cutoff)))
+    .groupBy(sql`date_trunc('month', ${merchantTransactions.createdAt})`)
+    .orderBy(sql`date_trunc('month', ${merchantTransactions.createdAt})`);
+  return rows.map((r) => ({ month: r.month, total: parseInt(r.total, 10) }));
 };
 
 DatabaseStorage.prototype.getRedemptionSummaryForEmployee = async function (employeeId) {

@@ -8366,6 +8366,15 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     });
   });
 
+  // ── Employee redemption history aggregated by calendar month ──────────────
+  app.get("/api/wallet/redemptions/history", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    const months = Math.min(Math.max(parseInt(String(req.query.months ?? "12"), 10) || 12, 1), 24);
+    const history = await storage.getRedemptionHistoryByMonth(u.id, months);
+    res.json(history);
+  });
+
   // ── Dispute a merchant redemption ─────────────────────────────────────────
   app.post("/api/wallet/redemptions/:id/dispute", async (req, res) => {
     const u = req.user as User | undefined;

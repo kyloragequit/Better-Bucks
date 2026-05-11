@@ -10,10 +10,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Store, ArrowLeft, AlertTriangle, TrendingDown, Calendar } from "lucide-react";
+import { Store, ArrowLeft, AlertTriangle, TrendingDown, Calendar, BarChart2 } from "lucide-react";
 import { Link } from "wouter";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 type Redemption = {
   id: number;
@@ -26,6 +35,8 @@ type RedemptionsResponse = {
   summary: { monthTotal: number; allTimeTotal: number };
   redemptions: Redemption[];
 };
+
+type MonthlySpend = { month: string; total: number };
 
 type Dispute = {
   id: number;
@@ -43,6 +54,31 @@ export default function EmployeeRedemptionsPage() {
   const redemptions = data?.redemptions ?? [];
   const summary = data?.summary;
   const monthName = format(new Date(), "MMMM");
+
+  const { data: history = [], isError: historyError } = useQuery<MonthlySpend[]>({
+    queryKey: ["/api/wallet/redemptions/history"],
+    queryFn: async () => {
+      const r = await fetch("/api/wallet/redemptions/history", { credentials: "include" });
+      if (!r.ok) throw new Error(`Failed to load spending history (${r.status})`);
+      return r.json();
+    },
+  });
+
+  const chartData = (() => {
+    if (history.length === 0) return [];
+    const byMonth = new Map(history.map((h) => [h.month, h.total]));
+    const earliest = history[0].month;
+    const [eYear, eMon] = earliest.split("-").map(Number);
+    const now = new Date();
+    const result: { label: string; total: number }[] = [];
+    for (let y = eYear, m = eMon; y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth() + 1); ) {
+      const key = `${y}-${String(m).padStart(2, "0")}`;
+      result.push({ label: format(parse(key, "yyyy-MM", new Date()), "MMM yy"), total: byMonth.get(key) ?? 0 });
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return result;
+  })();
 
   const { data: disputes = [] } = useQuery<Dispute[]>({
     queryKey: ["/api/wallet/my-disputes"],
@@ -131,6 +167,51 @@ export default function EmployeeRedemptionsPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Spending over time chart */}
+      {(chartData.length > 0 || historyError) && (
+        <Card className="shadow-sm border-border/60 mb-6" data-testid="section-spending-chart">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart2 className="h-5 w-5 text-primary" /> Spending over time
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {historyError ? (
+              <div className="flex items-center gap-2 text-sm text-destructive py-6 justify-center" data-testid="text-chart-error">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                Could not load spending history. Please refresh to try again.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={48}
+                    tickFormatter={(v) => v.toLocaleString()}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
+                    formatter={(value: number) => [`${value.toLocaleString()} bcks`, "Spent"]}
+                    labelFormatter={(label) => `Month: ${label}`}
+                  />
+                  <Bar dataKey="total" fill="#1d4ed8" radius={[4, 4, 0, 0]} aria-label="Monthly spending" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card className="shadow-md border-border/60">

@@ -84,6 +84,7 @@ export default function SignupPage() {
   const [rfiPhone, setRfiPhone] = useState("");
   const [rfiNeeds, setRfiNeeds] = useState("");
   const [rfiSubmitted, setRfiSubmitted] = useState(false);
+  const [rfiHcaptchaToken, setRfiHcaptchaToken] = useState<string | null>(null);
 
   const { mutate: submitRfi, isPending: isSubmittingRfi } = useMutation({
     mutationFn: async () => {
@@ -92,6 +93,7 @@ export default function SignupPage() {
         email: rfiEmail,
         phone: rfiPhone,
         needs: rfiNeeds,
+        hcaptchaToken: rfiHcaptchaToken ?? undefined,
       });
       return await res.json();
     },
@@ -600,10 +602,21 @@ export default function SignupPage() {
                       data-testid="input-rfi-needs"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <HCaptchaWidget
+                      onToken={setRfiHcaptchaToken}
+                      onExpire={() => setRfiHcaptchaToken(null)}
+                    />
+                    {rfiHcaptchaToken && (
+                      <p className="text-center text-xs text-green-600 font-medium" data-testid="text-rfi-captcha-verified">
+                        ✓ Verification complete
+                      </p>
+                    )}
+                  </div>
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={isSubmittingRfi}
+                    disabled={isSubmittingRfi || !rfiHcaptchaToken}
                     data-testid="button-submit-rfi"
                   >
                     {isSubmittingRfi ? (

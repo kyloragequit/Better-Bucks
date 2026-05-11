@@ -4499,10 +4499,18 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         phone: z.string().min(1, "Phone number is required"),
         needs: z.string().min(1, "Please describe your needs"),
         inquiryType: z.enum(["betterbucks", "website"]).optional(),
+        hcaptchaToken: z.string().optional(),
       });
 
       const parsed = schema.parse(req.body);
-      const data = { ...parsed, inquiryType: parsed.inquiryType ?? "betterbucks" };
+
+      const captchaOk = await verifyWebHcaptchaToken(parsed.hcaptchaToken);
+      if (!captchaOk) {
+        return res.status(400).json({ message: "Human verification failed. Please complete the captcha and try again." });
+      }
+
+      const { hcaptchaToken: _token, ...rest } = parsed;
+      const data = { ...rest, inquiryType: rest.inquiryType ?? "betterbucks" };
       const isWebsite = data.inquiryType === "website";
 
       const [inserted] = await db.insert(infoRequests).values(data).returning();

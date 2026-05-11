@@ -105,7 +105,11 @@ export const transactions = pgTable("transactions", {
   hasCashValue: boolean("has_cash_value"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  uniqueIndex("transactions_stripe_payment_intent_id_unique")
+    .on(t.stripePaymentIntentId)
+    .where(sql`${t.stripePaymentIntentId} IS NOT NULL`),
+]);
 
 export const customItems = pgTable("custom_items", {
   id: serial("id").primaryKey(),

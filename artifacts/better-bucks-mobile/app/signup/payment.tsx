@@ -76,7 +76,16 @@ export default function SignupPaymentScreen() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.message ?? "Signup failed. Please try again.");
+        const msg: string = data?.message ?? "";
+        if (msg.toLowerCase().includes("human verification failed")) {
+          setError(
+            "Verification failed. Please complete the challenge again to continue.",
+          );
+          setSubmitting(false);
+          captchaRef.current?.show();
+          return;
+        }
+        setError(msg || "Signup failed. Please try again.");
         setSubmitting(false);
         return;
       }

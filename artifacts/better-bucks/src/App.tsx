@@ -67,6 +67,7 @@ const MerchantChangePasswordPage = lazy(() => import("@/pages/merchant-change-pa
 const AdminMerchantsPage = lazy(() => import("@/pages/admin-merchants"));
 const AdminMerchantDisputesPage = lazy(() => import("@/pages/admin-merchant-disputes"));
 const AdminInviteLinksPage = lazy(() => import("@/pages/admin-invite-links"));
+const AdminStripeOrphansPage = lazy(() => import("@/pages/admin-stripe-orphans"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function GoalNotificationModal() {
@@ -158,10 +159,12 @@ type DevStatus = { impersonating: boolean };
 
 function ProtectedRoute({ 
   component: Component, 
-  adminOnly = false 
+  adminOnly = false,
+  primeAdminOnly = false,
 }: { 
   component: React.ComponentType, 
-  adminOnly?: boolean 
+  adminOnly?: boolean,
+  primeAdminOnly?: boolean,
 }) {
   const { data: user, isLoading } = useUser();
   const { data: demoStatus, isLoading: demoLoading } = useQuery<DemoStatus>({
@@ -208,6 +211,10 @@ function ProtectedRoute({
 
   if (adminOnly && user.role !== 'admin' && user.role !== 'prime_admin') {
     return <Redirect to="/dashboard" />;
+  }
+
+  if (primeAdminOnly && user.role !== 'prime_admin') {
+    return <Redirect to="/admin/dashboard" />;
   }
 
   if (!adminOnly && (user.role === 'admin' || user.role === 'prime_admin') && window.location.pathname === '/dashboard') {
@@ -355,6 +362,9 @@ function Router() {
         </Route>
         <Route path="/admin/invite-links">
           <ProtectedRoute component={AdminInviteLinksPage} adminOnly />
+        </Route>
+        <Route path="/admin/stripe-orphans">
+          <ProtectedRoute component={AdminStripeOrphansPage} primeAdminOnly />
         </Route>
 
         <Route component={NotFound} />

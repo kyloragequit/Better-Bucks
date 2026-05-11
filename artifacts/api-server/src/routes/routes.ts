@@ -8570,6 +8570,48 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     })));
   });
 
+  // ── Admin: stripe orphan cleanup records ──────────────────────────────────
+  function requirePrimeAdmin(req: any, res: any, next: any) {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u || u.role !== "prime_admin") {
+      return res.status(403).json({ message: "Prime admin only" });
+    }
+    next();
+  }
+
+  app.get("/api/admin/stripe-orphans", requirePrimeAdmin, asyncHandler(async (_req, res) => {
+    const rows = await db.select().from(stripeOrphans).orderBy(stripeOrphans.createdAt);
+    const counts: Record<string, number> = { pending: 0, processing: 0, resolved: 0, failed_permanently: 0 };
+    for (const row of rows) {
+      counts[row.status] = (counts[row.status] ?? 0) + 1;
+    }
+    res.json({ rows, counts });
+  }));
+
+  app.post("/api/admin/stripe-orphans/:id/retry", requirePrimeAdmin, asyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+    const { retryOrphanNow } = await import("../stripeOrphanRetry");
+    try {
+      const result = await retryOrphanNow(id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Retry failed" });
+    }
+  }));
+
+  app.patch("/api/admin/stripe-orphans/:id", requirePrimeAdmin, asyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+    const updated = await db
+      .update(stripeOrphans)
+      .set({ status: "resolved", updatedAt: new Date() })
+      .where(eq(stripeOrphans.id, id))
+      .returning();
+    if (!updated.length) return res.status(404).json({ message: "Record not found" });
+    res.json(updated[0]);
+  }));
+
   // ── Wallet pass: employee-facing ──────────────────────────────────────────
   app.get("/api/wallet/qr-token", async (req, res) => {
     const u = req.user as User | undefined;

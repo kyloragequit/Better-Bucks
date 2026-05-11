@@ -1234,9 +1234,10 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
   const [manualOrdersEnabled, setManualOrdersEnabled] = useState(org.manualOrdersEnabled ?? true);
   const [allowEmployeePasswordCreation, setAllowEmployeePasswordCreation] = useState(org.allowEmployeePasswordCreation ?? true);
   const [ordersEnabled, setOrdersEnabled] = useState(org.ordersEnabled ?? true);
+  const [requireSocialSignupApproval, setRequireSocialSignupApproval] = useState(org.requireSocialSignupApproval ?? false);
 
   const mutation = useMutation({
-    mutationFn: async (flags: { storeEnabled: boolean; manualOrdersEnabled: boolean; allowEmployeePasswordCreation: boolean; ordersEnabled: boolean }) => {
+    mutationFn: async (flags: { storeEnabled: boolean; manualOrdersEnabled: boolean; allowEmployeePasswordCreation: boolean; ordersEnabled: boolean; requireSocialSignupApproval: boolean }) => {
       const res = await apiRequest("PATCH", "/api/organizations/feature-flags", flags);
       return res.json();
     },
@@ -1248,16 +1249,18 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
     onError: () => toast({ title: "Error", description: "Could not save settings.", variant: "destructive" }),
   });
 
-  const handleToggle = (field: "storeEnabled" | "manualOrdersEnabled" | "allowEmployeePasswordCreation" | "ordersEnabled", value: boolean) => {
+  const handleToggle = (field: "storeEnabled" | "manualOrdersEnabled" | "allowEmployeePasswordCreation" | "ordersEnabled" | "requireSocialSignupApproval", value: boolean) => {
     const next = {
       storeEnabled: field === "storeEnabled" ? value : storeEnabled,
       manualOrdersEnabled: field === "manualOrdersEnabled" ? value : manualOrdersEnabled,
       allowEmployeePasswordCreation: field === "allowEmployeePasswordCreation" ? value : allowEmployeePasswordCreation,
       ordersEnabled: field === "ordersEnabled" ? value : ordersEnabled,
+      requireSocialSignupApproval: field === "requireSocialSignupApproval" ? value : requireSocialSignupApproval,
     };
     if (field === "storeEnabled") setStoreEnabled(value);
     else if (field === "manualOrdersEnabled") setManualOrdersEnabled(value);
     else if (field === "allowEmployeePasswordCreation") setAllowEmployeePasswordCreation(value);
+    else if (field === "requireSocialSignupApproval") setRequireSocialSignupApproval(value);
     else setOrdersEnabled(value);
     mutation.mutate(next);
   };
@@ -1318,6 +1321,21 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
             onCheckedChange={(v) => handleToggle("ordersEnabled", v)}
             disabled={mutation.isPending}
             data-testid="switch-orders-enabled"
+          />
+        </div>
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div>
+            <p className="font-medium text-sm">Approve Social Sign-Ups</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Require admin approval before employees who sign up with Google or Apple can access the app.
+              Pending accounts appear on the <strong>Pending Accounts</strong> page.
+            </p>
+          </div>
+          <Switch
+            checked={requireSocialSignupApproval}
+            onCheckedChange={(v) => handleToggle("requireSocialSignupApproval", v)}
+            disabled={mutation.isPending}
+            data-testid="switch-require-social-signup-approval"
           />
         </div>
       </CardContent>

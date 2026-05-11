@@ -39,6 +39,7 @@ import {
   Wallet,
   History,
   AlertTriangle,
+  ThumbsUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -104,6 +105,23 @@ export default function AdminPendingPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to Send", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const { mutate: approveAccount, isPending: isApproving } = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/users/${id}/approve`);
+      if (!res.ok) throw new Error("Failed to approve account");
+      return res.json();
+    },
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/pending-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/pending-admins"] });
+      const acct = accounts.find(a => a.id === id);
+      toast({ title: "Account Approved", description: `${acct?.fullName ?? "Account"} has been approved and can now log in.` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Approve", description: error.message, variant: "destructive" });
     },
   });
 
@@ -329,18 +347,32 @@ export default function AdminPendingPage() {
                           </TableCell>
 
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => resendEmail(acct.id)}
-                                disabled={isResending || !acct.email}
-                                title={acct.email ? "Resend join instructions by email" : "No email address on file"}
-                                data-testid={`button-resend-email-${acct.id}`}
-                              >
-                                <Mail className="h-4 w-4 mr-1.5" />
-                                Resend
-                              </Button>
+                            <div className="flex justify-end gap-2 flex-wrap">
+                              {acct.pendingType === "awaiting_approval" ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                                  onClick={() => approveAccount(acct.id)}
+                                  disabled={isApproving}
+                                  data-testid={`button-approve-account-${acct.id}`}
+                                >
+                                  <ThumbsUp className="h-4 w-4 mr-1.5" />
+                                  Approve
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => resendEmail(acct.id)}
+                                  disabled={isResending || !acct.email}
+                                  title={acct.email ? "Resend join instructions by email" : "No email address on file"}
+                                  data-testid={`button-resend-email-${acct.id}`}
+                                >
+                                  <Mail className="h-4 w-4 mr-1.5" />
+                                  Resend
+                                </Button>
+                              )}
 
                               <RemoveAccountDialog
                                 acct={acct}

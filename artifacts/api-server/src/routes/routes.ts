@@ -3812,14 +3812,15 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const { storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled } = z.object({
+    const { storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled, requireSocialSignupApproval } = z.object({
       storeEnabled: z.boolean(),
       manualOrdersEnabled: z.boolean(),
       allowEmployeePasswordCreation: z.boolean(),
       ordersEnabled: z.boolean(),
+      requireSocialSignupApproval: z.boolean(),
     }).parse(req.body);
-    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled);
-    res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation, ordersEnabled: updated.ordersEnabled });
+    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled, requireSocialSignupApproval);
+    res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation, ordersEnabled: updated.ordersEnabled, requireSocialSignupApproval: updated.requireSocialSignupApproval });
   });
 
   // Budget settings - get

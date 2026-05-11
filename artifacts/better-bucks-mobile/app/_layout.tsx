@@ -41,6 +41,7 @@ function RootLayoutNav() {
       <Stack.Screen name="forgot-password" options={{ title: "Forgot Password" }} />
       <Stack.Screen name="change-password" options={{ title: "Change Password" }} />
       <Stack.Screen name="social-signup" options={{ title: "Finish Sign-Up" }} />
+      <Stack.Screen name="pending-approval" options={{ title: "Account Pending", gestureEnabled: false }} />
       <Stack.Screen name="signup/account" options={{ title: "Create Account" }} />
       <Stack.Screen name="signup/plan" options={{ title: "Choose Plan" }} />
       <Stack.Screen name="signup/payment" options={{ title: "Payment" }} />

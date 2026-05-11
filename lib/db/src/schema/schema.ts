@@ -35,6 +35,7 @@ export const organizations = pgTable("organizations", {
   signupPrice: integer("signup_price"),
   maxFailedAttempts: integer("max_failed_attempts").default(10).notNull(),
   lockoutDurationMinutes: integer("lockout_duration_minutes").default(15).notNull(),
+  requireSocialSignupApproval: boolean("require_social_signup_approval").default(false).notNull(),
 });
 
 export const departments = pgTable("departments", {

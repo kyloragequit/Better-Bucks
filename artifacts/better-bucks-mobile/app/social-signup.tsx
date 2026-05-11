@@ -97,6 +97,10 @@ export default function SocialSignupScreen() {
         }
         return;
       }
+      if (data.pendingApproval) {
+        router.replace("/pending-approval" as any);
+        return;
+      }
       await signIn(data.token, data.user);
       router.replace("/(tabs)" as any);
     } catch (err: any) {

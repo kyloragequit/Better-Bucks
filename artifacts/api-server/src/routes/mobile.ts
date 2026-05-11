@@ -462,13 +462,15 @@ export function registerMobileRoutes(app: Express) {
       // high-entropy hash so password-based auth helpers never encounter null.
       const randomPassword = await hashPassword(crypto.randomBytes(32).toString("hex"));
 
+      const requireApproval = org.requireSocialSignupApproval ?? false;
+
       const userInsert: InsertUser & {
         status: "active" | "inactive" | "pending" | "paused" | "deleted";
       } = {
         username: emailToUse,
         password: randomPassword,
         role: "employee",
-        status: "active",
+        status: requireApproval ? "pending" : "active",
         barcode,
         fullName: parsed.fullName,
         email: emailToUse,
@@ -486,6 +488,27 @@ export function registerMobileRoutes(app: Express) {
         providerUserId,
         email: providerEmail,
       });
+
+      if (requireApproval) {
+        // Notify org admins that a new employee is awaiting approval (fire-and-forget)
+        storage.getUsersByOrganization(org.id).then((orgUsers) => {
+          const providerLabel = parsed.provider === "apple" ? "Apple" : "Google";
+          const adminTitle = "New employee awaiting approval";
+          const adminBody = `${parsed.fullName} signed up via ${providerLabel} and needs your approval before they can access Better Bucks.`;
+          for (const admin of orgUsers) {
+            if (admin.role !== "admin" && admin.role !== "prime_admin") continue;
+            if (!admin.expoPushToken) continue;
+            sendExpoPushNotification(admin.expoPushToken, adminTitle, adminBody).catch((err) =>
+              logger.error({ err }, "[mobile/auth/social/signup] admin approval notification push failed"),
+            );
+            storage.createNotificationLog({ userId: admin.id, title: adminTitle, body: adminBody }).catch((err) =>
+              logger.error({ err }, "[mobile/auth/social/signup] admin approval notification log failed"),
+            );
+          }
+        }).catch((err) => logger.error({ err }, "[mobile/auth/social/signup] failed to notify admins of pending approval"));
+
+        return res.status(201).json({ pendingApproval: true });
+      }
 
       // Welcome notification to the new employee (fire-and-forget)
       // Push token is unlikely to exist immediately at signup, but handled if present.

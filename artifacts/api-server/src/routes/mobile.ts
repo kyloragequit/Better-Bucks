@@ -13,7 +13,7 @@ import { verifyAppleIdentityToken, verifyGoogleIdToken } from "../socialAuth";
 import { notifyAdminsOfAccountLockout } from "../lib/lockoutNotify";
 import { sendEmail } from "../lib/email";
 import { buildPassForEmployee, PassConfigError, pushPassUpdateForEmployee } from "../walletPass";
-import { buildGoogleWalletSaveUrl, GoogleWalletConfigError } from "../googleWalletPass";
+import { buildGoogleWalletSaveUrl, GoogleWalletConfigError, pushGoogleWalletUpdateForEmployee } from "../googleWalletPass";
 import type {
   InsertOrganization,
   InsertUser,
@@ -858,6 +858,7 @@ export function registerMobileRoutes(app: Express) {
           performedBy: user.id,
         });
         void pushPassUpdateForEmployee(user.id);
+        void pushGoogleWalletUpdateForEmployee(user.id);
 
         const order = await storage.createOrder({
           userId: user.id,
@@ -940,6 +941,7 @@ export function registerMobileRoutes(app: Express) {
             performedBy: user.id,
           });
           void pushPassUpdateForEmployee(order.userId);
+          void pushGoogleWalletUpdateForEmployee(order.userId);
         }
 
         const updated = await storage.updateOrderStatus(
@@ -1173,6 +1175,7 @@ export function registerMobileRoutes(app: Express) {
           performedBy: admin.id,
         });
         void pushPassUpdateForEmployee(employeeId);
+        void pushGoogleWalletUpdateForEmployee(employeeId);
 
         const updated = await storage.getUser(employeeId);
 

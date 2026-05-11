@@ -20,6 +20,7 @@ import { sendEmail, maskEmail } from "../lib/email";
 import { ensureStripeReady } from "../stripeLazy";
 import { getUncachableStripeClient, getStripePublishableKey } from "../stripeClient";
 import { pushPassUpdateForEmployee as _pushPassUpdateForEmployee } from "../walletPass";
+import { pushGoogleWalletUpdateForEmployee as _pushGoogleWalletUpdateForEmployee } from "../googleWalletPass";
 
 async function getStripeClient() {
   return getUncachableStripeClient();
@@ -124,6 +125,8 @@ async function notifyEmployeeBalanceChange(userId: number, change: number, reaso
   if (!change) return;
   // Always push the live balance to Apple Wallet whenever an employee's balance changes (no-op if pass/APNs not configured).
   void _pushPassUpdateForEmployee(userId);
+  // Mirror the same update to Google Wallet for Android employees (no-op if not configured).
+  void _pushGoogleWalletUpdateForEmployee(userId);
   try {
     const target = await storage.getUser(userId);
     if (!target) return;
@@ -3951,6 +3954,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       await storage.createTransaction({ userId: adminId, amount: bucksEach, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
       invalidateUserCache(adminId);
       void _pushPassUpdateForEmployee(adminId);
+      void _pushGoogleWalletUpdateForEmployee(adminId);
     }
     res.json({ allocated: validAdminIds.length, bucksEach, total: validAdminIds.length * bucksEach });
   });
@@ -3972,6 +3976,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       await storage.createTransaction({ userId: adminId, amount: bucks, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
       invalidateUserCache(adminId);
       void _pushPassUpdateForEmployee(adminId);
+      void _pushGoogleWalletUpdateForEmployee(adminId);
       totalAllocated += bucks;
       adminsAllocated++;
     }

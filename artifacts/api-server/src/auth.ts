@@ -210,11 +210,11 @@ export function setupAuth(app: Express) {
   });
 
   // Extend the current session cookie to 30 days (remember me)
-  app.post("/api/auth/remember", (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+  app.post("/api/auth/remember", (req, res): void => {
+    if (!req.isAuthenticated()) { res.status(401).json({ message: "Not authenticated" }); return; }
     req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
     req.session.save((err) => {
-      if (err) return res.status(500).json({ message: "Failed to extend session" });
+      if (err) { res.status(500).json({ message: "Failed to extend session" }); return; }
       res.json({ ok: true });
     });
   });
@@ -285,7 +285,7 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", (req, res): void => {
     // Mobile Safari/Chrome will aggressively cache GET responses. Without
     // these headers the client can replay a stale "terms not accepted" or
     // "tutorial not completed" response after the user finished those flows,
@@ -299,10 +299,11 @@ export function setupAuth(app: Express) {
       if (isPublicDemo) {
         const tutorialMap = (req.session as any)?.demoTutorialMap as Record<string, boolean> | undefined;
         if (tutorialMap && tutorialMap[user.id] !== undefined) {
-          return res.json({
+          res.json({
             ...(user as object),
             tutorialCompleted: tutorialMap[user.id],
           });
+          return;
         }
       }
       res.json(req.user);

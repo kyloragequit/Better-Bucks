@@ -1006,7 +1006,7 @@ export class DatabaseStorage implements IStorage {
       .from(organizations)
       .where(eq(organizations.marketingOptIn, true));
 
-    const orgRows: typeof userRows = [];
+    const orgRows: Array<{ name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null }> = [];
     for (const org of marketingOrgs) {
       // Get prime admin of this org
       const [primeAdmin] = await db
@@ -1022,7 +1022,7 @@ export class DatabaseStorage implements IStorage {
         email: primeAdmin ? primeAdmin.email ?? null : null,
         source: "Signup Form",
         orgName: org.name,
-        role: primeAdmin ? "prime_admin" : null,
+        role: (primeAdmin ? "prime_admin" : null) as string | null,
         dateOptedIn: org.createdAt ? org.createdAt.toISOString() : null,
       });
     }
@@ -1639,6 +1639,7 @@ export interface DatabaseStorage {
   getMerchantTransactionsByOrg: IStorage["getMerchantTransactionsByOrg"];
   getMerchantTransactionsForEmployee: IStorage["getMerchantTransactionsForEmployee"];
   getRedemptionSummaryForEmployee: IStorage["getRedemptionSummaryForEmployee"];
+  getRedemptionHistoryByMonth: IStorage["getRedemptionHistoryByMonth"];
   getMonthlyBucksSummary: IStorage["getMonthlyBucksSummary"];
   createWalletPass: IStorage["createWalletPass"];
   getWalletPassBySerial: IStorage["getWalletPassBySerial"];
@@ -1651,7 +1652,6 @@ export interface DatabaseStorage {
   listWalletSerialsForDevice: IStorage["listWalletSerialsForDevice"];
   deleteWalletDevicesByPushToken: IStorage["deleteWalletDevicesByPushToken"];
   redeemForMerchant: IStorage["redeemForMerchant"];
-  tryDeductBalance: IStorage["tryDeductBalance"];
   createDispute: IStorage["createDispute"];
   getDisputeForTransaction: IStorage["getDisputeForTransaction"];
   getDisputesByOrg: IStorage["getDisputesByOrg"];

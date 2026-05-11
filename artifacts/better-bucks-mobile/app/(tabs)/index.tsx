@@ -8,8 +8,9 @@ import {
   View,
   RefreshControl,
   ActivityIndicator,
+  ToastAndroid,
 } from "react-native";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -66,7 +67,7 @@ export default function HomeTab() {
   const isEmployee = user?.role === "employee";
   const admin = user?.role === "admin" || user?.role === "prime_admin";
 
-  const { data, isLoading, isFetching, isFromCache, cachedAt, refetch } =
+  const { data, isLoading, isFetching, isFromCache, cachedAt, isOffline, refetch } =
     useDashboardData(token, user?.id ?? null);
 
   const { data: summary, refetch: refetchSummary } = useQuery<MonthlySummary>({
@@ -143,9 +144,17 @@ export default function HomeTab() {
     }
   }
 
-  async function handleRefresh() {
+  const handleRefresh = useCallback(async () => {
+    if (isOffline) {
+      if (Platform.OS === "android") {
+        ToastAndroid.show("You're offline. Pull-to-refresh is unavailable.", ToastAndroid.SHORT);
+      } else {
+        Alert.alert("You're Offline", "Pull-to-refresh is unavailable without a network connection.");
+      }
+      return;
+    }
     await Promise.all([refetch(), refetchSummary()]);
-  }
+  }, [isOffline, refetch, refetchSummary]);
 
   return (
     <>
@@ -161,12 +170,22 @@ export default function HomeTab() {
         ]}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching}
+            refreshing={!isOffline && isFetching}
             onRefresh={handleRefresh}
             tintColor={brand.gold}
           />
         }
       >
+        {/* Offline banner */}
+        {isOffline && (
+          <View style={styles.offlineBanner}>
+            <Ionicons name="cloud-offline-outline" size={15} color="#FCA5A5" />
+            <Text style={styles.offlineBannerText}>
+              You're offline — pull-to-refresh is unavailable
+            </Text>
+          </View>
+        )}
+
         <View style={styles.greeting}>
           <Text style={styles.greetingText}>
             Hello, {user?.fullName?.split(" ")[0] ?? "there"} 👋
@@ -186,11 +205,18 @@ export default function HomeTab() {
             </Text>
           )}
           <Text style={styles.balanceUnit}>Bucks</Text>
-          {isFromCache && cachedAt !== null && (
+          {isOffline && isFromCache && cachedAt !== null ? (
+            <View style={styles.offlineBadgeRow}>
+              <Ionicons name="cloud-offline-outline" size={12} color="#FCA5A5" />
+              <Text style={styles.offlineBadgeText}>
+                Offline – showing saved balance
+              </Text>
+            </View>
+          ) : isFromCache && cachedAt !== null ? (
             <Text style={styles.cachedLabel}>
               Last updated {formatLastUpdated(cachedAt)}
             </Text>
-          )}
+          ) : null}
         </View>
 
         {/* Monthly earned/spent summary — employees only */}
@@ -578,6 +604,35 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 11,
     marginTop: 6,
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "rgba(252,165,165,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(252,165,165,0.25)",
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    marginBottom: 16,
+  },
+  offlineBannerText: {
+    color: "#FCA5A5",
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    flex: 1,
+  },
+  offlineBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+  },
+  offlineBadgeText: {
+    color: "#FCA5A5",
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
   },
   walletSection: {
     marginBottom: 20,

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { apiUrl } from "@/constants/api";
 
@@ -52,6 +53,7 @@ type UseDashboardDataResult = {
   isFetching: boolean;
   isFromCache: boolean;
   cachedAt: number | null;
+  isOffline: boolean;
   refetch: () => void;
 };
 
@@ -64,6 +66,7 @@ export function useDashboardData(
   const [isFetching, setIsFetching] = useState(false);
   const [isFromCache, setIsFromCache] = useState(false);
   const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const activeTokenRef = useRef(token);
   const activeUserIdRef = useRef(userId);
 
@@ -71,6 +74,18 @@ export function useDashboardData(
     activeTokenRef.current = token;
     activeUserIdRef.current = userId;
   });
+
+  // Subscribe to network state changes
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(!(state.isConnected && state.isInternetReachable !== false));
+    });
+    // Fetch initial state
+    NetInfo.fetch().then((state) => {
+      setIsOffline(!(state.isConnected && state.isInternetReachable !== false));
+    });
+    return unsubscribe;
+  }, []);
 
   const fetchFromNetwork = useCallback(
     async (currentToken: string, currentUserId: number) => {
@@ -155,5 +170,5 @@ export function useDashboardData(
     fetchFromNetwork(token, userId);
   }, [token, userId, fetchFromNetwork]);
 
-  return { data, isLoading, isFetching, isFromCache, cachedAt, refetch };
+  return { data, isLoading, isFetching, isFromCache, cachedAt, isOffline, refetch };
 }

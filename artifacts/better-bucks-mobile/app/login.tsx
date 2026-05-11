@@ -36,8 +36,9 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [_googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    clientId: GOOGLE_CLIENT_ID || undefined,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || undefined,
+    clientId: GOOGLE_CLIENT_ID || "not-configured",
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "not-configured",
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "not-configured",
   });
 
   useEffect(() => {

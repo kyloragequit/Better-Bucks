@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { consumePendingSocialSignup } from "@/lib/socialSignupStore";
 import type { PendingSocialSignup } from "@/lib/socialSignupStore";
 
+const ORG_CODE_REGEX = /^[A-Z0-9]{8}$/;
+
 export default function SocialSignupScreen() {
   const { signIn } = useAuth();
   const [pending, setPending] = useState<PendingSocialSignup | null>(null);
@@ -20,6 +22,8 @@ export default function SocialSignupScreen() {
   const [orgCode, setOrgCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [orgCodeError, setOrgCodeError] = useState<string | null>(null);
+  const [orgNotFound, setOrgNotFound] = useState(false);
 
   useEffect(() => {
     const p = consumePendingSocialSignup();
@@ -32,12 +36,23 @@ export default function SocialSignupScreen() {
     setEmail(p.providerEmail ?? "");
   }, []);
 
+  const handleOrgCodeChange = (value: string) => {
+    setOrgCode(value);
+    if (orgCodeError) {
+      setOrgCodeError(null);
+      setOrgNotFound(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!pending) return;
 
     const trimmedName = fullName.trim();
     const trimmedEmail = email.trim();
     const trimmedCode = orgCode.trim().toUpperCase();
+
+    setError(null);
+    setOrgCodeError(null);
 
     if (trimmedName.length < 2) {
       setError("Please enter your full name.");
@@ -47,13 +62,16 @@ export default function SocialSignupScreen() {
       setError("Please enter a valid email address.");
       return;
     }
-    if (trimmedCode.length < 4) {
-      setError("Please enter the org code your employer gave you.");
+    if (!ORG_CODE_REGEX.test(trimmedCode)) {
+      setOrgCodeError(
+        trimmedCode.length === 0
+          ? "Please enter the org code your employer gave you."
+          : "Org codes are 8 characters (letters and numbers). Double-check with your manager.",
+      );
       return;
     }
 
     setSubmitting(true);
-    setError(null);
 
     try {
       const res = await fetch(apiUrl("/api/mobile/auth/social/signup"), {
@@ -69,7 +87,14 @@ export default function SocialSignupScreen() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.message ?? "Sign-up failed. Please try again.");
+        if (res.status === 404) {
+          setOrgCodeError(
+            "That code doesn't match any organization — double-check with your manager.",
+          );
+          setOrgNotFound(true);
+        } else {
+          setError(data?.message ?? "Sign-up failed. Please try again.");
+        }
         return;
       }
       await signIn(data.token, data.user);
@@ -117,12 +142,29 @@ export default function SocialSignupScreen() {
         placeholder="e.g. AB12CD34"
         autoCapitalize="characters"
         autoCorrect={false}
+        maxLength={8}
         value={orgCode}
-        onChangeText={setOrgCode}
+        onChangeText={handleOrgCodeChange}
       />
-      <Text style={styles.hint}>
-        Ask your employer or manager for this code.
-      </Text>
+
+      {orgCodeError ? (
+        <View style={styles.orgCodeErrorContainer}>
+          <Text style={styles.orgCodeError}>{orgCodeError}</Text>
+          {orgNotFound && (
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openURL("mailto:support@betterbucks.app?subject=Org%20Code%20Help")
+              }
+              accessibilityRole="link"
+              accessibilityLabel="Contact Better Bucks support for help with your org code"
+            >
+              <Text style={styles.contactLink}>Contact support for help</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <Text style={styles.hint}>Ask your employer or manager for this code.</Text>
+      )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -167,6 +209,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: -4,
     marginBottom: 8,
+  },
+  orgCodeErrorContainer: {
+    marginTop: -4,
+    marginBottom: 8,
+    gap: 4,
+  },
+  orgCodeError: {
+    color: "#FCA5A5",
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+  },
+  contactLink: {
+    color: "#93C5FD",
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    textDecorationLine: "underline",
   },
   error: {
     color: "#FCA5A5",

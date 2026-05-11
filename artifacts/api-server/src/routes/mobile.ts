@@ -1660,9 +1660,22 @@ export function registerMobileRoutes(app: Express) {
         // Validate intent metadata matches this request
         if (
           intent.metadata?.targetUserId !== String(empId) ||
-          intent.metadata?.orgId !== String(user.organizationId)
+          intent.metadata?.orgId !== String(user.organizationId) ||
+          intent.metadata?.bucksAmount !== String(parsed.data.amount)
         ) {
           return res.status(400).json({ message: "Payment intent does not match this transfer" });
+        }
+
+        // Validate paid amount matches expected Bucks conversion
+        const org = await storage.getOrganization(user.organizationId);
+        if (!org) return res.status(404).json({ message: "Organization not found" });
+        const bucksPerDollar = org.bucksPerDollar ?? 100;
+        const expectedCents = Math.max(50, Math.round((parsed.data.amount / bucksPerDollar) * 100));
+        const paidCents = intent.amount_received ?? 0;
+        if (paidCents < expectedCents) {
+          return res.status(402).json({
+            message: `Payment amount mismatch: expected ${expectedCents} cents, received ${paidCents}`,
+          });
         }
 
         stripePaymentIntentId = piId;

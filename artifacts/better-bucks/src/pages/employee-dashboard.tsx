@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Wallet, History, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins, Gift, ShoppingBag } from "lucide-react";
+import { Wallet, History, Mail, Store, Heart, ExternalLink, BookOpen, Target, Timer, Hash, Coins, Gift, ShoppingBag, TrendingUp, TrendingDown } from "lucide-react";
 import type { StoreItem, Wishlist, Goal } from "@shared/schema";
 import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
@@ -43,6 +43,11 @@ export default function EmployeeDashboard() {
   }>({
     queryKey: ["/api/wallet/redemptions"],
     enabled: !!authUser,
+  });
+  const { data: monthlySummary } = useQuery<{ earned: number; spent: number }>({
+    queryKey: ["/api/wallet/summary"],
+    enabled: !!authUser,
+    refetchInterval: 30_000,
   });
   const redemptions = redemptionsData?.redemptions ?? [];
   const redemptionMonthTotal = redemptionsData?.summary?.monthTotal;
@@ -180,6 +185,36 @@ export default function EmployeeDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Monthly Earned vs Spent Summary */}
+      {monthlySummary && (
+        <div className="grid grid-cols-2 gap-4 mb-8" data-testid="section-monthly-summary">
+          <Card className="shadow-md border-green-200 bg-gradient-to-br from-green-50 to-white" data-testid="card-monthly-earned">
+            <CardContent className="pt-5 pb-5">
+              <div className="flex items-center gap-2 text-green-700 mb-1">
+                <TrendingUp className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Earned this month</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold font-display text-green-700 tabular-nums" data-testid="text-monthly-earned">
+                +{monthlySummary.earned.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">bcks received</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-md border-red-200 bg-gradient-to-br from-red-50 to-white" data-testid="card-monthly-spent">
+            <CardContent className="pt-5 pb-5">
+              <div className="flex items-center gap-2 text-red-600 mb-1">
+                <TrendingDown className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Spent this month</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold font-display text-red-600 tabular-nums" data-testid="text-monthly-spent">
+                -{monthlySummary.spent.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">bcks used</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Recent in-store purchases */}
       {redemptions.length > 0 && (

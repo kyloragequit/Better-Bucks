@@ -8376,6 +8376,14 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     res.json(history);
   });
 
+  // ── Monthly earned vs. spent summary for the employee ────────────────────
+  app.get("/api/wallet/summary", async (req, res) => {
+    const u = req.user as User | undefined;
+    if (!req.isAuthenticated() || !u) return res.status(401).json({ message: "Login required" });
+    const summary = await storage.getMonthlyBucksSummary(u.id);
+    res.json(summary);
+  });
+
   // ── Dispute a merchant redemption ─────────────────────────────────────────
   app.post("/api/wallet/redemptions/:id/dispute", async (req, res) => {
     const u = req.user as User | undefined;

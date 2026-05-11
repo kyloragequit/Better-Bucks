@@ -127,13 +127,21 @@ const mobileLoginLimiter = rateLimit({
 });
 app.use("/api/mobile/login", mobileLoginLimiter);
 
-// Mobile signup: 3 attempts per hour per IP (each attempt may hit Stripe)
+// Mobile signup: configurable attempts per hour per IP (each attempt may hit Stripe)
+// Default: 5. Override with MOBILE_SIGNUP_RATE_LIMIT env var.
+const mobileSignupMax = Math.max(
+  1,
+  parseInt(process.env.MOBILE_SIGNUP_RATE_LIMIT ?? "5", 10) || 5,
+);
 const mobileSignupLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 3,
+  max: mobileSignupMax,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many signup attempts. Please try again in an hour." },
+  message: {
+    message: `Too many signup attempts. Please try again in an hour.`,
+    retryAfterSeconds: 3600,
+  },
 });
 app.use("/api/mobile/organizations/signup", mobileSignupLimiter);
 

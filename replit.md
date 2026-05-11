@@ -78,6 +78,7 @@ Better Bucks is an employee rewards platform that lets companies give, track, an
 ### Bot protection (server-side)
 - `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile secret (falls back to always-pass test key if unset)
 - `HCAPTCHA_SECRET` — hCaptcha secret key
+- `MOBILE_SIGNUP_RATE_LIMIT` — max mobile org signup attempts per IP per hour (default: `5`); set lower in production to tighten the gate
 
 ## Social auth env vars (mobile)
 

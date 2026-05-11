@@ -51,6 +51,34 @@ Better Bucks is an employee rewards platform that lets companies give, track, an
 - Do NOT import from `@workspace/db` (index) in the frontend — it triggers the pg pool connection. Use `@shared/schema` (alias) instead, which points to just the schema file.
 - `zod/v4` is a subpath export of `zod@^3.24`; add `zod` to any package that needs `zod/v4`.
 
+## Environment variables
+
+### Required secrets (set in Replit Secrets)
+- `DATABASE_URL` — Postgres connection string (auto-provisioned by Replit)
+- `SESSION_SECRET` — Express session signing secret
+
+### Email (Nodemailer SMTP + Gmail API fallback)
+- `SMTP_USER` — SMTP username / sending address (e.g. `you@gmail.com`)
+- `SMTP_PASS` — SMTP password or app password
+- `SMTP_HOST` — SMTP hostname (default: `smtp.gmail.com`)
+- `SMTP_PORT` — SMTP port (default: `587`)
+- `ADMIN_ALERT_EMAIL` — recipient for ops/lockout alert emails (optional)
+- `ALERT_WEBHOOK_URL` — Slack webhook URL for ops alerts (optional)
+
+### Stripe
+- `STRIPE_SECRET_KEY` — server-side secret key (`sk_live_…` or `sk_test_…`)
+- `STRIPE_PUBLISHABLE_KEY` — publishable key (`pk_live_…` or `pk_test_…`); exposed to the frontend via `GET /api/stripe/publishable-key` — **not** a VITE_ variable
+- `STRIPE_WEBHOOK_SECRET` — webhook signing secret (`whsec_…`); enables signature verification in `artifacts/api-server/src/webhookHandlers.ts`; requires the endpoint `POST /api/stripe/webhook` to be registered in the Stripe Dashboard
+
+### Frontend (Vite — must be prefixed `VITE_` to be exposed to the browser)
+- `VITE_GA_MEASUREMENT_ID` — Google Analytics 4 Measurement ID (`G-XXXXXXXXXX`); initialised in `artifacts/better-bucks/src/lib/analytics.ts`
+- `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key (falls back to test key `1x00000000000000000000AA` if unset)
+- `VITE_HCAPTCHA_SITE_KEY` — hCaptcha site key (falls back to test key if unset)
+
+### Bot protection (server-side)
+- `TURNSTILE_SECRET_KEY` — Cloudflare Turnstile secret (falls back to always-pass test key if unset)
+- `HCAPTCHA_SECRET` — hCaptcha secret key
+
 ## Social auth env vars (mobile)
 
 - `APPLE_BUNDLE_ID` — Apple identity token audience validation. Defaults to `net.betterbucks.app` (from app.json). Override if the bundle ID changes.

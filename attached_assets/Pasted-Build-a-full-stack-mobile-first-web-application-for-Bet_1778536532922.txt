@@ -1,0 +1,241 @@
+Build a full-stack mobile-first web application for Better Bucks (betterbucks.net), a B2B employee incentives management platform. This is a Progressive Web App (PWA) that works on iOS and Android, and serves as the mobile counterpart to the existing web platform.
+
+---
+
+## COLOR SCHEME & DESIGN SYSTEM
+
+Primary color palette:
+- Background: #FFFFFF (white) — all page and card backgrounds
+- Primary accent: #2E7D32 (kelly green) — buttons, active states, icons, progress bars, wallet card accents
+- Secondary accent: #1A237E (navy blue) — headers, navigation bars, text headings, badges
+- Text primary: #1A237E (navy)
+- Text secondary: #4A4A4A (dark gray)
+- Border/divider: #E0E0E0 (light gray)
+- Success: #2E7D32 (kelly green)
+- Error: #C62828 (red)
+- Warning: #F9A825 (amber)
+
+Apply this system consistently:
+- Top nav bar: navy background, white text/icons
+- Bottom nav bar: white background, navy inactive icons, kelly green active icons
+- Primary buttons: kelly green background, white text, slightly rounded (border-radius: 10px)
+- Secondary buttons: white background, navy border, navy text
+- Cards: white background, subtle light gray border, soft box-shadow
+- Wallet balance card: navy background, white text, kelly green accents (chip, coin icon, divider lines)
+- Active tab/selected state: kelly green underline or fill
+- Links: kelly green
+- Section headers: navy, bold
+
+Use Inter or DM Sans as the primary font (load from Google Fonts). Avoid purple, orange, or any colors outside this palette.
+
+---
+
+## BETTERBUCKS CURRENCY — CRITICAL ARCHITECTURE NOTE
+
+BetterBucks is a fully internal, closed-loop virtual currency. It is NOT connected to any real-world monetary system, payment processor, or fiat currency at any layer of the application.
+
+- There is NO Stripe integration, NO Apple Pay fiat processing, NO Google Pay fiat processing
+- BetterBucks are awarded by orgs to employees entirely within the platform — no money changes hands
+- Apple Pay and Google Pay are used ONLY as the tap-gesture UX mechanism to trigger BetterBucks transfers between internal wallets. The native wallet sheet (Apple Pay / Google Pay) is invoked purely for the tap interaction and biometric confirmation (Face ID / fingerprint). Zero dollar amounts are passed; no payment intent is created; no card is charged
+- When a user taps via Apple Pay or Google Pay, the result is: sender's BetterBucks wallet balance decreases, recipient's BetterBucks wallet balance increases — this is a pure internal database transaction
+- The Apple/Google wallet tap is a UX affordance only — it provides the familiar "hold to pay" gesture and device authentication, then triggers a signed internal API call to transfer BetterBucks between wallets
+- Display all balances and transaction amounts in BetterBucks (BB) units only, e.g. "BB 250" — never display dollar signs or fiat equivalents anywhere in the UI
+- There is no concept of purchasing, topping up, or cashing out BetterBucks with real money in this application
+
+Implementation of tap-to-transfer:
+- Use the Web Authentication API (WebAuthn) or the Payment Request API with a $0.00 amount purely to trigger biometric confirmation on the device
+- On successful biometric confirmation, call the internal /api/transfer endpoint with: sender_id, recipient_id, amount (in BB), memo
+- The backend validates the transfer (sufficient balance, both users in same org, active accounts), executes the wallet debit/credit atomically in PostgreSQL, and returns a signed transaction receipt
+- Never instantiate a Stripe PaymentIntent or contact any external payment API
+
+---
+
+## TECH STACK
+
+- Frontend: React + TypeScript + Vite (PWA with vite-plugin-pwa)
+- Backend: Node.js + Express + TypeScript
+- Database: PostgreSQL with Prisma ORM
+- Auth: JWT with refresh tokens + role-based access (admin, org, employee)
+- Tap-to-Transfer: Payment Request API ($0.00) or WebAuthn for biometric confirmation only — no fiat processing
+- Push Notifications: Web Push (service worker)
+- Deployment: Configured for replit.app subdomain with environment variables
+
+---
+
+## ROLES & PORTALS
+
+There are three user roles. Each has its own mobile UI flow:
+
+### 1. ADMIN (Better Bucks Super Admin)
+- Login → Admin Mobile Dashboard
+- Manage all organizations (create, suspend, view)
+- View platform-wide analytics (total BetterBucks in circulation, transaction volume, active users)
+- Approve/reject org onboarding requests
+- Manage BetterBucks currency supply (mint BB to orgs, burn BB from orgs)
+- View all wallet tap transactions across the platform
+
+### 2. ORG (Employer / Organization Account)
+- Login → Org Mobile Dashboard
+- Manage employees (invite, deactivate, view BB balances)
+- Allocate BetterBucks to employees directly from the org's BB pool
+- Set redemption rules (which reward catalog items employees can redeem BB for)
+- View org-level analytics (leaderboard, top redeemers, BB distribution stats)
+- Accept incoming BetterBucks transfers from employees via Apple/Google wallet tap (for internal reward redemption at org-run reward terminals)
+- Configure tap-to-transfer settings (accepted memo types, transfer limits per employee)
+
+### 3. EMPLOYEE
+- Login → Employee Mobile Wallet Home
+- View BetterBucks balance (displayed like a mobile wallet card — navy card, white text, kelly green accents)
+- Transfer BetterBucks to org reward terminals via Apple/Google wallet tap gesture
+- View full transaction history (BB received, BB spent, from/to, memo, timestamp)
+- Receive push notifications for incoming BetterBucks awards
+- View org-scoped leaderboard showing top BB earners
+
+---
+
+## MOBILE DEVELOPER DASHBOARD
+
+Create a dedicated Developer Dashboard accessible to Admin and Org roles at /developer. This is the primary account management interface. Include:
+
+- API key management (generate, revoke, rotate keys)
+- Webhook configuration (set endpoint URLs, select events: award.sent, transfer.completed, employee.joined, balance.low, etc.)
+- Sandbox mode toggle (test BetterBucks transfers without affecting live wallet balances)
+- Tap-to-Transfer integration status (WebAuthn/Payment Request API device compatibility status)
+- SDK snippet generator (copy-paste embed code for orgs integrating BB transfers into their own internal apps)
+- Usage metrics (API calls, webhook delivery success rate, active sessions, total BB transferred this period)
+- App version / PWA update management
+
+Style the developer dashboard with a white background, navy sidebar (desktop-breakpoint fallback), kelly green highlight on active menu items, and monospace font (JetBrains Mono or Fira Code) for code snippets only.
+
+---
+
+## TAP-TO-TRANSFER UX (APPLE/GOOGLE WALLET GESTURE)
+
+This feature uses the device's native wallet tap UX purely as a gesture + biometric confirmation mechanism. No money is moved.
+
+Flow:
+1. Employee opens /employee/send, enters BB amount and selects recipient (or scans a QR code representing the org reward terminal)
+2. App displays the Tap-to-Transfer screen: animated NFC ring, "BB [amount]" in large navy text, recipient name
+3. User taps "Send with Apple Pay" or "Send with Google Pay" button
+4. Device shows its native confirmation sheet (Face ID / Touch ID prompt) — if using Payment Request API, amount is $0.00 with label "BetterBucks Transfer"
+5. On biometric success, frontend receives confirmation callback and immediately calls POST /api/wallets/transfer with a signed payload
+6. Backend atomically debits sender and credits recipient in PostgreSQL, returns transaction_id and updated balances
+7. App navigates to receipt screen: kelly green checkmark, "BB [amount] Sent", recipient name, transaction ID, timestamp, "Done" button
+
+Org tap-to-accept terminal flow (for orgs running a reward redemption terminal):
+1. Org opens /org/tap-to-pay on a dedicated device
+2. Screen displays org name, a large QR code encoding the org's wallet recipient ID, and a live feed of incoming BB transfers
+3. When employee scans and confirms transfer, org terminal screen animates a kelly green success state and logs the redemption
+
+---
+
+## PWA REQUIREMENTS
+
+- manifest.json:
+  - name: "Better Bucks"
+  - short_name: "BetterBucks"
+  - theme_color: "#1A237E" (navy)
+  - background_color: "#FFFFFF" (white)
+  - Icons in kelly green and navy branding
+- Service worker for offline caching of dashboard shell
+- "Add to Home Screen" prompt logic
+- Push notification subscription flow (ask permission on first login)
+- Fast load on 3G: lazy-load all route chunks
+
+---
+
+## DATABASE SCHEMA (Prisma)
+
+Tables needed:
+- User (id, email, passwordHash, role: ADMIN|ORG|EMPLOYEE, orgId?, createdAt)
+- Organization (id, name, domain, status, bbPool, createdAt)
+- Wallet (id, userId, balanceBB, createdAt, updatedAt)
+- Transaction (id, senderId, recipientId, amountBB, type: AWARD|REDEMPTION|TRANSFER, memo, createdAt)
+- ApiKey (id, orgId, keyHash, label, createdAt, revokedAt?)
+- Webhook (id, orgId, url, events[], secret, createdAt)
+- Notification (id, userId, message, read, createdAt)
+
+No payment-related fields. No Stripe IDs. No fiat amounts anywhere in the schema.
+
+---
+
+## ROUTING STRUCTURE
+
+/login — shared login, role-detected redirect
+/admin — admin dashboard (role guard)
+/admin/orgs — org management
+/admin/currency — mint/burn BetterBucks
+/org — org dashboard
+/org/employees — employee management
+/org/allocate — award BetterBucks to employees
+/org/tap-to-pay — org reward terminal (QR + incoming transfer feed)
+/employee — employee wallet home
+/employee/send — initiate tap-to-transfer
+/employee/history — BB transaction log
+/developer — developer dashboard (admin + org)
+/developer/keys — API key management
+/developer/webhooks — webhook config
+/developer/sandbox — sandbox mode
+
+---
+
+## UI/UX REQUIREMENTS
+
+- Mobile-first: all layouts optimized for 375px–430px viewport
+- Bottom navigation bar for employee and org roles:
+  - White background
+  - Navy labels, gray inactive icons
+  - Kelly green active icon + label + top border indicator
+- Top navigation bar:
+  - Navy background
+  - White "Better Bucks" wordmark (left)
+  - White icon buttons (right: notifications bell, profile avatar)
+- Wallet card component:
+  - Navy background card (rounded-2xl, generous padding)
+  - White user name and org name
+  - Kelly green coin icon and "BetterBucks Balance" label
+  - Large white BB balance number prefixed with "BB"
+  - Subtle white divider line separating balance from last transaction preview
+  - Never display a dollar sign or fiat value anywhere on this card
+- Tap-to-Transfer screen:
+  - White background
+  - Large centered animated NFC ring (kelly green, pulsing CSS animation)
+  - BB amount in large navy bold text centered inside ring
+  - "Hold near terminal" or "Confirm with Face ID" label in navy
+  - Activate Wallet button in kelly green labeled "Send BB"
+- Receipt screen:
+  - White background, kelly green animated checkmark
+  - "BB [amount] Sent" in navy bold
+  - Recipient, memo, transaction ID, timestamp in navy/gray
+  - Kelly green "Done" button
+- Smooth page transitions (slide-in from right forward, slide back on back)
+- Toast notifications: white card, kelly green left border, navy text
+- Skeleton loaders: light gray shimmer on white for all data-fetched components
+- Form inputs: white background, navy border on focus, kelly green focus ring
+- All empty states: white background, navy placeholder, kelly green CTA button
+- No dollar signs, currency symbols, or fiat language anywhere in the UI
+
+---
+
+## ENV VARIABLES TO SCAFFOLD (.env.example)
+
+DATABASE_URL=
+JWT_SECRET=
+JWT_REFRESH_SECRET=
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+BB_MINT_ADMIN_SECRET=
+
+No payment processor keys. No Stripe. No financial API credentials of any kind.
+
+---
+
+## NOTES
+
+- Do not hardcode any secrets
+- Scaffold seed data: 1 admin user, 1 demo org with BB pool of 10,000, 3 demo employees each with BB 250 starting balance
+- Include a README.md with setup steps, env variable descriptions, and a clear note that BetterBucks is a closed-loop internal currency with no fiat connection
+- All transfer operations must be atomic PostgreSQL transactions — if debit succeeds but credit fails, roll back both
+- This is a greenfield build — do not assume any existing codebase
+- Every screen must pass a white-background visual audit: no gray page backgrounds, no dark mode defaults, no unintended color bleed outside the defined palette
+- Enforce at the API layer: no transfer can result in a negative wallet balance; no transfer can occur between users in different orgs unless sender is ADMIN

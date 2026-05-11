@@ -3,11 +3,26 @@ import { db } from "./db";
 import { stripeOrphans } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { getUncachableStripeClient } from "./stripeClient";
-import { sendOrphanPermanentFailureAlert } from "./lib/alerts";
+import { sendOrphanPermanentFailureAlert, sendOrphanRetryWarningAlert } from "./lib/alerts";
 
 const MAX_RETRIES = 5;
 const RETRY_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CLAIM_BATCH_SIZE = 10;
+
+/**
+ * When a pending retry fails at or beyond this attempt number a mid-retry
+ * warning alert fires. The final permanent-failure alert fires separately
+ * once MAX_RETRIES is exhausted. Configurable via ORPHAN_WARN_AT_RETRY env
+ * var (defaults to 3).
+ */
+function getWarnAtRetry(): number {
+  const raw = process.env.ORPHAN_WARN_AT_RETRY;
+  if (raw !== undefined) {
+    const parsed = parseInt(raw, 10);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return 3;
+}
 
 /**
  * Processing rows older than this threshold are assumed to belong to a
@@ -189,9 +204,19 @@ async function processRow(
       .set({ status: "pending", retryCount: newRetryCount, lastError, updatedAt: new Date() })
       .where(eq(stripeOrphans.id, row.id));
     logger.warn(
-      { id: row.id, retryCount: newRetryCount, lastError },
+      { id: row.id, retryCount: newRetryCount, maxRetries: MAX_RETRIES, lastError },
       "[stripeOrphanRetry] Retry attempt failed, will try again",
     );
+    if (newRetryCount === getWarnAtRetry()) {
+      await sendOrphanRetryWarningAlert({
+        orphanId: row.id,
+        stripeCustomerId: row.stripeCustomerId,
+        stripeSubscriptionId: row.stripeSubscriptionId,
+        lastError,
+        retryCount: newRetryCount,
+        maxRetries: MAX_RETRIES,
+      });
+    }
   }
 }
 

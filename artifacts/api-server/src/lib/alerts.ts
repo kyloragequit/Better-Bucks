@@ -16,6 +16,15 @@ export interface OrphanPermanentFailurePayload {
   retryCount: number;
 }
 
+export interface OrphanRetryWarningPayload {
+  orphanId: number;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  lastError: string | null;
+  retryCount: number;
+  maxRetries: number;
+}
+
 function buildSlackBody(payload: GhostStripeAlertPayload): string {
   const lines = [
     ":rotating_light: *Stripe rollback failed — ghost objects require manual cleanup*",
@@ -155,6 +164,87 @@ async function sendSlackAlert(webhookUrl: string, payload: GhostStripeAlertPaylo
   if (!response.ok) {
     throw new Error(`Slack webhook returned ${response.status}`);
   }
+}
+
+function buildOrphanRetryWarningSlackBody(payload: OrphanRetryWarningPayload): string {
+  const lines = [
+    `:warning: *Stripe orphan cleanup is still failing — attempt ${payload.retryCount} of ${payload.maxRetries}*`,
+    "",
+    `*Orphan record ID:* \`${payload.orphanId}\``,
+    `*Customer ID:* \`${payload.stripeCustomerId ?? "none"}\``,
+    `*Subscription ID:* \`${payload.stripeSubscriptionId ?? "none"}\``,
+    `*Attempts so far:* ${payload.retryCount} of ${payload.maxRetries}`,
+  ];
+
+  if (payload.lastError) {
+    lines.push(`*Last error:* ${payload.lastError}`);
+  }
+
+  lines.push(
+    "",
+    `The retry job will keep trying. If this keeps failing it will send a final alert after ${payload.maxRetries} attempts. Check the Stripe dashboard now to investigate early.`,
+  );
+
+  return lines.join("\n");
+}
+
+function buildOrphanRetryWarningEmailHtml(payload: OrphanRetryWarningPayload): string {
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:8px 12px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb;white-space:nowrap">${label}</td><td style="padding:8px 12px;font-family:monospace;background:#fff;border:1px solid #e5e7eb">${value}</td></tr>`;
+
+  return `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#b45309;color:#fff;padding:16px 22px;font-weight:700;font-size:16px;">
+      ⚠️ Better Bucks — Stripe Orphan Cleanup Still Failing (Attempt ${payload.retryCount}/${payload.maxRetries})
+    </div>
+    <div style="padding:20px 22px;color:#111827;">
+      <p style="margin:0 0 14px;font-size:15px;">
+        The automated Stripe orphan cleanup job failed again on attempt <strong>${payload.retryCount} of ${payload.maxRetries}</strong>.
+        The job is still retrying — no manual action is required yet, but early investigation is recommended.
+      </p>
+      <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
+        ${row("Orphan record ID", String(payload.orphanId))}
+        ${row("Customer ID", payload.stripeCustomerId ?? "(none)")}
+        ${row("Subscription ID", payload.stripeSubscriptionId ?? "(none)")}
+        ${row("Attempts so far", `${payload.retryCount} of ${payload.maxRetries}`)}
+        ${payload.lastError ? row("Last error", payload.lastError) : ""}
+      </table>
+      <p style="margin:0;font-size:13px;color:#6b7280;">
+        If all ${payload.maxRetries} attempts fail you will receive a separate final alert requiring manual cleanup.
+        You can investigate early in the
+        <a href="https://dashboard.stripe.com/customers" style="color:#162A4A;">Stripe dashboard</a>.
+      </p>
+    </div>
+  </div>
+</body></html>`;
+}
+
+async function sendOrphanRetryWarningSlackAlert(
+  webhookUrl: string,
+  payload: OrphanRetryWarningPayload,
+): Promise<void> {
+  const body = buildOrphanRetryWarningSlackBody(payload);
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: body }),
+  });
+  if (!response.ok) {
+    throw new Error(`Slack webhook returned ${response.status}`);
+  }
+}
+
+async function sendOrphanRetryWarningEmailAlert(
+  adminEmail: string,
+  payload: OrphanRetryWarningPayload,
+): Promise<void> {
+  await sendEmail({
+    to: adminEmail,
+    subject: `[Better Bucks] WARNING: Stripe orphan cleanup still failing (attempt ${payload.retryCount}/${payload.maxRetries})`,
+    html: buildOrphanRetryWarningEmailHtml(payload),
+    appendFooter: false,
+  });
 }
 
 async function sendOrphanSlackAlert(
@@ -331,6 +421,40 @@ export async function sendOrphanSummaryAlert(payload: OrphanSummaryPayload): Pro
       logger.error(
         { err: result.reason },
         "[stripeOrphanSummary] Failed to send stuck-orphan summary alert",
+      );
+    }
+  }
+}
+
+/**
+ * Warning alert sent when a stripe_orphans row fails an intermediate retry
+ * (i.e. retryCount has reached the ORPHAN_WARN_AT_RETRY threshold but the
+ * row has not yet been marked failed_permanently). Clearly labelled as a
+ * warning so the team knows the job is still active.
+ *
+ * Respects ALERT_WEBHOOK_URL (Slack) and ADMIN_ALERT_EMAIL.
+ * Errors are caught and logged so they never surface to the retry job itself.
+ */
+export async function sendOrphanRetryWarningAlert(
+  payload: OrphanRetryWarningPayload,
+): Promise<void> {
+  const webhookUrl = process.env.ALERT_WEBHOOK_URL;
+  const adminEmail = process.env.ADMIN_ALERT_EMAIL;
+
+  if (!webhookUrl && !adminEmail) {
+    return;
+  }
+
+  const results = await Promise.allSettled([
+    webhookUrl ? sendOrphanRetryWarningSlackAlert(webhookUrl, payload) : Promise.resolve(),
+    adminEmail ? sendOrphanRetryWarningEmailAlert(adminEmail, payload) : Promise.resolve(),
+  ]);
+
+  for (const result of results) {
+    if (result.status === "rejected") {
+      logger.error(
+        { err: result.reason },
+        "[stripeOrphanRetry] Failed to send retry warning alert",
       );
     }
   }

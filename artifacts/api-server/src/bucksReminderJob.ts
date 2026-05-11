@@ -4,6 +4,7 @@ import { db } from "./db";
 import { users } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { sendExpoPushNotification } from "./routes/mobile";
+import { storage } from "./storage";
 
 /**
  * Minimum Bucks balance that triggers a reminder notification.
@@ -57,12 +58,16 @@ async function sendBucksReminders(): Promise<void> {
         ? `You have ${balance} Bucks saved up — treat yourself in the store today!`
         : `You have ${balance} Bucks waiting — head to the store and pick something out!`;
 
+    const title = "You have Bucks to spend!";
     try {
-      await sendExpoPushNotification(token, "You have Bucks to spend!", body);
+      await sendExpoPushNotification(token, title, body);
       succeeded++;
       logger.info(
         { userId: user.id, balance },
         "[bucksReminder] Reminder sent",
+      );
+      storage.createNotificationLog({ userId: user.id, title, body }).catch((logErr: unknown) =>
+        logger.warn({ err: logErr, userId: user.id }, "[bucksReminder] Failed to record notification log"),
       );
     } catch (err) {
       failed++;

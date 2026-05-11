@@ -2,6 +2,10 @@
 
 # compiled output
 dist
+# Allow committed declaration files for composite libs so the project
+# typechecks correctly on a fresh clone without a separate build step.
+!lib/db/dist/
+!lib/db/dist/**
 tmp
 out-tsc
 *.tsbuildinfo

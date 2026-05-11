@@ -612,6 +612,8 @@ export function registerMobileRoutes(app: Express) {
       <p style="margin:0 0 14px;font-size:15px;">Hi ${firstName},</p>
       <p style="margin:0 0 18px;font-size:15px;">A <strong>${providerName}</strong> account was linked to your Better Bucks account.</p>
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin:0 0 18px;">
+        ${providerEmail ? `<div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">${providerName} Account</div>
+        <div style="font-size:14px;color:#111827;margin-bottom:12px;">${providerEmail}</div>` : ""}
         <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Date &amp; Time</div>
         <div style="font-size:14px;color:#111827;">${eventTime}</div>
       </div>

@@ -3,7 +3,7 @@ import { and, eq, gt, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import { users } from "@workspace/db";
 import { logger } from "./lib/logger";
-import { sendExpoPushNotification } from "./routes/mobile";
+import { sendExpoPushNotification } from "./lib/pushNotifications";
 import { storage } from "./storage";
 
 /**

@@ -21,6 +21,7 @@ import { ensureStripeReady } from "../stripeLazy";
 import { getUncachableStripeClient, getStripePublishableKey } from "../stripeClient";
 import { pushPassUpdateForEmployee as _pushPassUpdateForEmployee } from "../walletPass";
 import { pushGoogleWalletUpdateForEmployee as _pushGoogleWalletUpdateForEmployee } from "../googleWalletPass";
+import { sendExpoPushNotification } from "../lib/pushNotifications";
 
 async function getStripeClient() {
   return getUncachableStripeClient();
@@ -102,25 +103,6 @@ setInterval(() => {
  * not pinged. Errors are caught and logged so a failed email never breaks the
  * underlying balance change.
  */
-async function sendExpoPushNotification(
-  expoPushToken: string,
-  title: string,
-  body: string,
-): Promise<void> {
-  const response = await fetch("https://exp.host/--/api/v2/push/send", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "Accept-Encoding": "gzip, deflate",
-    },
-    body: JSON.stringify({ to: expoPushToken, title, body, sound: "default" }),
-  });
-  if (!response.ok) {
-    throw new Error(`Expo push API returned ${response.status}`);
-  }
-}
-
 async function notifyEmployeeBalanceChange(userId: number, change: number, reason: string): Promise<void> {
   if (!change) return;
   // Always push the live balance to Apple Wallet whenever an employee's balance changes (no-op if pass/APNs not configured).

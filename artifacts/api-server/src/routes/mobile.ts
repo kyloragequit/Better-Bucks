@@ -24,24 +24,7 @@ interface MobileRequest extends Request {
   mobileUser: User;
 }
 
-export async function sendExpoPushNotification(
-  expoPushToken: string,
-  title: string,
-  body: string,
-): Promise<void> {
-  const response = await fetch("https://exp.host/--/api/v2/push/send", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "Accept-Encoding": "gzip, deflate",
-    },
-    body: JSON.stringify({ to: expoPushToken, title, body, sound: "default" }),
-  });
-  if (!response.ok) {
-    throw new Error(`Expo push API returned ${response.status}`);
-  }
-}
+export { sendExpoPushNotification } from "../lib/pushNotifications";
 
 function safeUser(user: User): Omit<User, "password"> {
   const { password: _pw, ...rest } = user;

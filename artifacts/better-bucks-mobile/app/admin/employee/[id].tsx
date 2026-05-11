@@ -133,7 +133,15 @@ export default function EmployeeDetailScreen() {
   const handleAdjustBalance = async () => {
     const amt = parseInt(adjustAmount);
     if (!amt || amt === 0) {
-      Alert.alert("Invalid", "Enter a non-zero amount. Use negative to deduct.");
+      Alert.alert("Invalid", "Enter a non-zero amount.");
+      return;
+    }
+    if (amt > 0) {
+      Alert.alert(
+        "Use Transfer Tab",
+        "Adding Bucks requires a payment. Use the Transfer tab to credit an employee via Apple Pay or Google Pay.",
+        [{ text: "OK" }],
+      );
       return;
     }
     if (!adjustReason.trim()) {
@@ -289,14 +297,14 @@ export default function EmployeeDetailScreen() {
           </View>
           <ScrollView contentContainerStyle={styles.modalBody}>
             <Text style={styles.modalHint}>
-              Enter a positive number to add Bucks, or a negative number to deduct them.
+              Enter a negative number to deduct Bucks. To add Bucks, use the Transfer tab (payment required).
             </Text>
-            <Text style={styles.fieldLabel}>Amount (e.g. 100 or -50)</Text>
+            <Text style={styles.fieldLabel}>Amount (e.g. -50)</Text>
             <TextInput
               style={styles.textInput}
               value={adjustAmount}
               onChangeText={setAdjustAmount}
-              placeholder="e.g. 100"
+              placeholder="e.g. -50"
               placeholderTextColor={brand.textMuted}
               keyboardType="numbers-and-punctuation"
             />

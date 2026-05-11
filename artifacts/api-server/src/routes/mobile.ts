@@ -1630,6 +1630,7 @@ export function registerMobileRoutes(app: Express) {
       }
 
       let stripePaymentIntentId: string | null = null;
+      let serverHasCashValue: boolean | null = parsed.data.hasCashValue ?? null;
 
       if (parsed.data.amount > 0) {
         // Credits must be backed by a verified Stripe payment
@@ -1638,7 +1639,7 @@ export function registerMobileRoutes(app: Express) {
           return res.status(400).json({ message: "paymentIntentId is required for credit transfers" });
         }
 
-        // Idempotency: reject if this payment intent was already applied
+        // Fast-path idempotency check (race handled atomically at insert time)
         const [existing] = await db
           .select({ id: transactions.id })
           .from(transactions)
@@ -1679,18 +1680,33 @@ export function registerMobileRoutes(app: Express) {
         }
 
         stripePaymentIntentId = piId;
+        // Payment-backed credits always carry cash value — derive server-side
+        serverHasCashValue = true;
       }
 
       await storage.updateUserBalance(empId, parsed.data.amount);
-      await storage.createTransaction({
-        userId: empId,
-        amount: parsed.data.amount,
-        reason: parsed.data.reason,
-        performedBy: user.id,
-        categoryId: parsed.data.categoryId ?? null,
-        hasCashValue: parsed.data.hasCashValue ?? null,
-        stripePaymentIntentId,
-      });
+      try {
+        await storage.createTransaction({
+          userId: empId,
+          amount: parsed.data.amount,
+          reason: parsed.data.reason,
+          performedBy: user.id,
+          categoryId: parsed.data.categoryId ?? null,
+          hasCashValue: serverHasCashValue,
+          stripePaymentIntentId,
+        });
+      } catch (insertErr: unknown) {
+        // Unique constraint violation on stripePaymentIntentId means a concurrent
+        // request already applied this payment intent — treat as idempotent success
+        const pgCode = (insertErr as { code?: string })?.code;
+        if (pgCode === "23505" && stripePaymentIntentId) {
+          const fresh = await storage.getUser(empId);
+          // Roll back the balance increment that was already applied above
+          await storage.updateUserBalance(empId, -parsed.data.amount);
+          return res.json({ success: true, newBalance: fresh?.balance ?? 0, idempotent: true });
+        }
+        throw insertErr;
+      }
       void pushPassUpdateForEmployee(empId);
       void pushGoogleWalletUpdateForEmployee(empId);
       const fresh = await storage.getUser(empId);

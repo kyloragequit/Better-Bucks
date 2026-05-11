@@ -6,6 +6,8 @@ import rateLimit from "express-rate-limit";
 import { logger } from "./lib/logger";
 import { registerRoutes } from "./routes/routes";
 import { registerMobileRoutes } from "./routes/mobile";
+import { transferRouter } from "./routes/transfers";
+import { initTransferWs } from "./transferWs";
 import healthRouter from "./routes/health";
 import { ensureStripeReady } from "./stripeLazy";
 import { WebhookHandlers } from "./webhookHandlers";
@@ -155,6 +157,8 @@ export async function initApp(): Promise<void> {
 
   await registerRoutes(httpServer, app);
   registerMobileRoutes(app);
+  app.use("/api/transfers", transferRouter);
+  initTransferWs(httpServer);
 
   startStripeOrphanRetryJob();
   startStripeOrphanSummaryJob();

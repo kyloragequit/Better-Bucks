@@ -656,6 +656,33 @@ export const insertNotificationLogSchema = createInsertSchema(notificationLogs).
 export type NotificationLog = typeof notificationLogs.$inferSelect;
 export type InsertNotificationLog = z.infer<typeof insertNotificationLogSchema>;
 
+// ── Peer-to-peer Bucks transfers ───────────────────────────────────────────────
+export const transfers = pgTable("transfers", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").notNull(),
+  recipientId: integer("recipient_id"), // null until completion for nfc/qr
+  amount: integer("amount").notNull(),
+  method: text("method", { enum: ["nfc", "qr", "direct"] }).notNull(),
+  status: text("status", { enum: ["pending", "completed", "declined", "expired", "reversed"] }).default("pending").notNull(),
+  note: text("note"),
+  tokenHash: text("token_hash").unique(), // SHA-256 of raw token — enforces single-use
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const transferLimits = pgTable("transfer_limits", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  userId: integer("user_id"), // null = org-wide default
+  dailyLimit: integer("daily_limit").default(10000).notNull(), // Bucks per day
+  perTxnLimit: integer("per_txn_limit").default(2000).notNull(), // Bucks per transaction
+});
+
+export type Transfer = typeof transfers.$inferSelect;
+export type InsertTransfer = typeof transfers.$inferInsert;
+export type TransferLimit = typeof transferLimits.$inferSelect;
+export type InsertTransferLimit = typeof transferLimits.$inferInsert;
+
 // ── Merchant transaction disputes ─────────────────────────────────────────────
 export const merchantTransactionDisputes = pgTable("merchant_transaction_disputes", {
   id: serial("id").primaryKey(),

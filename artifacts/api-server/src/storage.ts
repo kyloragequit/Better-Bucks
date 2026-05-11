@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog } from "@workspace/db";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, transfers, transferLimits, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type Transfer, type InsertTransfer, type TransferLimit } from "@workspace/db";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -247,6 +247,17 @@ export interface IStorage {
   // Notification log
   createNotificationLog(data: { userId: number; title: string; body: string }): Promise<void>;
   getNotificationLogsByUser(userId: number, limit?: number): Promise<NotificationLog[]>;
+
+  // Peer-to-peer transfers
+  createTransfer(data: InsertTransfer): Promise<Transfer>;
+  getTransfer(id: number): Promise<Transfer | undefined>;
+  getTransferByTokenHash(hash: string): Promise<Transfer | undefined>;
+  updateTransferStatus(id: number, update: { status: Transfer["status"]; recipientId?: number; completedAt?: Date }): Promise<Transfer>;
+  updateTransferTokenHash(id: number, tokenHash: string): Promise<void>;
+  getTransferHistory(userId: number, limit?: number): Promise<(Transfer & { senderName: string; recipientName: string | null })[]>;
+  getSenderDailyTotal(senderId: number): Promise<number>;
+  getTransferLimitForUser(orgId: number, userId: number): Promise<TransferLimit | undefined>;
+  upsertTransferLimit(orgId: number, userId: number | null, dailyLimit: number, perTxnLimit: number): Promise<TransferLimit>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1956,6 +1967,142 @@ DatabaseStorage.prototype.getNotificationLogsByUser = async function (userId, li
     .where(eq(notificationLogs.userId, userId))
     .orderBy(desc(notificationLogs.sentAt))
     .limit(limit);
+};
+
+// ── Peer-to-peer transfer storage ─────────────────────────────────────────────
+
+DatabaseStorage.prototype.createTransfer = async function (data) {
+  const [row] = await db.insert(transfers).values(data).returning();
+  return row;
+};
+
+DatabaseStorage.prototype.getTransfer = async function (id) {
+  const [row] = await db.select().from(transfers).where(eq(transfers.id, id));
+  return row;
+};
+
+DatabaseStorage.prototype.getTransferByTokenHash = async function (hash) {
+  const [row] = await db.select().from(transfers).where(eq(transfers.tokenHash, hash));
+  return row;
+};
+
+DatabaseStorage.prototype.updateTransferStatus = async function (id, { status, recipientId, completedAt }) {
+  const [row] = await db
+    .update(transfers)
+    .set({
+      status,
+      ...(recipientId !== undefined ? { recipientId } : {}),
+      ...(completedAt !== undefined ? { completedAt } : {}),
+    })
+    .where(eq(transfers.id, id))
+    .returning();
+  return row;
+};
+
+DatabaseStorage.prototype.updateTransferTokenHash = async function (id, tokenHash) {
+  await db.update(transfers).set({ tokenHash }).where(eq(transfers.id, id));
+};
+
+DatabaseStorage.prototype.getTransferHistory = async function (userId, limit = 50) {
+  const sender = alias(users, "sender");
+  const recipient = alias(users, "recipient");
+
+  const rows = await db
+    .select({
+      id: transfers.id,
+      senderId: transfers.senderId,
+      recipientId: transfers.recipientId,
+      amount: transfers.amount,
+      method: transfers.method,
+      status: transfers.status,
+      note: transfers.note,
+      tokenHash: transfers.tokenHash,
+      createdAt: transfers.createdAt,
+      completedAt: transfers.completedAt,
+      senderName: sender.fullName,
+      recipientName: recipient.fullName,
+    })
+    .from(transfers)
+    .leftJoin(sender, eq(transfers.senderId, sender.id))
+    .leftJoin(recipient, eq(transfers.recipientId, recipient.id))
+    .where(sql`${transfers.senderId} = ${userId} OR ${transfers.recipientId} = ${userId}`)
+    .orderBy(desc(transfers.createdAt))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    ...r,
+    senderName: r.senderName ?? "Unknown",
+    recipientName: r.recipientName ?? null,
+  }));
+};
+
+DatabaseStorage.prototype.getSenderDailyTotal = async function (senderId) {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const [row] = await db
+    .select({ total: sql<string>`COALESCE(SUM(${transfers.amount}), 0)` })
+    .from(transfers)
+    .where(
+      and(
+        eq(transfers.senderId, senderId),
+        eq(transfers.status, "completed"),
+        gte(transfers.completedAt, startOfDay),
+      ),
+    );
+
+  return Number(row?.total ?? 0);
+};
+
+DatabaseStorage.prototype.getTransferLimitForUser = async function (orgId, userId) {
+  // Prefer user-level limit over org-level limit
+  const [userLimit] = await db
+    .select()
+    .from(transferLimits)
+    .where(and(eq(transferLimits.orgId, orgId), eq(transferLimits.userId, userId)));
+  if (userLimit) return userLimit;
+
+  const [orgLimit] = await db
+    .select()
+    .from(transferLimits)
+    .where(and(eq(transferLimits.orgId, orgId), isNull(transferLimits.userId)));
+  return orgLimit;
+};
+
+DatabaseStorage.prototype.upsertTransferLimit = async function (orgId, userId, dailyLimit, perTxnLimit) {
+  if (userId !== null) {
+    const existing = await db
+      .select()
+      .from(transferLimits)
+      .where(and(eq(transferLimits.orgId, orgId), eq(transferLimits.userId, userId)));
+    if (existing.length) {
+      const [row] = await db
+        .update(transferLimits)
+        .set({ dailyLimit, perTxnLimit })
+        .where(eq(transferLimits.id, existing[0].id))
+        .returning();
+      return row;
+    }
+  } else {
+    const existing = await db
+      .select()
+      .from(transferLimits)
+      .where(and(eq(transferLimits.orgId, orgId), isNull(transferLimits.userId)));
+    if (existing.length) {
+      const [row] = await db
+        .update(transferLimits)
+        .set({ dailyLimit, perTxnLimit })
+        .where(eq(transferLimits.id, existing[0].id))
+        .returning();
+      return row;
+    }
+  }
+
+  const [row] = await db
+    .insert(transferLimits)
+    .values({ orgId, userId: userId ?? null, dailyLimit, perTxnLimit })
+    .returning();
+  return row;
 };
 
 export const storage: IStorage = new DatabaseStorage();

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { EmployeeLayout } from "@/components/layout-employee";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,11 +91,12 @@ export default function EmployeeStorePage() {
 
   const [browsingItem, setBrowsingItem] = useState<StoreItem | null>(null);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 150);
 
   const wishlistedIds = new Set(wishlist?.map(w => w.storeItemId) ?? []);
 
   const filteredItems = items?.filter(item =>
-    !search.trim() || item.name.toLowerCase().includes(search.trim().toLowerCase())
+    !debouncedSearch.trim() || item.name.toLowerCase().includes(debouncedSearch.trim().toLowerCase())
   );
   const itemsWithImages = filteredItems?.filter(item => !!item.imageUrl) ?? [];
   const itemsWithoutImages = filteredItems?.filter(item => !item.imageUrl) ?? [];

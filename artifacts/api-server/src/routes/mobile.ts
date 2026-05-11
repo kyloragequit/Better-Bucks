@@ -14,6 +14,8 @@ import { notifyAdminsOfAccountLockout } from "../lib/lockoutNotify";
 import { sendEmail } from "../lib/email";
 import { buildPassForEmployee, PassConfigError, pushPassUpdateForEmployee } from "../walletPass";
 import { buildGoogleWalletSaveUrl, GoogleWalletConfigError, pushGoogleWalletUpdateForEmployee } from "../googleWalletPass";
+import { db, transactions } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import type {
   InsertOrganization,
   InsertUser,
@@ -1615,6 +1617,7 @@ export function registerMobileRoutes(app: Express) {
       reason: z.string().min(1).max(500),
       categoryId: z.number().int().optional(),
       hasCashValue: z.boolean().optional(),
+      paymentIntentId: z.string().optional(),
     });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1625,6 +1628,46 @@ export function registerMobileRoutes(app: Express) {
       if (!emp || emp.organizationId !== user.organizationId || emp.role !== "employee") {
         return res.status(404).json({ message: "Employee not found" });
       }
+
+      let stripePaymentIntentId: string | null = null;
+
+      if (parsed.data.amount > 0) {
+        // Credits must be backed by a verified Stripe payment
+        const piId = parsed.data.paymentIntentId;
+        if (!piId) {
+          return res.status(400).json({ message: "paymentIntentId is required for credit transfers" });
+        }
+
+        // Idempotency: reject if this payment intent was already applied
+        const [existing] = await db
+          .select({ id: transactions.id })
+          .from(transactions)
+          .where(eq(transactions.stripePaymentIntentId, piId))
+          .limit(1);
+        if (existing) {
+          const fresh = await storage.getUser(empId);
+          return res.json({ success: true, newBalance: fresh?.balance ?? 0, idempotent: true });
+        }
+
+        // Verify payment intent status with Stripe
+        await ensureStripeReady();
+        const stripe = await getUncachableStripeClient();
+        const intent = await stripe.paymentIntents.retrieve(piId);
+        if (intent.status !== "succeeded") {
+          return res.status(402).json({ message: "Payment has not been completed" });
+        }
+
+        // Validate intent metadata matches this request
+        if (
+          intent.metadata?.targetUserId !== String(empId) ||
+          intent.metadata?.orgId !== String(user.organizationId)
+        ) {
+          return res.status(400).json({ message: "Payment intent does not match this transfer" });
+        }
+
+        stripePaymentIntentId = piId;
+      }
+
       await storage.updateUserBalance(empId, parsed.data.amount);
       await storage.createTransaction({
         userId: empId,
@@ -1633,6 +1676,7 @@ export function registerMobileRoutes(app: Express) {
         performedBy: user.id,
         categoryId: parsed.data.categoryId ?? null,
         hasCashValue: parsed.data.hasCashValue ?? null,
+        stripePaymentIntentId,
       });
       void pushPassUpdateForEmployee(empId);
       void pushGoogleWalletUpdateForEmployee(empId);
@@ -2234,7 +2278,7 @@ export function registerMobileRoutes(app: Express) {
           bucksAmount: String(amount),
         },
       });
-      return res.json({ clientSecret: intent.client_secret, amountCents: cents });
+      return res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id, amountCents: cents });
     } catch (err) {
       logger.error({ err }, "[mobile/transfer/payment-intent] failed");
       return res.status(500).json({ message: "Could not create payment intent" });

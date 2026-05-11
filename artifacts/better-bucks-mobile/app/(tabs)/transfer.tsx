@@ -38,6 +38,22 @@ type Org = {
   bucksPerDollar: number;
 };
 
+type ApiErrorBody = { message?: string };
+
+function extractApiError(data: unknown, fallback: string): string {
+  if (data && typeof data === "object" && "message" in data && typeof (data as ApiErrorBody).message === "string") {
+    return (data as ApiErrorBody).message ?? fallback;
+  }
+  return fallback;
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+}
+
 function formatDollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -149,13 +165,14 @@ export default function TransferScreen() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        Alert.alert("Error", (data as any)?.message ?? "Could not start payment.");
+        const data: unknown = await res.json().catch(() => ({}));
+        Alert.alert("Error", extractApiError(data, "Could not start payment."));
         setSubmitting(false);
         return;
       }
 
-      const { clientSecret } = await res.json();
+      const piData = await res.json() as { clientSecret: string; paymentIntentId: string; amountCents: number };
+      const { clientSecret, paymentIntentId } = piData;
 
       const selectedCat = categories.find((c) => c.id === categoryId);
 
@@ -195,13 +212,14 @@ export default function TransferScreen() {
             reason: reason.trim(),
             categoryId: categoryId ?? undefined,
             hasCashValue: true,
+            paymentIntentId,
           }),
         },
       );
 
       if (!balanceRes.ok) {
-        const data = await balanceRes.json().catch(() => ({}));
-        Alert.alert("Transfer Error", (data as any)?.message ?? "Payment succeeded but balance update failed. Contact support.");
+        const data: unknown = await balanceRes.json().catch(() => ({}));
+        Alert.alert("Transfer Error", extractApiError(data, "Payment succeeded but balance update failed. Contact support."));
         setSubmitting(false);
         return;
       }
@@ -212,8 +230,8 @@ export default function TransferScreen() {
         `${parsedAmount.toLocaleString()} Bucks credited to ${selectedEmployee.fullName}.\n${formatDollars(estimatedCents)} charged.`,
         [{ text: "Done", onPress: resetForm }],
       );
-    } catch (err: any) {
-      Alert.alert("Error", err?.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      Alert.alert("Error", extractErrorMessage(err, "Something went wrong."));
     } finally {
       setSubmitting(false);
     }
@@ -246,8 +264,8 @@ export default function TransferScreen() {
       );
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        Alert.alert("Error", (data as any)?.message ?? "Deduction failed.");
+        const data: unknown = await res.json().catch(() => ({}));
+        Alert.alert("Error", extractApiError(data, "Deduction failed."));
         setSubmitting(false);
         return;
       }
@@ -258,8 +276,8 @@ export default function TransferScreen() {
         `${parsedAmount.toLocaleString()} Bucks deducted from ${selectedEmployee.fullName}.`,
         [{ text: "Done", onPress: resetForm }],
       );
-    } catch (err: any) {
-      Alert.alert("Error", err?.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      Alert.alert("Error", extractErrorMessage(err, "Something went wrong."));
     } finally {
       setSubmitting(false);
     }

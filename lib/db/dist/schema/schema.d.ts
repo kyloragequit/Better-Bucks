@@ -1449,6 +1449,23 @@ export declare const transactions: import("drizzle-orm/pg-core").PgTableWithColu
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        stripePaymentIntentId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "stripe_payment_intent_id";
+            tableName: "transactions";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         createdAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "created_at";
             tableName: "transactions";
@@ -4117,6 +4134,7 @@ export declare const insertTransactionSchema: z.ZodObject<{
     performedBy: z.ZodOptional<z.ZodNullable<z.ZodInt>>;
     categoryId: z.ZodOptional<z.ZodNullable<z.ZodInt>>;
     hasCashValue: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    stripePaymentIntentId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, {
     out: {};
     in: {};

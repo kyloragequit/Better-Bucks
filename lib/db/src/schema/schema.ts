@@ -578,6 +578,7 @@ export const stripeOrphans = pgTable(
     status: text("status", { enum: ["pending", "processing", "resolved", "failed_permanently"] }).default("pending").notNull(),
     retryCount: integer("retry_count").default(0).notNull(),
     lastError: text("last_error"),
+    resolutionNote: text("resolution_note"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

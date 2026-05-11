@@ -449,19 +449,25 @@ export default function DeveloperDashboardPage() {
     enabled: activeTab === "marketing",
   });
 
-  type StripeOrphanRow = { id: number; stripeCustomerId: string | null; stripeSubscriptionId: string | null; status: string; retryCount: number; lastError: string | null; createdAt: string; updatedAt: string };
+  type StripeOrphanRow = { id: number; stripeCustomerId: string | null; stripeSubscriptionId: string | null; status: string; retryCount: number; lastError: string | null; resolutionNote: string | null; createdAt: string; updatedAt: string };
   type StripeOrphansData = { rows: StripeOrphanRow[]; counts: Record<string, number> };
   const { data: stripeOrphansData, isLoading: stripeOrphansLoading, refetch: refetchStripeOrphans } = useQuery<StripeOrphansData>({
     queryKey: ["/api/developer/stripe-orphans"],
     enabled: activeTab === "stripe-orphans",
   });
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [resolveOrphanId, setResolveOrphanId] = useState<number | null>(null);
+  const [resolveNote, setResolveNote] = useState("");
   const resolveOrphanMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("PATCH", `/api/developer/stripe-orphans/${id}`, {});
+    mutationFn: async ({ id, note }: { id: number; note: string }) => {
+      await apiRequest("PATCH", `/api/developer/stripe-orphans/${id}`, { note: note.trim() || null });
     },
     onSuccess: () => {
       toast({ title: "Marked resolved", description: "The record has been marked as resolved." });
       queryClient.invalidateQueries({ queryKey: ["/api/developer/stripe-orphans"] });
+      setResolveDialogOpen(false);
+      setResolveOrphanId(null);
+      setResolveNote("");
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to mark record as resolved.", variant: "destructive" });
@@ -2117,7 +2123,7 @@ export default function DeveloperDashboardPage() {
                                 <TableHead>Last Error</TableHead>
                                 <TableHead>Created</TableHead>
                                 <TableHead>Updated</TableHead>
-                                {status !== "resolved" && <TableHead className="w-44">Actions</TableHead>}
+                                {status === "resolved" ? <TableHead>Resolution Note</TableHead> : <TableHead className="w-44">Actions</TableHead>}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -2140,7 +2146,11 @@ export default function DeveloperDashboardPage() {
                                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                                     {new Date(row.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
                                   </TableCell>
-                                  {status !== "resolved" && (
+                                  {status === "resolved" ? (
+                                    <TableCell className="text-xs text-muted-foreground max-w-48 truncate" title={row.resolutionNote ?? undefined}>
+                                      {row.resolutionNote ?? <span className="italic">—</span>}
+                                    </TableCell>
+                                  ) : (
                                     <TableCell>
                                       <div className="flex items-center gap-1.5">
                                         <Button
@@ -2159,7 +2169,7 @@ export default function DeveloperDashboardPage() {
                                           variant="outline"
                                           className="border-green-300 text-green-700 hover:bg-green-50 text-xs h-7"
                                           disabled={resolveOrphanMutation.isPending || retryOrphanMutation.isPending}
-                                          onClick={() => resolveOrphanMutation.mutate(row.id)}
+                                          onClick={() => { setResolveOrphanId(row.id); setResolveNote(""); setResolveDialogOpen(true); }}
                                           data-testid={`button-resolve-orphan-${row.id}`}
                                         >
                                           <CheckCircle2 className="mr-1 h-3 w-3" />
@@ -2181,6 +2191,43 @@ export default function DeveloperDashboardPage() {
             )}
           </div>
         )}
+
+        <Dialog open={resolveDialogOpen} onOpenChange={(open) => { if (!resolveOrphanMutation.isPending) { setResolveDialogOpen(open); if (!open) { setResolveOrphanId(null); setResolveNote(""); } } }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Resolve Record</DialogTitle>
+              <DialogDescription>
+                Optionally add a short note explaining why this record is being marked as resolved (e.g. "Deleted in Stripe dashboard").
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Label htmlFor="resolve-note" className="text-sm font-medium">Note (optional)</Label>
+              <Textarea
+                id="resolve-note"
+                className="mt-1.5 resize-none"
+                rows={3}
+                placeholder="e.g. Deleted in Stripe dashboard"
+                value={resolveNote}
+                onChange={(e) => setResolveNote(e.target.value)}
+                maxLength={500}
+                data-testid="input-resolve-note"
+              />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setResolveDialogOpen(false); setResolveOrphanId(null); setResolveNote(""); }} disabled={resolveOrphanMutation.isPending}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={resolveOrphanMutation.isPending}
+                onClick={() => { if (resolveOrphanId !== null) resolveOrphanMutation.mutate({ id: resolveOrphanId, note: resolveNote }); }}
+                data-testid="button-confirm-resolve-orphan"
+              >
+                {resolveOrphanMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Resolving…</> : <><CheckCircle2 className="mr-2 h-4 w-4" />Mark Resolved</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {activeTab === "marketing" && (
           <Card>

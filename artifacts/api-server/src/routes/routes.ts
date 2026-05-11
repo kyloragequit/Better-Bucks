@@ -6603,9 +6603,14 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     }
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+    const rawNote = req.body?.note;
+    if (rawNote !== undefined && rawNote !== null && typeof rawNote !== "string") {
+      return res.status(400).json({ message: "note must be a string" });
+    }
+    const note = typeof rawNote === "string" ? rawNote.trim().slice(0, 500) : null;
     const updated = await db
       .update(stripeOrphans)
-      .set({ status: "resolved", updatedAt: new Date() })
+      .set({ status: "resolved", resolutionNote: note || null, updatedAt: new Date() })
       .where(eq(stripeOrphans.id, id))
       .returning();
     if (!updated.length) return res.status(404).json({ message: "Record not found" });

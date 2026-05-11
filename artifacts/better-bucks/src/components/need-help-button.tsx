@@ -10,6 +10,19 @@ const SUPPORT_EMAIL = "miles.chase@betterbucks.net";
 
 type View = "menu" | "contact";
 
+const POPOVER_WIDTH = 288; // w-72
+const POPOVER_PADDING = 16; // min distance from either viewport edge
+
+function computeMobileStyle(el: HTMLElement): CSSProperties {
+  const rect = el.getBoundingClientRect();
+  const idealLeft = rect.right - POPOVER_WIDTH;
+  const left = Math.max(
+    POPOVER_PADDING,
+    Math.min(idealLeft, window.innerWidth - POPOVER_WIDTH - POPOVER_PADDING),
+  );
+  return { top: rect.bottom + 8, left };
+}
+
 export function NeedHelpButton() {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("menu");
@@ -44,11 +57,28 @@ export function NeedHelpButton() {
     return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !containerRef.current) return;
+    const el = containerRef.current;
+    const reposition = () => {
+      if (window.innerWidth < 640) {
+        setPopoverStyle(computeMobileStyle(el));
+      } else {
+        setPopoverStyle({});
+      }
+    };
+    window.addEventListener("resize", reposition);
+    window.addEventListener("orientationchange", reposition);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("orientationchange", reposition);
+    };
+  }, [open]);
+
   const handleToggle = () => {
     if (!open && containerRef.current) {
       if (window.innerWidth < 640) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setPopoverStyle({ top: rect.bottom + 8 });
+        setPopoverStyle(computeMobileStyle(containerRef.current));
       } else {
         setPopoverStyle({});
       }
@@ -92,7 +122,7 @@ export function NeedHelpButton() {
 
       {open && (
         <div
-          className="fixed sm:absolute right-4 sm:right-0 sm:top-full sm:mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-xl border border-gray-200 z-[1100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+          className="fixed sm:absolute sm:right-0 sm:top-full sm:mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-xl border border-gray-200 z-[1100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
           style={popoverStyle}
         >
           {view === "menu" ? (

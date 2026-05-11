@@ -72,6 +72,7 @@ function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDolla
   bucksPerDollar: number;
   showDollars: boolean;
 }) {
+  const [showTable, setShowTable] = useState(false);
   const display = data.map(d => ({
     ...d,
     display: showDollars ? +(d.value / bucksPerDollar).toFixed(2) : d.value,
@@ -128,24 +129,95 @@ function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDolla
     </BarChart>
   );
 
+  const toggleButton = (
+    <div className="flex justify-end mb-1">
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-6 px-2 text-xs"
+        onClick={() => setShowTable(t => !t)}
+        aria-pressed={showTable}
+        data-testid="button-toggle-leaderboard-table"
+      >
+        {showTable ? "View chart" : "View as table"}
+      </Button>
+    </div>
+  );
+
+  if (showTable) {
+    return (
+      <div className="mt-2">
+        {toggleButton}
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th scope="col" className="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium text-muted-foreground">
+                  {showDollars ? "Dollar Value" : unit}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {display.map((d, i) => (
+                <tr key={d.name} className={i % 2 === 0 ? "bg-background" : "bg-muted/30"}>
+                  <td className="px-3 py-1.5 font-medium">{d.name}</td>
+                  <td className="px-3 py-1.5 text-right">
+                    {showDollars ? `$${(d.display as number).toFixed(2)}` : (d.display as number).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  const srTable = (
+    <table className="sr-only">
+      <caption>Leaderboard data</caption>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">{showDollars ? "Dollar Value" : unit}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {display.map(d => (
+          <tr key={d.name}>
+            <td>{d.name}</td>
+            <td>{showDollars ? `$${(d.display as number).toFixed(2)}` : (d.display as number).toLocaleString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   if (needsScroll) {
     return (
       <div className="mt-2">
+        {toggleButton}
         <div className="overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: "touch" }} data-testid="chart-scroll-container">
           <div style={{ width: chartWidth, height: 288 }}>
             {chart}
           </div>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-1">Scroll to see all {display.length} entries</p>
+        {srTable}
       </div>
     );
   }
 
   return (
-    <div className="h-72 w-full mt-2">
-      <ResponsiveContainer width="100%" height="100%">
-        {chart}
-      </ResponsiveContainer>
+    <div className="mt-2">
+      {toggleButton}
+      <div className="h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          {chart}
+        </ResponsiveContainer>
+      </div>
+      {srTable}
     </div>
   );
 }

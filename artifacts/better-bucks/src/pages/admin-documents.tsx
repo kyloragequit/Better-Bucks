@@ -54,6 +54,7 @@ type MonthlyReport = {
 
 function DailySpendingChart({ dailySpending, conversionRate }: { dailySpending: DailySpending[]; conversionRate: number }) {
   const rate = conversionRate || 100;
+  const [showTable, setShowTable] = useState(false);
   const chartData = dailySpending
     .filter(d => d.credited > 0 || d.debited > 0)
     .map(d => ({
@@ -65,68 +66,104 @@ function DailySpendingChart({ dailySpending, conversionRate }: { dailySpending: 
   const showLabels = chartData.length <= 14;
   return (
     <div data-testid="chart-daily-spending">
-      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-        <DollarSign className="h-3 w-3" /> Daily Dollar Spending
-      </p>
-      <div role="img" aria-label="Line chart showing daily awarded and spent dollar amounts">
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={chartData} margin={{ top: showLabels ? 18 : 4, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} tickFormatter={v => `$${v}`} />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-              formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name === "awarded" ? "Awarded" : "Spent"]}
-            />
-            <Legend wrapperStyle={{ fontSize: "11px" }} />
-            <Line type="monotone" dataKey="awarded" stroke="#16a34a" strokeWidth={2} dot={{ r: 3, fill: "#16a34a" }} name="Awarded">
-              {showLabels && (
-                <LabelList
-                  dataKey="awarded"
-                  position="top"
-                  style={{ fontSize: 9, fill: "#15803d", fontWeight: 500 }}
-                  formatter={(v: number) => v > 0 ? `$${v}` : ""}
-                />
-              )}
-            </Line>
-            <Line type="monotone" dataKey="spent" stroke="#dc2626" strokeWidth={2} dot={{ r: 3, fill: "#dc2626" }} name="Spent">
-              {showLabels && (
-                <LabelList
-                  dataKey="spent"
-                  position="bottom"
-                  style={{ fontSize: 9, fill: "#b91c1c", fontWeight: 500 }}
-                  formatter={(v: number) => v > 0 ? `$${v}` : ""}
-                />
-              )}
-            </Line>
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          <DollarSign className="h-3 w-3" /> Daily Dollar Spending
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-6 px-2 text-xs"
+          onClick={() => setShowTable(t => !t)}
+          aria-pressed={showTable}
+          data-testid="button-toggle-daily-spending-table"
+        >
+          {showTable ? "View chart" : "View as table"}
+        </Button>
       </div>
-      {/* Screen-reader accessible data table */}
-      <table className="sr-only">
-        <caption>Daily Dollar Spending — Awarded and Spent</caption>
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Awarded ($)</th>
-            <th scope="col">Spent ($)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {chartData.map(d => (
-            <tr key={d.date}>
-              <td>{d.date}</td>
-              <td>{d.awarded.toFixed(2)}</td>
-              <td>{d.spent.toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {showTable ? (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-xs">
+            <caption className="sr-only">Daily Dollar Spending — Awarded and Spent</caption>
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th scope="col" className="px-3 py-2 text-left font-medium text-muted-foreground">Date</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium text-green-700">Awarded ($)</th>
+                <th scope="col" className="px-3 py-2 text-right font-medium text-red-600">Spent ($)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chartData.map((d, i) => (
+                <tr key={d.date} className={i % 2 === 0 ? "bg-background" : "bg-muted/30"}>
+                  <td className="px-3 py-1.5">{d.date}</td>
+                  <td className="px-3 py-1.5 text-right text-green-700 font-medium">${d.awarded.toFixed(2)}</td>
+                  <td className="px-3 py-1.5 text-right text-red-600 font-medium">${d.spent.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div role="img" aria-label="Line chart showing daily awarded and spent dollar amounts">
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={chartData} margin={{ top: showLabels ? 18 : 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} tickFormatter={v => `$${v}`} />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                formatter={(value: number, name: string) => [`$${value.toFixed(2)}`, name === "awarded" ? "Awarded" : "Spent"]}
+              />
+              <Legend wrapperStyle={{ fontSize: "11px" }} />
+              <Line type="monotone" dataKey="awarded" stroke="#16a34a" strokeWidth={2} dot={{ r: 3, fill: "#16a34a" }} name="Awarded">
+                {showLabels && (
+                  <LabelList
+                    dataKey="awarded"
+                    position="top"
+                    style={{ fontSize: 9, fill: "#15803d", fontWeight: 500 }}
+                    formatter={(v: number) => v > 0 ? `$${v}` : ""}
+                  />
+                )}
+              </Line>
+              <Line type="monotone" dataKey="spent" stroke="#dc2626" strokeWidth={2} dot={{ r: 3, fill: "#dc2626" }} name="Spent">
+                {showLabels && (
+                  <LabelList
+                    dataKey="spent"
+                    position="bottom"
+                    style={{ fontSize: 9, fill: "#b91c1c", fontWeight: 500 }}
+                    formatter={(v: number) => v > 0 ? `$${v}` : ""}
+                  />
+                )}
+              </Line>
+            </LineChart>
+          </ResponsiveContainer>
+          {/* Screen-reader accessible data table (always present for AT users) */}
+          <table className="sr-only">
+            <caption>Daily Dollar Spending — Awarded and Spent</caption>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Awarded ($)</th>
+                <th scope="col">Spent ($)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chartData.map(d => (
+                <tr key={d.date}>
+                  <td>{d.date}</td>
+                  <td>{d.awarded.toFixed(2)}</td>
+                  <td>{d.spent.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

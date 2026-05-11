@@ -147,6 +147,7 @@ function BucksActivityChart({ transactions }: { transactions: Transaction[] }) {
   const [range, setRange] = useState<RangeKey>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [showTable, setShowTable] = useState(false);
 
   const data = useMemo(
     () => buildChartData(transactions, range, customFrom, customTo),
@@ -217,62 +218,121 @@ function BucksActivityChart({ transactions }: { transactions: Transaction[] }) {
             No activity in this period.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => v === 0 ? "0" : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)}
-                width={42}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  color: "hsl(var(--foreground))",
-                }}
-                formatter={(value: number, name: string) => [
-                  `${value.toLocaleString()} bcks`,
-                  name === "credited" ? "Credited" : "Debited",
-                ]}
-                labelStyle={{ color: "hsl(var(--muted-foreground))", marginBottom: 4 }}
-              />
-              <Legend
-                formatter={(value) => (
-                  <span style={{ fontSize: 12, color: "hsl(var(--foreground))" }}>
-                    {value === "credited" ? "Credited" : "Debited"}
-                  </span>
-                )}
-              />
-              <Line
-                type="monotone"
-                dataKey="credited"
-                stroke="#16a34a"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: "#16a34a" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="debited"
-                stroke="#dc2626"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: "#dc2626" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <>
+            <div className="flex justify-end mb-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={() => setShowTable(t => !t)}
+                aria-pressed={showTable}
+                data-testid="button-toggle-activity-table"
+              >
+                {showTable ? "View chart" : "View as table"}
+              </Button>
+            </div>
+            {showTable ? (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th scope="col" className="px-3 py-2 text-left font-medium text-muted-foreground">Period</th>
+                      <th scope="col" className="px-3 py-2 text-right font-medium text-green-700">Credited (bucks)</th>
+                      <th scope="col" className="px-3 py-2 text-right font-medium text-red-600">Debited (bucks)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.filter(d => d.credited > 0 || d.debited > 0).map((d, i) => (
+                      <tr key={d.label} className={i % 2 === 0 ? "bg-background" : "bg-muted/30"}>
+                        <td className="px-3 py-1.5">{d.label}</td>
+                        <td className="px-3 py-1.5 text-right text-green-700 font-medium">{d.credited.toLocaleString()}</td>
+                        <td className="px-3 py-1.5 text-right text-red-600 font-medium">{d.debited.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={false}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => v === 0 ? "0" : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)}
+                      width={42}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        color: "hsl(var(--foreground))",
+                      }}
+                      formatter={(value: number, name: string) => [
+                        `${value.toLocaleString()} bcks`,
+                        name === "credited" ? "Credited" : "Debited",
+                      ]}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))", marginBottom: 4 }}
+                    />
+                    <Legend
+                      formatter={(value) => (
+                        <span style={{ fontSize: 12, color: "hsl(var(--foreground))" }}>
+                          {value === "credited" ? "Credited" : "Debited"}
+                        </span>
+                      )}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="credited"
+                      stroke="#16a34a"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: "#16a34a" }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="debited"
+                      stroke="#dc2626"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: "#dc2626" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                {/* Screen-reader accessible data table (always present for AT users) */}
+                <table className="sr-only">
+                  <caption>Bucks Activity — Credited and Debited</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Period</th>
+                      <th scope="col">Credited (bucks)</th>
+                      <th scope="col">Debited (bucks)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.filter(d => d.credited > 0 || d.debited > 0).map(d => (
+                      <tr key={d.label}>
+                        <td>{d.label}</td>
+                        <td>{d.credited.toLocaleString()}</td>
+                        <td>{d.debited.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

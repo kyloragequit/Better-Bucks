@@ -25,6 +25,8 @@ export interface IStorage {
   setPasswordResetToken(userId: number, token: string | null, expiry: Date | null): Promise<User>;
   setTutorialCompleted(userId: number, completed: boolean): Promise<User>;
   updateUserPushToken(userId: number, token: string | null): Promise<User>;
+  markWelcomeNotificationSent(userId: number): Promise<void>;
+  setPendingWelcomeNotification(userId: number, pending: boolean): Promise<void>;
   
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   getTransactionsByUser(userId: number): Promise<(Transaction & { performedByName: string | null })[]>;
@@ -873,6 +875,14 @@ export class DatabaseStorage implements IStorage {
   async updateUserPushToken(userId: number, token: string | null): Promise<User> {
     const [updated] = await db.update(users).set({ expoPushToken: token }).where(eq(users.id, userId)).returning();
     return updated;
+  }
+
+  async markWelcomeNotificationSent(userId: number): Promise<void> {
+    await db.update(users).set({ welcomeNotificationSent: true }).where(eq(users.id, userId));
+  }
+
+  async setPendingWelcomeNotification(userId: number, pending: boolean): Promise<void> {
+    await db.update(users).set({ pendingWelcomeNotification: pending }).where(eq(users.id, userId));
   }
 
   async updateOrganizationRoleLabels(id: number, adminLabel: string, employeeLabel: string): Promise<Organization> {

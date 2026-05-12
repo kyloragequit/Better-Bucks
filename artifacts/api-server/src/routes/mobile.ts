@@ -14,17 +14,18 @@ import { notifyAdminsOfAccountLockout } from "../lib/lockoutNotify";
 import { sendEmail } from "../lib/email";
 import { buildPassForEmployee, PassConfigError, pushPassUpdateForEmployee } from "../walletPass";
 import { buildGoogleWalletSaveUrl, GoogleWalletConfigError, pushGoogleWalletUpdateForEmployee } from "../googleWalletPass";
+import { sendExpoPushNotification } from "../lib/pushNotifications";
 import type {
   InsertOrganization,
   InsertUser,
   User,
 } from "@workspace/db";
 
+export { sendExpoPushNotification };
+
 interface MobileRequest extends Request {
   mobileUser: User;
 }
-
-export { sendExpoPushNotification } from "../lib/pushNotifications";
 
 function safeUser(user: User): Omit<User, "password"> {
   const { password: _pw, ...rest } = user;
@@ -473,6 +474,15 @@ export function registerMobileRoutes(app: Express) {
       });
 
       if (requireApproval) {
+        // Queue the welcome notification so it is delivered when the employee
+        // is approved and later registers their push token. Must await before
+        // returning so the flag is persisted before the client can log in.
+        try {
+          await storage.setPendingWelcomeNotification(newUser.id, true);
+        } catch (err) {
+          logger.error({ err }, "[mobile/auth/social/signup] failed to queue pending welcome notification (approval path)");
+        }
+
         // Notify org admins that a new employee is awaiting approval (fire-and-forget)
         storage.getUsersByOrganization(org.id).then((orgUsers) => {
           const providerLabel = parsed.provider === "apple" ? "Apple" : "Google";
@@ -493,17 +503,35 @@ export function registerMobileRoutes(app: Express) {
         return res.status(201).json({ pendingApproval: true });
       }
 
-      // Welcome notification to the new employee (fire-and-forget)
-      // Push token is unlikely to exist immediately at signup, but handled if present.
+      // Welcome notification to the new employee.
+      // Push token almost never exists at social sign-in signup time. When it
+      // is absent we set pendingWelcomeNotification = true so the push-token
+      // registration endpoint delivers the notification as soon as the device
+      // is registered. When the token is already present we send immediately
+      // and mark the notification sent to prevent a duplicate later.
+      const welcomeTitle = "Welcome to Better Bucks! 🎉";
+      const welcomeBody = "Your manager can now start rewarding you. Check out the store when you're ready!";
       if (newUser.expoPushToken) {
-        const welcomeTitle = "Welcome to Better Bucks! 🎉";
-        const welcomeBody = "Your manager can now start rewarding you. Check out the store when you're ready!";
-        sendExpoPushNotification(newUser.expoPushToken, welcomeTitle, welcomeBody).catch((err) =>
-          logger.error({ err }, "[mobile/auth/social/signup] welcome push notification failed"),
-        );
-        storage.createNotificationLog({ userId: newUser.id, title: welcomeTitle, body: welcomeBody }).catch((err) =>
-          logger.error({ err }, "[mobile/auth/social/signup] welcome notification log failed"),
-        );
+        sendExpoPushNotification(newUser.expoPushToken, welcomeTitle, welcomeBody)
+          .then(() =>
+            Promise.all([
+              storage.markWelcomeNotificationSent(newUser.id),
+              storage.createNotificationLog({ userId: newUser.id, title: welcomeTitle, body: welcomeBody }),
+            ]),
+          )
+          .catch((err) =>
+            logger.error({ err }, "[mobile/auth/social/signup] welcome push notification failed"),
+          );
+      } else {
+        // Queue the welcome notification for delivery on first device registration.
+        // Must await so the flag is committed before the token is returned to the
+        // client — eliminating the race where the client registers a push token
+        // before the pending flag write completes.
+        try {
+          await storage.setPendingWelcomeNotification(newUser.id, true);
+        } catch (err) {
+          logger.error({ err }, "[mobile/auth/social/signup] failed to queue pending welcome notification");
+        }
       }
 
       // Welcome email to the new employee (fire-and-forget)
@@ -1096,6 +1124,38 @@ export function registerMobileRoutes(app: Express) {
       }
       try {
         await storage.updateUserPushToken(user.id, parsed.data.token);
+
+        // Deliver the pending welcome notification if one was queued at signup.
+        // pendingWelcomeNotification is only set to true for new social sign-in
+        // employees who had no push token at account creation time. Existing
+        // users always have this flag as false, so they are never affected.
+        // welcomeNotificationSent acts as a secondary dedup guard: if a previous
+        // partial send succeeded but the flag-clear failed, this prevents a
+        // duplicate send on a subsequent token update.
+        if (user.pendingWelcomeNotification && !user.welcomeNotificationSent) {
+          const welcomeTitle = "Welcome to Better Bucks! 🎉";
+          const welcomeBody =
+            "Your manager can now start rewarding you. Check out the store when you're ready!";
+          sendExpoPushNotification(parsed.data.token, welcomeTitle, welcomeBody)
+            .then(() =>
+              Promise.all([
+                storage.setPendingWelcomeNotification(user.id, false),
+                storage.markWelcomeNotificationSent(user.id),
+                storage.createNotificationLog({
+                  userId: user.id,
+                  title: welcomeTitle,
+                  body: welcomeBody,
+                }),
+              ]),
+            )
+            .catch((err) =>
+              logger.error(
+                { err },
+                "[mobile/push-token] welcome push notification failed",
+              ),
+            );
+        }
+
         return res.json({ success: true });
       } catch (err) {
         logger.error({ err }, "[mobile/push-token] failed to save push token");

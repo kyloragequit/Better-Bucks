@@ -1122,6 +1122,40 @@ export declare const users: import("drizzle-orm/pg-core").PgTableWithColumns<{
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        welcomeNotificationSent: import("drizzle-orm/pg-core").PgColumn<{
+            name: "welcome_notification_sent";
+            tableName: "users";
+            dataType: "boolean";
+            columnType: "PgBoolean";
+            data: boolean;
+            driverParam: boolean;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        pendingWelcomeNotification: import("drizzle-orm/pg-core").PgColumn<{
+            name: "pending_welcome_notification";
+            tableName: "users";
+            dataType: "boolean";
+            columnType: "PgBoolean";
+            data: boolean;
+            driverParam: boolean;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
     };
     dialect: "pg";
 }>;
@@ -4247,6 +4281,8 @@ export declare const insertUserSchema: z.ZodObject<{
     failedLoginAttempts: z.ZodOptional<z.ZodInt>;
     lockedUntil: z.ZodOptional<z.ZodNullable<z.ZodDate>>;
     expoPushToken: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    welcomeNotificationSent: z.ZodOptional<z.ZodBoolean>;
+    pendingWelcomeNotification: z.ZodOptional<z.ZodBoolean>;
 }, {
     out: {};
     in: {};

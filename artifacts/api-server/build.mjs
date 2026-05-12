@@ -102,6 +102,7 @@ async function buildAll() {
       "stripe-replit-sync",
       "@anthropic-ai/sdk",
       "node-forge",
+      "connect-pg-simple",
     ],
     sourcemap: "linked",
     plugins: [

@@ -19,6 +19,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
 
+const RESOLUTION_NOTE_TRUNCATE_AT = 60;
+
+function ExpandableNote({ note }: { note: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = note.length > RESOLUTION_NOTE_TRUNCATE_AT;
+  if (!isLong) {
+    return <span>{note}</span>;
+  }
+  return (
+    <span>
+      {expanded ? note : note.slice(0, RESOLUTION_NOTE_TRUNCATE_AT) + "…"}
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-label={expanded ? "Show less of resolution note" : "Show full resolution note"}
+        onClick={() => setExpanded((v) => !v)}
+        className="ml-1 text-primary underline underline-offset-2 hover:no-underline focus:outline-none whitespace-nowrap"
+      >
+        {expanded ? "show less" : "show more"}
+      </button>
+    </span>
+  );
+}
+
 const CMS_FIELDS: { key: string; label: string; multiline?: boolean }[] = [
   { key: "hero_headline", label: "Hero Headline" },
   { key: "hero_subheadline", label: "Hero Sub-headline", multiline: true },
@@ -2180,8 +2204,10 @@ export default function DeveloperDashboardPage() {
                                     {new Date(row.updatedAt).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                                   </TableCell>
                                   {status === "resolved" ? (
-                                    <TableCell className="text-xs text-muted-foreground max-w-48 truncate" title={row.resolutionNote ?? undefined}>
-                                      {row.resolutionNote ?? <span className="italic">—</span>}
+                                    <TableCell className="text-xs text-muted-foreground max-w-xs">
+                                      {row.resolutionNote
+                                        ? <ExpandableNote note={row.resolutionNote} />
+                                        : <span className="italic">—</span>}
                                     </TableCell>
                                   ) : (
                                     <TableCell>

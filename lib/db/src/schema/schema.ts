@@ -730,3 +730,18 @@ export const insertMerchantTransactionDisputeSchema = createInsertSchema(merchan
 });
 export type MerchantTransactionDispute = typeof merchantTransactionDisputes.$inferSelect;
 export type InsertMerchantTransactionDispute = z.infer<typeof insertMerchantTransactionDisputeSchema>;
+
+// ── Security activity log ──────────────────────────────────────────────────────
+export const securityEvents = pgTable("security_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  eventType: text("event_type", {
+    enum: ["social_linked", "social_unlinked", "password_changed"],
+  }).notNull(),
+  provider: text("provider", { enum: ["google", "apple"] }),
+  providerEmail: text("provider_email"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SecurityEvent = typeof securityEvents.$inferSelect;
+export type InsertSecurityEvent = typeof securityEvents.$inferInsert;

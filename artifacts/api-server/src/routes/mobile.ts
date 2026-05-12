@@ -624,6 +624,16 @@ export function registerMobileRoutes(app: Express) {
       const links = await storage.getSocialLinksByUser(user.id);
       res.json({ success: true, links: links.map((l) => ({ provider: l.provider, email: l.email })) });
 
+      // Write security event (fire-and-forget)
+      storage.createSecurityEvent({
+        userId: user.id,
+        eventType: "social_linked",
+        provider: parsed.provider,
+        providerEmail,
+      }).catch((err: unknown) => {
+        logger.error({ err }, "[mobile/account/social/link] Failed to write security event");
+      });
+
       // Send security notification email (fire-and-forget)
       if (user.email && user.emailVerified) {
         const providerName = parsed.provider === "google" ? "Google" : "Apple";
@@ -670,6 +680,16 @@ export function registerMobileRoutes(app: Express) {
       const links = await storage.getSocialLinksByUser(user.id);
       res.json({ success: true, links: links.map((l) => ({ provider: l.provider, email: l.email })) });
 
+      // Write security event (fire-and-forget)
+      storage.createSecurityEvent({
+        userId: user.id,
+        eventType: "social_unlinked",
+        provider,
+        providerEmail: null,
+      }).catch((err: unknown) => {
+        logger.error({ err }, "[mobile/account/social/unlink] Failed to write security event");
+      });
+
       // Send security notification email (fire-and-forget)
       if (user.email && user.emailVerified) {
         const providerName = provider === "google" ? "Google" : "Apple";
@@ -710,6 +730,18 @@ export function registerMobileRoutes(app: Express) {
     } catch (err) {
       console.error("[mobile/account/social/links]", err);
       res.status(500).json({ message: "Could not fetch linked accounts" });
+    }
+  });
+
+  // Security activity log for the authenticated account
+  app.get("/api/mobile/account/security-events", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    try {
+      const events = await storage.getSecurityEventsByUser(user.id, 50);
+      res.json({ events });
+    } catch (err) {
+      logger.error({ err }, "[mobile/account/security-events]");
+      res.status(500).json({ message: "Could not fetch security events" });
     }
   });
 

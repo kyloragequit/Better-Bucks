@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, transfers, transferLimits, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type Transfer, type InsertTransfer, type TransferLimit } from "@workspace/db";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, securityEvents, transfers, transferLimits, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type SecurityEvent, type Transfer, type InsertTransfer, type TransferLimit } from "@workspace/db";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -260,6 +260,10 @@ export interface IStorage {
   getSenderDailyTotal(senderId: number): Promise<number>;
   getTransferLimitForUser(orgId: number, userId: number): Promise<TransferLimit | undefined>;
   upsertTransferLimit(orgId: number, userId: number | null, dailyLimit: number, perTxnLimit: number): Promise<TransferLimit>;
+
+  // Security activity log
+  createSecurityEvent(data: { userId: number; eventType: "social_linked" | "social_unlinked" | "password_changed"; provider?: "google" | "apple" | null; providerEmail?: string | null }): Promise<void>;
+  getSecurityEventsByUser(userId: number, limit?: number): Promise<SecurityEvent[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1689,6 +1693,8 @@ export interface DatabaseStorage {
   deleteSocialLink: IStorage["deleteSocialLink"];
   createNotificationLog: IStorage["createNotificationLog"];
   getNotificationLogsByUser: IStorage["getNotificationLogsByUser"];
+  createSecurityEvent: IStorage["createSecurityEvent"];
+  getSecurityEventsByUser: IStorage["getSecurityEventsByUser"];
 }
 DatabaseStorage.prototype.createMerchant = async function (data) {
   const [m] = await db.insert(merchants).values(data).returning();
@@ -2113,6 +2119,19 @@ DatabaseStorage.prototype.upsertTransferLimit = async function (orgId, userId, d
     .values({ orgId, userId: userId ?? null, dailyLimit, perTxnLimit })
     .returning();
   return row;
+};
+
+DatabaseStorage.prototype.createSecurityEvent = async function ({ userId, eventType, provider, providerEmail }) {
+  await db.insert(securityEvents).values({ userId, eventType, provider: provider ?? null, providerEmail: providerEmail ?? null });
+};
+
+DatabaseStorage.prototype.getSecurityEventsByUser = async function (userId, limit = 50) {
+  return db
+    .select()
+    .from(securityEvents)
+    .where(eq(securityEvents.userId, userId))
+    .orderBy(desc(securityEvents.createdAt))
+    .limit(limit);
 };
 
 export const storage: IStorage = new DatabaseStorage();

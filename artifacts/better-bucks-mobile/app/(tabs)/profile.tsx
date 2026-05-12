@@ -241,6 +241,17 @@ export default function ProfileTab() {
           </>
         )}
 
+        {/* Security */}
+        <Text style={styles.sectionHeader}>Security</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow
+            icon="shield-outline"
+            label="Security activity"
+            sublabel="View recent account changes"
+            onPress={() => router.push("/security-activity")}
+          />
+        </View>
+
         {/* Session */}
         <Text style={styles.sectionHeader}>Session</Text>
         <View style={styles.menuGroup}>

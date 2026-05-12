@@ -101,6 +101,10 @@ function RootLayoutNav() {
         name="transfer/history"
         options={{ title: "Transfer History" }}
       />
+      <Stack.Screen
+        name="security-activity"
+        options={{ title: "Security Activity" }}
+      />
     </Stack>
   );
 }

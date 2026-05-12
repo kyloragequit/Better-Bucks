@@ -32,7 +32,7 @@ type Order = {
 };
 
 type MonthlySpend = { month: string; total: number };
-type ChartPoint = { label: string; total: number };
+type ChartPoint = { label: string; total: number; monthKey: string };
 
 const STATUS_CONFIG: Record<
   Order["status"],
@@ -66,8 +66,10 @@ function buildChartData(history: MonthlySpend[]): ChartPoint[] {
   while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth() + 1)) {
     const key = `${y}-${String(m).padStart(2, "0")}`;
     const d = new Date(y, m - 1, 1);
-    const label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-    result.push({ label, total: byMonth.get(key) ?? 0 });
+    const monthStr = d.toLocaleDateString("en-US", { month: "short" });
+    const yearStr = d.toLocaleDateString("en-US", { year: "2-digit" });
+    const label = `${monthStr} '${yearStr}`;
+    result.push({ label, total: byMonth.get(key) ?? 0, monthKey: key });
     m++;
     if (m > 12) { m = 1; y++; }
   }
@@ -79,9 +81,16 @@ function formatCompact(n: number): string {
   return String(n);
 }
 
-function SpendingChart({ token }: { token: string | null }) {
+function SpendingChart({
+  token,
+  onMonthSelect,
+  selectedMonthKey,
+}: {
+  token: string | null;
+  onMonthSelect: (monthKey: string | null, label: string | null) => void;
+  selectedMonthKey: string | null;
+}) {
   const { width: screenWidth } = useWindowDimensions();
-  const [selectedBar, setSelectedBar] = useState<number | null>(null);
 
   const { data: history = [], isError } = useQuery<MonthlySpend[]>({
     queryKey: ["mobile-redemptions-history", token],
@@ -98,7 +107,7 @@ function SpendingChart({ token }: { token: string | null }) {
   const chartData = buildChartData(history);
 
   useEffect(() => {
-    setSelectedBar(null);
+    onMonthSelect(null, null);
   }, [chartData.length]);
 
   if (isError) {
@@ -131,8 +140,11 @@ function SpendingChart({ token }: { token: string | null }) {
   const barGap = Math.max(2, chartW / barCount * 0.2);
   const barWidth = (chartW - barGap * (barCount - 1)) / barCount;
 
-  const sel = selectedBar != null ? (chartData[selectedBar] ?? null) : null;
-  const selX = selectedBar !== null ? PAD_LEFT + selectedBar * (barWidth + barGap) : 0;
+  const selectedBarIndex = selectedMonthKey
+    ? chartData.findIndex((d) => d.monthKey === selectedMonthKey)
+    : -1;
+  const sel = selectedBarIndex >= 0 ? chartData[selectedBarIndex] : null;
+  const selX = selectedBarIndex >= 0 ? PAD_LEFT + selectedBarIndex * (barWidth + barGap) : 0;
   const tooltipW = 70;
   const tooltipX = Math.min(
     Math.max(selX + barWidth / 2 - tooltipW / 2, PAD_LEFT),
@@ -144,6 +156,12 @@ function SpendingChart({ token }: { token: string | null }) {
       <View style={chartStyles.cardHeader}>
         <Ionicons name="bar-chart-outline" size={16} color={brand.navy} />
         <Text style={chartStyles.cardTitle}>Spending over time</Text>
+        {sel && (
+          <Text style={chartStyles.tapHint}>Tap again or use filter to clear</Text>
+        )}
+        {!sel && (
+          <Text style={chartStyles.tapHint}>Tap a bar to filter orders</Text>
+        )}
       </View>
       <Svg width={svgWidth} height={svgHeight}>
         {/* Y-axis grid lines and labels */}
@@ -178,11 +196,19 @@ function SpendingChart({ token }: { token: string | null }) {
           const barH = Math.max(2, (d.total / maxVal) * chartH);
           const y = PAD_TOP + chartH - barH;
           const showXLabel = barCount <= 12 || i % Math.ceil(barCount / 8) === 0 || i === barCount - 1;
-          const isSelected = selectedBar === i;
+          const isSelected = d.monthKey === selectedMonthKey;
           const barFill = isSelected ? brand.green : brand.navy;
           const labelY = Math.max(PAD_TOP - 3, y - 4);
           return (
-            <G key={d.label} onPress={() => setSelectedBar(isSelected ? null : i)}>
+            <G
+              key={d.label}
+              onPress={() =>
+                onMonthSelect(
+                  isSelected ? null : d.monthKey,
+                  isSelected ? null : d.label,
+                )
+              }
+            >
               <Rect
                 x={x}
                 y={y}
@@ -228,7 +254,7 @@ function SpendingChart({ token }: { token: string | null }) {
         })}
 
         {/* Tooltip for selected bar — rendered last so it sits on top */}
-        {sel !== null && selectedBar !== null && (
+        {sel !== null && selectedBarIndex >= 0 && (
           <G>
             <Rect
               x={tooltipX}
@@ -275,6 +301,12 @@ const chartStyles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
   },
+  tapHint: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 10,
+    marginLeft: "auto",
+  },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -296,6 +328,9 @@ export default function OrdersTab() {
   const queryClient = useQueryClient();
   const admin = user?.role === "admin" || user?.role === "prime_admin";
 
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
+  const [selectedMonthLabel, setSelectedMonthLabel] = useState<string | null>(null);
+
   const { data: orders = [], isLoading, refetch, isRefetching } = useQuery<Order[]>({
     queryKey: ["mobile-orders", token],
     queryFn: async () => {
@@ -307,6 +342,24 @@ export default function OrdersTab() {
     },
     enabled: !!token,
   });
+
+  function handleMonthSelect(monthKey: string | null, label: string | null) {
+    setSelectedMonthKey(monthKey);
+    setSelectedMonthLabel(label);
+  }
+
+  function clearMonthFilter() {
+    setSelectedMonthKey(null);
+    setSelectedMonthLabel(null);
+  }
+
+  const filteredOrders = selectedMonthKey
+    ? orders.filter((o) => {
+        const d = new Date(o.createdAt);
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+        return key === selectedMonthKey;
+      })
+    : orders;
 
   const handleStatusChange = async (order: Order, newStatus: Order["status"]) => {
     Alert.alert(
@@ -355,14 +408,37 @@ export default function OrdersTab() {
     );
   }
 
-  const listHeader = !admin ? <SpendingChart token={token} /> : null;
+  const filterBanner = !admin && selectedMonthKey ? (
+    <View style={styles.filterBanner}>
+      <Ionicons name="calendar-outline" size={14} color={brand.navy} />
+      <Text style={styles.filterBannerText}>Viewing: {selectedMonthLabel}</Text>
+      <TouchableOpacity onPress={clearMonthFilter} style={styles.filterClearBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name="close-circle" size={16} color={brand.navy} />
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
+  const listHeader = !admin ? (
+    <>
+      <SpendingChart
+        token={token}
+        onMonthSelect={handleMonthSelect}
+        selectedMonthKey={selectedMonthKey}
+      />
+      {filterBanner}
+    </>
+  ) : null;
 
   if (orders.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: brand.white }}>
         {!admin && (
           <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-            <SpendingChart token={token} />
+            <SpendingChart
+              token={token}
+              onMonthSelect={handleMonthSelect}
+              selectedMonthKey={selectedMonthKey}
+            />
           </View>
         )}
         <View style={styles.center}>
@@ -382,7 +458,7 @@ export default function OrdersTab() {
 
   return (
     <FlatList
-      data={orders}
+      data={filteredOrders}
       keyExtractor={(o) => String(o.id)}
       style={{ backgroundColor: brand.white }}
       contentContainerStyle={[
@@ -390,6 +466,19 @@ export default function OrdersTab() {
         { paddingBottom: insets.bottom + 32 },
       ]}
       ListHeaderComponent={listHeader}
+      ListEmptyComponent={
+        selectedMonthKey ? (
+          <View style={styles.emptyFiltered}>
+            <Ionicons name="receipt-outline" size={36} color={brand.textMuted} />
+            <Text style={styles.emptyFilteredText}>
+              No orders in {selectedMonthLabel}
+            </Text>
+            <TouchableOpacity onPress={clearMonthFilter} style={styles.clearFilterLink}>
+              <Text style={styles.clearFilterLinkText}>Show all orders</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null
+      }
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
@@ -560,6 +649,50 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     textAlign: "center",
+  },
+  filterBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: brand.navy + "10",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: brand.navy + "25",
+  },
+  filterBannerText: {
+    flex: 1,
+    color: brand.navy,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+  },
+  filterClearBtn: {
+    padding: 2,
+  },
+  emptyFiltered: {
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 32,
+  },
+  emptyFilteredText: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+    textAlign: "center",
+  },
+  clearFilterLink: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: brand.navy + "40",
+  },
+  clearFilterLinkText: {
+    color: brand.navy,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
   },
   card: {
     backgroundColor: brand.white,

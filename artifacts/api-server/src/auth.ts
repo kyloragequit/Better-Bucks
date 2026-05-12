@@ -57,8 +57,13 @@ export function isCaptchaRequired(successfulLoginCount: number): boolean {
 }
 
 export async function verifyTurnstileToken(token: string, remoteIp?: string): Promise<boolean> {
-  // Cloudflare test secret always returns success — swap for real key via TURNSTILE_SECRET_KEY env var
-  const secret = process.env.TURNSTILE_SECRET_KEY || "1x0000000000000000000000000000000AA";
+  // In development use the Cloudflare always-pass test secret so the test site key
+  // (used when VITE_TURNSTILE_SITE_KEY is the test key) verifies successfully.
+  // In production the real TURNSTILE_SECRET_KEY is required.
+  const secret =
+    process.env.NODE_ENV === "development"
+      ? "1x0000000000000000000000000000000AA"
+      : (process.env.TURNSTILE_SECRET_KEY || "1x0000000000000000000000000000000AA");
   try {
     const body: Record<string, string> = { secret, response: token };
     if (remoteIp) body.remoteip = remoteIp;

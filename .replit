@@ -33,8 +33,16 @@ localPort = 8081
 externalPort = 8081
 
 [[ports]]
+localPort = 8082
+externalPort = 3003
+
+[[ports]]
 localPort = 19186
 externalPort = 3001
+
+[[ports]]
+localPort = 19187
+externalPort = 3002
 
 [[ports]]
 localPort = 24586
@@ -46,4 +54,9 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
+
+[userenv.development]
+VITE_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+
+[userenv.production]
 VITE_TURNSTILE_SITE_KEY = "0x4AAAAAADLpUK3jNdLg8rvm"

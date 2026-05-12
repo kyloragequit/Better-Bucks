@@ -2297,7 +2297,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       }
     }
 
-    const profileData: any = { username: data.username, password: data.password, email: data.email };
+    const isSelfPasswordChange = !!(data.password && user.id === id);
+    const profileData: any = { username: data.username, password: data.password, email: data.email, clearLastPlainPassword: isSelfPasswordChange };
     if (isPrime && data.departmentId !== undefined) {
       profileData.departmentId = data.departmentId;
     }
@@ -2395,6 +2396,27 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const fullUser = await storage.getUser(user.id);
     if (!fullUser) return res.status(404).json({ message: "User not found" });
     res.json({ password: fullUser.lastPlainPassword || null });
+  });
+
+  // View login info for a specific user (admin/prime_admin only)
+  app.get("/api/users/:id/login-info", async (req, res) => {
+    const viewer = req.user as User | undefined;
+    if (!req.isAuthenticated() || !viewer) return res.status(401).json({ message: "Not authenticated" });
+    if (viewer.role !== "prime_admin" && viewer.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    const target = await storage.getUser(id);
+    if (!target) return res.status(404).json({ message: "User not found" });
+    // Admins can only view users in their own org; prime admins can view anyone
+    if (viewer.role === "admin" && target.organizationId !== viewer.organizationId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    res.json({
+      username: target.username,
+      lastPlainPassword: target.lastPlainPassword ?? null,
+    });
   });
 
   // Resend join email to a user (prime_admin only)

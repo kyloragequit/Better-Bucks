@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail, Copy, Lock, LockOpen, Gift } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail, Copy, Lock, LockOpen, Gift, Eye, EyeOff, LogIn } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
@@ -729,6 +729,11 @@ export default function AdminEmployeeDetailPage() {
         )}
       </div>
 
+      {/* Login Information */}
+      <div className="mb-6">
+        <LoginInfoCard userId={user.id} />
+      </div>
+
       {/* Bucks Activity Chart */}
       <div className="mb-8">
         <BucksActivityChart transactions={user.transactions ?? []} />
@@ -786,6 +791,96 @@ export default function AdminEmployeeDetailPage() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+function LoginInfoCard({ userId }: { userId: number }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const { toast } = useToast();
+
+  const { data, isLoading } = useQuery<{ username: string; lastPlainPassword: string | null }>({
+    queryKey: [`/api/users/${userId}/login-info`],
+  });
+
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: `${label} copied`, description: `${label} copied to clipboard.` });
+    });
+  };
+
+  const hasPassword = !!data?.lastPlainPassword;
+
+  return (
+    <Card className="shadow-sm border-primary/10">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <LogIn className="h-4 w-4 text-primary" /> Login Information
+        </CardTitle>
+        <CardDescription className="text-xs">
+          {hasPassword
+            ? "Password visible until the employee sets their own."
+            : "Employee has set their own password. Use Edit Profile to assign a temporary one."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Loading…</div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground mb-0.5">Username</p>
+                <p className="font-mono text-sm font-medium truncate">{data?.username}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={() => copy(data!.username, "Username")}
+                title="Copy username"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground mb-0.5">Password</p>
+                {hasPassword ? (
+                  <p className="font-mono text-sm font-medium truncate">
+                    {showPassword ? data!.lastPlainPassword : "••••••••"}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Changed by employee</p>
+                )}
+              </div>
+              {hasPassword && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setShowPassword(p => !p)}
+                    title={showPassword ? "Hide password" : "Reveal password"}
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => copy(data!.lastPlainPassword!, "Password")}
+                    title="Copy password"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

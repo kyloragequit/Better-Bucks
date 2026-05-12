@@ -506,6 +506,20 @@ export function registerMobileRoutes(app: Express) {
         );
       }
 
+      // Welcome email to the new employee (fire-and-forget)
+      sendEmail({
+        to: newUser.email,
+        subject: "Welcome to Better Bucks!",
+        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#222;">
+  <h2 style="color:#1a3a5c;">Welcome to Better Bucks, ${newUser.fullName ?? "there"}! 🎉</h2>
+  <p>You're all set. Your manager can now start rewarding you with Bucks for your great work.</p>
+  <p>When you're ready, open the Better Bucks app to check your balance and browse the rewards store.</p>
+  <p style="margin-top:24px;color:#555;">Questions? Just reply to this email — we're happy to help.</p>
+  <p style="color:#555;">— The Better Bucks Team</p>
+</div>`,
+        text: `Welcome to Better Bucks, ${newUser.fullName ?? "there"}!\n\nYou're all set. Your manager can now start rewarding you with Bucks for your great work.\n\nWhen you're ready, open the Better Bucks app to check your balance and browse the rewards store.\n\nQuestions? Just reply to this email — we're happy to help.\n\n— The Better Bucks Team`,
+      }).catch((err) => logger.error({ err }, "[mobile/auth/social/signup] welcome email failed"));
+
       // Notify org admins that a new employee joined via social sign-in (fire-and-forget)
       storage.getUsersByOrganization(org.id).then((orgUsers) => {
         const providerLabel = parsed.provider === "apple" ? "Apple" : "Google";

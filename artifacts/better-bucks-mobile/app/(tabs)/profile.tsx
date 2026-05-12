@@ -202,45 +202,6 @@ export default function ProfileTab() {
           />
         </View>
 
-        {/* Admin tools */}
-        {isAdmin && (
-          <>
-            <Text style={styles.sectionHeader}>Admin Tools</Text>
-            <View style={styles.menuGroup}>
-              <MenuRow
-                icon="people-outline"
-                label="Pending Accounts"
-                sublabel="Approve or reject new employees"
-                onPress={() => router.push("/admin/pending" as any)}
-              />
-              <MenuRow
-                icon="trophy-outline"
-                label="Goals"
-                sublabel="Create & manage team goals"
-                onPress={() => router.push("/admin/goals" as any)}
-              />
-              <MenuRow
-                icon="document-text-outline"
-                label="Surveys"
-                sublabel="Create & manage surveys"
-                onPress={() => router.push("/admin/surveys" as any)}
-              />
-              <MenuRow
-                icon="storefront-outline"
-                label="Store Items"
-                sublabel="Manage your rewards catalog"
-                onPress={() => router.push("/admin/store-items" as any)}
-              />
-              <MenuRow
-                icon="settings-outline"
-                label="Organization Settings"
-                sublabel="Budget, role labels & more"
-                onPress={() => router.push("/admin/org-settings" as any)}
-              />
-            </View>
-          </>
-        )}
-
         {/* Security */}
         <Text style={styles.sectionHeader}>Security</Text>
         <View style={styles.menuGroup}>

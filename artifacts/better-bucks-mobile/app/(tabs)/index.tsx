@@ -328,6 +328,18 @@ export default function HomeTab() {
           </>
         )}
 
+        {/* Admin Tools */}
+        {admin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Admin Tools</Text>
+            <View style={adminToolStyles.grid}>
+              {ADMIN_TOOLS.map((tool) => (
+                <AdminToolCard key={tool.route} {...tool} />
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Active goals */}
         {(data?.activeGoals ?? []).length > 0 && (
           <View style={styles.section}>
@@ -534,6 +546,75 @@ function TransactionRow({ tx }: { tx: Transaction }) {
     </Pressable>
   );
 }
+
+const ADMIN_TOOLS: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  route: string;
+}[] = [
+  { icon: "people-outline", label: "Pending Accounts", route: "/admin/pending" },
+  { icon: "trophy-outline", label: "Goals", route: "/admin/goals" },
+  { icon: "document-text-outline", label: "Surveys", route: "/admin/surveys" },
+  { icon: "storefront-outline", label: "Store Items", route: "/admin/store-items" },
+  { icon: "settings-outline", label: "Organization Settings", route: "/admin/org-settings" },
+];
+
+function AdminToolCard({
+  icon,
+  label,
+  route,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  route: string;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        adminToolStyles.card,
+        pressed && { opacity: 0.8 },
+      ]}
+      onPress={() => router.push(route as any)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={adminToolStyles.iconWrap}>
+        <Ionicons name={icon} size={22} color={brand.gold} />
+      </View>
+      <Text style={adminToolStyles.label} numberOfLines={2}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const adminToolStyles = StyleSheet.create({
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  card: {
+    width: "47.5%",
+    backgroundColor: brand.navy,
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+    alignItems: "flex-start",
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "rgba(245,200,66,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: {
+    color: brand.white,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+});
 
 const txStyles = StyleSheet.create({
   row: {

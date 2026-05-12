@@ -33,6 +33,7 @@ function RootLayoutNav() {
         headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
         contentStyle: { backgroundColor: brand.white },
         headerShadowVisible: false,
+        headerBackTitle: "Back",
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />

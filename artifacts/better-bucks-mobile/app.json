@@ -15,10 +15,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "net.betterbucks.app"
+      "bundleIdentifier": "net.betterbucks.app",
+      "infoPlist": {
+        "NFCReaderUsageDescription": "Better Bucks uses NFC to read item tap-to-order tokens from your manager's device."
+      }
     },
     "android": {
-      "package": "net.betterbucks.app"
+      "package": "net.betterbucks.app",
+      "permissions": ["android.permission.NFC"]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -39,6 +43,14 @@
         {
           "merchantIdentifier": "merchant.net.betterbucks.app",
           "enableGooglePay": false
+        }
+      ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Better Bucks uses NFC to read item tap-to-order tokens from your manager's device.",
+          "selectIdentifiers": [],
+          "querySchemes": []
         }
       ]
     ],

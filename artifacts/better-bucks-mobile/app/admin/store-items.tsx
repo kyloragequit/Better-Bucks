@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -272,6 +273,13 @@ export default function StoreItemsScreen() {
                 <Text style={[styles.actionChipText, { color: item.available ? brand.danger : brand.green }]}>
                   {item.available ? "Hide" : "Show"}
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionChip, { backgroundColor: "rgba(10,25,50,0.08)" }]}
+                onPress={() => router.push({ pathname: "/admin/store-nfc", params: { itemId: item.id, itemName: item.name, itemPrice: item.price } })}
+              >
+                <Ionicons name="radio-outline" size={13} color={brand.navy} />
+                <Text style={[styles.actionChipText, { color: brand.navy }]}>NFC</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionChip, { backgroundColor: "rgba(198,40,40,0.08)" }]} onPress={() => handleDelete(item)}>
                 <Ionicons name="trash-outline" size={13} color={brand.danger} />

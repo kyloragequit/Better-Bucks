@@ -1,4 +1,3 @@
-import { useStripe } from "@stripe/stripe-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
 import {
@@ -34,10 +33,6 @@ type Category = {
   color: string;
 };
 
-type Org = {
-  bucksPerDollar: number;
-};
-
 type ApiErrorBody = { message?: string };
 
 function extractApiError(data: unknown, fallback: string): string {
@@ -54,14 +49,9 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-function formatDollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 export default function TransferScreen() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const queryClient = useQueryClient();
 
   const admin = user?.role === "admin" || user?.role === "prime_admin";
@@ -89,19 +79,6 @@ export default function TransferScreen() {
     staleTime: 60_000,
   });
 
-  const { data: org } = useQuery<Org>({
-    queryKey: ["mobile-admin-org", token],
-    queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/admin/org"), {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (!res.ok) throw new Error("Failed to load org");
-      return res.json();
-    },
-    enabled: !!token && admin,
-    staleTime: 300_000,
-  });
-
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["mobile-admin-categories", token],
     queryFn: async () => {
@@ -115,11 +92,7 @@ export default function TransferScreen() {
     staleTime: 300_000,
   });
 
-  const bucksPerDollar = org?.bucksPerDollar ?? 100;
   const parsedAmount = parseInt(amount) || 0;
-  const estimatedCents = parsedAmount > 0
-    ? Math.max(50, Math.round((parsedAmount / bucksPerDollar) * 100))
-    : 0;
 
   const filteredEmployees = employees.filter((e) =>
     e.id !== user?.id &&
@@ -140,94 +113,39 @@ export default function TransferScreen() {
     setSearch("");
   }, []);
 
+  const postBalance = async (body: Record<string, unknown>) => {
+    const res = await fetch(
+      apiUrl(`/api/mobile/admin/employees/${selectedEmployee!.id}/balance`),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!res.ok) {
+      const data: unknown = await res.json().catch(() => ({}));
+      throw new Error(extractApiError(data, "Transfer failed."));
+    }
+    return res.json();
+  };
+
   const handleCredit = async () => {
     if (!selectedEmployee || parsedAmount <= 0 || !token) return;
-
     if (!reason.trim()) {
       Alert.alert("Reason Required", "Please enter a reason for this credit.");
       return;
     }
-
     if (categories.length > 0 && !categoryId) {
       Alert.alert("Category Required", "Please select a category for this credit.");
       return;
     }
-
     setSubmitting(true);
     try {
-      const res = await fetch(apiUrl("/api/mobile/transfer/payment-intent"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ targetUserId: selectedEmployee.id, amount: parsedAmount }),
-      });
-
-      if (!res.ok) {
-        const data: unknown = await res.json().catch(() => ({}));
-        Alert.alert("Error", extractApiError(data, "Could not start payment."));
-        setSubmitting(false);
-        return;
-      }
-
-      const piData = await res.json() as { clientSecret: string; paymentIntentId: string; amountCents: number };
-      const { clientSecret, paymentIntentId } = piData;
-
-      const selectedCat = categories.find((c) => c.id === categoryId);
-
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: "Better Bucks",
-        applePay: { merchantCountryCode: "US" },
-        googlePay: { merchantCountryCode: "US", testEnv: __DEV__ },
-      });
-
-      if (initError) {
-        Alert.alert("Payment Error", initError.message);
-        setSubmitting(false);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-
-      if (presentError) {
-        if (presentError.code !== "Canceled") {
-          Alert.alert("Payment Failed", presentError.message);
-        }
-        setSubmitting(false);
-        return;
-      }
-
-      const balanceRes = await fetch(
-        apiUrl(`/api/mobile/admin/employees/${selectedEmployee.id}/balance`),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            amount: parsedAmount,
-            reason: reason.trim(),
-            categoryId: categoryId ?? undefined,
-            hasCashValue: true,
-            paymentIntentId,
-          }),
-        },
-      );
-
-      if (!balanceRes.ok) {
-        const data: unknown = await balanceRes.json().catch(() => ({}));
-        Alert.alert("Transfer Error", extractApiError(data, "Payment succeeded but balance update failed. Contact support."));
-        setSubmitting(false);
-        return;
-      }
-
+      await postBalance({ amount: parsedAmount, reason: reason.trim(), categoryId: categoryId ?? undefined });
       queryClient.invalidateQueries({ queryKey: ["mobile-admin-employees"] });
       Alert.alert(
-        "Transfer Complete!",
-        `${parsedAmount.toLocaleString()} Bucks credited to ${selectedEmployee.fullName}.\n${formatDollars(estimatedCents)} charged.`,
+        "Transfer Complete",
+        `${parsedAmount.toLocaleString()} Bucks credited to ${selectedEmployee.fullName}.`,
         [{ text: "Done", onPress: resetForm }],
       );
     } catch (err: unknown) {
@@ -239,37 +157,13 @@ export default function TransferScreen() {
 
   const handleDebit = async () => {
     if (!selectedEmployee || parsedAmount <= 0 || !token) return;
-
     if (!reason.trim()) {
       Alert.alert("Reason Required", "Please enter a reason for this deduction.");
       return;
     }
-
     setSubmitting(true);
     try {
-      const res = await fetch(
-        apiUrl(`/api/mobile/admin/employees/${selectedEmployee.id}/balance`),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            amount: -parsedAmount,
-            reason: reason.trim(),
-            hasCashValue,
-          }),
-        },
-      );
-
-      if (!res.ok) {
-        const data: unknown = await res.json().catch(() => ({}));
-        Alert.alert("Error", extractApiError(data, "Deduction failed."));
-        setSubmitting(false);
-        return;
-      }
-
+      await postBalance({ amount: -parsedAmount, reason: reason.trim(), hasCashValue });
       queryClient.invalidateQueries({ queryKey: ["mobile-admin-employees"] });
       Alert.alert(
         "Deduction Complete",
@@ -284,11 +178,8 @@ export default function TransferScreen() {
   };
 
   const handleSubmit = () => {
-    if (txType === "credit") {
-      handleCredit();
-    } else {
-      handleDebit();
-    }
+    if (txType === "credit") handleCredit();
+    else handleDebit();
   };
 
   if (!admin) {
@@ -424,28 +315,14 @@ export default function TransferScreen() {
       </View>
 
       <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Amount (Bucks)</Text>
-      <View style={styles.amountRow}>
-        <TextInput
-          style={styles.amountInput}
-          placeholder="0"
-          placeholderTextColor={brand.textMuted}
-          keyboardType="number-pad"
-          value={amount}
-          onChangeText={(v) => setAmount(v.replace(/[^0-9]/g, ""))}
-        />
-        {parsedAmount > 0 && txType === "credit" && (
-          <View style={styles.dollarBadge}>
-            <Text style={styles.dollarBadgeText}>
-              ≈ {formatDollars(estimatedCents)}
-            </Text>
-          </View>
-        )}
-      </View>
-      {parsedAmount > 0 && (
-        <Text style={styles.conversionHint}>
-          {parsedAmount.toLocaleString()} Bucks @ {bucksPerDollar} Bucks/$1
-        </Text>
-      )}
+      <TextInput
+        style={styles.amountInput}
+        placeholder="0"
+        placeholderTextColor={brand.textMuted}
+        keyboardType="number-pad"
+        value={amount}
+        onChangeText={(v) => setAmount(v.replace(/[^0-9]/g, ""))}
+      />
 
       {txType === "credit" && (
         <>
@@ -510,7 +387,6 @@ export default function TransferScreen() {
             value={reason}
             onChangeText={setReason}
           />
-
           <View style={styles.cashValueRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.cashValueLabel}>Has cash value</Text>
@@ -528,15 +404,6 @@ export default function TransferScreen() {
         </>
       )}
 
-      {txType === "credit" && parsedAmount > 0 && selectedEmployee && (
-        <View style={styles.summaryBox}>
-          <Ionicons name="card-outline" size={18} color={brand.navy} />
-          <Text style={styles.summaryText}>
-            {formatDollars(estimatedCents)} will be charged via Apple Pay / Google Pay
-          </Text>
-        </View>
-      )}
-
       <Pressable
         style={({ pressed }) => [
           styles.submitBtn,
@@ -552,14 +419,14 @@ export default function TransferScreen() {
         ) : (
           <>
             <Ionicons
-              name={txType === "credit" ? "card-outline" : "remove-circle-outline"}
+              name={txType === "credit" ? "arrow-down-circle-outline" : "remove-circle-outline"}
               size={18}
               color={brand.white}
             />
             <Text style={styles.submitBtnText}>
               {txType === "credit"
-                ? `Pay & Credit ${parsedAmount > 0 ? `${parsedAmount.toLocaleString()} Bucks` : ""}`
-                : `Deduct ${parsedAmount > 0 ? `${parsedAmount.toLocaleString()} Bucks` : ""}`}
+                ? `Credit${parsedAmount > 0 ? ` ${parsedAmount.toLocaleString()} Bucks` : ""}`
+                : `Deduct${parsedAmount > 0 ? ` ${parsedAmount.toLocaleString()} Bucks` : ""}`}
             </Text>
           </>
         )}
@@ -569,33 +436,11 @@ export default function TransferScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: brand.white,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
-  },
-  errorText: {
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    textAlign: "center",
-  },
-  emptyText: {
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: 32,
-  },
+  root: { flex: 1, backgroundColor: brand.white },
+  content: { paddingHorizontal: 20, paddingTop: 20 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
+  errorText: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 15, textAlign: "center" },
+  emptyText: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center", marginTop: 32 },
   sectionLabel: {
     color: brand.textSecondary,
     fontFamily: "Inter_600SemiBold",
@@ -615,16 +460,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: brand.offWhite,
   },
-  pickerPlaceholder: {
-    flex: 1,
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-  },
-  toggleRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  pickerPlaceholder: { flex: 1, color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 15 },
+  toggleRow: { flexDirection: "row", gap: 10 },
   toggleBtn: {
     flex: 1,
     flexDirection: "row",
@@ -637,29 +474,11 @@ const styles = StyleSheet.create({
     borderColor: brand.border,
     backgroundColor: brand.offWhite,
   },
-  toggleBtnActive: {
-    backgroundColor: brand.green,
-    borderColor: brand.green,
-  },
-  toggleBtnDebit: {
-    backgroundColor: brand.danger,
-    borderColor: brand.danger,
-  },
-  toggleBtnText: {
-    color: brand.textSecondary,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-  },
-  toggleBtnTextActive: {
-    color: brand.white,
-  },
-  amountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+  toggleBtnActive: { backgroundColor: brand.green, borderColor: brand.green },
+  toggleBtnDebit: { backgroundColor: brand.danger, borderColor: brand.danger },
+  toggleBtnText: { color: brand.textSecondary, fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  toggleBtnTextActive: { color: brand.white },
   amountInput: {
-    flex: 1,
     borderWidth: 1.5,
     borderColor: brand.border,
     borderRadius: 12,
@@ -670,27 +489,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     fontSize: 24,
   },
-  dollarBadge: {
-    backgroundColor: brand.navy,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  dollarBadgeText: {
-    color: brand.white,
-    fontFamily: "Inter_700Bold",
-    fontSize: 14,
-  },
-  conversionHint: {
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    marginTop: 6,
-  },
-  categoryList: {
-    gap: 8,
-    paddingBottom: 4,
-  },
+  categoryList: { gap: 8, paddingBottom: 4 },
   categoryChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -702,16 +501,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: brand.white,
   },
-  categoryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  categoryChipText: {
-    color: brand.textSecondary,
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-  },
+  categoryDot: { width: 8, height: 8, borderRadius: 4 },
+  categoryChipText: { color: brand.textSecondary, fontFamily: "Inter_500Medium", fontSize: 13 },
   reasonInput: {
     borderWidth: 1.5,
     borderColor: brand.border,
@@ -736,35 +527,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: brand.offWhite,
   },
-  cashValueLabel: {
-    color: brand.text,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  cashValueHint: {
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    flexShrink: 1,
-  },
-  summaryBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 20,
-    padding: 14,
-    backgroundColor: "rgba(10,25,50,0.05)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(10,25,50,0.12)",
-  },
-  summaryText: {
-    color: brand.navy,
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    flex: 1,
-  },
+  cashValueLabel: { color: brand.text, fontFamily: "Inter_600SemiBold", fontSize: 14, marginBottom: 2 },
+  cashValueHint: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 12, flexShrink: 1 },
   submitBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -775,17 +539,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginTop: 24,
   },
-  submitBtnDebit: {
-    backgroundColor: brand.danger,
-  },
-  submitBtnDisabled: {
-    opacity: 0.5,
-  },
-  submitBtnText: {
-    color: brand.white,
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-  },
+  submitBtnDebit: { backgroundColor: brand.danger },
+  submitBtnDisabled: { opacity: 0.5 },
+  submitBtnText: { color: brand.white, fontFamily: "Inter_700Bold", fontSize: 16 },
   searchHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -795,11 +551,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: brand.border,
   },
-  searchTitle: {
-    color: brand.text,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 17,
-  },
+  searchTitle: { color: brand.text, fontFamily: "Inter_600SemiBold", fontSize: 17 },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -813,12 +565,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: brand.border,
   },
-  searchInput: {
-    flex: 1,
-    color: brand.text,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-  },
+  searchInput: { flex: 1, color: brand.text, fontFamily: "Inter_400Regular", fontSize: 15 },
   empRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -836,45 +583,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  empAvatarText: {
-    color: brand.white,
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-  },
-  empInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  empName: {
-    color: brand.text,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-  },
-  empUsername: {
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-  },
-  empBalance: {
-    color: brand.green,
-    fontFamily: "Inter_700Bold",
-    fontSize: 13,
-  },
-  empBalance2: {
-    color: brand.textMuted,
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-  },
-  infoBox: {
-    backgroundColor: brand.offWhite,
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: brand.border,
-  },
-  infoBoxText: {
-    color: brand.textSecondary,
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-  },
+  empAvatarText: { color: brand.white, fontFamily: "Inter_700Bold", fontSize: 16 },
+  empInfo: { flex: 1, gap: 2 },
+  empName: { color: brand.text, fontFamily: "Inter_600SemiBold", fontSize: 15 },
+  empUsername: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 12 },
+  empBalance: { color: brand.green, fontFamily: "Inter_700Bold", fontSize: 13 },
+  empBalance2: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 12 },
+  infoBox: { backgroundColor: brand.offWhite, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: brand.border },
+  infoBoxText: { color: brand.textSecondary, fontFamily: "Inter_400Regular", fontSize: 13 },
 });

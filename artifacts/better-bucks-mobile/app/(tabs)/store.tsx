@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import NfcManager, { Ndef, NfcTech } from "react-native-nfc-manager";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -109,6 +110,64 @@ function EmployeeStore() {
   const sortLabel =
     sortOrder === "asc" ? "Price ↑" : sortOrder === "desc" ? "Price ↓" : "Sort";
 
+  const [scanningNfc, setScanningNfc] = useState(false);
+
+  const handleNfcScan = useCallback(async () => {
+    if (scanningNfc) return;
+    let supported = false;
+    try {
+      supported = await NfcManager.isSupported();
+    } catch {}
+    if (!supported) {
+      Alert.alert("NFC not available", "Your device does not support NFC.");
+      return;
+    }
+    setScanningNfc(true);
+    Alert.alert("Tap NFC", "Hold your phone near your manager's device.", [
+      {
+        text: "Cancel",
+        style: "cancel",
+        onPress: () => {
+          try { void NfcManager.cancelTechnologyRequest().catch(() => {}); } catch {}
+          setScanningNfc(false);
+        },
+      },
+    ]);
+    try {
+      await NfcManager.start().catch(() => {});
+      await NfcManager.requestTechnology(NfcTech.Ndef);
+      const tag = await NfcManager.getTag();
+      const record = tag?.ndefMessage?.[0];
+      if (!record) throw new Error("No NFC data found");
+      const rawPayload = new Uint8Array(record.payload as number[]);
+      const nfcToken = Ndef.text.decodePayload(rawPayload);
+      if (!nfcToken) throw new Error("Unreadable NFC tag");
+      const res = await fetch(apiUrl("/api/mobile/shop/nfc-order"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ token: nfcToken }),
+      });
+      const data = await res.json().catch(() => ({})) as { message?: string; item?: string; cost?: number; newBalance?: number };
+      if (!res.ok) {
+        Alert.alert("Order failed", data.message ?? "Try again.");
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["mobile-dashboard"] });
+      Alert.alert(
+        "Order placed!",
+        `${data.item ?? "Item"} ordered for ${(data.cost ?? 0).toLocaleString()} Bucks.\nNew balance: ${(data.newBalance ?? 0).toLocaleString()} Bucks.`,
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "NFC scan failed";
+      if (!msg.toLowerCase().includes("cancel")) {
+        Alert.alert("Scan failed", msg);
+      }
+    } finally {
+      try { void NfcManager.cancelTechnologyRequest().catch(() => {}); } catch {}
+      setScanningNfc(false);
+    }
+  }, [scanningNfc, token, queryClient]);
+
   const handlePurchase = useCallback(
     async (item: StoreItem) => {
       Alert.alert(
@@ -161,6 +220,7 @@ function EmployeeStore() {
   }
 
   return (
+    <View style={{ flex: 1 }}>
     <FlatList
       data={filteredItems}
       keyExtractor={(item) => String(item.id)}
@@ -358,6 +418,22 @@ function EmployeeStore() {
         </View>
       )}
     />
+    <TouchableOpacity
+      style={[styles.nfcFab, { bottom: insets.bottom + 24 }]}
+      onPress={() => void handleNfcScan()}
+      disabled={scanningNfc}
+      accessibilityLabel="Scan NFC to order"
+    >
+      {scanningNfc ? (
+        <ActivityIndicator color={brand.white} size="small" />
+      ) : (
+        <>
+          <Ionicons name="radio-outline" size={18} color={brand.white} />
+          <Text style={styles.nfcFabText}>Scan NFC</Text>
+        </>
+      )}
+    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -877,6 +953,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buyBtnText: {
+    color: brand.white,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+  },
+  nfcFab: {
+    position: "absolute",
+    left: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: brand.navy,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  nfcFabText: {
     color: brand.white,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,

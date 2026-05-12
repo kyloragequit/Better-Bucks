@@ -14,8 +14,6 @@ import { notifyAdminsOfAccountLockout } from "../lib/lockoutNotify";
 import { sendEmail } from "../lib/email";
 import { buildPassForEmployee, PassConfigError, pushPassUpdateForEmployee } from "../walletPass";
 import { buildGoogleWalletSaveUrl, GoogleWalletConfigError, pushGoogleWalletUpdateForEmployee } from "../googleWalletPass";
-import { db, transactions } from "@workspace/db";
-import { eq } from "drizzle-orm";
 import type {
   InsertOrganization,
   InsertUser,
@@ -1617,7 +1615,6 @@ export function registerMobileRoutes(app: Express) {
       reason: z.string().min(1).max(500),
       categoryId: z.number().int().optional(),
       hasCashValue: z.boolean().optional(),
-      paymentIntentId: z.string().optional(),
     });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) {
@@ -1628,85 +1625,16 @@ export function registerMobileRoutes(app: Express) {
       if (!emp || emp.organizationId !== user.organizationId || emp.role !== "employee") {
         return res.status(404).json({ message: "Employee not found" });
       }
-
-      let stripePaymentIntentId: string | null = null;
-      let serverHasCashValue: boolean | null = parsed.data.hasCashValue ?? null;
-
-      if (parsed.data.amount > 0) {
-        // Credits must be backed by a verified Stripe payment
-        const piId = parsed.data.paymentIntentId;
-        if (!piId) {
-          return res.status(400).json({ message: "paymentIntentId is required for credit transfers" });
-        }
-
-        // Fast-path idempotency check (race handled atomically at insert time)
-        const [existing] = await db
-          .select({ id: transactions.id })
-          .from(transactions)
-          .where(eq(transactions.stripePaymentIntentId, piId))
-          .limit(1);
-        if (existing) {
-          const fresh = await storage.getUser(empId);
-          return res.json({ success: true, newBalance: fresh?.balance ?? 0, idempotent: true });
-        }
-
-        // Verify payment intent status with Stripe
-        await ensureStripeReady();
-        const stripe = await getUncachableStripeClient();
-        const intent = await stripe.paymentIntents.retrieve(piId);
-        if (intent.status !== "succeeded") {
-          return res.status(402).json({ message: "Payment has not been completed" });
-        }
-
-        // Validate intent metadata matches this request
-        if (
-          intent.metadata?.targetUserId !== String(empId) ||
-          intent.metadata?.orgId !== String(user.organizationId) ||
-          intent.metadata?.bucksAmount !== String(parsed.data.amount)
-        ) {
-          return res.status(400).json({ message: "Payment intent does not match this transfer" });
-        }
-
-        // Validate paid amount matches expected Bucks conversion
-        const org = await storage.getOrganization(user.organizationId);
-        if (!org) return res.status(404).json({ message: "Organization not found" });
-        const bucksPerDollar = org.bucksPerDollar ?? 100;
-        const expectedCents = Math.max(50, Math.round((parsed.data.amount / bucksPerDollar) * 100));
-        const paidCents = intent.amount_received ?? 0;
-        if (paidCents < expectedCents) {
-          return res.status(402).json({
-            message: `Payment amount mismatch: expected ${expectedCents} cents, received ${paidCents}`,
-          });
-        }
-
-        stripePaymentIntentId = piId;
-        // Payment-backed credits always carry cash value — derive server-side
-        serverHasCashValue = true;
-      }
-
       await storage.updateUserBalance(empId, parsed.data.amount);
-      try {
-        await storage.createTransaction({
-          userId: empId,
-          amount: parsed.data.amount,
-          reason: parsed.data.reason,
-          performedBy: user.id,
-          categoryId: parsed.data.categoryId ?? null,
-          hasCashValue: serverHasCashValue,
-          stripePaymentIntentId,
-        });
-      } catch (insertErr: unknown) {
-        // Unique constraint violation on stripePaymentIntentId means a concurrent
-        // request already applied this payment intent — treat as idempotent success
-        const pgCode = (insertErr as { code?: string })?.code;
-        if (pgCode === "23505" && stripePaymentIntentId) {
-          const fresh = await storage.getUser(empId);
-          // Roll back the balance increment that was already applied above
-          await storage.updateUserBalance(empId, -parsed.data.amount);
-          return res.json({ success: true, newBalance: fresh?.balance ?? 0, idempotent: true });
-        }
-        throw insertErr;
-      }
+      await storage.createTransaction({
+        userId: empId,
+        amount: parsed.data.amount,
+        reason: parsed.data.reason,
+        performedBy: user.id,
+        categoryId: parsed.data.categoryId ?? null,
+        hasCashValue: parsed.data.hasCashValue ?? null,
+        stripePaymentIntentId: null,
+      });
       void pushPassUpdateForEmployee(empId);
       void pushGoogleWalletUpdateForEmployee(empId);
       const fresh = await storage.getUser(empId);
@@ -2268,49 +2196,108 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
-  // ─── Admin: Bucks Transfer Payment Intent ─────────────────────────────────
+  // ─── Admin: NFC Token for Store Item (tap-to-order) ──────────────────────
 
-  app.post("/api/mobile/transfer/payment-intent", mobileAuthMiddleware, async (req, res) => {
+  app.get("/api/mobile/admin/store-items/:id/nfc-token", mobileAuthMiddleware, async (req, res) => {
     const user = (req as MobileRequest).mobileUser;
     if (!isAdmin(user) || !user.organizationId) {
       return res.status(403).json({ message: "Admins only" });
     }
-    const bodySchema = z.object({
-      targetUserId: z.number().int(),
-      amount: z.number().int().positive(),
-    });
-    const parsed = bodySchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
-    }
-    const { targetUserId, amount } = parsed.data;
+    const itemId = parseInt(req.params.id);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid item ID" });
     try {
-      await ensureStripeReady();
-      const stripe = await getUncachableStripeClient();
-      const org = await storage.getOrganization(user.organizationId);
-      if (!org) return res.status(404).json({ message: "Organization not found" });
-      const target = await storage.getUser(targetUserId);
-      if (!target || target.organizationId !== user.organizationId || target.role !== "employee") {
-        return res.status(404).json({ message: "Employee not found in your organization" });
+      const item = await storage.getStoreItem(itemId);
+      if (!item || item.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Item not found" });
       }
-      const bucksPerDollar = org.bucksPerDollar ?? 100;
-      const cents = Math.max(50, Math.round((amount / bucksPerDollar) * 100));
-      const intent = await stripe.paymentIntents.create({
-        amount: cents,
-        currency: "usd",
-        automatic_payment_methods: { enabled: true },
-        metadata: {
-          type: "bucks_transfer",
-          orgId: String(user.organizationId),
-          adminId: String(user.id),
-          targetUserId: String(targetUserId),
-          bucksAmount: String(amount),
-        },
+      const secret = process.env.SESSION_SECRET ?? "nfc-fallback-secret";
+      const exp = Date.now() + 25_000;
+      const payload = Buffer.from(JSON.stringify({ itemId, orgId: user.organizationId, exp })).toString("base64url");
+      const sig = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+      return res.json({
+        token: `${payload}.${sig}`,
+        exp,
+        item: { id: item.id, name: item.name, price: item.price },
       });
-      return res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id, amountCents: cents });
     } catch (err) {
-      logger.error({ err }, "[mobile/transfer/payment-intent] failed");
-      return res.status(500).json({ message: "Could not create payment intent" });
+      logger.error({ err }, "[mobile/admin/store-items/:id/nfc-token] failed");
+      return res.status(500).json({ message: "Could not generate token" });
+    }
+  });
+
+  // ─── Employee: NFC Tap-to-Order ──────────────────────────────────────────
+
+  app.post("/api/mobile/shop/nfc-order", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!user.organizationId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    const bodySchema = z.object({ token: z.string() });
+    const parsed = bodySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Token required" });
+
+    const dotIdx = parsed.data.token.lastIndexOf(".");
+    if (dotIdx < 1) return res.status(400).json({ message: "Invalid token format" });
+    const payload = parsed.data.token.slice(0, dotIdx);
+    const sig = parsed.data.token.slice(dotIdx + 1);
+
+    const secret = process.env.SESSION_SECRET ?? "nfc-fallback-secret";
+    const expectedSig = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
+    if (sig !== expectedSig) return res.status(401).json({ message: "Invalid token" });
+
+    let tokenData: { itemId: number; orgId: number; exp: number };
+    try {
+      tokenData = JSON.parse(Buffer.from(payload, "base64url").toString()) as { itemId: number; orgId: number; exp: number };
+    } catch {
+      return res.status(400).json({ message: "Malformed token" });
+    }
+
+    if (Date.now() > tokenData.exp) {
+      return res.status(410).json({ message: "Token expired — ask your manager to refresh it" });
+    }
+    if (tokenData.orgId !== user.organizationId) {
+      return res.status(403).json({ message: "Token belongs to a different organization" });
+    }
+
+    try {
+      const item = await storage.getStoreItem(tokenData.itemId);
+      if (!item || item.organizationId !== user.organizationId) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      if (!item.available) {
+        return res.status(409).json({ message: "This item is no longer available" });
+      }
+      const freshUser = await storage.getUser(user.id);
+      if (!freshUser || freshUser.balance < item.price) {
+        return res.status(402).json({
+          message: `Insufficient Bucks — need ${item.price.toLocaleString()}, have ${(freshUser?.balance ?? 0).toLocaleString()}`,
+        });
+      }
+      await storage.updateUserBalance(user.id, -item.price);
+      await storage.createTransaction({
+        userId: user.id,
+        amount: -item.price,
+        reason: `NFC purchase: ${item.name}`,
+        performedBy: user.id,
+      });
+      void pushPassUpdateForEmployee(user.id);
+      void pushGoogleWalletUpdateForEmployee(user.id);
+      const order = await storage.createOrder({
+        userId: user.id,
+        pointsCost: item.price,
+        quantity: 1,
+        description: `NFC Purchase: ${item.name}`,
+        photoUrls: [item.imageUrl],
+        itemUrl: item.url,
+        shopWebsiteId: null,
+        convertedValue: null,
+        selectedSize: null,
+        selectedColor: null,
+      });
+      return res.json({ success: true, orderId: order.id, item: item.name, cost: item.price, newBalance: freshUser.balance - item.price });
+    } catch (err) {
+      logger.error({ err }, "[mobile/shop/nfc-order] failed");
+      return res.status(500).json({ message: "Order failed" });
     }
   });
 

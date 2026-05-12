@@ -3,6 +3,14 @@
     "name": "Better Bucks",
     "slug": "better-bucks-mobile",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/YOUR_EAS_PROJECT_ID",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "betterbucks",
@@ -59,9 +67,13 @@
       "reactCompiler": true
     },
     "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      },
       "EXPO_PUBLIC_API_URL": null,
       "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": null,
-      "_nfcBuildNote": "NFC tap-to-order (react-native-nfc-manager) requires a native build — it does NOT work in Expo Go. Use EAS Build to create a testable binary: `eas build --profile development --platform android` (sideloadable APK with dev client) or `eas build --profile preview --platform android` (internal-distribution APK for wider testing). Install eas-cli globally with `npm install -g eas-cli`, then authenticate with `eas login` and link the project with `eas project:init` before building. See eas.json in this directory for all available profiles (development, preview, production)."
+      "_nfcBuildNote": "NFC tap-to-order (react-native-nfc-manager) requires a native build — it does NOT work in Expo Go. Use EAS Build to create a testable binary: `eas build --profile development --platform android` (sideloadable APK with dev client) or `eas build --profile preview --platform android` (internal-distribution APK for wider testing). Install eas-cli globally with `npm install -g eas-cli`, then authenticate with `eas login` and link the project with `eas project:init` before building. See eas.json in this directory for all available profiles (development, preview, production).",
+      "_easUpdateNote": "Once a native build is installed on a test device, JS-layer fixes (including NFC scan logic) can be pushed over-the-air without a full rebuild. Run: `eas update --branch development --message \"Fix NFC scan loop\"` (or `--branch preview` for the preview channel). The installed app will pick up the update on next launch. OTA updates only cover JS/assets — any change to native code, permissions, or Expo SDK version still requires a new EAS Build. IMPORTANT: Before OTA updates will work, run `eas project:init` and replace both YOUR_EAS_PROJECT_ID placeholders in this file (updates.url and extra.eas.projectId) with the generated project UUID."
     }
   }
 }

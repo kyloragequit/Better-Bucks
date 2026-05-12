@@ -169,8 +169,8 @@ const planStyles = StyleSheet.create({
     backgroundColor: "rgba(46,125,50,0.04)",
   },
   cardPopular: {
-    borderColor: brand.gold,
-    backgroundColor: "rgba(245,200,66,0.04)",
+    borderColor: brand.green,
+    backgroundColor: "rgba(46,125,50,0.04)",
   },
   cardHeader: {
     flexDirection: "row",
@@ -189,7 +189,7 @@ const planStyles = StyleSheet.create({
     gap: 6,
   },
   popularBadge: {
-    backgroundColor: brand.gold,
+    backgroundColor: brand.green,
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 2,

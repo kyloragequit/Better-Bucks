@@ -12,7 +12,6 @@ export const brand = {
   navyCardLight: "#1F3A5F", // slightly lighter card surface
   green: "#2E7D32",       // primary accent — buttons, active states, icons, progress bars
   greenLight: "#4CAF50",  // lighter green for hover/pressed states
-  gold: "#F5C842",        // accent highlight — popular badge, special callouts
 
   // Backgrounds
   white: "#FFFFFF",

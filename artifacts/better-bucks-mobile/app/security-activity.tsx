@@ -62,7 +62,7 @@ function eventIconColor(event: SecurityEvent): string {
     case "social_unlinked":
       return brand.danger ?? "#ef4444";
     case "password_changed":
-      return brand.gold;
+      return brand.navy;
     default:
       return "rgba(255,255,255,0.5)";
   }
@@ -75,7 +75,7 @@ function eventIconBg(event: SecurityEvent): string {
     case "social_unlinked":
       return "rgba(239,68,68,0.12)";
     case "password_changed":
-      return "rgba(245,200,66,0.12)";
+      return "rgba(22,46,75,0.10)";
     default:
       return "rgba(255,255,255,0.06)";
   }
@@ -152,7 +152,7 @@ export default function SecurityActivityScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={brand.gold} size="large" />
+          <ActivityIndicator color={brand.green} size="large" />
         </View>
       ) : error ? (
         <View style={styles.center}>

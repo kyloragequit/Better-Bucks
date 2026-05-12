@@ -579,7 +579,7 @@ function AdminToolCard({
       accessibilityLabel={label}
     >
       <View style={adminToolStyles.iconWrap}>
-        <Ionicons name={icon} size={22} color={brand.gold} />
+        <Ionicons name={icon} size={22} color={brand.green} />
       </View>
       <Text style={adminToolStyles.label} numberOfLines={2}>{label}</Text>
     </Pressable>
@@ -604,7 +604,7 @@ const adminToolStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "rgba(245,200,66,0.15)",
+    backgroundColor: "rgba(46,125,50,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },

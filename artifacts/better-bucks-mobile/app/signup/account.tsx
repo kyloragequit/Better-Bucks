@@ -26,13 +26,13 @@ export default function SignupAccountScreen() {
     if (draft.password !== confirm)
       next.confirm = "Passwords do not match.";
     setErrors(next);
-    if (Object.keys(next).length === 0) router.push("/signup/plan");
+    if (Object.keys(next).length === 0) router.push("/signup/payment");
   };
 
   return (
     <ScreenContainer>
       <Text style={styles.heading}>Tell us about your business</Text>
-      <Text style={styles.sub}>Step 1 of 3</Text>
+      <Text style={styles.sub}>Step 2 of 3</Text>
 
       <View style={{ height: 16 }} />
 

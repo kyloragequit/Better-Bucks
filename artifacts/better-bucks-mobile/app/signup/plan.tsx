@@ -56,14 +56,14 @@ export default function SignupPlanScreen() {
       router.push("/signup/confirmation?contact=1");
       return;
     }
-    router.push("/signup/payment");
+    router.push("/signup/account");
   };
 
   return (
     <ScreenContainer>
-      <Text style={styles.heading}>Pick your plan</Text>
+      <Text style={styles.heading}>Choose your plan</Text>
       <Text style={styles.sub}>
-        Step 2 of 3 · 60-day free trial included on every paid plan
+        Step 1 of 3 · 60-day free trial on every paid plan
       </Text>
 
       <View style={{ height: 18 }} />
@@ -82,7 +82,7 @@ export default function SignupPlanScreen() {
         title={
           draft.tier === "enterprise"
             ? "Request a quote"
-            : "Continue to payment"
+            : "Continue"
         }
         onPress={handleNext}
         style={{ marginTop: 12 }}
@@ -101,11 +101,16 @@ function PlanCard({
   onSelect: () => void;
 }) {
   const priceLabel = formatPrice(tier.monthlyCents);
+
   return (
     <Pressable
       testID={`plan-${tier.key}`}
       onPress={onSelect}
-      style={[planStyles.card, selected ? planStyles.cardSelected : null]}
+      style={[
+        planStyles.card,
+        selected ? planStyles.cardSelected : null,
+        tier.popular && !selected ? planStyles.cardPopular : null,
+      ]}
     >
       <View style={planStyles.cardHeader}>
         <Text style={[planStyles.name, selected ? { color: brand.navy } : null]}>
@@ -114,7 +119,7 @@ function PlanCard({
         <View style={planStyles.priceRow}>
           {tier.popular && (
             <View style={planStyles.popularBadge}>
-              <Text style={planStyles.popularText}>Popular</Text>
+              <Text style={planStyles.popularText}>Most Popular</Text>
             </View>
           )}
           <Text style={[planStyles.price, selected ? { color: brand.green } : null]}>
@@ -126,8 +131,8 @@ function PlanCard({
       <View style={planStyles.metaRow}>
         <Ionicons
           name="people-outline"
-          size={13}
-          color={selected ? brand.green : brand.textMuted}
+          size={14}
+          color={selected ? brand.green : brand.navy}
         />
         <Text style={[planStyles.meta, selected ? { color: brand.green } : null]}>
           {tier.employees}
@@ -163,6 +168,10 @@ const planStyles = StyleSheet.create({
     borderColor: brand.green,
     backgroundColor: "rgba(46,125,50,0.04)",
   },
+  cardPopular: {
+    borderColor: brand.gold,
+    backgroundColor: "rgba(245,200,66,0.04)",
+  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -180,17 +189,16 @@ const planStyles = StyleSheet.create({
     gap: 6,
   },
   popularBadge: {
-    backgroundColor: "rgba(46,125,50,0.10)",
+    backgroundColor: brand.gold,
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: "rgba(46,125,50,0.20)",
   },
   popularText: {
-    color: brand.green,
-    fontFamily: "Inter_600SemiBold",
+    color: brand.navy,
+    fontFamily: "Inter_700Bold",
     fontSize: 10,
+    letterSpacing: 0.4,
   },
   price: {
     color: brand.textSecondary,
@@ -209,9 +217,9 @@ const planStyles = StyleSheet.create({
     marginTop: 2,
   },
   meta: {
-    color: brand.textMuted,
-    fontFamily: "Inter_500Medium",
-    fontSize: 12,
+    color: brand.navy,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
   },
   checkRow: {
     flexDirection: "row",

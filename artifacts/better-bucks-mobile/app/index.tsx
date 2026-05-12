@@ -42,7 +42,7 @@ export default function HomeScreen() {
           testID="cta-signup"
           title="Sign Up"
           variant="outline"
-          onPress={() => router.push("/signup/account")}
+          onPress={() => router.push("/signup/plan")}
         />
       </View>
     </View>

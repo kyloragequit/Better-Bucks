@@ -357,7 +357,7 @@ export function registerMobileRoutes(app: Express) {
         .object({
           provider: z.enum(["google", "apple"]),
           identityToken: z.string().min(1),
-          orgCode: z.string().min(1),
+          orgCode: z.string().regex(/^[A-Z0-9]{8}$/, "Org code must be exactly 8 uppercase letters or digits"),
           fullName: z.string().min(2),
           email: z.string().email(),
         })

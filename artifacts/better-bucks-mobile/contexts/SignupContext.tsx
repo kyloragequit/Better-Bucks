@@ -21,7 +21,7 @@ const initialDraft: SignupDraft = {
   fullName: "",
   email: "",
   password: "",
-  tier: "small",
+  tier: "mid",
 };
 
 const Ctx = createContext<SignupCtx | null>(null);

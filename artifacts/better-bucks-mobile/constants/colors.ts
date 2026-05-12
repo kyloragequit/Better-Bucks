@@ -7,11 +7,12 @@
 
 export const brand = {
   // Core palette
-  navy: "#1A237E",        // headers, navigation bars, text headings, badges
+  navy: "#162E4B",        // headers, navigation bars, text headings, badges — matches website hsl(213 54% 19%)
   navyCard: "#162A4A",    // wallet balance card background (dark navy)
   navyCardLight: "#1F3A5F", // slightly lighter card surface
   green: "#2E7D32",       // primary accent — buttons, active states, icons, progress bars
   greenLight: "#4CAF50",  // lighter green for hover/pressed states
+  gold: "#F5C842",        // accent highlight — popular badge, special callouts
 
   // Backgrounds
   white: "#FFFFFF",

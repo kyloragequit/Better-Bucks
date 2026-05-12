@@ -98,6 +98,7 @@ vi.mock("../storage", () => ({
     deleteWalletPassDevice: vi.fn().mockResolvedValue(undefined),
     getWalletPassDevices: vi.fn().mockResolvedValue([]),
     getOrganization: vi.fn().mockResolvedValue(undefined),
+    getOrganizationByCode: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -261,5 +262,72 @@ describe("POST /api/mobile/organizations/signup — rollback on DB failure", () 
 
     expect(res.status).toBe(409);
     expect(alertsModule.sendGhostStripeAlert).not.toHaveBeenCalled();
+  });
+});
+
+// ── Social signup org code validation ────────────────────────────────────────
+
+const SOCIAL_SIGNUP_BASE = {
+  provider: "google",
+  identityToken: "fake.identity.token",
+  fullName: "Jane Doe",
+  email: "jane@acme.com",
+};
+
+describe("POST /api/mobile/auth/social/signup — org code format validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const invalidCodes = [
+    { label: "too short (7 chars)", code: "ABCDEF1" },
+    { label: "too long (9 chars)", code: "ABCDEF123" },
+    { label: "lowercase letters", code: "abcdef12" },
+    { label: "special characters", code: "ABC!EF12" },
+    { label: "empty string", code: "" },
+    { label: "spaces", code: "ABCD EF1" },
+  ];
+
+  for (const { label, code } of invalidCodes) {
+    it(`returns 400 for ${label}`, async () => {
+      const res = await request(buildApp())
+        .post("/api/mobile/auth/social/signup")
+        .send({ ...SOCIAL_SIGNUP_BASE, orgCode: code });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty("message");
+    });
+  }
+
+  it("returns the validation message in the response body for a malformed code", async () => {
+    const res = await request(buildApp())
+      .post("/api/mobile/auth/social/signup")
+      .send({ ...SOCIAL_SIGNUP_BASE, orgCode: "bad" });
+
+    expect(res.body.message).toMatch(/8 uppercase/i);
+  });
+
+  it("does not call getOrganizationByCode when the org code is malformed", async () => {
+    await request(buildApp())
+      .post("/api/mobile/auth/social/signup")
+      .send({ ...SOCIAL_SIGNUP_BASE, orgCode: "bad!" });
+
+    expect(storage.getOrganizationByCode).not.toHaveBeenCalled();
+  });
+
+  it("passes Zod validation for a valid 8-char uppercase alphanumeric code", async () => {
+    // The request will fail at identity-token verification (mocked to throw),
+    // but a 401 (not 400) confirms the org code itself passed Zod validation.
+    const { verifyGoogleIdToken } = await import("../socialAuth");
+    vi.mocked(verifyGoogleIdToken).mockRejectedValue(
+      new Error("token invalid"),
+    );
+
+    const res = await request(buildApp())
+      .post("/api/mobile/auth/social/signup")
+      .send({ ...SOCIAL_SIGNUP_BASE, orgCode: "ABCD1234" });
+
+    expect(res.status).toBe(401);
+    expect(storage.getOrganizationByCode).not.toHaveBeenCalled();
   });
 });

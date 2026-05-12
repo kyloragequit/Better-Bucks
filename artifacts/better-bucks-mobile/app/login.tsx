@@ -247,7 +247,7 @@ export default function LoginScreen() {
       <Button
         title="Create a new account"
         variant="ghost"
-        onPress={() => router.push("/signup/account")}
+        onPress={() => router.push("/signup/plan")}
       />
     </ScreenContainer>
   );

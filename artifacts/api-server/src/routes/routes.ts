@@ -2652,7 +2652,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   app.post("/api/orders", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
-    if (user.role !== "employee") return res.status(403).json({ message: "Only employees can place orders" });
+    if (user.role === "prime_admin") return res.status(403).json({ message: "Organization owners cannot place orders." });
 
     try {
       const parsed = createOrderSchema.safeParse(req.body);
@@ -2704,6 +2704,12 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   app.get("/api/orders", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+
+    // ?personal=1 lets admins view only their own orders (used when shopping as an employee)
+    if (req.query.personal === "1") {
+      const userOrders = await storage.getOrdersByUser(user.id);
+      return res.json(userOrders);
+    }
 
     if (user.role === "admin" || user.role === "prime_admin") {
       const pageParam = req.query.page;
@@ -5285,9 +5291,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
   app.post("/api/store-items/:id/purchase", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "employee") {
-      return res.status(401).send("Unauthorized");
-    }
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (user.role === "prime_admin") return res.status(403).json({ message: "Organization owners cannot purchase store items." });
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
 
@@ -5359,14 +5364,14 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   // ========== Wishlists ==========
   app.get("/api/wishlist", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "employee") return res.status(401).send("Unauthorized");
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     const items = await storage.getWishlistByUser(user.id);
     res.json(items);
   });
 
   app.post("/api/wishlist/:itemId", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "employee") return res.status(401).send("Unauthorized");
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     const itemId = parseInt(req.params.itemId);
     if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
     const item = await storage.getStoreItem(itemId);
@@ -5377,7 +5382,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
   app.delete("/api/wishlist/:itemId", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || user.role !== "employee") return res.status(401).send("Unauthorized");
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     const itemId = parseInt(req.params.itemId);
     if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
     await storage.removeFromWishlist(user.id, itemId);

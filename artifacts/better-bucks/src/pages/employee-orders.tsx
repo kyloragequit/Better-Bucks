@@ -33,8 +33,16 @@ function statusVariant(status: string) {
 export default function EmployeeOrdersPage() {
   const { data: authUser } = useUser();
   const { data: userDetails } = useUserDetails(authUser?.id || 0);
+  const isAdmin = authUser?.role === "admin" || authUser?.role === "prime_admin";
   const { data: orders, isLoading } = useQuery<Order[]>({
-    queryKey: ["/api/orders"],
+    queryKey: ["/api/orders", isAdmin ? "personal" : "own"],
+    queryFn: async () => {
+      const url = isAdmin ? "/api/orders?personal=1" : "/api/orders";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch orders");
+      return res.json();
+    },
+    enabled: !!authUser,
   });
   const { data: shopWebsites } = useQuery<ShopWebsite[]>({
     queryKey: ["/api/shop-websites"],

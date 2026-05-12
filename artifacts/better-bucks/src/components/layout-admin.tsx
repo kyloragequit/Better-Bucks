@@ -109,6 +109,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/employees", label: "Employees", icon: Users },
     { href: "/admin/invite-links", label: "Invite Links", icon: LinkIcon },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart, badge: pendingCount },
+    { href: "/store", label: "Shop", icon: ShoppingBag },
     { href: "/admin/instant-transaction", label: "Instant Transaction", shortLabel: "Quick TX", icon: Zap, testId: "link-instant-transaction" },
     { href: "/admin/goals", label: "Goals", icon: Target },
     { href: "/admin/surveys", label: "Surveys", icon: ClipboardList },
@@ -119,7 +120,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     ...(user?.role === "prime_admin" ? [
       { href: "/admin/pending", label: "Pending Accounts", icon: ClipboardCheck },
       { href: "/admin/stripe-orphans", label: "Failed Signups", icon: AlertOctagon },
-      { href: "/admin/store", label: "Store", icon: ShoppingBag },
+      { href: "/admin/store", label: "Store Mgmt", icon: StoreIcon },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ] : []),
   ];
@@ -357,6 +358,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
           { href: "/admin/employees", label: "Employees", icon: Users, testId: "link-employees" },
           { href: "/admin/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders", badge: pendingCount },
+          { href: "/store", label: "Shop", icon: ShoppingBag, testId: "link-shop" },
           {
             href: user?.role === "prime_admin" ? "/admin/settings" : "/admin/account-settings",
             label: "Settings",

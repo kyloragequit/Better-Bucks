@@ -17,6 +17,8 @@ import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
+const isExpoGo = Constants.appOwnership === "expo";
+
 type NfcTokenResponse = {
   token: string;
   exp: number;
@@ -99,6 +101,7 @@ export default function StoreNfcScreen() {
   }, [token, itemId, nfcSupported, nfcEnabled, stopHce, startHce]);
 
   useEffect(() => {
+    if (isExpoGo) return;
     let mounted = true;
     void (async () => {
       try {
@@ -122,10 +125,12 @@ export default function StoreNfcScreen() {
   }, []);
 
   useEffect(() => {
+    if (isExpoGo) return;
     void fetchToken();
   }, [fetchToken]);
 
   useEffect(() => {
+    if (isExpoGo) return;
     refreshTimer.current = setTimeout(() => {
       void fetchToken();
       refreshTimer.current = null;
@@ -153,7 +158,6 @@ export default function StoreNfcScreen() {
 
   const price = parseInt(itemPrice ?? "0") || 0;
   const isAndroid = Platform.OS === "android";
-  const isExpoGo = Constants.appOwnership === "expo";
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom + 20 }]}>

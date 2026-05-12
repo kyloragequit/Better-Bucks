@@ -2140,11 +2140,11 @@ export default function DeveloperDashboardPage() {
                                   <TableCell className="text-xs text-muted-foreground max-w-48 truncate" title={row.lastError ?? undefined}>
                                     {row.lastError ?? <span className="italic">—</span>}
                                   </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                                    {new Date(row.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap" title={new Date(row.createdAt).toISOString()}>
+                                    {new Date(row.createdAt).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                                   </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                                    {new Date(row.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap" title={new Date(row.updatedAt).toISOString()}>
+                                    {new Date(row.updatedAt).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                                   </TableCell>
                                   {status === "resolved" ? (
                                     <TableCell className="text-xs text-muted-foreground max-w-48 truncate" title={row.resolutionNote ?? undefined}>

@@ -256,11 +256,15 @@ export const storeItems = pgTable("store_items", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").notNull(),
   name: text("name").notNull(),
+  description: text("description"),
   price: integer("price").notNull(),
-  url: text("url").notNull(),
-  imageUrl: text("image_url").notNull(),
+  url: text("url"),
+  imageUrl: text("image_url"),
+  available: boolean("available").default(true).notNull(),
   requiresSize: boolean("requires_size").default(false).notNull(),
   requiresColor: boolean("requires_color").default(false).notNull(),
+  sizes: text("sizes").array(),
+  colors: text("colors").array(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

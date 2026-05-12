@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,6 +15,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -54,7 +56,8 @@ function ItemForm({
   const [available, setAvailable] = useState(initial.available ?? true);
 
   return (
-    <ScrollView contentContainerStyle={styles.formBody}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <ScrollView contentContainerStyle={styles.formBody} keyboardShouldPersistTaps="handled">
       <Text style={styles.fieldLabel}>Item Name *</Text>
       <TextInput style={styles.textInput} value={name} onChangeText={setName} placeholder="e.g. Gift Card" placeholderTextColor={brand.textMuted} />
 
@@ -92,12 +95,16 @@ function ItemForm({
 
       <TouchableOpacity
         style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-        onPress={() => onSave({ name, description: desc || null, price: parseInt(price), imageUrl: imageUrl || null, url: url || null, available })}
+        onPress={() => {
+          Keyboard.dismiss();
+          onSave({ name, description: desc || null, price: parseInt(price), imageUrl: imageUrl || null, url: url || null, available });
+        }}
         disabled={saving}
       >
         <Text style={styles.saveBtnText}>{saving ? "Saving…" : "Save Item"}</Text>
       </TouchableOpacity>
     </ScrollView>
+    </TouchableWithoutFeedback>
   );
 }
 

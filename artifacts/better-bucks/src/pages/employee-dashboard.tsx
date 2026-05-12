@@ -268,17 +268,21 @@ export default function EmployeeDashboard() {
       )}
 
       {/* Items I've been given */}
-      {userDetails.customItems && userDetails.customItems.length > 0 && (
-        <Card className="shadow-md border-border/60 mb-8" data-testid="section-my-items">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" /> My Items
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Items you've received from your team. Show these on your account when redeeming.
+      <Card className="shadow-md border-border/60 mb-8" data-testid="section-my-items">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="h-5 w-5 text-primary" /> My Items
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Items you've received from your team. Show these on your account when redeeming.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {!userDetails.customItems || userDetails.customItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-items">
+              No custom items received yet.
             </p>
-          </CardHeader>
-          <CardContent>
+          ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {userDetails.customItems.map((item) => (
                 <div
@@ -296,9 +300,9 @@ export default function EmployeeDashboard() {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Email for Updates */}
       <EmailUpdateSection userId={userDetails.id} currentEmail={userDetails.email} />

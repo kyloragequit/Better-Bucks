@@ -104,6 +104,8 @@ export default function AdminItemsPage() {
   if (!selectedItem || usersLoading) return <AdminLayout><Loader /></AdminLayout>;
 
   const employees = (itemUsers ?? []).filter(u => u.role === "employee");
+  const managers = (itemUsers ?? []).filter(u => u.role === "admin");
+  const teamMembers = [...employees, ...managers];
   const admins = (itemUsers ?? []).filter(u => u.role === "admin" || u.role === "prime_admin");
   const myBalance = itemUsers?.find(u => u.id === currentUser?.id)?.customItemBalance ?? 0;
   const itemName = selectedItem.name;
@@ -180,7 +182,7 @@ export default function AdminItemsPage() {
           <EmployeeBalancesCard
             itemName={itemName}
             customItemId={selectedItem.id}
-            employees={employees}
+            employees={teamMembers}
             departments={departments ?? []}
             adminBalance={myBalance}
             isPrime={isPrime}
@@ -216,7 +218,7 @@ export default function AdminItemsPage() {
       <BulkGiveDialog
         open={bulkGiveOpen}
         onOpenChange={setBulkGiveOpen}
-        employees={employees}
+        employees={teamMembers}
         departments={departments ?? []}
         itemName={itemName}
         customItemId={selectedItem.id}
@@ -244,32 +246,37 @@ function EmployeeBalancesCard({
   isPrime: boolean;
   onBulkGive: () => void;
 }) {
+  const { getRoleLabel } = useRoleLabels();
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  const hasManagers = employees.some(u => u.role === "admin");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter(u => {
       if (deptFilter !== "all" && u.departmentId !== Number(deptFilter)) return false;
+      if (roleFilter !== "all" && u.role !== roleFilter) return false;
       if (!q) return true;
       return u.fullName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
     });
-  }, [employees, search, deptFilter]);
+  }, [employees, search, deptFilter, roleFilter]);
 
   return (
     <Card className="shadow-md">
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle>Employee {itemName} Balances</CardTitle>
-            <CardDescription>Give or redeem {itemName} from employee accounts</CardDescription>
+            <CardTitle>Team {itemName} Balances</CardTitle>
+            <CardDescription>Give or redeem {itemName} from team member accounts</CardDescription>
           </div>
           <Button size="sm" onClick={onBulkGive} data-testid="button-bulk-give-items">
             <Users className="mr-1.5 h-3.5 w-3.5" /> Bulk Give
           </Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-2 pt-2">
-          <div className="relative">
+        <div className="flex flex-wrap gap-2 pt-2">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -280,9 +287,21 @@ function EmployeeBalancesCard({
               data-testid="input-search-items-employees"
             />
           </div>
+          {hasManagers && (
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-[140px]" data-testid="select-items-role-filter">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="employee">{getRoleLabel("employee")}s</SelectItem>
+                <SelectItem value="admin">{getRoleLabel("admin")}s</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           {departments.length > 0 && (
             <Select value={deptFilter} onValueChange={setDeptFilter}>
-              <SelectTrigger data-testid="select-items-dept-filter">
+              <SelectTrigger className="w-[180px]" data-testid="select-items-dept-filter">
                 <SelectValue placeholder="All departments" />
               </SelectTrigger>
               <SelectContent>
@@ -298,7 +317,7 @@ function EmployeeBalancesCard({
       <CardContent>
         {filtered.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            {employees.length === 0 ? "No employees yet" : "No employees match your search"}
+            {employees.length === 0 ? "No team members yet" : "No team members match your filters"}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -306,6 +325,7 @@ function EmployeeBalancesCard({
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                {hasManagers && <TableHead>Role</TableHead>}
                 <TableHead>Code</TableHead>
                 <TableHead className="text-right">{itemName} Balance</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -315,6 +335,13 @@ function EmployeeBalancesCard({
               {filtered.map(u => (
                 <TableRow key={u.id} data-testid={`row-item-user-${u.id}`}>
                   <TableCell className="font-medium">{u.fullName}</TableCell>
+                  {hasManagers && (
+                    <TableCell>
+                      <Badge variant={u.role === "admin" ? "default" : "secondary"} className="text-xs">
+                        {getRoleLabel(u.role)}
+                      </Badge>
+                    </TableCell>
+                  )}
                   <TableCell><span className="font-mono text-xs bg-muted px-2 py-1 rounded">{u.username}</span></TableCell>
                   <TableCell className="text-right font-bold tabular-nums text-primary">{u.customItemBalance.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
@@ -791,22 +818,27 @@ function BulkGiveDialog({
   onSuccess: () => void;
 }) {
   const { toast } = useToast();
+  const { getRoleLabel } = useRoleLabels();
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
 
-  const reset = () => { setSelectedIds([]); setAmount(""); setReason(""); setDeptFilter("all"); setSearch(""); };
+  const hasManagers = employees.some(u => u.role === "admin");
+
+  const reset = () => { setSelectedIds([]); setAmount(""); setReason(""); setDeptFilter("all"); setRoleFilter("all"); setSearch(""); };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return employees.filter(u => {
       if (deptFilter !== "all" && u.departmentId !== Number(deptFilter)) return false;
+      if (roleFilter !== "all" && u.role !== roleFilter) return false;
       if (!q) return true;
       return u.fullName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
     });
-  }, [employees, search, deptFilter]);
+  }, [employees, search, deptFilter, roleFilter]);
 
   const allSelected = filtered.length > 0 && filtered.every(u => selectedIds.includes(u.id));
 
@@ -858,8 +890,8 @@ function BulkGiveDialog({
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 pr-1">
-          <div className="grid gap-2 grid-cols-1 sm:grid-cols-[1fr_180px]">
-            <div className="grid gap-1.5">
+          <div className="flex flex-wrap gap-2">
+            <div className="grid gap-1.5 flex-1 min-w-[160px]">
               <Label>Search</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -872,11 +904,26 @@ function BulkGiveDialog({
                 />
               </div>
             </div>
+            {hasManagers && (
+              <div className="grid gap-1.5">
+                <Label>Role</Label>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-[130px]" data-testid="select-bulk-role-filter">
+                    <SelectValue placeholder="All Roles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="employee">{getRoleLabel("employee")}s</SelectItem>
+                    <SelectItem value="admin">{getRoleLabel("admin")}s</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {departments.length > 0 && (
               <div className="grid gap-1.5">
                 <Label>Department</Label>
                 <Select value={deptFilter} onValueChange={setDeptFilter}>
-                  <SelectTrigger data-testid="select-bulk-dept-filter">
+                  <SelectTrigger className="w-[150px]" data-testid="select-bulk-dept-filter">
                     <SelectValue placeholder="All departments" />
                   </SelectTrigger>
                   <SelectContent>
@@ -892,7 +939,7 @@ function BulkGiveDialog({
 
           <div className="grid gap-1.5">
             <div className="flex items-center justify-between">
-              <Label>Select Employees ({selectedIds.length} selected)</Label>
+              <Label>Select Team Members ({selectedIds.length} selected)</Label>
               {filtered.length > 0 && (
                 <button type="button" className="text-xs text-primary hover:underline" onClick={toggleAll} data-testid="button-bulk-select-all">
                   {allSelected ? "Deselect All" : "Select All"}
@@ -902,7 +949,7 @@ function BulkGiveDialog({
             <div className="border rounded-lg divide-y max-h-52 overflow-y-auto">
               {filtered.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4 text-sm">
-                  {employees.length === 0 ? "No employees" : "No employees match your filters"}
+                  {employees.length === 0 ? "No team members" : "No team members match your filters"}
                 </p>
               ) : (
                 filtered.map(u => (
@@ -912,7 +959,14 @@ function BulkGiveDialog({
                       onCheckedChange={() => toggle(u.id)}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{u.fullName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate">{u.fullName}</p>
+                        {hasManagers && (
+                          <Badge variant={u.role === "admin" ? "default" : "secondary"} className="text-xs shrink-0">
+                            {getRoleLabel(u.role)}
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">Balance: {u.customItemBalance.toLocaleString()}</p>
                     </div>
                   </label>

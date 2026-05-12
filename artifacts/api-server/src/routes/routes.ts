@@ -7618,7 +7618,6 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     }
     if (user.role === "admin") {
       if (target.role === "prime_admin") return res.status(403).json({ message: "Cannot give items to the Organization Owner." });
-      if (target.role !== "employee") return res.status(403).json({ message: "Admins can only give items to employees." });
       const currentBalance = await balanceFor(user.id, customItemId);
       if (currentBalance < amount) {
         return res.status(400).json({ message: `Insufficient ${item.name} balance. You have ${currentBalance} available.` });
@@ -7742,8 +7741,8 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
         errors.push(`User ${userId} not found`);
         continue;
       }
-      if (user.role === "admin" && target.role !== "employee") {
-        errors.push(`Admins can only give to employees (skipped ${target.fullName})`);
+      if (user.role === "admin" && target.role === "prime_admin") {
+        errors.push(`Cannot give items to the Organization Owner (skipped ${target.fullName})`);
         continue;
       }
       await storage.updateCustomItemBalanceFor(userId, customItemId, amount);

@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail, Copy, Lock, LockOpen } from "lucide-react";
+import { ChevronLeft, Wallet, TrendingUp, TrendingDown, History, Shield, UserCog, Trash2, AlertTriangle, BarChart2, Users, Search, KeyRound, Mail, Copy, Lock, LockOpen, Gift } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, subMonths, subYears, startOfDay, startOfMonth, startOfWeek } from "date-fns";
@@ -694,12 +694,39 @@ export default function AdminEmployeeDetailPage() {
             <div className="text-4xl font-bold font-display text-primary mb-4">
               {user.balance.toLocaleString()} bcks
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <AdjustBalanceDialog userId={user.id} currentBalance={user.balance} />
+              <GiveItemDialog userId={user.id} userName={user.fullName} />
               {isPrime && <ChangeRoleDialog userId={user.id} currentRole={user.role} fullName={user.fullName} />}
             </div>
           </CardContent>
         </Card>
+
+        {user.customItems && user.customItems.length > 0 && (
+          <div className="mt-4">
+            <Card className="shadow-sm border-primary/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-primary" /> Custom Items
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {user.customItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-white p-3 flex flex-col items-center text-center"
+                    >
+                      <Gift className="h-6 w-6 text-primary mb-1" />
+                      <p className="text-xs font-semibold text-foreground">{item.name}</p>
+                      <p className="text-xl font-bold font-display text-primary mt-0.5">{item.balance.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Bucks Activity Chart */}
@@ -759,6 +786,107 @@ export default function AdminEmployeeDetailPage() {
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+function GiveItemDialog({ userId, userName }: { userId: number; userName: string }) {
+  const [open, setOpen] = useState(false);
+  const [itemId, setItemId] = useState("");
+  const [amount, setAmount] = useState("1");
+  const [reason, setReason] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: items } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["/api/admin/custom-items/items"],
+    enabled: open,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/custom-items/give", {
+        userId,
+        customItemId: parseInt(itemId),
+        amount: parseInt(amount) || 1,
+        reason: reason.trim() || undefined,
+      });
+      if (!res.ok) {
+        const b = await res.json();
+        throw new Error(b.message);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/custom-items/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Item Given", description: `Item given to ${userName}.` });
+      setOpen(false);
+      setItemId("");
+      setAmount("1");
+      setReason("");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" data-testid="button-open-give-item">
+          <Gift className="mr-2 h-4 w-4" /> Give Item
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>Give Custom Item</DialogTitle>
+          <DialogDescription>Give a custom item to {userName}.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="grid gap-1.5">
+            <Label>Item</Label>
+            <Select value={itemId} onValueChange={setItemId}>
+              <SelectTrigger data-testid="select-give-item">
+                <SelectValue placeholder="Select an item..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(items ?? []).map(it => (
+                  <SelectItem key={it.id} value={String(it.id)}>{it.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Amount</Label>
+            <Input
+              type="number" inputMode="numeric"
+              min={1}
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="e.g. 1"
+              data-testid="input-give-item-amount"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Reason <span className="text-muted-foreground text-xs">(optional)</span></Label>
+            <Input
+              placeholder="e.g. Great safety record"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              data-testid="input-give-item-reason"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!itemId || parseInt(amount) < 1 || mutation.isPending}
+            data-testid="button-confirm-give-item"
+          >
+            {mutation.isPending ? "Giving..." : "Give Item"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

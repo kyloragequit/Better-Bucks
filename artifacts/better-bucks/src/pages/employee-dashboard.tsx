@@ -20,6 +20,7 @@ import { Link } from "wouter";
 import { Loader } from "@/components/ui/loader";
 import { differenceInDays, differenceInMinutes, format, formatDistanceToNow } from "date-fns";
 import { useTutorial } from "@/hooks/use-tutorial";
+import { SpendingChart } from "@/components/spending-chart";
 
 export default function EmployeeDashboard() {
   const { data: authUser } = useUser();
@@ -215,6 +216,9 @@ export default function EmployeeDashboard() {
           </Card>
         </div>
       )}
+
+      {/* Monthly spending chart */}
+      <SpendingChart />
 
       {/* Recent in-store purchases */}
       {redemptions.length > 0 && (

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen, Users, Settings, Wallet, BadgeDollarSign, Award, Tag, PieChart, AlertTriangle } from "lucide-react";
+import { Calendar, CalendarDays, CalendarRange, ShoppingCart, Clock, CheckCircle, DollarSign, TrendingUp, TrendingDown, BookOpen, Users, Settings, Wallet, BadgeDollarSign, Award, Tag, PieChart, AlertTriangle, Zap, UserPlus, Target, ClipboardList, BarChart2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -724,6 +725,13 @@ export default function AdminDashboardPage() {
     enabled: isAdmin,
   });
 
+  const { data: pendingCountData } = useQuery<{ count: number }>({
+    queryKey: ["/api/orders/pending-count"],
+    refetchInterval: 30_000,
+    enabled: isAdmin,
+  });
+  const pendingCount = pendingCountData?.count ?? 0;
+
   const now = new Date();
   const { data: categoryAnalytics } = useQuery<CategoryAnalytics>({
     queryKey: [`/api/organizations/${currentUser?.organizationId}/analytics/categories`, now.getFullYear(), now.getMonth() + 1],
@@ -753,6 +761,24 @@ export default function AdminDashboardPage() {
   const periodTabLabel = (p: "week" | "month" | "year") => p === "week" ? "This Week" : p === "month" ? "This Month" : "This Year";
 
   const bpd = budgetSettings?.bucksPerDollar ?? 100;
+
+  // Summary metrics for the overview section
+  const totalIssued = pointsStats?.month ?? 0;
+  const totalRedeemed = pointsStats?.monthDebited ?? 0;
+  const bucksBalance = Math.max(0, totalIssued - totalRedeemed);
+  const monthlyBudget = budgetSettings?.monthlyBudgetBucks ?? 0;
+
+  const [overviewShowDollars, setOverviewShowDollars] = useState(false);
+
+  const usageChartData = [
+    { name: "Issued", value: totalIssued, fill: "#3b82f6" },
+    { name: "Redeemed", value: totalRedeemed, fill: "#ef4444" },
+    { name: "Balance", value: bucksBalance, fill: "#10b981" },
+    ...(monthlyBudget > 0 ? [{ name: "Budget", value: monthlyBudget, fill: "#f59e0b" }] : []),
+  ].map(d => ({
+    ...d,
+    display: overviewShowDollars && bpd > 0 ? +(d.value / bpd).toFixed(2) : d.value,
+  }));
 
   // Build bar chart data
   const adminBarData: { name: string; value: number }[] = leaderboardMode === "admins" && leaderboard
@@ -829,6 +855,241 @@ export default function AdminDashboardPage() {
         <Loader />
       ) : (
         <>
+          {/* ── OVERVIEW ── */}
+          <section aria-labelledby="section-overview" className="mb-10">
+            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+              <h2 id="section-overview" className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+                <BarChart2 className="h-5 w-5 text-primary" />
+                Overview
+              </h2>
+              <Tabs value={overviewShowDollars ? "dollars" : "bucks"} onValueChange={v => setOverviewShowDollars(v === "dollars")}>
+                <TabsList className="min-h-8 h-auto">
+                  <TabsTrigger value="bucks" className="text-xs px-3" data-testid="tab-overview-bucks">Bucks</TabsTrigger>
+                  <TabsTrigger value="dollars" className="text-xs px-3" data-testid="tab-overview-dollars">Dollars</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* 4 summary metric cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* Total Issued */}
+              <Card className="border shadow-sm border-blue-200" data-testid="card-total-issued">
+                <CardContent className="pt-5 pb-4 px-5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600 flex-shrink-0">
+                      <TrendingUp className="h-4 w-4" />
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground leading-tight">Bucks Issued<br />This Month</p>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-700 tabular-nums" data-testid="text-overview-issued">
+                    {overviewShowDollars
+                      ? `$${(totalIssued / bpd).toFixed(2)}`
+                      : totalIssued.toLocaleString()}
+                  </p>
+                  {!overviewShowDollars && bpd > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">≈ ${(totalIssued / bpd).toFixed(2)}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Total Redeemed */}
+              <Card className="border shadow-sm border-red-200" data-testid="card-total-redeemed">
+                <CardContent className="pt-5 pb-4 px-5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-600 flex-shrink-0">
+                      <TrendingDown className="h-4 w-4" />
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground leading-tight">Bucks Redeemed<br />This Month</p>
+                  </div>
+                  <p className="text-2xl font-bold text-red-700 tabular-nums" data-testid="text-overview-redeemed">
+                    {overviewShowDollars
+                      ? `$${(totalRedeemed / bpd).toFixed(2)}`
+                      : totalRedeemed.toLocaleString()}
+                  </p>
+                  {!overviewShowDollars && bpd > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">≈ ${(totalRedeemed / bpd).toFixed(2)}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Bucks Balance */}
+              <Card className="border shadow-sm border-green-200" data-testid="card-bucks-balance">
+                <CardContent className="pt-5 pb-4 px-5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 text-green-600 flex-shrink-0">
+                      <Wallet className="h-4 w-4" />
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground leading-tight">Employee Balance<br />This Month</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-700 tabular-nums" data-testid="text-overview-balance">
+                    {overviewShowDollars
+                      ? `$${(bucksBalance / bpd).toFixed(2)}`
+                      : bucksBalance.toLocaleString()}
+                  </p>
+                  {!overviewShowDollars && bpd > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">≈ ${(bucksBalance / bpd).toFixed(2)}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Monthly Budget */}
+              <Card className="border shadow-sm border-amber-200" data-testid="card-monthly-budget">
+                <CardContent className="pt-5 pb-4 px-5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600 flex-shrink-0">
+                      <DollarSign className="h-4 w-4" />
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground leading-tight">Monthly Budget<br />Cap</p>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-700 tabular-nums" data-testid="text-overview-budget">
+                    {monthlyBudget === 0
+                      ? <span className="text-base text-muted-foreground font-medium">Not set</span>
+                      : overviewShowDollars
+                        ? `$${(monthlyBudget / bpd).toFixed(2)}`
+                        : monthlyBudget.toLocaleString()}
+                  </p>
+                  {monthlyBudget > 0 && !overviewShowDollars && bpd > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">≈ ${(monthlyBudget / bpd).toFixed(2)}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Bucks Usage Chart */}
+            <Card className="border shadow-sm" data-testid="card-usage-chart">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Bucks Usage — {new Date().toLocaleString("default", { month: "long", year: "numeric" })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {totalIssued === 0 && totalRedeemed === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <BarChart2 className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                    <p className="text-sm text-muted-foreground">No Bucks activity yet this month.</p>
+                  </div>
+                ) : (
+                  <div className="h-52 w-full" aria-label="Bucks usage bar chart showing issued, redeemed, balance and budget">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={usageChartData} margin={{ top: 20, right: 16, left: 0, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: "#6b7280" }}
+                          tickLine={false}
+                          axisLine={false}
+                          width={overviewShowDollars ? 60 : 52}
+                          tickFormatter={v => overviewShowDollars ? `$${v}` : v.toLocaleString()}
+                        />
+                        <Tooltip
+                          contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
+                          formatter={(value: number, _name: string, entry: { payload?: { name?: string } }) => [
+                            overviewShowDollars ? `$${value.toFixed(2)}` : `${value.toLocaleString()} bucks`,
+                            entry.payload?.name ?? "",
+                          ]}
+                        />
+                        <Bar dataKey="display" radius={[4, 4, 0, 0]}>
+                          {usageChartData.map((d, i) => (
+                            <Cell key={i} fill={d.fill} />
+                          ))}
+                          <LabelList
+                            dataKey="display"
+                            position="top"
+                            style={{ fontSize: 10, fill: "#374151", fontWeight: 500 }}
+                            formatter={(v: number) => overviewShowDollars ? `$${v.toFixed(2)}` : v.toLocaleString()}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* ── QUICK ACTIONS ── */}
+          <section aria-labelledby="section-quick-actions" className="mb-10">
+            <h2 id="section-quick-actions" className="text-xl font-display font-bold text-foreground flex items-center gap-2 mb-4">
+              <Zap className="h-5 w-5 text-primary" />
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" data-testid="quick-actions-grid">
+              <Link href="/admin/instant-transaction">
+                <Card className="border shadow-sm hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group h-full" data-testid="quick-action-instant-transaction">
+                  <CardContent className="pt-5 pb-4 px-4 flex flex-col items-center text-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-semibold">Instant Transaction</p>
+                    <p className="text-xs text-muted-foreground">Reward an employee now</p>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/admin/orders">
+                <Card className="border shadow-sm hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group h-full" data-testid="quick-action-approve-orders">
+                  <CardContent className="pt-5 pb-4 px-4 flex flex-col items-center text-center gap-2 relative">
+                    {pendingCount > 0 && (
+                      <span className="absolute top-3 right-3 inline-flex items-center justify-center min-w-[22px] h-[22px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold leading-none" data-testid="quick-action-pending-badge">
+                        {pendingCount > 99 ? "99+" : pendingCount}
+                      </span>
+                    )}
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                      <ShoppingCart className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-semibold">Approve Orders</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pendingCount > 0 ? `${pendingCount} pending` : "No pending orders"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/admin/invite-links">
+                <Card className="border shadow-sm hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group h-full" data-testid="quick-action-invite-employees">
+                  <CardContent className="pt-5 pb-4 px-4 flex flex-col items-center text-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                      <UserPlus className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-semibold">Invite Employees</p>
+                    <p className="text-xs text-muted-foreground">Generate invite links</p>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/admin/goals">
+                <Card className="border shadow-sm hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group h-full" data-testid="quick-action-add-goal">
+                  <CardContent className="pt-5 pb-4 px-4 flex flex-col items-center text-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                      <Target className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-semibold">Add a Goal</p>
+                    <p className="text-xs text-muted-foreground">Set a new milestone</p>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/admin/surveys">
+                <Card className="border shadow-sm hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group h-full" data-testid="quick-action-create-survey">
+                  <CardContent className="pt-5 pb-4 px-4 flex flex-col items-center text-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-100 text-cyan-600 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
+                      <ClipboardList className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-semibold">Create a Survey</p>
+                    <p className="text-xs text-muted-foreground">Collect employee feedback</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
+          </section>
+
+          {/* ── BUDGET & ALLOCATION ── */}
+          <section aria-labelledby="section-budget" className="mb-10">
+            <h2 id="section-budget" className="text-xl font-display font-bold text-foreground flex items-center gap-2 mb-4">
+              <Wallet className="h-5 w-5 text-primary" />
+              Budget &amp; Allocation
+            </h2>
+
           {/* Budget panel - prime admin gets edit controls, regular admin gets read-only view */}
           {isPrime && budgetSettings && (
             <BudgetPanel
@@ -868,6 +1129,15 @@ export default function AdminDashboardPage() {
               </CardContent>
             </Card>
           )}
+
+          </section>
+
+          {/* ── ANALYTICS ── */}
+          <section aria-labelledby="section-analytics" className="mb-10">
+            <h2 id="section-analytics" className="text-xl font-display font-bold text-foreground flex items-center gap-2 mb-4">
+              <PieChart className="h-5 w-5 text-primary" />
+              Analytics
+            </h2>
 
           {/* Category Analytics Card — always visible for admin/prime_admin */}
           {(currentUser?.role === "admin" || currentUser?.role === "prime_admin") && (
@@ -986,7 +1256,7 @@ export default function AdminDashboardPage() {
           )}
 
           {/* Bucks Credited / Debited summary stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             {/* Bucks Credited */}
             <Card className="border shadow-sm border-green-200">
               <CardHeader className="pb-2">
@@ -1049,7 +1319,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Leaderboard bar chart */}
-          <div className="mb-4">
+          <div className="mb-4 mt-6">
             <div className="flex flex-col gap-3 mb-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
@@ -1133,63 +1403,70 @@ export default function AdminDashboardPage() {
             </Card>
           </div>
 
-          {/* Order Tracking */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 mt-8">
-            <h2 className="text-xl font-display font-bold text-foreground">Order Tracking</h2>
-            <Tabs value={orderPeriod} onValueChange={(v) => setOrderPeriod(v as "week" | "month" | "year")}>
-              <TabsList className="min-h-8 h-auto flex-wrap">
-                <TabsTrigger value="week" className="text-xs px-2 py-1" data-testid="tab-orders-week" aria-label="Week"><Calendar className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Week</span></TabsTrigger>
-                <TabsTrigger value="month" className="text-xs px-2 py-1" data-testid="tab-orders-month" aria-label="Month"><CalendarDays className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Month</span></TabsTrigger>
-                <TabsTrigger value="year" className="text-xs px-2 py-1" data-testid="tab-orders-year" aria-label="Year"><CalendarRange className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Year</span></TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="border shadow-sm">
-              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 flex-shrink-0">
-                  <ShoppingCart className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Orders {periodLabel}</p>
-                  <p className="text-3xl font-bold" data-testid="text-total-orders">{currentOrderStats?.totalOrders ?? 0}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border shadow-sm">
-              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100 text-yellow-600 flex-shrink-0">
-                  <Clock className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Pending ($) {periodLabel}</p>
-                  <p className="text-3xl font-bold" data-testid="text-pending-dollars">{currentOrderStats?.pendingDollars ?? "$0.00"}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border shadow-sm">
-              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 flex-shrink-0">
-                  <CheckCircle className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Approved ($) {periodLabel}</p>
-                  <p className="text-3xl font-bold" data-testid="text-approved-dollars">{currentOrderStats?.approvedDollars ?? "$0.00"}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border shadow-sm">
-              <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-100 text-pink-600 flex-shrink-0">
-                  <DollarSign className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Total ($) {periodLabel}</p>
-                  <p className="text-3xl font-bold" data-testid="text-total-dollars">{currentOrderStats?.totalDollars ?? "$0.00"}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          </section>
+
+          {/* ── ORDER TRACKING ── */}
+          <section aria-labelledby="section-orders" className="mb-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+              <h2 id="section-orders" className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-primary" />
+                Order Tracking
+              </h2>
+              <Tabs value={orderPeriod} onValueChange={(v) => setOrderPeriod(v as "week" | "month" | "year")}>
+                <TabsList className="min-h-8 h-auto flex-wrap">
+                  <TabsTrigger value="week" className="text-xs px-2 py-1" data-testid="tab-orders-week" aria-label="Week"><Calendar className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Week</span></TabsTrigger>
+                  <TabsTrigger value="month" className="text-xs px-2 py-1" data-testid="tab-orders-month" aria-label="Month"><CalendarDays className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Month</span></TabsTrigger>
+                  <TabsTrigger value="year" className="text-xs px-2 py-1" data-testid="tab-orders-year" aria-label="Year"><CalendarRange className="h-3 w-3 sm:mr-1" /><span className="hidden sm:inline">Year</span></TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="border shadow-sm">
+                <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 flex-shrink-0">
+                    <ShoppingCart className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Orders {periodLabel}</p>
+                    <p className="text-3xl font-bold" data-testid="text-total-orders">{currentOrderStats?.totalOrders ?? 0}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border shadow-sm">
+                <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100 text-yellow-600 flex-shrink-0">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Pending ($) {periodLabel}</p>
+                    <p className="text-3xl font-bold" data-testid="text-pending-dollars">{currentOrderStats?.pendingDollars ?? "$0.00"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border shadow-sm">
+                <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 flex-shrink-0">
+                    <CheckCircle className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Approved ($) {periodLabel}</p>
+                    <p className="text-3xl font-bold" data-testid="text-approved-dollars">{currentOrderStats?.approvedDollars ?? "$0.00"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border shadow-sm">
+                <CardContent className="pt-6 pb-5 px-6 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-100 text-pink-600 flex-shrink-0">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Total ($) {periodLabel}</p>
+                    <p className="text-3xl font-bold" data-testid="text-total-dollars">{currentOrderStats?.totalDollars ?? "$0.00"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
         </>
       )}
     </AdminLayout>

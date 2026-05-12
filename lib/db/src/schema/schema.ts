@@ -591,6 +591,8 @@ export const stripeOrphans = pgTable(
     retryCount: integer("retry_count").default(0).notNull(),
     lastError: text("last_error"),
     resolutionNote: text("resolution_note"),
+    resolvedByUserId: integer("resolved_by_user_id"),
+    resolvedAt: timestamp("resolved_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -606,6 +608,20 @@ export const stripeOrphans = pgTable(
 
 export type StripeOrphan = typeof stripeOrphans.$inferSelect;
 export type InsertStripeOrphan = typeof stripeOrphans.$inferInsert;
+
+// ── Developer activity log (audit trail) ──────────────────────────────────────
+export const developerActivityLog = pgTable("developer_activity_log", {
+  id: serial("id").primaryKey(),
+  actorUserId: integer("actor_user_id"),
+  action: text("action").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: integer("entity_id"),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DeveloperActivityLogEntry = typeof developerActivityLog.$inferSelect;
+export type InsertDeveloperActivityLogEntry = typeof developerActivityLog.$inferInsert;
 
 export const insertMerchantSchema = createInsertSchema(merchants).omit({ id: true, createdAt: true, passwordHash: true }).extend({
   password: z.string().min(6),

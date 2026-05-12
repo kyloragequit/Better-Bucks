@@ -30,9 +30,9 @@ async function getStripeClient() {
 async function getStripePubKey() {
   return getStripePublishableKey();
 }
-import { sql, eq, and, gte, lte, gt, lt, inArray, isNull } from "drizzle-orm";
+import { sql, eq, and, gte, lte, gt, lt, inArray, isNull, desc } from "drizzle-orm";
 import { db } from "../db";
-import { organizations, users, infoRequests, affiliateApplications, transactions, orders, customItemTransactions, transactionCategories, stripeOrphans } from "@workspace/db";
+import { organizations, users, infoRequests, affiliateApplications, transactions, orders, customItemTransactions, transactionCategories, stripeOrphans, developerActivityLog } from "@workspace/db";
 import cron from "node-cron";
 import type { User, Merchant } from "@workspace/db";
 
@@ -6648,13 +6648,45 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       return res.status(400).json({ message: "note must be a string" });
     }
     const note = typeof rawNote === "string" ? rawNote.trim().slice(0, 500) : null;
-    const updated = await db
-      .update(stripeOrphans)
-      .set({ status: "resolved", resolutionNote: note || null, updatedAt: new Date() })
-      .where(eq(stripeOrphans.id, id))
-      .returning();
-    if (!updated.length) return res.status(404).json({ message: "Record not found" });
-    res.json(updated[0]);
+    const now = new Date();
+    const result = await db.transaction(async (tx) => {
+      const updated = await tx
+        .update(stripeOrphans)
+        .set({ status: "resolved", resolutionNote: note || null, resolvedByUserId: user.id, resolvedAt: now, updatedAt: now })
+        .where(eq(stripeOrphans.id, id))
+        .returning();
+      if (!updated.length) return null;
+      await tx.insert(developerActivityLog).values({
+        actorUserId: user.id,
+        action: "resolve_stripe_orphan",
+        entityType: "stripe_orphan",
+        entityId: id,
+        details: {
+          resolutionNote: note || null,
+          stripeCustomerId: updated[0].stripeCustomerId,
+          stripeSubscriptionId: updated[0].stripeSubscriptionId,
+        },
+      });
+      return updated[0];
+    });
+    if (!result) return res.status(404).json({ message: "Record not found" });
+    res.json(result);
+  }));
+
+  // GET /api/developer/activity-log — list developer audit trail entries
+  app.get("/api/developer/activity-log", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const limitParam = parseInt((req.query.limit as string) || "100", 10);
+    const limit = isNaN(limitParam) || limitParam < 1 ? 100 : Math.min(limitParam, 500);
+    const entries = await db
+      .select()
+      .from(developerActivityLog)
+      .orderBy(desc(developerActivityLog.createdAt))
+      .limit(limit);
+    res.json(entries);
   }));
 
   // GET /api/developer/mcp-config — returns MCP connection info for the setup panel

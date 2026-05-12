@@ -60,7 +60,8 @@
     },
     "extra": {
       "EXPO_PUBLIC_API_URL": null,
-      "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": null
+      "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": null,
+      "_nfcBuildNote": "NFC tap-to-order (react-native-nfc-manager) requires a native build. Run `expo prebuild` then build with EAS (`eas build --profile development --platform android`). NFC does NOT work in Expo Go — the app detects this and shows an informational message instead of crashing."
     }
   }
 }

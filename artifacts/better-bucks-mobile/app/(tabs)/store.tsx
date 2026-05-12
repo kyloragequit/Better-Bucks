@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import NfcManager, { Ndef, NfcTech } from "react-native-nfc-manager";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
@@ -111,9 +112,18 @@ function EmployeeStore() {
     sortOrder === "asc" ? "Price ↑" : sortOrder === "desc" ? "Price ↓" : "Sort";
 
   const [scanningNfc, setScanningNfc] = useState(false);
+  const isExpoGo = Constants.appOwnership === "expo";
 
   const handleNfcScan = useCallback(async () => {
     if (scanningNfc) return;
+    if (isExpoGo) {
+      Alert.alert(
+        "Native build required",
+        "NFC tap-to-order uses hardware features that are not available in Expo Go.\n\nTo use this feature, install the Better Bucks development build on your device.",
+        [{ text: "OK" }],
+      );
+      return;
+    }
     let supported = false;
     try {
       supported = await NfcManager.isSupported();

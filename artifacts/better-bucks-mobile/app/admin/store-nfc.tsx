@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
+import Constants from "expo-constants";
 import NfcManager, { Ndef } from "react-native-nfc-manager";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
@@ -152,6 +153,7 @@ export default function StoreNfcScreen() {
 
   const price = parseInt(itemPrice ?? "0") || 0;
   const isAndroid = Platform.OS === "android";
+  const isExpoGo = Constants.appOwnership === "expo";
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom + 20 }]}>
@@ -163,6 +165,17 @@ export default function StoreNfcScreen() {
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Expo Go warning — shown before any NFC hardware is accessed */}
+      {isExpoGo && (
+        <View style={styles.expoGoBanner}>
+          <Ionicons name="construct-outline" size={18} color="#92400E" />
+          <Text style={styles.expoGoBannerText}>
+            NFC requires a native development build and does not work in Expo Go. Run{" "}
+            <Text style={styles.expoGoCode}>expo prebuild</Text> then install a dev build to use this feature.
+          </Text>
+        </View>
+      )}
+
       <View style={styles.itemCard}>
         <View style={styles.itemIconWrap}>
           <Ionicons name="gift-outline" size={28} color={brand.green} />
@@ -173,7 +186,18 @@ export default function StoreNfcScreen() {
         </View>
       </View>
 
-      {loading ? (
+      {isExpoGo ? (
+        <View style={styles.center}>
+          <Ionicons name="construct-outline" size={56} color={brand.textMuted} />
+          <Text style={styles.iosTitle}>Native build required</Text>
+          <Text style={styles.iosBody}>
+            NFC broadcasting uses Android HCE hardware that is not accessible from Expo Go.{"\n\n"}
+            Build the app with{" "}
+            <Text style={{ fontFamily: "Inter_600SemiBold" }}>expo prebuild</Text>
+            {" "}and install a development build to enable NFC tap-to-order.
+          </Text>
+        </View>
+      ) : loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={brand.green} size="large" />
           <Text style={styles.loadingText}>Generating NFC token…</Text>
@@ -357,5 +381,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: brand.navy,
     lineHeight: 20,
+  },
+  expoGoBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    margin: 16,
+    marginBottom: 0,
+    padding: 14,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  expoGoBannerText: {
+    flex: 1,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: "#92400E",
+    lineHeight: 20,
+  },
+  expoGoCode: {
+    fontFamily: "Inter_600SemiBold",
+    color: "#78350F",
   },
 });

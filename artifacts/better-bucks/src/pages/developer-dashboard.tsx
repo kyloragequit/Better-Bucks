@@ -453,8 +453,10 @@ export default function DeveloperDashboardPage() {
   type StripeOrphansData = { rows: StripeOrphanRow[]; counts: Record<string, number> };
   const { data: stripeOrphansData, isLoading: stripeOrphansLoading, refetch: refetchStripeOrphans } = useQuery<StripeOrphansData>({
     queryKey: ["/api/developer/stripe-orphans"],
-    enabled: activeTab === "stripe-orphans",
+    enabled: user?.role === "developer",
   });
+  const permanentlyFailedCount = stripeOrphansData?.counts["failed_permanently"] ?? 0;
+  const [orphanBannerDismissed, setOrphanBannerDismissed] = useState(false);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
   const [resolveOrphanId, setResolveOrphanId] = useState<number | null>(null);
   const [resolveNote, setResolveNote] = useState("");
@@ -627,6 +629,29 @@ export default function DeveloperDashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {permanentlyFailedCount > 0 && !orphanBannerDismissed && (
+          <div className="mb-5 flex items-center gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800" role="alert" data-testid="banner-orphan-alert">
+            <AlertOctagon className="h-5 w-5 shrink-0 text-red-600" />
+            <p className="flex-1 text-sm font-medium">
+              <span className="font-bold">{permanentlyFailedCount} Stripe orphan{permanentlyFailedCount !== 1 ? "s" : ""}</span> permanently failed and need manual cleanup.{" "}
+              <button
+                className="underline underline-offset-2 hover:text-red-900 font-semibold"
+                onClick={() => { setActiveTab("stripe-orphans"); setBlogForm(null); }}
+                data-testid="banner-orphan-go-to-tab"
+              >
+                Go to Stripe Cleanup →
+              </button>
+            </p>
+            <button
+              aria-label="Dismiss"
+              onClick={() => setOrphanBannerDismissed(true)}
+              className="ml-auto p-1 rounded hover:bg-red-100 text-red-500 hover:text-red-700"
+              data-testid="banner-orphan-dismiss"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold text-gray-900" data-testid="text-dev-dashboard-title">
@@ -729,6 +754,14 @@ export default function DeveloperDashboardPage() {
             >
               <CreditCard className="mr-1.5 h-4 w-4" />
               Stripe Cleanup
+              {permanentlyFailedCount > 0 && (
+                <span
+                  className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold leading-none px-1.5 py-0.5 min-w-[1.25rem]"
+                  data-testid="badge-stripe-orphan-count"
+                >
+                  {permanentlyFailedCount}
+                </span>
+              )}
             </Button>
           </div>
         </div>

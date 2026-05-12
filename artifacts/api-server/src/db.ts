@@ -15,13 +15,15 @@ const isProduction = process.env.NODE_ENV === "production";
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: isProduction ? 30 : 10,
-  min: isProduction ? 4 : 1,
-  idleTimeoutMillis: isProduction ? 30_000 : 15_000,
+  max: isProduction ? 10 : 5,
+  min: 0,
+  idleTimeoutMillis: 10_000,
   connectionTimeoutMillis: isProduction ? 10_000 : 5_000,
   allowExitOnIdle: !isProduction,
   statement_timeout: 30_000,
   query_timeout: 30_000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 5_000,
 });
 
 pool.on("error", (err) => {

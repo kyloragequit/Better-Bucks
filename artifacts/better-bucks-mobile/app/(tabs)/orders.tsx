@@ -322,12 +322,27 @@ const chartStyles = StyleSheet.create({
   },
 });
 
+type StatusTab = "pending" | "past" | "rejected";
+
+const TAB_CONFIG: {
+  key: StatusTab;
+  label: string;
+  statuses: Order["status"][];
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  color: string;
+}[] = [
+  { key: "pending", label: "Pending",  statuses: ["pending"],                       icon: "time-outline",         color: brand.warning },
+  { key: "past",    label: "Past",     statuses: ["approved", "shipped", "fulfilled"], icon: "checkmark-circle-outline", color: brand.green },
+  { key: "rejected",label: "Rejected", statuses: ["denied"],                         icon: "close-circle-outline", color: brand.danger },
+];
+
 export default function OrdersTab() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const admin = user?.role === "admin" || user?.role === "prime_admin";
 
+  const [statusTab, setStatusTab] = useState<StatusTab>("pending");
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
   const [selectedMonthLabel, setSelectedMonthLabel] = useState<string | null>(null);
 
@@ -353,13 +368,22 @@ export default function OrdersTab() {
     setSelectedMonthLabel(null);
   }
 
+  const tabCfg = TAB_CONFIG.find((t) => t.key === statusTab)!;
+
+  const tabOrders = orders.filter((o) => tabCfg.statuses.includes(o.status));
+
   const filteredOrders = selectedMonthKey
-    ? orders.filter((o) => {
+    ? tabOrders.filter((o) => {
         const d = new Date(o.createdAt);
         const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
         return key === selectedMonthKey;
       })
-    : orders;
+    : tabOrders;
+
+  function countForTab(tab: StatusTab) {
+    const cfg = TAB_CONFIG.find((t) => t.key === tab)!;
+    return orders.filter((o) => cfg.statuses.includes(o.status)).length;
+  }
 
   const handleStatusChange = async (order: Order, newStatus: Order["status"]) => {
     Alert.alert(
@@ -408,6 +432,37 @@ export default function OrdersTab() {
     );
   }
 
+  const tabBar = (
+    <View style={tabStyles.bar}>
+      {TAB_CONFIG.map((tab) => {
+        const active = statusTab === tab.key;
+        const count = countForTab(tab.key);
+        return (
+          <TouchableOpacity
+            key={tab.key}
+            style={[tabStyles.pill, active && { borderColor: tab.color, backgroundColor: tab.color + "12" }]}
+            onPress={() => {
+              setStatusTab(tab.key);
+              clearMonthFilter();
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+          >
+            <Ionicons name={tab.icon} size={14} color={active ? tab.color : brand.textMuted} />
+            <Text style={[tabStyles.pillLabel, active && { color: tab.color }]}>{tab.label}</Text>
+            {count > 0 && (
+              <View style={[tabStyles.badge, { backgroundColor: active ? tab.color : brand.border }]}>
+                <Text style={[tabStyles.badgeText, { color: active ? brand.white : brand.textSecondary }]}>
+                  {count}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   const filterBanner = !admin && selectedMonthKey ? (
     <View style={styles.filterBanner}>
       <Ionicons name="calendar-outline" size={14} color={brand.navy} />
@@ -418,43 +473,31 @@ export default function OrdersTab() {
     </View>
   ) : null;
 
-  const listHeader = !admin ? (
+  const listHeader = (
     <>
-      <SpendingChart
-        token={token}
-        onMonthSelect={handleMonthSelect}
-        selectedMonthKey={selectedMonthKey}
-      />
+      {tabBar}
+      {!admin && statusTab === "past" && (
+        <SpendingChart
+          token={token}
+          onMonthSelect={handleMonthSelect}
+          selectedMonthKey={selectedMonthKey}
+        />
+      )}
       {filterBanner}
     </>
-  ) : null;
+  );
 
-  if (orders.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: brand.white }}>
-        {!admin && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-            <SpendingChart
-              token={token}
-              onMonthSelect={handleMonthSelect}
-              selectedMonthKey={selectedMonthKey}
-            />
-          </View>
-        )}
-        <View style={styles.center}>
-          <Ionicons name="receipt-outline" size={48} color={brand.textMuted} />
-          <Text style={styles.emptyText}>
-            {admin ? "No orders yet" : "No orders placed yet"}
-          </Text>
-          {!admin && (
-            <Text style={styles.emptySubtext}>
-              Visit the Store tab to redeem your Bucks.
-            </Text>
-          )}
-        </View>
-      </View>
-    );
-  }
+  const emptyLabel =
+    statusTab === "pending"
+      ? admin ? "No pending orders" : "No pending orders"
+      : statusTab === "past"
+      ? admin ? "No past orders" : "No past orders"
+      : admin ? "No rejected orders" : "No rejected orders";
+
+  const emptyIcon: React.ComponentProps<typeof Ionicons>["name"] =
+    statusTab === "pending" ? "time-outline"
+    : statusTab === "past" ? "checkmark-circle-outline"
+    : "close-circle-outline";
 
   return (
     <FlatList
@@ -477,7 +520,12 @@ export default function OrdersTab() {
               <Text style={styles.clearFilterLinkText}>Show all orders</Text>
             </TouchableOpacity>
           </View>
-        ) : null
+        ) : (
+          <View style={styles.emptyFiltered}>
+            <Ionicons name={emptyIcon} size={40} color={brand.textMuted} />
+            <Text style={styles.emptyFilteredText}>{emptyLabel}</Text>
+          </View>
+        )
       }
       refreshControl={
         <RefreshControl
@@ -628,6 +676,44 @@ export default function OrdersTab() {
     />
   );
 }
+
+const tabStyles = StyleSheet.create({
+  bar: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+  pill: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: brand.border,
+    backgroundColor: brand.offWhite,
+  },
+  pillLabel: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    color: brand.textMuted,
+  },
+  badge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+  },
+});
 
 const styles = StyleSheet.create({
   center: {

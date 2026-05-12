@@ -48,6 +48,8 @@ export default function AdminEmployeesPage() {
   const [sortKey, setSortKey] = usePersistedState<"name" | "balance" | "department">("bb_sort_emp_key", "name");
   const [sortDir, setSortDir] = usePersistedState<"asc" | "desc">("bb_sort_emp_dir", "asc");
 
+  const filterKey = `${search}|${deptFilter}|${mgrFilter}|${roleFilter}`;
+
   function handleSort(key: "name" | "balance" | "department") {
     if (sortKey === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -223,6 +225,7 @@ export default function AdminEmployeesPage() {
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={handleSort}
+          filterKey={filterKey}
         />
       )}
 
@@ -248,6 +251,7 @@ type EmployeeVirtualListProps = {
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (key: SortKey) => void;
+  filterKey: string;
 };
 
 const SCROLL_KEY_MOBILE = "bb_emp_list_scroll_mobile";
@@ -273,6 +277,7 @@ function EmployeeVirtualList({
   sortKey,
   sortDir,
   onSort,
+  filterKey,
 }: EmployeeVirtualListProps) {
   const mobileParentRef = useRef<HTMLDivElement>(null);
   const desktopParentRef = useRef<HTMLDivElement>(null);
@@ -300,6 +305,18 @@ function EmployeeVirtualList({
       }
     };
   }, []);
+
+  const isMountedRef = useRef(false);
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+    sessionStorage.removeItem(SCROLL_KEY_MOBILE);
+    sessionStorage.removeItem(SCROLL_KEY_DESKTOP);
+    if (mobileParentRef.current) mobileParentRef.current.scrollTop = 0;
+    if (desktopParentRef.current) desktopParentRef.current.scrollTop = 0;
+  }, [filterKey]);
 
   const mobileVirtualizer = useVirtualizer({
     count: filteredUsers.length,

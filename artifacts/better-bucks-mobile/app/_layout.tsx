@@ -9,15 +9,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { StripeProvider } from "@stripe/stripe-react-native";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { StripeWrapper } from "@/components/StripeWrapper";
 import { brand } from "@/constants/colors";
-import { STRIPE_PUBLISHABLE_KEY } from "@/constants/api";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SignupProvider } from "@/contexts/SignupContext";
 
@@ -131,17 +130,14 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <StripeProvider
-                publishableKey={STRIPE_PUBLISHABLE_KEY}
-                merchantIdentifier="merchant.net.betterbucks.app"
-              >
+              <StripeWrapper>
                 <AuthProvider>
                   <SignupProvider>
                     <StatusBar style="dark" />
                     <RootLayoutNav />
                   </SignupProvider>
                 </AuthProvider>
-              </StripeProvider>
+              </StripeWrapper>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

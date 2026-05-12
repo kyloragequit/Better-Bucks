@@ -1,206 +1,52 @@
-import { CardField, useStripe } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-
 import { Button } from "@/components/Button";
-import { HCaptchaModal, HCaptchaModalHandle } from "@/components/HCaptchaModal";
 import { ScreenContainer } from "@/components/ScreenContainer";
-import {
-  apiUrl,
-  HCAPTCHA_SITE_KEY,
-  STRIPE_PUBLISHABLE_KEY,
-} from "@/constants/api";
 import { brand } from "@/constants/colors";
-import { useSignup } from "@/contexts/SignupContext";
 
 export default function SignupPaymentScreen() {
-  const { draft } = useSignup();
-  const { createPaymentMethod } = useStripe();
-  const captchaRef = useRef<HCaptchaModalHandle>(null);
-  const [cardComplete, setCardComplete] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const stripeConfigured = !!STRIPE_PUBLISHABLE_KEY;
-  const captchaEnabled = !!HCAPTCHA_SITE_KEY;
-
-  const handleSubmit = () => {
-    setError(null);
-    if (!stripeConfigured) {
-      setError(
-        "Stripe is not configured. Set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY to enable signup.",
-      );
-      return;
-    }
-    if (!cardComplete) {
-      setError("Enter your card details to continue.");
-      return;
-    }
-
-    if (captchaEnabled) {
-      captchaRef.current?.show();
-    } else {
-      runSignup("");
-    }
-  };
-
-  const runSignup = async (hcaptchaToken: string) => {
-    setSubmitting(true);
-    try {
-      const pm = await createPaymentMethod({
-        paymentMethodType: "Card",
-        paymentMethodData: {
-          billingDetails: { email: draft.email, name: draft.fullName },
-        },
-      });
-      if (pm.error || !pm.paymentMethod) {
-        setError(pm.error?.message ?? "Could not validate your card.");
-        setSubmitting(false);
-        return;
-      }
-
-      const res = await fetch(apiUrl("/api/mobile/organizations/signup"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          organizationName: draft.organizationName,
-          fullName: draft.fullName,
-          email: draft.email,
-          password: draft.password,
-          tier: draft.tier,
-          paymentMethodId: pm.paymentMethod.id,
-          licenseAccepted: true,
-          hcaptchaToken,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg: string = data?.message ?? "";
-        if (msg.toLowerCase().includes("human verification failed")) {
-          setError(
-            "Verification failed. Please complete the challenge again to continue.",
-          );
-          setSubmitting(false);
-          captchaRef.current?.show();
-          return;
-        }
-        setError(msg || "Signup failed. Please try again.");
-        setSubmitting(false);
-        return;
-      }
-
-      router.replace("/signup/confirmation");
-    } catch (err: any) {
-      setError(err?.message ?? "Network error.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCaptchaToken = (token: string) => {
-    runSignup(token);
-  };
-
-  const handleCaptchaCancel = () => {
-    setSubmitting(false);
-  };
-
-  const handleCaptchaError = (err: string) => {
-    setError(`Verification failed: ${err}. Please try again.`);
-    setSubmitting(false);
-  };
-
   return (
     <ScreenContainer>
-      <Text style={styles.heading}>Add a payment method</Text>
-      <Text style={styles.sub}>
-        Step 3 of 3 · No charge during your 60-day free trial
-      </Text>
-
-      <View style={{ height: 18 }} />
-
-      <Text style={styles.label}>Card details</Text>
-      <View style={styles.cardWrap}>
-        <CardField
-          postalCodeEnabled
-          placeholders={{ number: "4242 4242 4242 4242" }}
-          cardStyle={{
-            backgroundColor: brand.white,
-            textColor: brand.text,
-            placeholderColor: brand.textMuted,
-            borderRadius: 10,
-          }}
-          style={styles.card}
-          onCardChange={(d) => setCardComplete(d.complete)}
+      <View style={styles.center}>
+        <Text style={styles.heading}>Native build required</Text>
+        <Text style={styles.body}>
+          Payment setup uses Stripe&apos;s native card UI, which only runs in a
+          native build of the app — not in Expo Go on web.
+        </Text>
+        <Text style={styles.body}>
+          To complete org signup, open the app on a physical device or simulator
+          using a development build.
+        </Text>
+        <Button
+          title="Go back"
+          onPress={() => router.back()}
+          style={{ marginTop: 24 }}
         />
       </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Button
-        testID="signup-payment-submit"
-        title="Start free trial"
-        onPress={handleSubmit}
-        loading={submitting}
-        style={{ marginTop: 8 }}
-      />
-
-      <Text style={styles.fine}>
-        Your card won&apos;t be charged until your free trial ends. You can
-        cancel anytime from your dashboard.
-      </Text>
-
-      {captchaEnabled ? (
-        <HCaptchaModal
-          ref={captchaRef}
-          siteKey={HCAPTCHA_SITE_KEY}
-          onToken={handleCaptchaToken}
-          onCancel={handleCaptchaCancel}
-          onError={handleCaptchaError}
-        />
-      ) : null}
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
   heading: {
     color: brand.text,
     fontFamily: "Inter_700Bold",
     fontSize: 22,
+    textAlign: "center",
+    marginBottom: 16,
   },
-  sub: {
-    color: brand.textMuted,
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    marginTop: 4,
-  },
-  label: {
-    color: brand.textSecondary,
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    marginBottom: 6,
-  },
-  cardWrap: {
-    backgroundColor: brand.white,
-    borderColor: brand.border,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    padding: 4,
-  },
-  card: { width: "100%", height: 50 },
-  error: {
-    color: brand.danger,
-    fontFamily: "Inter_500Medium",
-    marginTop: 12,
-  },
-  fine: {
+  body: {
     color: brand.textMuted,
     fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    marginTop: 14,
+    fontSize: 14,
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 22,
+    marginBottom: 8,
   },
 });

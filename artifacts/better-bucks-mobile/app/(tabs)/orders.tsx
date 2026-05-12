@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
@@ -73,8 +74,14 @@ function buildChartData(history: MonthlySpend[]): ChartPoint[] {
   return result;
 }
 
+function formatCompact(n: number): string {
+  if (n >= 1000) return `${(n / 1000 % 1 === 0 ? n / 1000 : (n / 1000).toFixed(1))}k`;
+  return String(n);
+}
+
 function SpendingChart({ token }: { token: string | null }) {
   const { width: screenWidth } = useWindowDimensions();
+  const [selectedBar, setSelectedBar] = useState<number | null>(null);
 
   const { data: history = [], isError } = useQuery<MonthlySpend[]>({
     queryKey: ["mobile-redemptions-history", token],
@@ -90,6 +97,10 @@ function SpendingChart({ token }: { token: string | null }) {
 
   const chartData = buildChartData(history);
 
+  useEffect(() => {
+    setSelectedBar(null);
+  }, [chartData.length]);
+
   if (isError) {
     return (
       <View style={chartStyles.errorRow}>
@@ -103,10 +114,10 @@ function SpendingChart({ token }: { token: string | null }) {
 
   const PAD_LEFT = 40;
   const PAD_RIGHT = 12;
-  const PAD_TOP = 12;
+  const PAD_TOP = 22;
   const PAD_BOTTOM = 28;
   const svgWidth = screenWidth - 40;
-  const svgHeight = 180;
+  const svgHeight = 190;
   const chartW = svgWidth - PAD_LEFT - PAD_RIGHT;
   const chartH = svgHeight - PAD_TOP - PAD_BOTTOM;
 
@@ -119,6 +130,14 @@ function SpendingChart({ token }: { token: string | null }) {
   const barCount = chartData.length;
   const barGap = Math.max(2, chartW / barCount * 0.2);
   const barWidth = (chartW - barGap * (barCount - 1)) / barCount;
+
+  const sel = selectedBar != null ? (chartData[selectedBar] ?? null) : null;
+  const selX = selectedBar !== null ? PAD_LEFT + selectedBar * (barWidth + barGap) : 0;
+  const tooltipW = 70;
+  const tooltipX = Math.min(
+    Math.max(selX + barWidth / 2 - tooltipW / 2, PAD_LEFT),
+    svgWidth - PAD_RIGHT - tooltipW,
+  );
 
   return (
     <View style={chartStyles.card}>
@@ -158,24 +177,47 @@ function SpendingChart({ token }: { token: string | null }) {
           const x = PAD_LEFT + i * (barWidth + barGap);
           const barH = Math.max(2, (d.total / maxVal) * chartH);
           const y = PAD_TOP + chartH - barH;
-          const showLabel = barCount <= 12 || i % Math.ceil(barCount / 8) === 0 || i === barCount - 1;
+          const showXLabel = barCount <= 12 || i % Math.ceil(barCount / 8) === 0 || i === barCount - 1;
+          const isSelected = selectedBar === i;
+          const barFill = isSelected ? brand.green : brand.navy;
+          const labelY = Math.max(PAD_TOP - 3, y - 4);
           return (
-            <G key={d.label}>
+            <G key={d.label} onPress={() => setSelectedBar(isSelected ? null : i)}>
               <Rect
                 x={x}
                 y={y}
                 width={barWidth}
                 height={barH}
-                fill={brand.navy}
+                fill={barFill}
                 rx={3}
                 ry={3}
               />
-              {showLabel && (
+              {/* Hit area so thin bars are easier to tap */}
+              <Rect
+                x={x - 4}
+                y={PAD_TOP}
+                width={barWidth + 8}
+                height={chartH}
+                fill="transparent"
+              />
+              {/* Compact value label above bar */}
+              {d.total > 0 && !isSelected && (
+                <SvgText
+                  x={x + barWidth / 2}
+                  y={labelY}
+                  fontSize={8}
+                  fill={brand.textMuted}
+                  textAnchor="middle"
+                >
+                  {formatCompact(d.total)}
+                </SvgText>
+              )}
+              {showXLabel && (
                 <SvgText
                   x={x + barWidth / 2}
                   y={svgHeight - 4}
                   fontSize={8}
-                  fill={brand.textMuted}
+                  fill={isSelected ? brand.green : brand.textMuted}
                   textAnchor="middle"
                 >
                   {d.label.split(" ")[0]}
@@ -184,6 +226,30 @@ function SpendingChart({ token }: { token: string | null }) {
             </G>
           );
         })}
+
+        {/* Tooltip for selected bar — rendered last so it sits on top */}
+        {sel !== null && selectedBar !== null && (
+          <G>
+            <Rect
+              x={tooltipX}
+              y={2}
+              width={tooltipW}
+              height={17}
+              fill={brand.navy}
+              rx={4}
+              ry={4}
+            />
+            <SvgText
+              x={tooltipX + tooltipW / 2}
+              y={13}
+              fontSize={9}
+              fill="#ffffff"
+              textAnchor="middle"
+            >
+              {`${sel.total.toLocaleString()} Bucks`}
+            </SvgText>
+          </G>
+        )}
       </Svg>
     </View>
   );

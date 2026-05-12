@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AdminLayout } from "@/components/layout-admin";
 import { usePublicDemo } from "@/hooks/use-demo";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -129,6 +129,8 @@ function NeedHelpPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+const SCROLL_KEY = "bb_admin_store_scroll";
+
 type WishlistEntry = Wishlist & { storeItem: StoreItem; user: User };
 
 export default function AdminStorePage() {
@@ -138,6 +140,16 @@ export default function AdminStorePage() {
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useQuery<StoreItem[]>({ queryKey: ["/api/store-items"] });
   const { data: wishlists } = useQuery<WishlistEntry[]>({ queryKey: ["/api/admin/wishlists"] });
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SCROLL_KEY);
+    if (saved !== null) {
+      requestAnimationFrame(() => window.scrollTo(0, parseFloat(saved)));
+    }
+    return () => {
+      sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+    };
+  }, []);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);

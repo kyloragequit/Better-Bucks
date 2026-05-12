@@ -31,6 +31,9 @@ type PaginatedOrdersResponse = { orders: OrderWithUser[]; hasMore: boolean; tota
 
 const PAGE_LIMIT = 50;
 
+const SCROLL_KEY_MOBILE = "bb_orders_list_scroll_mobile";
+const SCROLL_KEY_DESKTOP = "bb_orders_list_scroll_desktop";
+
 function statusVariant(status: string) {
   switch (status) {
     case "pending": return "secondary";
@@ -309,6 +312,30 @@ function AllOrdersVirtualList({
 }) {
   const mobileParentRef = useRef<HTMLDivElement>(null);
   const desktopParentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mobileEl = mobileParentRef.current;
+    const desktopEl = desktopParentRef.current;
+
+    const savedMobile = sessionStorage.getItem(SCROLL_KEY_MOBILE);
+    const savedDesktop = sessionStorage.getItem(SCROLL_KEY_DESKTOP);
+
+    if (mobileEl && savedMobile !== null) {
+      mobileEl.scrollTop = parseFloat(savedMobile);
+    }
+    if (desktopEl && savedDesktop !== null) {
+      desktopEl.scrollTop = parseFloat(savedDesktop);
+    }
+
+    return () => {
+      if (mobileParentRef.current) {
+        sessionStorage.setItem(SCROLL_KEY_MOBILE, String(mobileParentRef.current.scrollTop));
+      }
+      if (desktopParentRef.current) {
+        sessionStorage.setItem(SCROLL_KEY_DESKTOP, String(desktopParentRef.current.scrollTop));
+      }
+    };
+  }, []);
 
   const mobileVirtualizer = useVirtualizer({
     count: orders.length,

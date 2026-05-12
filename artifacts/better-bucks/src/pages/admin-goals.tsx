@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePublicDemo } from "@/hooks/use-demo";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
@@ -81,12 +81,24 @@ type GoalFormData = {
 
 const emptyForm: GoalFormData = { title: "", type: "quantity", bucksReward: "", targetQuantity: "", targetDays: "", durationUnit: "days", targetHours: "", targetMinutes: "", endDate: "", targetType: "all", targetIds: [] };
 
+const SCROLL_KEY = "bb_admin_goals_scroll";
+
 export default function AdminGoalsPage() {
   const isPublicDemo = usePublicDemo();
   const { data: user } = useUser();
   const isPrimeAdmin = user?.role === "prime_admin" || user?.role === "admin";
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SCROLL_KEY);
+    if (saved !== null) {
+      requestAnimationFrame(() => window.scrollTo(0, parseFloat(saved)));
+    }
+    return () => {
+      sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+    };
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 150);

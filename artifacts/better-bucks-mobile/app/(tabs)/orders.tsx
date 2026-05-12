@@ -8,9 +8,11 @@ import {
   View,
   ActivityIndicator,
   RefreshControl,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import Svg, { Rect, Text as SvgText, G, Line } from "react-native-svg";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +29,9 @@ type Order = {
   selectedColor: string | null;
   user?: { fullName: string; username: string };
 };
+
+type MonthlySpend = { month: string; total: number };
+type ChartPoint = { label: string; total: number };
 
 const STATUS_CONFIG: Record<
   Order["status"],
@@ -47,6 +52,177 @@ function formatDate(dateStr: string) {
     year: "numeric",
   });
 }
+
+function buildChartData(history: MonthlySpend[]): ChartPoint[] {
+  if (history.length === 0) return [];
+  const byMonth = new Map(history.map((h) => [h.month, h.total]));
+  const earliest = history[0].month;
+  const [eYear, eMon] = earliest.split("-").map(Number);
+  const now = new Date();
+  const result: ChartPoint[] = [];
+  let y = eYear;
+  let m = eMon;
+  while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth() + 1)) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    const d = new Date(y, m - 1, 1);
+    const label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    result.push({ label, total: byMonth.get(key) ?? 0 });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return result;
+}
+
+function SpendingChart({ token }: { token: string | null }) {
+  const { width: screenWidth } = useWindowDimensions();
+
+  const { data: history = [], isError } = useQuery<MonthlySpend[]>({
+    queryKey: ["mobile-redemptions-history", token],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/wallet/redemptions/history?months=12"), {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to load spending history");
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  const chartData = buildChartData(history);
+
+  if (isError) {
+    return (
+      <View style={chartStyles.errorRow}>
+        <Ionicons name="alert-circle-outline" size={16} color={brand.danger} />
+        <Text style={chartStyles.errorText}>Could not load spending history.</Text>
+      </View>
+    );
+  }
+
+  if (chartData.length === 0) return null;
+
+  const PAD_LEFT = 40;
+  const PAD_RIGHT = 12;
+  const PAD_TOP = 12;
+  const PAD_BOTTOM = 28;
+  const svgWidth = screenWidth - 40;
+  const svgHeight = 180;
+  const chartW = svgWidth - PAD_LEFT - PAD_RIGHT;
+  const chartH = svgHeight - PAD_TOP - PAD_BOTTOM;
+
+  const maxVal = Math.max(...chartData.map((d) => d.total), 1);
+  const tickCount = 4;
+  const ticks = Array.from({ length: tickCount + 1 }, (_, i) =>
+    Math.round((maxVal / tickCount) * i)
+  );
+
+  const barCount = chartData.length;
+  const barGap = Math.max(2, chartW / barCount * 0.2);
+  const barWidth = (chartW - barGap * (barCount - 1)) / barCount;
+
+  return (
+    <View style={chartStyles.card}>
+      <View style={chartStyles.cardHeader}>
+        <Ionicons name="bar-chart-outline" size={16} color={brand.navy} />
+        <Text style={chartStyles.cardTitle}>Spending over time</Text>
+      </View>
+      <Svg width={svgWidth} height={svgHeight}>
+        {/* Y-axis grid lines and labels */}
+        {ticks.map((tick) => {
+          const y = PAD_TOP + chartH - (tick / maxVal) * chartH;
+          return (
+            <G key={tick}>
+              <Line
+                x1={PAD_LEFT}
+                y1={y}
+                x2={svgWidth - PAD_RIGHT}
+                y2={y}
+                stroke="#F0F0F0"
+                strokeWidth={1}
+              />
+              <SvgText
+                x={PAD_LEFT - 4}
+                y={y + 4}
+                fontSize={9}
+                fill={brand.textMuted}
+                textAnchor="end"
+              >
+                {tick >= 1000 ? `${Math.round(tick / 100) / 10}k` : String(tick)}
+              </SvgText>
+            </G>
+          );
+        })}
+
+        {/* Bars */}
+        {chartData.map((d, i) => {
+          const x = PAD_LEFT + i * (barWidth + barGap);
+          const barH = Math.max(2, (d.total / maxVal) * chartH);
+          const y = PAD_TOP + chartH - barH;
+          const showLabel = barCount <= 12 || i % Math.ceil(barCount / 8) === 0 || i === barCount - 1;
+          return (
+            <G key={d.label}>
+              <Rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barH}
+                fill={brand.navy}
+                rx={3}
+                ry={3}
+              />
+              {showLabel && (
+                <SvgText
+                  x={x + barWidth / 2}
+                  y={svgHeight - 4}
+                  fontSize={8}
+                  fill={brand.textMuted}
+                  textAnchor="middle"
+                >
+                  {d.label.split(" ")[0]}
+                </SvgText>
+              )}
+            </G>
+          );
+        })}
+      </Svg>
+    </View>
+  );
+}
+
+const chartStyles = StyleSheet.create({
+  card: {
+    backgroundColor: brand.white,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: brand.border,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+  },
+  cardTitle: {
+    color: brand.text,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+  },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: brand.danger,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+  },
+});
 
 export default function OrdersTab() {
   const { token, user } = useAuth();
@@ -113,18 +289,27 @@ export default function OrdersTab() {
     );
   }
 
+  const listHeader = !admin ? <SpendingChart token={token} /> : null;
+
   if (orders.length === 0) {
     return (
-      <View style={styles.center}>
-        <Ionicons name="receipt-outline" size={48} color={brand.textMuted} />
-        <Text style={styles.emptyText}>
-          {admin ? "No orders yet" : "No orders placed yet"}
-        </Text>
+      <View style={{ flex: 1, backgroundColor: brand.white }}>
         {!admin && (
-          <Text style={styles.emptySubtext}>
-            Visit the Store tab to redeem your Bucks.
-          </Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <SpendingChart token={token} />
+          </View>
         )}
+        <View style={styles.center}>
+          <Ionicons name="receipt-outline" size={48} color={brand.textMuted} />
+          <Text style={styles.emptyText}>
+            {admin ? "No orders yet" : "No orders placed yet"}
+          </Text>
+          {!admin && (
+            <Text style={styles.emptySubtext}>
+              Visit the Store tab to redeem your Bucks.
+            </Text>
+          )}
+        </View>
       </View>
     );
   }
@@ -138,6 +323,7 @@ export default function OrdersTab() {
         { paddingHorizontal: 20, paddingTop: 16 },
         { paddingBottom: insets.bottom + 32 },
       ]}
+      ListHeaderComponent={listHeader}
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}

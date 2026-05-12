@@ -192,35 +192,35 @@ export default function HomeTab() {
           </Text>
         </View>
 
-        {/* Balance card — keeps dark navy background per spec */}
-        <View style={styles.balanceCard}>
-          <View style={styles.balanceCardChip}>
-            <Ionicons name="cash-outline" size={14} color={brand.green} />
-            <Text style={styles.balanceLabel}>
-              {admin ? "Your Bucks Balance" : "BetterBucks Balance"}
-            </Text>
-          </View>
-          {isLoading ? (
-            <ActivityIndicator color={brand.white} size="large" style={{ marginVertical: 12 }} />
-          ) : (
-            <Text style={styles.balanceAmount}>
-              BB {(data?.balance ?? 0).toLocaleString()}
-            </Text>
-          )}
-          <View style={styles.balanceDivider} />
-          {isOffline && isFromCache && cachedAt !== null ? (
-            <View style={styles.offlineBadgeRow}>
-              <Ionicons name="cloud-offline-outline" size={12} color="#FCA5A5" />
-              <Text style={styles.offlineBadgeText}>Offline – showing saved balance</Text>
+        {/* Balance card — employees only; admins see org stats below */}
+        {!admin && (
+          <View style={styles.balanceCard}>
+            <View style={styles.balanceCardChip}>
+              <Ionicons name="cash-outline" size={14} color={brand.green} />
+              <Text style={styles.balanceLabel}>BetterBucks Balance</Text>
             </View>
-          ) : isFromCache && cachedAt !== null ? (
-            <Text style={styles.cachedLabel}>
-              Last updated {formatLastUpdated(cachedAt)}
-            </Text>
-          ) : (
-            <Text style={styles.cachedLabel}> </Text>
-          )}
-        </View>
+            {isLoading ? (
+              <ActivityIndicator color={brand.white} size="large" style={{ marginVertical: 12 }} />
+            ) : (
+              <Text style={styles.balanceAmount}>
+                {(data?.balance ?? 0).toLocaleString()}
+              </Text>
+            )}
+            <View style={styles.balanceDivider} />
+            {isOffline && isFromCache && cachedAt !== null ? (
+              <View style={styles.offlineBadgeRow}>
+                <Ionicons name="cloud-offline-outline" size={12} color="#FCA5A5" />
+                <Text style={styles.offlineBadgeText}>Offline – showing saved balance</Text>
+              </View>
+            ) : isFromCache && cachedAt !== null ? (
+              <Text style={styles.cachedLabel}>
+                Last updated {formatLastUpdated(cachedAt)}
+              </Text>
+            ) : (
+              <Text style={styles.cachedLabel}> </Text>
+            )}
+          </View>
+        )}
 
         {/* Monthly earned/spent summary — employees only */}
         {isEmployee && summary && (
@@ -295,26 +295,37 @@ export default function HomeTab() {
           </View>
         )}
 
-        {/* Admin stats */}
+        {/* Admin org dashboard */}
         {admin && data?.adminStats && (
-          <View style={styles.statsRow}>
-            <StatCard
-              icon="people"
-              label="Employees"
-              value={String(data.adminStats.totalEmployees)}
-            />
-            <StatCard
-              icon="time"
-              label="Pending Orders"
-              value={String(data.adminStats.pendingOrdersCount)}
-              accent={data.adminStats.pendingOrdersCount > 0}
-            />
-            <StatCard
-              icon="trending-up"
-              label="Bucks Given"
-              value={(data.adminStats.totalBucksGiven ?? 0).toLocaleString()}
-            />
-          </View>
+          <>
+            <View style={styles.adminDashCard}>
+              <View style={styles.adminDashHeader}>
+                <Ionicons name="bar-chart-outline" size={16} color={brand.navy} />
+                <Text style={styles.adminDashTitle}>Organisation Overview</Text>
+                {(isFromCache && cachedAt !== null) ? (
+                  <Text style={styles.adminDashCached}>· {formatLastUpdated(cachedAt)}</Text>
+                ) : null}
+              </View>
+              <View style={styles.statsRow}>
+                <StatCard
+                  icon="people"
+                  label="Employees"
+                  value={String(data.adminStats.totalEmployees)}
+                />
+                <StatCard
+                  icon="time"
+                  label="Pending Orders"
+                  value={String(data.adminStats.pendingOrdersCount)}
+                  accent={data.adminStats.pendingOrdersCount > 0}
+                />
+                <StatCard
+                  icon="trending-up"
+                  label="Bucks Given"
+                  value={(data.adminStats.totalBucksGiven ?? 0).toLocaleString()}
+                />
+              </View>
+            </View>
+          </>
         )}
 
         {/* Active goals */}
@@ -744,7 +755,31 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     gap: 10,
+    marginTop: 12,
+  },
+  adminDashCard: {
+    backgroundColor: brand.white,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: brand.border,
+  },
+  adminDashHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  adminDashTitle: {
+    color: brand.text,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    flex: 1,
+  },
+  adminDashCached: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
   },
   section: {
     marginBottom: 20,

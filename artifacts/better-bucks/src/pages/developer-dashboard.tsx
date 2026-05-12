@@ -484,6 +484,22 @@ export default function DeveloperDashboardPage() {
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
   const [resolveOrphanId, setResolveOrphanId] = useState<number | null>(null);
   const [resolveNote, setResolveNote] = useState("");
+  const [orphanSearch, setOrphanSearch] = useState("");
+  const [orphanStatusFilter, setOrphanStatusFilter] = useState<string | null>(null);
+  const [orphanDateFrom, setOrphanDateFrom] = useState("");
+  const [orphanDateTo, setOrphanDateTo] = useState("");
+
+  const filteredOrphanRows = useMemo(() => {
+    if (!stripeOrphansData?.rows) return [];
+    const q = orphanSearch.trim().toLowerCase();
+    return stripeOrphansData.rows.filter((r) => {
+      if (orphanStatusFilter && r.status !== orphanStatusFilter) return false;
+      if (q && !(r.stripeCustomerId?.toLowerCase().includes(q) || r.stripeSubscriptionId?.toLowerCase().includes(q))) return false;
+      if (orphanDateFrom && new Date(r.createdAt) < new Date(orphanDateFrom)) return false;
+      if (orphanDateTo && new Date(r.createdAt) > new Date(orphanDateTo + "T23:59:59")) return false;
+      return true;
+    });
+  }, [stripeOrphansData, orphanSearch, orphanStatusFilter, orphanDateFrom, orphanDateTo]);
   const resolveOrphanMutation = useMutation({
     mutationFn: async ({ id, note }: { id: number; note: string }) => {
       await apiRequest("PATCH", `/api/developer/stripe-orphans/${id}`, { note: note.trim() || null });
@@ -2099,29 +2115,96 @@ export default function DeveloperDashboardPage() {
               {(["pending", "processing", "failed_permanently", "resolved"] as const).map((status) => {
                 const count = stripeOrphansData?.counts[status] ?? 0;
                 const config = {
-                  pending: { label: "Pending", icon: Clock, bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", iconBg: "bg-yellow-100" },
-                  processing: { label: "Processing", icon: RefreshCw, bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", iconBg: "bg-blue-100" },
-                  failed_permanently: { label: "Perm. Failed", icon: AlertOctagon, bg: "bg-red-50", border: "border-red-200", text: "text-red-700", iconBg: "bg-red-100" },
-                  resolved: { label: "Resolved", icon: CheckCircle2, bg: "bg-green-50", border: "border-green-200", text: "text-green-700", iconBg: "bg-green-100" },
+                  pending: { label: "Pending", icon: Clock, bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", iconBg: "bg-yellow-100", activeBorder: "border-yellow-500 ring-2 ring-yellow-400" },
+                  processing: { label: "Processing", icon: RefreshCw, bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", iconBg: "bg-blue-100", activeBorder: "border-blue-500 ring-2 ring-blue-400" },
+                  failed_permanently: { label: "Perm. Failed", icon: AlertOctagon, bg: "bg-red-50", border: "border-red-200", text: "text-red-700", iconBg: "bg-red-100", activeBorder: "border-red-500 ring-2 ring-red-400" },
+                  resolved: { label: "Resolved", icon: CheckCircle2, bg: "bg-green-50", border: "border-green-200", text: "text-green-700", iconBg: "bg-green-100", activeBorder: "border-green-500 ring-2 ring-green-400" },
                 }[status];
                 const Icon = config.icon;
+                const isActive = orphanStatusFilter === status;
                 return (
-                  <Card key={status} className={`${config.bg} ${config.border} border`}>
+                  <Card
+                    key={status}
+                    className={`${config.bg} ${isActive ? config.activeBorder : config.border} border cursor-pointer transition-all hover:shadow-md select-none`}
+                    onClick={() => setOrphanStatusFilter(isActive ? null : status)}
+                    data-testid={`card-orphan-status-${status}`}
+                    title={isActive ? `Click to clear filter` : `Click to filter by ${config.label}`}
+                  >
                     <CardContent className="pt-4 pb-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${config.iconBg}`}>
                           <Icon className={`h-5 w-5 ${config.text}`} />
                         </div>
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <p className={`text-2xl font-bold ${config.text}`}>{stripeOrphansLoading ? "—" : count}</p>
                           <p className={`text-xs font-medium ${config.text} opacity-80`}>{config.label}</p>
                         </div>
+                        {isActive && <Filter className={`h-4 w-4 shrink-0 ${config.text}`} />}
                       </div>
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
+
+            {/* Search / filter bar */}
+            <Card className="border">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search by customer ID or subscription ID…"
+                      value={orphanSearch}
+                      onChange={(e) => setOrphanSearch(e.target.value)}
+                      data-testid="input-orphan-search"
+                    />
+                    {orphanSearch && (
+                      <button
+                        onClick={() => setOrphanSearch("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="Clear search"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <Input
+                      type="date"
+                      className="w-36 text-sm"
+                      value={orphanDateFrom}
+                      onChange={(e) => setOrphanDateFrom(e.target.value)}
+                      data-testid="input-orphan-date-from"
+                      title="Created from"
+                    />
+                    <span className="text-muted-foreground text-sm">–</span>
+                    <Input
+                      type="date"
+                      className="w-36 text-sm"
+                      value={orphanDateTo}
+                      onChange={(e) => setOrphanDateTo(e.target.value)}
+                      data-testid="input-orphan-date-to"
+                      title="Created to"
+                    />
+                  </div>
+                  {(orphanSearch || orphanStatusFilter || orphanDateFrom || orphanDateTo) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 text-muted-foreground"
+                      onClick={() => { setOrphanSearch(""); setOrphanStatusFilter(null); setOrphanDateFrom(""); setOrphanDateTo(""); }}
+                      data-testid="button-clear-orphan-filters"
+                    >
+                      <XCircle className="mr-1.5 h-4 w-4" />
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Grouped status sections */}
             {stripeOrphansLoading ? (
@@ -2138,7 +2221,14 @@ export default function DeveloperDashboardPage() {
               </Card>
             ) : (
               <>
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between gap-2">
+                  {(orphanSearch || orphanStatusFilter || orphanDateFrom || orphanDateTo) ? (
+                    <p className="text-sm text-muted-foreground">
+                      Showing <span className="font-medium text-foreground">{filteredOrphanRows.length}</span> of {stripeOrphansData.rows.length} records
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{stripeOrphansData.rows.length} record{stripeOrphansData.rows.length !== 1 ? "s" : ""} total</p>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -2149,8 +2239,18 @@ export default function DeveloperDashboardPage() {
                     Refresh
                   </Button>
                 </div>
-                {(["pending", "processing", "failed_permanently", "resolved"] as const).map((status) => {
-                  const groupRows = stripeOrphansData.rows.filter((r) => r.status === status);
+                {filteredOrphanRows.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-2">
+                      <Search className="h-8 w-8 text-muted-foreground/50" />
+                      <p className="text-muted-foreground text-sm font-medium">No records match your filters.</p>
+                      <p className="text-muted-foreground text-xs">Try adjusting the search term, status, or date range.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    {(["pending", "processing", "failed_permanently", "resolved"] as const).map((status) => {
+                  const groupRows = filteredOrphanRows.filter((r) => r.status === status);
                   if (!groupRows.length) return null;
                   const sectionConfig = {
                     pending: { label: "Pending", headerBg: "bg-yellow-50", headerBorder: "border-yellow-200", badgeClass: "bg-yellow-100 text-yellow-700", icon: Clock },
@@ -2244,8 +2344,10 @@ export default function DeveloperDashboardPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  );
-                })}
+                    );
+                    })}
+                  </>
+                )}
               </>
             )}
           </div>

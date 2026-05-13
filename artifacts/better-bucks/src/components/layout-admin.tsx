@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, HelpCircle, Store as StoreIcon, Link2 as LinkIcon, AlertTriangle, AlertOctagon } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, MessageCircle, Store as StoreIcon, Link2 as LinkIcon, AlertTriangle, AlertOctagon } from "lucide-react";
 import { MobileBottomNav, type MobileNavItem } from "@/components/mobile-bottom-nav";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
@@ -124,6 +124,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ] : []),
   ];
+
+  // Mobile hamburger: trimmed list — disputes, merchants, and failed signups moved to desktop only
+  const MOBILE_HIDDEN = new Set(["/admin/merchants", "/admin/merchant-disputes", "/admin/stripe-orphans"]);
+  const mobileNavItems = navItems
+    .filter(item => !MOBILE_HIDDEN.has(item.href))
+    .map(item => item.href === "/admin/instant-transaction"
+      ? { ...item, label: "NFC Tools" }
+      : item
+    );
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -259,87 +268,92 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               {mobileMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-lg shadow-lg border py-1 z-50">
-                    {navItems.map((item) => {
-                      const Icon = item.icon;
-                      const itemBadge = (item as any).badge as number | undefined;
-                      return (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border z-50 flex flex-col" style={{ maxHeight: "min(80dvh, 560px)" }}>
+                    {/* Scrollable nav list */}
+                    <div className="overflow-y-auto flex-1 py-1">
+                      {mobileNavItems.map((item) => {
+                        const Icon = item.icon;
+                        const itemBadge = (item as any).badge as number | undefined;
+                        return (
+                          <button type="button"
+                            key={item.href}
+                            className={`w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-sm transition-colors ${
+                              isActive(item.href) ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
+                            }`}
+                            onClick={() => { setLocation(item.href); setMobileMenuOpen(false); }}
+                            data-testid={`mobile-${(item as any).testId || `link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span className="flex-1 text-left">{item.label}</span>
+                            {(itemBadge ?? 0) > 0 && (
+                              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none" data-testid="badge-pending-orders-hamburger">
+                                {itemBadge! > 99 ? "99+" : itemBadge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                      {(user?.role === "admin" || user?.role === "prime_admin") ? (
                         <button type="button"
-                          key={item.href}
-                          className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm transition-colors ${
-                            isActive(item.href) ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
+                          className={`w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-sm transition-colors ${
+                            isActive("/admin/account-settings") ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
                           }`}
-                          onClick={() => { setLocation(item.href); setMobileMenuOpen(false); }}
-                          data-testid={`mobile-${item.testId || `link-${item.label.toLowerCase().replace(/\s+/g, '-')}`}`}
+                          onClick={() => { setLocation("/admin/account-settings"); setMobileMenuOpen(false); }}
+                          data-testid="mobile-link-account-settings"
                         >
-                          <Icon className="h-4 w-4 shrink-0" />
-                          <span className="flex-1 text-left">{item.label}</span>
-                          {(itemBadge ?? 0) > 0 && (
-                            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none" data-testid="badge-pending-orders-hamburger">
-                              {itemBadge! > 99 ? "99+" : itemBadge}
-                            </span>
-                          )}
+                          <User className="h-4 w-4 shrink-0" />
+                          My Profile
                         </button>
-                      );
-                    })}
-                    {(user?.role === "admin" || user?.role === "prime_admin") ? (
+                      ) : (
+                        <a
+                          href="https://www.instagram.com/better_bucks"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setMobileMenuOpen(false)}
+                          data-testid="mobile-link-instagram-admin"
+                        >
+                          <SiInstagram className="h-4 w-4 text-pink-500 shrink-0" />
+                          @better_bucks
+                        </a>
+                      )}
                       <button type="button"
-                        className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm transition-colors ${
-                          isActive("/admin/account-settings") ? "text-primary font-semibold bg-primary/5" : "text-gray-700 hover:bg-gray-100"
-                        }`}
-                        onClick={() => { setLocation("/admin/account-settings"); setMobileMenuOpen(false); }}
-                        data-testid="mobile-link-account-settings"
+                        className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setTimeout(() => {
+                            const btn = document.querySelector('[data-testid="button-need-help"]') as HTMLButtonElement;
+                            btn?.click();
+                          }, 100);
+                        }}
+                        data-testid="mobile-button-need-help"
                       >
-                        <User className="h-4 w-4" />
-                        My Profile
+                        <MessageCircle className="h-4 w-4 shrink-0" />
+                        Need Help?
                       </button>
-                    ) : (
-                      <a
-                        href="https://www.instagram.com/better_bucks"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setMobileMenuOpen(false)}
-                        data-testid="mobile-link-instagram-admin"
-                      >
-                        <SiInstagram className="h-4 w-4 text-pink-500" />
-                        @better_bucks
-                      </a>
-                    )}
-                    <div className="border-t my-1" />
-                    <button type="button"
-                      className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setTimeout(() => {
-                          const btn = document.querySelector('[data-testid="button-need-help"]') as HTMLButtonElement;
-                          btn?.click();
-                        }, 100);
-                      }}
-                      data-testid="mobile-button-need-help"
-                    >
-                      <HelpCircle className="h-4 w-4" />
-                      Need Help?
-                    </button>
-                    {isPublicDemo ? (
-                      <button type="button"
-                        className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); setMobileMenuOpen(false); }}
-                        data-testid="mobile-button-home"
-                      >
-                        <Home className="h-4 w-4" />
-                        Back to Home
-                      </button>
-                    ) : (
-                      <button type="button"
-                        className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => { logout(); setMobileMenuOpen(false); }}
-                        data-testid="mobile-button-logout"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Log Out
-                      </button>
-                    )}
+                    </div>
+                    {/* Pinned footer: always visible */}
+                    <div className="border-t shrink-0">
+                      {isPublicDemo ? (
+                        <button type="button"
+                          className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => { try { sessionStorage.removeItem("bb_demo_visitor"); } catch {} setLocation("/"); setMobileMenuOpen(false); }}
+                          data-testid="mobile-button-home"
+                        >
+                          <Home className="h-4 w-4 shrink-0" />
+                          Back to Home
+                        </button>
+                      ) : (
+                        <button type="button"
+                          className="w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-sm text-red-600 hover:bg-red-50 font-medium"
+                          onClick={() => { logout(); setMobileMenuOpen(false); }}
+                          data-testid="mobile-button-logout"
+                        >
+                          <LogOut className="h-4 w-4 shrink-0" />
+                          Log Out
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </>
               )}

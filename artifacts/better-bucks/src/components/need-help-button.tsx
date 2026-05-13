@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { HelpCircle, BookOpen, Mail, Send, ArrowLeft } from "lucide-react";
+import { MessageCircle, BookOpen, Mail, Send, ArrowLeft } from "lucide-react";
 import { useTutorial } from "@/hooks/use-tutorial";
 import { useToast } from "@/hooks/use-toast";
 
@@ -116,7 +116,7 @@ export function NeedHelpButton() {
         onClick={handleToggle}
         data-testid="button-need-help"
       >
-        <HelpCircle className="h-4 w-4" />
+        <MessageCircle className="h-4 w-4" />
         <span className="hidden sm:inline">Need Help?</span>
       </Button>
 

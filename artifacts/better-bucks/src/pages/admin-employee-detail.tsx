@@ -993,6 +993,8 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
   const [reason, setReason] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState<"credit" | "debit">("credit");
+  const [isCashOrder, setIsCashOrder] = useState(false);
+  const [cashDollars, setCashDollars] = useState("");
 
   const { data: categories } = useQuery<TransactionCategory[]>({
     queryKey: [`/api/organizations/${adminUser?.organizationId}/categories`],
@@ -1021,11 +1023,20 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
         }
       });
     } else {
-      updateBalance({ id: userId, amount: -numAmount, reason: reason || "Debit" }, {
+      const cashCents = isCashOrder && cashDollars ? Math.round(parseFloat(cashDollars) * 100) : undefined;
+      updateBalance({
+        id: userId,
+        amount: -numAmount,
+        reason: reason || "Debit",
+        hasCashValue: isCashOrder && !!cashCents,
+        cashValue: cashCents,
+      }, {
         onSuccess: () => {
           setOpen(false);
           setAmount("");
           setReason("");
+          setIsCashOrder(false);
+          setCashDollars("");
           setType("credit");
         }
       });
@@ -1116,16 +1127,49 @@ function AdjustBalanceDialog({ userId, currentBalance }: { userId: number; curre
               )}
             </div>
           ) : (
-            <div className="grid gap-2">
-              <Label htmlFor="reason">Reason (optional)</Label>
-              <Input 
-                id="reason" 
-                placeholder="e.g. Cafeteria Purchase"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                data-testid="input-adjust-reason"
-              />
-            </div>
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="reason">Reason (optional)</Label>
+                <Input 
+                  id="reason" 
+                  placeholder="e.g. Cafeteria Purchase"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  data-testid="input-adjust-reason"
+                />
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="is-cash-order"
+                    checked={isCashOrder}
+                    onCheckedChange={(v) => { setIsCashOrder(!!v); if (!v) setCashDollars(""); }}
+                    data-testid="checkbox-cash-order"
+                  />
+                  <Label htmlFor="is-cash-order" className="cursor-pointer font-normal">This is a cash order</Label>
+                </div>
+                {isCashOrder && (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="cash-value" className="text-xs text-muted-foreground">Order cash value (USD)</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                      <Input
+                        id="cash-value"
+                        type="number"
+                        inputMode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={cashDollars}
+                        onChange={(e) => setCashDollars(e.target.value)}
+                        className="pl-7"
+                        data-testid="input-cash-value"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           <DialogFooter className="mt-4">

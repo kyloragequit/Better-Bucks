@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Search, ArrowLeft, Plus, Minus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { User, TransactionCategory } from "@shared/schema";
 import { useUser } from "@/hooks/use-auth";
@@ -37,6 +38,8 @@ export default function AdminInstantTransactionPage() {
   const [reason, setReason] = useState("");
   const [txType, setTxType] = useState<"credit" | "debit">("credit");
   const [categoryId, setCategoryId] = useState<string>("");
+  const [isCashOrder, setIsCashOrder] = useState(false);
+  const [cashDollars, setCashDollars] = useState("");
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const manualInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,11 +84,13 @@ export default function AdminInstantTransactionPage() {
   });
 
   const transactionMutation = useMutation({
-    mutationFn: async (data: { userId: number; amount: number; reason: string; categoryId?: number }) => {
+    mutationFn: async (data: { userId: number; amount: number; reason: string; categoryId?: number; hasCashValue?: boolean; cashValue?: number }) => {
       const res = await apiRequest("POST", `/api/users/${data.userId}/balance`, {
         amount: data.amount,
         reason: data.reason,
         ...(data.categoryId ? { categoryId: data.categoryId } : {}),
+        ...(data.hasCashValue ? { hasCashValue: data.hasCashValue } : {}),
+        ...(data.cashValue ? { cashValue: data.cashValue } : {}),
       });
       return await res.json();
     },
@@ -98,6 +103,8 @@ export default function AdminInstantTransactionPage() {
       setAmount("");
       setReason("");
       setCategoryId("");
+      setIsCashOrder(false);
+      setCashDollars("");
       setMode("scan");
     },
     onError: (e: Error) => {
@@ -200,10 +207,13 @@ export default function AdminInstantTransactionPage() {
         categoryId: parseInt(categoryId),
       });
     } else {
+      const cashCents = isCashOrder && cashDollars ? Math.round(parseFloat(cashDollars) * 100) : undefined;
       transactionMutation.mutate({
         userId: scannedUser.id,
         amount: -parseInt(amount),
         reason: reason || "Instant debit",
+        hasCashValue: isCashOrder && !!cashCents,
+        cashValue: cashCents,
       });
     }
   };
@@ -213,6 +223,8 @@ export default function AdminInstantTransactionPage() {
     setAmount("");
     setReason("");
     setCategoryId("");
+    setIsCashOrder(false);
+    setCashDollars("");
     setTxType("credit");
     setMode("scan");
   };
@@ -322,16 +334,49 @@ export default function AdminInstantTransactionPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <Label htmlFor="tx-reason">Reason (optional)</Label>
-                    <Textarea
-                      id="tx-reason"
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      placeholder="e.g. Cafeteria purchase"
-                      rows={2}
-                      data-testid="input-tx-reason"
-                    />
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="tx-reason">Reason (optional)</Label>
+                      <Textarea
+                        id="tx-reason"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="e.g. Cafeteria purchase"
+                        rows={2}
+                        data-testid="input-tx-reason"
+                      />
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="tx-cash-order"
+                          checked={isCashOrder}
+                          onCheckedChange={(v) => { setIsCashOrder(!!v); if (!v) setCashDollars(""); }}
+                          data-testid="checkbox-cash-order"
+                        />
+                        <Label htmlFor="tx-cash-order" className="cursor-pointer font-normal">This is a cash order</Label>
+                      </div>
+                      {isCashOrder && (
+                        <div className="space-y-1">
+                          <Label htmlFor="tx-cash-value" className="text-xs text-muted-foreground">Order cash value (USD)</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                            <Input
+                              id="tx-cash-value"
+                              type="number"
+                              inputMode="decimal"
+                              min="0.01"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={cashDollars}
+                              onChange={(e) => setCashDollars(e.target.value)}
+                              className="pl-7"
+                              data-testid="input-cash-value"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 <Button

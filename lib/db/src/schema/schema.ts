@@ -105,6 +105,7 @@ export const transactions = pgTable("transactions", {
   performedBy: integer("performed_by"),
   categoryId: integer("category_id"),
   hasCashValue: boolean("has_cash_value"),
+  cashValue: integer("cash_value"), // Cash order value in cents (e.g. $5.50 → 550)
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [

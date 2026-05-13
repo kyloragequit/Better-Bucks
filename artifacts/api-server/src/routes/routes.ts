@@ -2052,7 +2052,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send("Invalid ID");
 
-    const { amount, reason, categoryId, hasCashValue } = api.users.updateBalance.input.parse(req.body);
+    const { amount, reason, categoryId, hasCashValue, cashValue } = api.users.updateBalance.input.parse(req.body);
 
     if (categoryId) {
       const cat = (await storage.getCategoriesByOrg(user.organizationId!)).find(c => c.id === categoryId);
@@ -2083,6 +2083,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
           performedBy: user.id,
           categoryId: categoryId ?? null,
           hasCashValue: hasCashValue ?? null,
+          cashValue: (amount < 0 && cashValue) ? cashValue : null,
         }).returning();
         const [updatedTarget] = await tx.select().from(users).where(eq(users.id, id));
         return { user: updatedTarget };
@@ -2111,6 +2112,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       performedBy: user.id,
       categoryId: (amount > 0 && categoryId) ? categoryId : null,
       hasCashValue: hasCashValue ?? null,
+      cashValue: (amount < 0 && cashValue) ? cashValue : null,
     });
     invalidateUserCache(id);
     invalidateUserCache(user.id);

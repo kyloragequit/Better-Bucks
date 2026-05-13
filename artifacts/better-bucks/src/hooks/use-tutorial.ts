@@ -104,25 +104,25 @@ export function useTutorial() {
 
   const completeTutorial = async () => {
     if (!user) return;
-    // Mark dismissed for this page session SYNCHRONOUSLY before any awaits or
-    // navigation. Both overlay components read this through the shouldShow /
-    // showFullTutorial / showChoice flags and will stay hidden even if a
-    // subsequent /api/user refetch lands with stale tutorialCompleted=false
-    // (e.g. PageRefresher invalidating queries on route change after Skip).
-    if (userId) markDismissed(userId);
+    // ---- Synchronous teardown (runs in the same React event-handler batch) ----
+    // Everything here fires before the first `await`, so it lands in the same
+    // React render batch as the caller's `setForceHide(true)`. This prevents a
+    // race where the PageRefresher (triggered by any navigation in handleSkip)
+    // invalidates /api/user and a background refetch returns tutorialCompleted=false
+    // before the POST settles — which would briefly re-open the overlay.
+    if (userId) markDismissed(userId);       // in-memory Set + sessionStorage
     restoreScroll();
-    // Cancel any in-flight /api/user refetch first — without this, a refetch
-    // started just before the POST resolves can land with the stale
-    // tutorialCompleted=false value and re-open the tutorial overlay.
-    await queryClient.cancelQueries({ queryKey: ["/api/user"] });
-    queryClient.setQueryData(["/api/user"], { ...user, tutorialCompleted: true });
-    if (userId) localStorage.removeItem(storageKey(userId));
-    broadcastChange();
+    if (userId) localStorage.removeItem(storageKey(userId)); // clear tutorialChoice
+    broadcastChange();  // re-render all useTutorial() instances NOW with fresh flags
+    // ---- Async persistence (fire-and-forget from the caller's perspective) ----
     try {
+      // Cancel any in-flight /api/user refetch before the optimistic write so a
+      // racing response can't overwrite our update.
+      await queryClient.cancelQueries({ queryKey: ["/api/user"] });
+      queryClient.setQueryData(["/api/user"], { ...user, tutorialCompleted: true });
       const res = await apiRequest("POST", "/api/users/complete-tutorial");
       const updated = await res.json().catch(() => null);
-      // Use the server's authoritative response so we don't race with a generic
-      // invalidation that could refetch stale data and re-open the tutorial.
+      // Use the server's authoritative response to avoid a stale-data race.
       if (updated && typeof updated === "object") {
         queryClient.setQueryData(["/api/user"], updated);
       }

@@ -279,6 +279,7 @@ function EmployeeVirtualList({
   onSort,
   filterKey,
 }: EmployeeVirtualListProps) {
+  const [, setLocation] = useLocation();
   const mobileParentRef = useRef<HTMLDivElement>(null);
   const desktopParentRef = useRef<HTMLDivElement>(null);
 
@@ -476,7 +477,6 @@ function EmployeeVirtualList({
                   <SortIcon column="balance" sortKey={sortKey} sortDir={sortDir} />
                 </button>
               </TableHead>
-              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -486,7 +486,7 @@ function EmployeeVirtualList({
             {desktopVirtualItems.map((virtualRow) => {
               const user = filteredUsers[virtualRow.index];
               return (
-                <TableRow key={user.id} className={`group hover:bg-muted/20 transition-colors ${isCurrentlyLocked(user) ? "bg-red-50/30" : ""}`}>
+                <TableRow key={user.id} onClick={() => setLocation(`/admin/employees/${user.id}`)} className={`group hover:bg-muted/40 transition-colors cursor-pointer ${isCurrentlyLocked(user) ? "bg-red-50/30" : ""}`}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       {user.fullName}
@@ -503,7 +503,7 @@ function EmployeeVirtualList({
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{getRoleLabel(user.role)}</TableCell>
-                  <TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
                     {isPrimeAdmin ? (
                       <Select
                         value={user.departmentId?.toString() || "none"}
@@ -525,7 +525,7 @@ function EmployeeVirtualList({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
                     {isPrimeAdmin && user.role === "employee" ? (
                       <Select
                         value={user.managerId?.toString() || "none"}
@@ -549,13 +549,6 @@ function EmployeeVirtualList({
                   </TableCell>
                   <TableCell className="text-right font-bold text-primary tabular-nums">
                     {user.balance.toLocaleString()} bcks
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/admin/employees/${user.id}`}>
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        Details <ChevronRight className="ml-1 h-4 w-4" />
-                      </Button>
-                    </Link>
                   </TableCell>
                 </TableRow>
               );

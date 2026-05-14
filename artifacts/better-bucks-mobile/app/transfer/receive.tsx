@@ -123,6 +123,30 @@ export default function TransferReceiveScreen() {
   const [secondsLeft, setSecondsLeft] = useState(expirySeconds);
   const [completed, setCompleted] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pulseRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Pulse-vibrate every 1.8 s while NFC is active and waiting
+  useEffect(() => {
+    if (method !== "nfc" || completed) return;
+    const tick = () => {
+      if (!completed) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+    };
+    tick(); // immediate first pulse
+    pulseRef.current = setInterval(tick, 1800);
+    return () => {
+      if (pulseRef.current) clearInterval(pulseRef.current);
+    };
+  }, [method, completed]);
+
+  // Stop pulse when expired
+  useEffect(() => {
+    if (secondsLeft === 0 && pulseRef.current) {
+      clearInterval(pulseRef.current);
+      pulseRef.current = null;
+    }
+  }, [secondsLeft]);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {

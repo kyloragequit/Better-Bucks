@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 import Constants from "expo-constants";
+import * as Haptics from "expo-haptics";
 
 // react-native-nfc-manager is native-only — lazy require to avoid crashing the
 // web bundle. All NFC calls are already guarded by `if (isExpoGo) return;`.
@@ -162,6 +163,29 @@ export default function StoreNfcScreen() {
   useEffect(() => {
     return () => { stopHce(); };
   }, [stopHce]);
+
+  // Pulse-vibrate every 1.8 s while NFC is broadcasting
+  const pulseRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!broadcasting) {
+      if (pulseRef.current) {
+        clearInterval(pulseRef.current);
+        pulseRef.current = null;
+      }
+      return;
+    }
+    const tick = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    };
+    tick(); // immediate first pulse
+    pulseRef.current = setInterval(tick, 1800);
+    return () => {
+      if (pulseRef.current) {
+        clearInterval(pulseRef.current);
+        pulseRef.current = null;
+      }
+    };
+  }, [broadcasting]);
 
   const price = parseInt(itemPrice ?? "0") || 0;
   const isAndroid = Platform.OS === "android";

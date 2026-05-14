@@ -2516,10 +2516,12 @@ export function registerMobileRoutes(app: Express) {
     imageUrl: string | null;
     sizes: string[];
     colors: string[];
+    warning: string | null;
   }> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12_000);
+    const timer = setTimeout(() => controller.abort(), 15_000);
     let html: string;
+    let fetchWarning: string | null = null;
     try {
       const resp = await fetch(url, {
         signal: controller.signal,
@@ -2527,9 +2529,20 @@ export function registerMobileRoutes(app: Express) {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
           Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Cache-Control": "no-cache",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Upgrade-Insecure-Requests": "1",
         },
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status} from product page`);
+      // Don't throw on non-2xx — many sites return useful HTML even with 4xx.
+      // Use the body regardless; if it ends up empty Claude will return defaults.
+      if (!resp.ok) {
+        fetchWarning = `Could not fully load the product page (HTTP ${resp.status}). Details below may be incomplete — please review and edit before ordering.`;
+      }
       html = await resp.text();
     } finally {
       clearTimeout(timer);
@@ -2570,7 +2583,7 @@ export function registerMobileRoutes(app: Express) {
 
     const msg = await client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 512,
+      max_tokens: 2048,
       messages: [
         {
           role: "user",
@@ -2623,13 +2636,30 @@ ${stripped}`,
       return 0;
     }
 
+    const productName = String(parsed.productName ?? "");
+    const priceUsd = parsePrice(parsed.priceUsd);
+
+    // Build a warning if we couldn't extract the key fields
+    let extractionWarning = fetchWarning;
+    if (!productName || priceUsd === 0) {
+      const missing = [
+        !productName && "product name",
+        priceUsd === 0 && "price",
+      ].filter(Boolean).join(" and ");
+      const siteNote = fetchWarning
+        ? ""
+        : " This site may not share product details with automated tools.";
+      extractionWarning = `Could not auto-detect the ${missing}.${siteNote} Please fill in the missing details before ordering.`;
+    }
+
     return {
-      productName: String(parsed.productName ?? "Unknown Product"),
+      productName,
       productDescription: String(parsed.productDescription ?? ""),
-      priceUsd: parsePrice(parsed.priceUsd),
+      priceUsd,
       imageUrl: typeof parsed.imageUrl === "string" && parsed.imageUrl.startsWith("http") ? parsed.imageUrl : null,
       sizes: Array.isArray(parsed.sizes) ? parsed.sizes.map(String).filter(Boolean) : [],
       colors: Array.isArray(parsed.colors) ? parsed.colors.map(String).filter(Boolean) : [],
+      warning: extractionWarning,
     };
   }
 
@@ -2688,11 +2718,22 @@ ${stripped}`,
       } catch (err: any) {
         logger.error({ err }, "[mobile/external-order/preview] failed");
         const msg: string = err?.message ?? "";
-        return res.status(500).json({
-          message:
-            msg.includes("abort") || msg.includes("HTTP")
-              ? "Could not load that product page. Try a direct product link."
-              : "Failed to analyze the product link. Please try again.",
+        const bucksPerDollar = org.bucksPerDollar ?? 100;
+        // Return 200 with empty fields + warning so the preview screen still opens.
+        // The user can fill in the product name and price manually.
+        const warning = msg.includes("abort")
+          ? "The product page took too long to load. Please fill in the details manually."
+          : "Could not load that product page automatically. Please fill in the product name and price manually.";
+        return res.json({
+          productName: "",
+          productDescription: "",
+          priceUsd: 0,
+          imageUrl: null,
+          sizes: [],
+          colors: [],
+          warning,
+          bucksPerDollar,
+          bucksPrice: 0,
         });
       }
     },

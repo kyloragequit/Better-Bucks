@@ -34,6 +34,7 @@ type ProductPreview = {
   colors: string[];
   bucksPerDollar: number;
   bucksPrice: number;
+  warning?: string | null;
 };
 
 export default function ExternalOrderScreen() {
@@ -81,12 +82,15 @@ export default function ExternalOrderScreen() {
       });
       const data = (await res.json().catch(() => ({}))) as any;
       if (!res.ok) {
+        // Hard failures (auth, org not found, site not approved)
         Alert.alert("Could Not Analyze", data.message ?? "Please try a different link.");
         return;
       }
+      // Always proceed to preview — the user can fill in anything that wasn't
+      // auto-detected (name, price) directly on the preview screen.
       setPreview(data as ProductPreview);
       setEditedName(data.productName ?? "");
-      setEditedPrice(String(data.priceUsd?.toFixed(2) ?? "0.00"));
+      setEditedPrice(data.priceUsd > 0 ? String(data.priceUsd.toFixed(2)) : "");
       setSelectedSize(null);
       setSelectedColor(null);
       setNotes("");
@@ -288,6 +292,14 @@ export default function ExternalOrderScreen() {
           {/* ── Preview Phase ── */}
           {phase === "preview" && preview && (
             <>
+              {/* Extraction warning banner */}
+              {!!preview.warning && (
+                <View style={styles.warningBanner}>
+                  <Ionicons name="warning-outline" size={16} color="#92400e" style={{ marginTop: 1 }} />
+                  <Text style={styles.warningBannerText}>{preview.warning}</Text>
+                </View>
+              )}
+
               {/* Product image + name */}
               <View style={styles.productCard}>
                 {preview.imageUrl ? (
@@ -593,6 +605,24 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     textAlign: "center",
+    lineHeight: 18,
+  },
+  warningBanner: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-start",
+    backgroundColor: "#fffbeb",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fcd34d",
+    padding: 12,
+    marginBottom: 4,
+  },
+  warningBannerText: {
+    flex: 1,
+    color: "#92400e",
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
     lineHeight: 18,
   },
 

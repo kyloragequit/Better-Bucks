@@ -78,11 +78,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   secondaryActions: {
-    width: "100%",
+    alignItems: "center",
     gap: 8,
   },
   smallButton: {
     height: 42,
-    width: "100%",
+    width: 220,
   },
 });

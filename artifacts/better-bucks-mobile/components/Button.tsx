@@ -8,7 +8,7 @@ import {
 
 import { brand } from "@/constants/colors";
 
-type Variant = "primary" | "secondary" | "outline" | "ghost";
+type Variant = "primary" | "secondary" | "outline" | "ghost" | "navy";
 
 export function Button({
   title,
@@ -60,6 +60,8 @@ function paletteFor(v: Variant) {
       return { bg: "transparent", fg: brand.navy, border: brand.navy };
     case "ghost":
       return { bg: "transparent", fg: brand.navy, border: "transparent" };
+    case "navy":
+      return { bg: brand.navy, fg: brand.white, border: brand.navy };
     case "primary":
     default:
       return { bg: brand.green, fg: brand.white, border: brand.green };

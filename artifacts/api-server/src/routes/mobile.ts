@@ -184,6 +184,9 @@ export function registerMobileRoutes(app: Express) {
         if (!user && username.includes("@")) {
           user = await storage.getUserByEmailGlobal(username);
         }
+        if (!user) {
+          user = await storage.getUserByBarcode(username);
+        }
       }
       if (!user) {
         res

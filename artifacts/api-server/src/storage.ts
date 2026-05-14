@@ -16,6 +16,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   getUsersByOrganization(organizationId: number): Promise<User[]>;
   getPendingAdminsByOrganization(organizationId: number): Promise<User[]>;
+  getUserByBarcode(barcode: string): Promise<User | undefined>;
   getUserByUsernameAndOrg(username: string, organizationId: number): Promise<User | undefined>;
   getUserByEmailAndOrg(email: string, organizationId: number): Promise<User | undefined>;
   getUserByPhoneAndOrg(phone: string, organizationId: number): Promise<User | undefined>;
@@ -368,6 +369,14 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).where(
       and(eq(users.status, "pending"), eq(users.organizationId, organizationId))
     ).orderBy(users.fullName);
+  }
+
+  async getUserByBarcode(barcode: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.barcode}) = lower(${barcode})`);
+    return user;
   }
 
   async getUserByUsernameAndOrg(username: string, organizationId: number): Promise<User | undefined> {

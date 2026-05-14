@@ -115,6 +115,9 @@ export function setupAuth(app: Express) {
           user = await storage.getUserByEmailGlobal(username);
         }
         if (!user) {
+          user = await storage.getUserByBarcode(username);
+        }
+        if (!user) {
           return done(null, false, { message: "Incorrect username or password" });
         }
 

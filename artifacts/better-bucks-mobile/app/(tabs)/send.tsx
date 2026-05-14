@@ -68,7 +68,7 @@ export default function SendTab() {
 
   async function handleSend() {
     if (!token || !isValid) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setLoading(true);
 
     try {
@@ -142,7 +142,7 @@ export default function SendTab() {
           return;
         }
         const data = await res.json();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         router.replace({
           pathname: "/transfer/success",
           params: {
@@ -205,7 +205,7 @@ export default function SendTab() {
                   pressed && { opacity: 0.8 },
                 ]}
                 onPress={() => {
-                  Haptics.selectionAsync();
+                  Haptics.selectionAsync().catch(() => {});
                   setMethod(m.key);
                 }}
                 accessibilityRole="radio"

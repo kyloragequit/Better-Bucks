@@ -110,7 +110,7 @@ export default function TransferSuccessScreen() {
   useEffect(() => {
     if (fired.current) return;
     fired.current = true;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 
     checkOpacity.value = withTiming(1, { duration: 200 });
     checkScale.value = withSpring(1, { damping: 12, stiffness: 220 });

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   FlatList,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -78,6 +79,19 @@ function EmployeeStore() {
   const [pendingItem, setPendingItem] = useState<StoreItem | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [preferredStoreUrl, setPreferredStoreUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(apiUrl("/api/mobile/org/approved-sites"), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d?.preferredStoreUrl === "string") setPreferredStoreUrl(d.preferredStoreUrl);
+      })
+      .catch(() => {});
+  }, [token]);
 
   const minVal = minPrice === "" ? null : Number(minPrice);
   const maxVal = maxPrice === "" ? null : Number(maxPrice);
@@ -420,6 +434,29 @@ function EmployeeStore() {
             </View>
             <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
+
+          {/* Preferred store shortcut */}
+          {!!preferredStoreUrl && (
+            <TouchableOpacity
+              style={searchStyles.preferredStoreBanner}
+              onPress={() => Linking.openURL(preferredStoreUrl).catch(() => {})}
+              activeOpacity={0.78}
+            >
+              <View style={searchStyles.preferredStoreIconWrap}>
+                <Ionicons name="storefront" size={20} color={brand.green} />
+              </View>
+              <View style={searchStyles.preferredStoreBody}>
+                <Text style={searchStyles.preferredStoreLabel}>PREFERRED STORE</Text>
+                <Text style={searchStyles.preferredStoreName} numberOfLines={1}>
+                  {(() => { try { return new URL(preferredStoreUrl).hostname.replace(/^www\./, ""); } catch { return preferredStoreUrl; } })()}
+                </Text>
+              </View>
+              <View style={searchStyles.preferredStoreBtn}>
+                <Ionicons name="open-outline" size={13} color={brand.navy} />
+                <Text style={searchStyles.preferredStoreBtnText}>Shop</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
       }
       ListEmptyComponent={
@@ -1023,6 +1060,58 @@ const searchStyles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     lineHeight: 16,
+  },
+  preferredStoreBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: brand.white,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: brand.green,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginTop: -8,
+    marginBottom: 16,
+  },
+  preferredStoreIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    backgroundColor: "rgba(39,174,96,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  preferredStoreBody: {
+    flex: 1,
+    gap: 1,
+    minWidth: 0,
+  },
+  preferredStoreLabel: {
+    color: brand.textMuted,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 9,
+    letterSpacing: 0.6,
+  },
+  preferredStoreName: {
+    color: brand.navy,
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+  },
+  preferredStoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: brand.navy,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexShrink: 0,
+  },
+  preferredStoreBtnText: {
+    color: brand.white,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
   },
 });
 

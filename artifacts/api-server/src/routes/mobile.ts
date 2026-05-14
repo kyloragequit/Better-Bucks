@@ -2507,6 +2507,216 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
+  // ─── External Store Orders ─────────────────────────────────────────────────
+
+  async function extractProductInfo(url: string): Promise<{
+    productName: string;
+    productDescription: string;
+    priceUsd: number;
+    imageUrl: string | null;
+    sizes: string[];
+    colors: string[];
+  }> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    let html: string;
+    try {
+      const resp = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} from product page`);
+      html = await resp.text();
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // Strip scripts/styles, truncate to keep within token budget
+    const stripped = html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .slice(0, 25_000);
+
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const msg = await client.messages.create({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 512,
+      messages: [
+        {
+          role: "user",
+          content: `Extract product data from this HTML page. Reply with ONLY a single valid JSON object (no markdown, no explanation).
+
+Required shape:
+{
+  "productName": "<product title>",
+  "productDescription": "<one sentence, max 120 chars>",
+  "priceUsd": <number e.g. 29.99>,
+  "imageUrl": "<absolute URL of main product image, or null>",
+  "sizes": ["<option>", ...],
+  "colors": ["<option>", ...]
+}
+
+HTML:
+${stripped}`,
+        },
+      ],
+    });
+
+    const raw =
+      msg.content[0].type === "text" ? msg.content[0].text.trim() : "{}";
+    const jsonStr = raw
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/```\s*$/, "")
+      .trim();
+    const parsed = JSON.parse(jsonStr);
+
+    return {
+      productName: String(parsed.productName ?? "Unknown Product"),
+      productDescription: String(parsed.productDescription ?? ""),
+      priceUsd: Number(parsed.priceUsd) || 0,
+      imageUrl: typeof parsed.imageUrl === "string" && parsed.imageUrl ? parsed.imageUrl : null,
+      sizes: Array.isArray(parsed.sizes) ? parsed.sizes.map(String).filter(Boolean) : [],
+      colors: Array.isArray(parsed.colors) ? parsed.colors.map(String).filter(Boolean) : [],
+    };
+  }
+
+  // Preview: analyze a product URL and return extracted info + Bucks cost
+  app.post(
+    "/api/mobile/external-order/preview",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      if (user.role !== "employee") {
+        return res.status(403).json({ message: "Only employees can use this feature" });
+      }
+      const body = z.object({ url: z.string().url() }).safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({ message: "Please enter a valid product URL" });
+      }
+
+      const org = await storage.getOrganization(user.organizationId!).catch(() => undefined);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      if (!org.ordersEnabled || !org.manualOrdersEnabled) {
+        return res.status(403).json({ message: "External orders are not enabled for your organization" });
+      }
+
+      try {
+        const info = await extractProductInfo(body.data.url);
+        const bucksPerDollar = org.bucksPerDollar ?? 100;
+        const bucksPrice = Math.ceil(info.priceUsd * bucksPerDollar);
+        return res.json({ ...info, bucksPerDollar, bucksPrice });
+      } catch (err: any) {
+        logger.error({ err }, "[mobile/external-order/preview] failed");
+        const msg: string = err?.message ?? "";
+        return res.status(500).json({
+          message:
+            msg.includes("abort") || msg.includes("HTTP")
+              ? "Could not load that product page. Try a direct product link."
+              : "Failed to analyze the product link. Please try again.",
+        });
+      }
+    },
+  );
+
+  // Submit an external store order (deducts Bucks, creates an order record)
+  app.post(
+    "/api/mobile/external-orders",
+    mobileAuthMiddleware,
+    async (req, res) => {
+      const user = (req as MobileRequest).mobileUser;
+      if (user.role !== "employee") {
+        return res.status(403).json({ message: "Only employees can place orders" });
+      }
+
+      const Body = z.object({
+        productUrl: z.string().url(),
+        productName: z.string().min(1).max(200),
+        productDescription: z.string().max(500).optional().default(""),
+        priceUsd: z.number().min(0.01).max(99_999),
+        imageUrl: z.string().nullable().optional(),
+        selectedSize: z.string().max(50).nullable().optional(),
+        selectedColor: z.string().max(50).nullable().optional(),
+        additionalNotes: z.string().max(500).optional().default(""),
+      });
+
+      const parsed = Body.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid order data" });
+      }
+      const {
+        productUrl,
+        productName,
+        productDescription,
+        priceUsd,
+        imageUrl,
+        selectedSize,
+        selectedColor,
+        additionalNotes,
+      } = parsed.data;
+
+      const org = await storage.getOrganization(user.organizationId!).catch(() => undefined);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      if (!org.ordersEnabled || !org.manualOrdersEnabled) {
+        return res.status(403).json({ message: "External orders are not enabled" });
+      }
+
+      const bucksPerDollar = org.bucksPerDollar ?? 100;
+      const bucksPrice = Math.ceil(priceUsd * bucksPerDollar);
+
+      const freshUser = await storage.getUser(user.id);
+      if (!freshUser || freshUser.balance < bucksPrice) {
+        return res.status(400).json({
+          message: `Insufficient Bucks. You need ${bucksPrice.toLocaleString()} but have ${(freshUser?.balance ?? 0).toLocaleString()}.`,
+        });
+      }
+
+      const descParts: string[] = [productName];
+      if (productDescription) descParts.push(productDescription);
+      if (additionalNotes) descParts.push(`Notes: ${additionalNotes}`);
+
+      try {
+        await storage.updateUserBalance(user.id, -bucksPrice);
+        await storage.createTransaction({
+          userId: user.id,
+          amount: -bucksPrice,
+          reason: `External order: ${productName}`,
+          performedBy: user.id,
+        });
+        void pushPassUpdateForEmployee(user.id);
+        void pushGoogleWalletUpdateForEmployee(user.id);
+
+        const order = await storage.createOrder({
+          userId: user.id,
+          pointsCost: bucksPrice,
+          quantity: 1,
+          description: descParts.join(" — "),
+          photoUrls: imageUrl ? [imageUrl] : [],
+          itemUrl: productUrl,
+          shopWebsiteId: null,
+          convertedValue: `$${priceUsd.toFixed(2)} USD`,
+          selectedSize: selectedSize ?? null,
+          selectedColor: selectedColor ?? null,
+        });
+
+        return res.json({
+          success: true,
+          orderId: order.id,
+          bucksCharged: bucksPrice,
+          newBalance: freshUser.balance - bucksPrice,
+        });
+      } catch (err: any) {
+        logger.error({ err }, "[mobile/external-orders] failed");
+        return res.status(500).json({ message: "Order submission failed. Please try again." });
+      }
+    },
+  );
+
   // ─── Signup ────────────────────────────────────────────────────────────────
 
   // Signup with Stripe payment method (mobile uses native CardField, not Checkout)

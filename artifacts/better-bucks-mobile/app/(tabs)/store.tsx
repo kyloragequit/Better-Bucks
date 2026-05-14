@@ -35,6 +35,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/Button";
 import { TextField } from "@/components/TextField";
 import { useStoreCatalog, type StoreItem } from "@/hooks/useStoreCatalog";
+import { router } from "expo-router";
 
 type Employee = {
   id: number;
@@ -403,6 +404,24 @@ function EmployeeStore() {
               </View>
             </View>
           )}
+
+          {/* External store order entry */}
+          <TouchableOpacity
+            style={searchStyles.externalOrderBanner}
+            onPress={() => router.push("/store/external-order")}
+            activeOpacity={0.82}
+          >
+            <View style={searchStyles.externalOrderIconWrap}>
+              <Ionicons name="storefront-outline" size={22} color={brand.white} />
+            </View>
+            <View style={searchStyles.externalOrderBody}>
+              <Text style={searchStyles.externalOrderTitle}>Order from Any Store</Text>
+              <Text style={searchStyles.externalOrderSub}>
+                Paste a link — AI extracts the product & converts price to Bucks
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
         </View>
       }
       ListEmptyComponent={
@@ -952,6 +971,40 @@ const searchStyles = StyleSheet.create({
   },
   clearBtn: {
     paddingBottom: 6,
+  },
+  externalOrderBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: brand.navy,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  externalOrderIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  externalOrderBody: {
+    flex: 1,
+    gap: 2,
+  },
+  externalOrderTitle: {
+    color: brand.white,
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+  },
+  externalOrderSub: {
+    color: "rgba(255,255,255,0.75)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 16,
   },
 });
 

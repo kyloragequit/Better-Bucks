@@ -232,9 +232,7 @@ function EmployeeStore() {
 
   const handlePurchase = useCallback(
     (item: StoreItem) => {
-      const needsAttrs =
-        (item.requiresSize && (item.sizes ?? []).length > 0) ||
-        (item.requiresColor && (item.colors ?? []).length > 0);
+      const needsAttrs = item.requiresSize || item.requiresColor;
       if (needsAttrs) {
         setSelectedSize(null);
         setSelectedColor(null);
@@ -440,9 +438,7 @@ function EmployeeStore() {
         </View>
       }
       renderItem={({ item }) => {
-        const hasAttrs =
-          (item.requiresSize && (item.sizes ?? []).length > 0) ||
-          (item.requiresColor && (item.colors ?? []).length > 0);
+        const hasAttrs = item.requiresSize || item.requiresColor;
         return (
           <View style={styles.itemCard}>
             <View style={styles.itemHeader}>
@@ -542,61 +538,83 @@ function EmployeeStore() {
                 </View>
               </View>
 
-              {pendingItem.requiresSize && (pendingItem.sizes ?? []).length > 0 && (
+              {pendingItem.requiresSize && (
                 <View style={attrStyles.optionSection}>
                   <Text style={attrStyles.optionLabel}>
                     Size{selectedSize ? ` — ${selectedSize}` : " (required)"}
                   </Text>
-                  <View style={attrStyles.optionsRow}>
-                    {(pendingItem.sizes ?? []).map((s) => (
-                      <Pressable
-                        key={s}
-                        style={[
-                          attrStyles.optionChip,
-                          selectedSize === s && attrStyles.optionChipActive,
-                        ]}
-                        onPress={() => setSelectedSize(s)}
-                      >
-                        <Text
+                  {(pendingItem.sizes ?? []).length > 0 ? (
+                    <View style={attrStyles.optionsRow}>
+                      {(pendingItem.sizes ?? []).map((s) => (
+                        <Pressable
+                          key={s}
                           style={[
-                            attrStyles.optionChipText,
-                            selectedSize === s && attrStyles.optionChipTextActive,
+                            attrStyles.optionChip,
+                            selectedSize === s && attrStyles.optionChipActive,
                           ]}
+                          onPress={() => setSelectedSize(selectedSize === s ? null : s)}
                         >
-                          {s}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                          <Text
+                            style={[
+                              attrStyles.optionChipText,
+                              selectedSize === s && attrStyles.optionChipTextActive,
+                            ]}
+                          >
+                            {s}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : (
+                    <TextInput
+                      style={attrStyles.optionInput}
+                      value={selectedSize ?? ""}
+                      onChangeText={(v) => setSelectedSize(v || null)}
+                      placeholder="e.g. M, L, 10.5, One Size…"
+                      placeholderTextColor={brand.textMuted}
+                      returnKeyType="done"
+                    />
+                  )}
                 </View>
               )}
 
-              {pendingItem.requiresColor && (pendingItem.colors ?? []).length > 0 && (
+              {pendingItem.requiresColor && (
                 <View style={attrStyles.optionSection}>
                   <Text style={attrStyles.optionLabel}>
                     Color{selectedColor ? ` — ${selectedColor}` : " (required)"}
                   </Text>
-                  <View style={attrStyles.optionsRow}>
-                    {(pendingItem.colors ?? []).map((c) => (
-                      <Pressable
-                        key={c}
-                        style={[
-                          attrStyles.optionChip,
-                          selectedColor === c && attrStyles.optionChipActive,
-                        ]}
-                        onPress={() => setSelectedColor(c)}
-                      >
-                        <Text
+                  {(pendingItem.colors ?? []).length > 0 ? (
+                    <View style={attrStyles.optionsRow}>
+                      {(pendingItem.colors ?? []).map((c) => (
+                        <Pressable
+                          key={c}
                           style={[
-                            attrStyles.optionChipText,
-                            selectedColor === c && attrStyles.optionChipTextActive,
+                            attrStyles.optionChip,
+                            selectedColor === c && attrStyles.optionChipActive,
                           ]}
+                          onPress={() => setSelectedColor(selectedColor === c ? null : c)}
                         >
-                          {c}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                          <Text
+                            style={[
+                              attrStyles.optionChipText,
+                              selectedColor === c && attrStyles.optionChipTextActive,
+                            ]}
+                          >
+                            {c}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : (
+                    <TextInput
+                      style={attrStyles.optionInput}
+                      value={selectedColor ?? ""}
+                      onChangeText={(v) => setSelectedColor(v || null)}
+                      placeholder="e.g. Black, Navy, Red…"
+                      placeholderTextColor={brand.textMuted}
+                      returnKeyType="done"
+                    />
+                  )}
                 </View>
               )}
 
@@ -1328,6 +1346,17 @@ const attrStyles = StyleSheet.create({
   optionChipTextActive: {
     color: brand.green,
     fontFamily: "Inter_600SemiBold",
+  },
+  optionInput: {
+    borderWidth: 1.5,
+    borderColor: brand.border,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: brand.white,
+    color: brand.text,
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
   },
   sheetButtons: {
     flexDirection: "row",

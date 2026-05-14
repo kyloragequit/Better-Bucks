@@ -380,6 +380,67 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {(item.requiresSize || item.requiresColor) && (
+              <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order Options</p>
+                {item.requiresSize && (
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5">
+                      <Ruler className="h-3.5 w-3.5 text-violet-600" /> Size <span className="text-destructive">*</span>
+                    </Label>
+                    {(item.sizes ?? []).length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(item.sizes ?? []).map(s => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={`min-h-9 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md border transition-colors ${
+                              selectedSize === s
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-accent border-border"
+                            }`}
+                            onClick={() => setSelectedSize(selectedSize === s ? "" : s)}
+                            data-testid={`input-cat-order-size-${s.toLowerCase()}`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <SizeSelector value={selectedSize} onChange={setSelectedSize} testIdPrefix="input-cat-order-size" />
+                    )}
+                  </div>
+                )}
+                {item.requiresColor && (
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5">
+                      <Palette className="h-3.5 w-3.5 text-pink-600" /> Color <span className="text-destructive">*</span>
+                    </Label>
+                    {(item.colors ?? []).length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(item.colors ?? []).map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`min-h-9 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md border transition-colors ${
+                              selectedColor === c
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-accent border-border"
+                            }`}
+                            onClick={() => setSelectedColor(selectedColor === c ? "" : c)}
+                            data-testid={`input-cat-order-color-${c.toLowerCase().replace(/\s+/g, "-")}`}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <Input id="cat-order-color" value={selectedColor} onChange={e => setSelectedColor(e.target.value)} placeholder="e.g. Black, Navy Blue, Red..." data-testid="input-cat-order-color" />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex items-center justify-between rounded-lg border px-4 py-3">
               <span className="text-sm font-medium">Quantity</span>
               <div className="flex items-center gap-2">
@@ -400,27 +461,6 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
                 {totalCost.toLocaleString()} Bucks
               </span>
             </div>
-            {canAfford && (item.requiresSize || item.requiresColor) && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Order Options</p>
-                {item.requiresSize && (
-                  <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5">
-                      <Ruler className="h-3.5 w-3.5 text-violet-600" /> Size <span className="text-destructive">*</span>
-                    </Label>
-                    <SizeSelector value={selectedSize} onChange={setSelectedSize} testIdPrefix="input-cat-order-size" />
-                  </div>
-                )}
-                {item.requiresColor && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cat-order-color" className="flex items-center gap-1.5">
-                      <Palette className="h-3.5 w-3.5 text-pink-600" /> Color <span className="text-destructive">*</span>
-                    </Label>
-                    <Input id="cat-order-color" value={selectedColor} onChange={e => setSelectedColor(e.target.value)} placeholder="e.g. Black, Navy Blue, Red..." data-testid="input-cat-order-color" />
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
@@ -583,6 +623,67 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
           </DialogHeader>
 
           <div className="space-y-4">
+            {(item.requiresSize || item.requiresColor) && (
+              <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order Options</p>
+                {item.requiresSize && (
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5">
+                      <Ruler className="h-3.5 w-3.5 text-violet-600" /> Size <span className="text-destructive">*</span>
+                    </Label>
+                    {(item.sizes ?? []).length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(item.sizes ?? []).map(s => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={`min-h-9 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md border transition-colors ${
+                              selectedSize === s
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-accent border-border"
+                            }`}
+                            onClick={() => setSelectedSize(selectedSize === s ? "" : s)}
+                            data-testid={`input-order-size-${s.toLowerCase()}`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <SizeSelector value={selectedSize} onChange={setSelectedSize} testIdPrefix="input-order-size" />
+                    )}
+                  </div>
+                )}
+                {item.requiresColor && (
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5">
+                      <Palette className="h-3.5 w-3.5 text-pink-600" /> Color <span className="text-destructive">*</span>
+                    </Label>
+                    {(item.colors ?? []).length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(item.colors ?? []).map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`min-h-9 inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md border transition-colors ${
+                              selectedColor === c
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-accent border-border"
+                            }`}
+                            onClick={() => setSelectedColor(selectedColor === c ? "" : c)}
+                            data-testid={`input-order-color-${c.toLowerCase().replace(/\s+/g, "-")}`}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <Input id="order-color" value={selectedColor} onChange={e => setSelectedColor(e.target.value)} placeholder="e.g. Black, Navy Blue, Red..." data-testid="input-order-color" />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex items-center justify-between rounded-lg border px-4 py-3">
               <span className="text-sm font-medium">Quantity</span>
               <div className="flex items-center gap-2">
@@ -621,36 +722,6 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
                 {totalCost.toLocaleString()} Bucks
               </span>
             </div>
-
-            {canAfford && (item.requiresSize || item.requiresColor) && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Order Options</p>
-                {item.requiresSize && (
-                  <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5">
-                      <Ruler className="h-3.5 w-3.5 text-violet-600" />
-                      Size <span className="text-destructive">*</span>
-                    </Label>
-                    <SizeSelector value={selectedSize} onChange={setSelectedSize} testIdPrefix="input-order-size" />
-                  </div>
-                )}
-                {item.requiresColor && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="order-color" className="flex items-center gap-1.5">
-                      <Palette className="h-3.5 w-3.5 text-pink-600" />
-                      Color <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="order-color"
-                      value={selectedColor}
-                      onChange={e => setSelectedColor(e.target.value)}
-                      placeholder="e.g. Black, Navy Blue, Red..."
-                      data-testid="input-order-color"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           <DialogFooter className="gap-2">

@@ -47,8 +47,8 @@ export default function HomeScreen() {
         <View style={{ height: 12 }} />
         <Button
           testID="cta-signup"
-          title="Create a new account"
-          variant="ghost"
+          title="Create a New Organization"
+          variant="navy"
           onPress={() => router.push("/signup/plan")}
         />
       </View>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -70,6 +71,11 @@ function broadcastReset() {
 export function useTutorial() {
   const { data: user } = useUser();
   const userId = user?.id;
+  const { data: devStatus } = useQuery<{ impersonating: boolean }>({
+    queryKey: ["/api/developer/status"],
+    staleTime: 30 * 1000,
+  });
+  const isImpersonating = devStatus?.impersonating === true;
 
   // Re-render counter — all hook instances re-render when tutorial choice changes
   const [, setTick] = useState(0);
@@ -84,9 +90,9 @@ export function useTutorial() {
   const dbCompleted = !!user && user.tutorialCompleted;
   const sessionDismissed = !!userId && isDismissed(userId);
 
-  const showChoice = !!user && !dbCompleted && !sessionDismissed && !tutorialChoice;
-  const shouldShow = !!user && !dbCompleted && !sessionDismissed && tutorialChoice === "quick";
-  const showFullTutorial = !!user && !dbCompleted && !sessionDismissed && tutorialChoice === "full";
+  const showChoice = !!user && !dbCompleted && !sessionDismissed && !tutorialChoice && !isImpersonating;
+  const shouldShow = !!user && !dbCompleted && !sessionDismissed && tutorialChoice === "quick" && !isImpersonating;
+  const showFullTutorial = !!user && !dbCompleted && !sessionDismissed && tutorialChoice === "full" && !isImpersonating;
 
   const chooseTutorial = (type: "quick" | "full") => {
     if (!userId) return;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,10 @@ export function TermsAgreementModal() {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [marketingAgreed, setMarketingAgreed] = useState(false);
   const [optimisticallyAccepted, setOptimisticallyAccepted] = useState(false);
+  const { data: devStatus } = useQuery<{ impersonating: boolean }>({
+    queryKey: ["/api/developer/status"],
+    staleTime: 30 * 1000,
+  });
 
   const { mutate: acceptTerms, isPending } = useMutation({
     mutationFn: async () => {
@@ -57,7 +61,8 @@ export function TermsAgreementModal() {
 
   // In the public/full-service view, viewers may not accept terms and the modal
   // should never appear (it would otherwise re-render on every nav).
-  if (isPublicDemo) return null;
+  // Same applies when an admin is impersonating an employee account.
+  if (isPublicDemo || devStatus?.impersonating) return null;
 
   if (!user || user.termsAcceptedAt || optimisticallyAccepted || !isOnAppPage) return null;
 

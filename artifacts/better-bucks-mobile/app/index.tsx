@@ -32,6 +32,13 @@ export default function HomeScreen() {
 
       <View style={styles.actions}>
         <Button
+          testID="cta-signup"
+          title="Create a New Organization"
+          variant="navy"
+          onPress={() => router.push("/signup/plan")}
+        />
+        <View style={{ height: 12 }} />
+        <Button
           testID="cta-login"
           title="Log In"
           variant="primary"
@@ -43,13 +50,6 @@ export default function HomeScreen() {
           title="New Employee? Get Started"
           variant="outline"
           onPress={() => router.push("/get-started" as any)}
-        />
-        <View style={{ height: 12 }} />
-        <Button
-          testID="cta-signup"
-          title="Create a New Organization"
-          variant="navy"
-          onPress={() => router.push("/signup/plan")}
         />
       </View>
     </View>

@@ -117,10 +117,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/merchants", label: "Merchants", icon: StoreIcon },
     { href: "/admin/merchant-disputes", label: "Disputes", icon: AlertTriangle },
     { href: "/admin/documents", label: "Documents", icon: FileText },
+    { href: "/admin/store", label: "Store Mgmt", icon: StoreIcon },
     ...(user?.role === "prime_admin" ? [
       { href: "/admin/pending", label: "Pending Accounts", icon: ClipboardCheck },
       { href: "/admin/stripe-orphans", label: "Failed Signups", icon: AlertOctagon },
-      { href: "/admin/store", label: "Store Mgmt", icon: StoreIcon },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ] : []),
   ];

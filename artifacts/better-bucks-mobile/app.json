@@ -60,8 +60,7 @@
           "selectIdentifiers": [],
           "querySchemes": []
         }
-      ],
-      "expo-haptics"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

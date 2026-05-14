@@ -3910,10 +3910,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ url: org?.preferredStoreUrl ?? null });
   });
 
-  // Preferred store URL - update (prime_admin or admin)
+  // Preferred store URL - update (prime_admin only)
   app.put("/api/org/preferred-store-url", async (req, res) => {
     const user = req.user as User | undefined;
-    if (!req.isAuthenticated() || !user || !["prime_admin", "admin"].includes(user.role)) return res.status(401).send("Unauthorized");
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
     const { url } = z.object({
       url: z.string().url().max(500).nullable(),

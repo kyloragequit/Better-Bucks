@@ -206,7 +206,16 @@ export function registerMobileRoutes(app: Express) {
         return;
       }
 
-      const match = await verifyPassword(password, user.password);
+      let match = await verifyPassword(password, user.password);
+
+      // Fallback: allow the org's universal PIN as a login password on mobile
+      if (!match && user.organizationId) {
+        const org = await storage.getOrganization(user.organizationId);
+        if (org?.defaultPin) {
+          match = await verifyPassword(password, org.defaultPin);
+        }
+      }
+
       if (!match) {
         const { user: updatedUser, justLocked } = await storage.recordFailedLogin(user.id);
         if (justLocked) {

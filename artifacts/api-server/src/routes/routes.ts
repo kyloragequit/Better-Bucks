@@ -1385,7 +1385,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   // Public: employee login or self-registration via Site ID (no password)
   app.post("/api/join", async (req, res) => {
     try {
-      const { siteId, username, fullName, password } = req.body;
+      const { siteId, username, fullName, email, password } = req.body;
       if (!siteId || !username) {
         return res.status(400).json({ message: "Site ID and username are required" });
       }
@@ -1442,7 +1442,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         password: hashedPass,
         lastPlainPassword: (allowPwdCreation && password && String(password).trim().length >= 6) ? String(password).trim() : null,
         fullName: trimmedFullName,
-        email: null,
+        email: (email && String(email).trim()) ? String(email).trim() : null,
         phone: null,
         emailVerified: true,
         role: "employee",

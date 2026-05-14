@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { SpinningLogo } from "@/components/spinning-logo";
 import { LogoBackground } from "@/components/logo-background";
-import { Building2, User, UserPlus, LogIn, ArrowLeft, QrCode, Eye, EyeOff, Clock } from "lucide-react";
+import { Building2, User, UserPlus, LogIn, ArrowLeft, QrCode, Eye, EyeOff, Clock, Mail } from "lucide-react";
 
 type OrgInfo = { orgName: string; siteId: string; employeeRoleLabel: string; allowPasswordCreation: boolean };
 
@@ -36,6 +36,7 @@ export default function JoinPage() {
 
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -88,7 +89,7 @@ export default function JoinPage() {
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !fullName.trim()) return;
+    if (!username.trim() || !fullName.trim() || !email.trim()) return;
     const allowPwd = org?.allowPasswordCreation ?? true;
     if (allowPwd && password && password !== confirmPassword) {
       toast({ title: "Passwords don't match", description: "Please make sure both password fields match.", variant: "destructive" });
@@ -100,7 +101,7 @@ export default function JoinPage() {
     }
     setIsPending(true);
     try {
-      const body: Record<string, string> = { siteId, username: username.trim(), fullName: fullName.trim() };
+      const body: Record<string, string> = { siteId, username: username.trim(), fullName: fullName.trim(), email: email.trim() };
       if (allowPwd && password.trim()) body.password = password.trim();
       const res = await fetch("/api/join", {
         method: "POST",
@@ -309,6 +310,27 @@ export default function JoinPage() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="join-email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="join-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      className="pl-9"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                      data-testid="input-join-email"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Used for account recovery and important notifications.
+                  </p>
+                </div>
+
                 {(org?.allowPasswordCreation ?? true) && (
                   <>
                     <div className="space-y-2">
@@ -373,7 +395,7 @@ export default function JoinPage() {
                   type="button"
                   variant="ghost"
                   className="w-full text-muted-foreground"
-                  onClick={() => { setStep("username"); setFullName(""); setPassword(""); setConfirmPassword(""); }}
+                  onClick={() => { setStep("username"); setFullName(""); setEmail(""); setPassword(""); setConfirmPassword(""); }}
                   data-testid="button-join-back"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />

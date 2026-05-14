@@ -58,6 +58,7 @@ const TermsPage = lazy(() => import("@/pages/terms"));
 const BlogPage = lazy(() => import("@/pages/blog"));
 const BlogPostPage = lazy(() => import("@/pages/blog-post"));
 const JoinPage = lazy(() => import("@/pages/join"));
+const GetStartedPage = lazy(() => import("@/pages/get-started"));
 const InviteAcceptPage = lazy(() => import("@/pages/invite-accept"));
 const AffiliatePage = lazy(() => import("@/pages/affiliate"));
 const DemoPage = lazy(() => import("@/pages/demo"));
@@ -271,6 +272,7 @@ function Router() {
         <Route path="/setup" component={SetupPrimePage} />
         <Route path="/login" component={LoginRoute} />
         <Route path="/invite/:token" component={InviteAcceptPage} />
+        <Route path="/get-started" component={GetStartedPage} />
         
         <Route path="/dashboard">
           <ProtectedRoute component={EmployeeDashboard} />

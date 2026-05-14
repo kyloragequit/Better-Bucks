@@ -62,9 +62,19 @@ export default function LoginPage() {
             <UnifiedLoginForm defaultOrgCode={urlOrgCode} />
           </CardContent>
 
-          <div className="px-6 pb-6 pt-2 text-center">
+          <div className="px-6 pb-6 pt-2 space-y-2 text-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              New employee?{" "}
+              <Link
+                href="/get-started"
+                className="text-primary font-medium hover:underline underline-offset-2"
+                data-testid="link-get-started"
+              >
+                Get started here
+              </Link>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Setting up an organization?{" "}
               <Link
                 href="/signup"
                 className="text-primary font-medium hover:underline underline-offset-2"

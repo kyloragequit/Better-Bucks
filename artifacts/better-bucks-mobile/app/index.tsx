@@ -46,7 +46,7 @@ export default function HomeScreen() {
           />
           <Button
             testID="cta-get-started"
-            title="New Employee? Get Started"
+            title="New Employee?"
             variant="outline"
             style={styles.smallButton}
             onPress={() => router.push("/get-started" as any)}

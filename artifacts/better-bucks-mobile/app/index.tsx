@@ -25,15 +25,15 @@ export default function HomeScreen() {
         { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 32 },
       ]}
     >
-      <Button
-        testID="cta-signup"
-        title="Create a New Organization"
-        variant="navy"
-        onPress={() => router.push("/signup/plan")}
-      />
-
       <View style={styles.center}>
         <Logo size={160} />
+        <Button
+          testID="cta-signup"
+          title="Create a New Organization"
+          variant="navy"
+          style={{ width: "100%", marginTop: 8 }}
+          onPress={() => router.push("/signup/plan")}
+        />
         <Text style={styles.tagline}>Rewards that actually work.</Text>
       </View>
 

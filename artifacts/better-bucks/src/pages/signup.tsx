@@ -23,20 +23,20 @@ const tiers = [
   {
     id: "small" as const,
     name: "A Little Better",
-    price: 8.79,
+    price: 17.58,
     maxEmployees: 25,
     description: "25 Employee Logins",
-    perEmployee: "~$0.35",
+    perEmployee: "~$0.70",
     icon: Users,
     features: ["25 employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"],
   },
   {
     id: "mid" as const,
     name: "Much Better",
-    price: 15.19,
+    price: 30.38,
     maxEmployees: 75,
     description: "75 Employee Logins",
-    perEmployee: "~$0.20",
+    perEmployee: "~$0.41",
     icon: Building2,
     popular: true,
     features: ["75 employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
@@ -44,10 +44,10 @@ const tiers = [
   {
     id: "large" as const,
     name: "A LOT Better",
-    price: 23.99,
+    price: 47.98,
     maxEmployees: 150,
     description: "150 Employee Logins",
-    perEmployee: "~$0.16",
+    perEmployee: "~$0.32",
     icon: Zap,
     features: ["150 employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
   },
@@ -302,7 +302,7 @@ export default function SignupPage() {
                       <div className="space-y-0.5">
                         <div>
                           <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
-                          <span className="text-sm text-muted-foreground">/mo</span>
+                          <span className="text-sm text-muted-foreground">/mo per org</span>
                         </div>
                       </div>
                     )}
@@ -366,7 +366,7 @@ export default function SignupPage() {
                 Claim Your Spot
               </CardTitle>
               <CardDescription>
-                {selectedTierData?.name}{selectedTierData?.id !== "enterprise" ? ` — locked in at $${selectedTierData?.price}/month` : " — contact us for custom pricing"}
+                {selectedTierData?.name}{selectedTierData?.id !== "enterprise" ? ` — locked in at $${selectedTierData?.price}/month per org` : " — contact us for custom pricing"}
               </CardDescription>
             </CardHeader>
             <CardContent>

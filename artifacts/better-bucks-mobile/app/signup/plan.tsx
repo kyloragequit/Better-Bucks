@@ -21,14 +21,14 @@ const TIERS: Tier[] = [
     key: "small",
     name: "A Little Better",
     blurb: "Best for small teams getting started.",
-    monthlyCents: 879,
+    monthlyCents: 1758,
     employees: "Up to 25 employees",
   },
   {
     key: "mid",
     name: "Much Better",
     blurb: "Most popular for growing teams.",
-    monthlyCents: 1519,
+    monthlyCents: 3038,
     employees: "Up to 75 employees",
     popular: true,
   },
@@ -36,7 +36,7 @@ const TIERS: Tier[] = [
     key: "large",
     name: "A LOT Better",
     blurb: "For mid-size organizations.",
-    monthlyCents: 2399,
+    monthlyCents: 4798,
     employees: "Up to 150 employees",
   },
   {
@@ -151,7 +151,7 @@ function PlanCard({
 function formatPrice(cents: number | null): string {
   if (cents == null) return "Contact us";
   const monthly = cents / 100;
-  return `$${monthly.toFixed(2)}/mo`;
+  return `$${monthly.toFixed(2)}/mo per org`;
 }
 
 const planStyles = StyleSheet.create({

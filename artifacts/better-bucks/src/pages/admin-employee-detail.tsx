@@ -798,7 +798,7 @@ function LoginInfoCard({ userId }: { userId: number }) {
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
-  const { data, isLoading } = useQuery<{ username: string; lastPlainPassword: string | null }>({
+  const { data, isLoading } = useQuery<{ username: string; lastPlainPassword: string | null; passwordLastChanged: string | null }>({
     queryKey: [`/api/users/${userId}/login-info`],
   });
 
@@ -809,6 +809,17 @@ function LoginInfoCard({ userId }: { userId: number }) {
   };
 
   const hasPassword = !!data?.lastPlainPassword;
+  // Distinguish "employee actively changed their password" from "no password was ever set by admin"
+  const employeeChangedPassword = !data?.lastPlainPassword && !!data?.passwordLastChanged;
+
+  let passwordStatusDesc: string;
+  if (hasPassword) {
+    passwordStatusDesc = "Password visible until the employee sets their own.";
+  } else if (employeeChangedPassword) {
+    passwordStatusDesc = "Employee has set their own password. Use Edit Profile to assign a temporary one.";
+  } else {
+    passwordStatusDesc = "No password on file. Employee must set one via the app or a password reset link.";
+  }
 
   return (
     <Card className="shadow-sm border-primary/10">
@@ -817,9 +828,7 @@ function LoginInfoCard({ userId }: { userId: number }) {
           <LogIn className="h-4 w-4 text-primary" /> Login Information
         </CardTitle>
         <CardDescription className="text-xs">
-          {hasPassword
-            ? "Password visible until the employee sets their own."
-            : "Employee has set their own password. Use Edit Profile to assign a temporary one."}
+          {passwordStatusDesc}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -850,8 +859,10 @@ function LoginInfoCard({ userId }: { userId: number }) {
                   <p className="font-mono text-sm font-medium truncate">
                     {showPassword ? data!.lastPlainPassword : "••••••••"}
                   </p>
-                ) : (
+                ) : employeeChangedPassword ? (
                   <p className="text-sm text-muted-foreground italic">Changed by employee</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Not set</p>
                 )}
               </div>
               {hasPassword && (

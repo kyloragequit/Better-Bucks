@@ -2418,6 +2418,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({
       username: target.username,
       lastPlainPassword: target.lastPlainPassword ?? null,
+      passwordLastChanged: target.passwordLastChanged ?? null,
     });
   });
 

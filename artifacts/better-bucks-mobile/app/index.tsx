@@ -35,22 +35,23 @@ export default function HomeScreen() {
           onPress={() => router.push("/signup/plan")}
         />
         <Text style={styles.tagline}>Rewards that actually work.</Text>
-      </View>
 
-      <View style={styles.actions}>
-        <Button
-          testID="cta-login"
-          title="Log In"
-          variant="primary"
-          onPress={() => router.push("/login")}
-        />
-        <View style={{ height: 12 }} />
-        <Button
-          testID="cta-get-started"
-          title="New Employee? Get Started"
-          variant="outline"
-          onPress={() => router.push("/get-started" as any)}
-        />
+        <View style={styles.secondaryActions}>
+          <Button
+            testID="cta-login"
+            title="Log In"
+            variant="primary"
+            style={styles.smallButton}
+            onPress={() => router.push("/login")}
+          />
+          <Button
+            testID="cta-get-started"
+            title="New Employee? Get Started"
+            variant="outline"
+            style={styles.smallButton}
+            onPress={() => router.push("/get-started" as any)}
+          />
+        </View>
       </View>
     </View>
   );
@@ -67,14 +68,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
+    width: "100%",
   },
   tagline: {
     color: brand.textMuted,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
     textAlign: "center",
+    marginBottom: 4,
   },
-  actions: {
-    paddingTop: 16,
+  secondaryActions: {
+    width: "100%",
+    gap: 8,
+  },
+  smallButton: {
+    height: 42,
+    width: "100%",
   },
 });

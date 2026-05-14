@@ -18,6 +18,7 @@ function TabIcon({ name, focused }: { name: IoniconsName; focused: boolean }) {
 export default function TabLayout() {
   const { user } = useAuth();
   const admin = user?.role === "admin" || user?.role === "prime_admin";
+  const primeAdmin = user?.role === "prime_admin";
 
   return (
     <Tabs
@@ -118,6 +119,18 @@ export default function TabLayout() {
           title: admin ? "Orders" : "My Orders",
           tabBarIcon: ({ focused }) => <TabIcon name="receipt" focused={focused} />,
           headerTitle: admin ? "All Orders" : "My Orders",
+        }}
+      />
+
+      {/* Prime admin only: Store Management */}
+      <Tabs.Screen
+        name="store-mgmt"
+        options={{
+          title: "Store",
+          tabBarIcon: ({ focused }) => <TabIcon name="storefront" focused={focused} />,
+          headerTitle: "Store Management",
+          tabBarItemStyle: primeAdmin ? undefined : { display: "none" },
+          href: primeAdmin ? undefined : null,
         }}
       />
 

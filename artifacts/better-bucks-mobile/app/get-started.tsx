@@ -135,11 +135,11 @@ export default function GetStartedScreen() {
           <Text style={styles.stepLabel}>Step 1 of 2</Text>
           <Text style={styles.stepTitle}>Enter your Site ID</Text>
           <Text style={styles.stepHint}>
-            Your manager or HR team will have given you this code. It looks like "abc123" or "FEF55758".
+            Your manager or HR team will have given you this code. It usually looks like a short word or number sequence.
           </Text>
           <TextField
             label="Site ID"
-            placeholder="e.g. fef55758"
+            placeholder="Enter your Site ID"
             autoCapitalize="none"
             value={siteId}
             onChangeText={(v) => { setSiteId(v); setError(null); }}
@@ -154,11 +154,11 @@ export default function GetStartedScreen() {
           <Text style={styles.stepLabel}>Step 2 of 2</Text>
           <Text style={styles.stepTitle}>Enter your employee code</Text>
           <Text style={styles.stepHint}>
-            This is the code or number your employer assigned to you (e.g. 307591).
+            This is the code or number your employer assigned to you.
           </Text>
           <TextField
             label="Employee Code / Username"
-            placeholder="e.g. 307591"
+            placeholder="Enter your employee code"
             autoCapitalize="none"
             value={username}
             onChangeText={(v) => { setUsername(v); setError(null); }}

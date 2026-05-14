@@ -210,7 +210,7 @@ export default function LoginScreen() {
 
       <TextField
         label="Site ID (employees only)"
-        placeholder="e.g. fef55758"
+        placeholder="Enter your Site ID"
         autoCapitalize="none"
         textContentType="organizationName"
         value={orgCode}

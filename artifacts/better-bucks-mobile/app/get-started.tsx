@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -205,6 +205,23 @@ export default function GetStartedScreen() {
           )}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button title="Submit" onPress={handleRegister} loading={loading} style={{ marginTop: 8 }} />
+          <Text style={styles.legalText}>
+            By submitting, you agree to our{" "}
+            <Text
+              style={styles.legalLink}
+              onPress={() => Linking.openURL("https://betterbucks.app/terms").catch(() => {})}
+            >
+              Terms of Service
+            </Text>
+            {" "}and{" "}
+            <Text
+              style={styles.legalLink}
+              onPress={() => Linking.openURL("https://betterbucks.app/privacy").catch(() => {})}
+            >
+              Privacy Policy
+            </Text>
+            .
+          </Text>
           <View style={{ height: 8 }} />
           <Button
             title="Back"
@@ -280,5 +297,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
+  },
+  legalText: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+    marginTop: 10,
+  },
+  legalLink: {
+    color: brand.navy,
+    fontFamily: "Inter_500Medium",
+    textDecorationLine: "underline",
   },
 });

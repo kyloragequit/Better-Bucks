@@ -1,12 +1,15 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Button } from "@/components/Button";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { TextField } from "@/components/TextField";
 import { brand } from "@/constants/colors";
 import { useSignup } from "@/contexts/SignupContext";
+
+const PRIVACY_URL = "https://betterbucks.app/privacy";
+const TERMS_URL = "https://betterbucks.app/terms";
 
 export default function SignupAccountScreen() {
   const { draft, update } = useSignup();
@@ -86,6 +89,24 @@ export default function SignupAccountScreen() {
         onPress={handleNext}
         style={{ marginTop: 8 }}
       />
+
+      <Text style={styles.legalText}>
+        By continuing, you agree to our{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}
+        >
+          Terms of Service
+        </Text>
+        {" "}and{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
+        >
+          Privacy Policy
+        </Text>
+        .
+      </Text>
     </ScreenContainer>
   );
 }
@@ -101,5 +122,18 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginTop: 4,
+  },
+  legalText: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+    marginTop: 12,
+  },
+  legalLink: {
+    color: brand.navy,
+    fontFamily: "Inter_500Medium",
+    textDecorationLine: "underline",
   },
 });

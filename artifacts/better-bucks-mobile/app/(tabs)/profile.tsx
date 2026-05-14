@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -17,6 +18,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
+
+const PRIVACY_URL = "https://betterbucks.app/privacy";
+const TERMS_URL = "https://betterbucks.app/terms";
 
 type MenuRowProps = {
   icon: React.ComponentProps<typeof Ionicons>["name"];
@@ -217,6 +221,23 @@ export default function ProfileTab() {
         <Text style={styles.sectionHeader}>Session</Text>
         <View style={styles.menuGroup}>
           <MenuRow icon="log-out-outline" label="Sign out" onPress={handleSignOut} />
+        </View>
+
+        {/* Legal */}
+        <Text style={styles.sectionHeader}>Legal</Text>
+        <View style={styles.menuGroup}>
+          <MenuRow
+            icon="document-text-outline"
+            label="Privacy Policy"
+            sublabel="How we collect and use your data"
+            onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
+          />
+          <MenuRow
+            icon="shield-checkmark-outline"
+            label="Terms of Service"
+            sublabel="Your rights and responsibilities"
+            onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}
+          />
         </View>
 
         {/* Danger zone */}

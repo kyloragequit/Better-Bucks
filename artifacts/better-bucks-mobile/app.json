@@ -25,7 +25,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "net.betterbucks.app",
       "infoPlist": {
-        "NFCReaderUsageDescription": "Better Bucks uses NFC to read item tap-to-order tokens from your manager's device."
+        "NFCReaderUsageDescription": "Better Bucks uses NFC to read item tap-to-order tokens from your manager's device.",
+        "NSUserNotificationsUsageDescription": "Better Bucks sends you notifications for new rewards, order updates, and important account activity.",
+        "NSFaceIDUsageDescription": "Better Bucks uses Face ID to let you sign in quickly and securely without entering your password."
       }
     },
     "android": {

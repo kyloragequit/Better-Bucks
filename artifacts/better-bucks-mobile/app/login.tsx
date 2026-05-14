@@ -4,7 +4,7 @@ import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -266,6 +266,25 @@ export default function LoginScreen() {
         variant="navy"
         onPress={() => router.push("/signup/plan")}
       />
+
+      <View style={{ height: 16 }} />
+      <Text style={styles.legalText}>
+        By using Better Bucks you agree to our{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => Linking.openURL("https://betterbucks.app/terms").catch(() => {})}
+        >
+          Terms of Service
+        </Text>
+        {" "}and{" "}
+        <Text
+          style={styles.legalLink}
+          onPress={() => Linking.openURL("https://betterbucks.app/privacy").catch(() => {})}
+        >
+          Privacy Policy
+        </Text>
+        .
+      </Text>
     </ScreenContainer>
   );
 }
@@ -374,5 +393,17 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     fontSize: 12,
     lineHeight: 14,
+  },
+  legalText: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  legalLink: {
+    color: brand.navy,
+    fontFamily: "Inter_500Medium",
+    textDecorationLine: "underline",
   },
 });

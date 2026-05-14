@@ -2586,6 +2586,27 @@ ${stripped}`,
     };
   }
 
+  // Helper: parse approved sites from org and validate a URL
+  function getApprovedSites(org: { approvedExternalSites?: string | null }): string[] {
+    if (!org.approvedExternalSites) return [];
+    try { return JSON.parse(org.approvedExternalSites) as string[]; } catch { return []; }
+  }
+  function checkSiteAllowed(urlStr: string, approvedSites: string[]): boolean {
+    if (approvedSites.length === 0) return true;
+    try {
+      const host = new URL(urlStr).hostname.toLowerCase().replace(/^www\./, "");
+      return approvedSites.some((s) => host === s || host.endsWith(`.${s}`));
+    } catch { return false; }
+  }
+
+  // Get approved external sites for the employee's org
+  app.get("/api/mobile/org/approved-sites", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!user.organizationId) return res.json({ sites: [] });
+    const org = await storage.getOrganization(user.organizationId).catch(() => undefined);
+    res.json({ sites: getApprovedSites(org ?? {}) });
+  });
+
   // Preview: analyze a product URL and return extracted info + Bucks cost
   app.post(
     "/api/mobile/external-order/preview",
@@ -2604,6 +2625,12 @@ ${stripped}`,
       if (!org) return res.status(404).json({ message: "Organization not found" });
       if (!org.ordersEnabled || !org.manualOrdersEnabled) {
         return res.status(403).json({ message: "External orders are not enabled for your organization" });
+      }
+      const approvedSites = getApprovedSites(org);
+      if (!checkSiteAllowed(body.data.url, approvedSites)) {
+        return res.status(403).json({
+          message: `That store is not on your organization's approved list. Approved sites: ${approvedSites.join(", ")}`,
+        });
       }
 
       try {
@@ -2664,6 +2691,12 @@ ${stripped}`,
       if (!org) return res.status(404).json({ message: "Organization not found" });
       if (!org.ordersEnabled || !org.manualOrdersEnabled) {
         return res.status(403).json({ message: "External orders are not enabled" });
+      }
+      const approvedSitesSubmit = getApprovedSites(org);
+      if (!checkSiteAllowed(productUrl, approvedSitesSubmit)) {
+        return res.status(403).json({
+          message: `That store is not on your organization's approved list. Approved sites: ${approvedSitesSubmit.join(", ")}`,
+        });
       }
 
       const bucksPerDollar = org.bucksPerDollar ?? 100;

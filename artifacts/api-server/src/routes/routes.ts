@@ -3870,6 +3870,37 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation, ordersEnabled: updated.ordersEnabled, requireSocialSignupApproval: updated.requireSocialSignupApproval });
   });
 
+  // Approved external sites - get (any authenticated admin/employee)
+  app.get("/api/org/approved-external-sites", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.json({ sites: [] });
+    const org = await storage.getOrganization(user.organizationId);
+    const sites: string[] = org?.approvedExternalSites
+      ? JSON.parse(org.approvedExternalSites)
+      : [];
+    res.json({ sites });
+  });
+
+  // Approved external sites - update (prime_admin only)
+  app.put("/api/org/approved-external-sites", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { sites } = z.object({
+      sites: z.array(z.string().min(1).max(253)).max(50),
+    }).parse(req.body);
+    // Normalise: lowercase, strip leading/trailing dots and www. prefix
+    const normalised = sites
+      .map((s) => s.toLowerCase().replace(/^www\./, "").replace(/\/.*$/, "").trim())
+      .filter(Boolean);
+    const updated = await storage.updateOrganizationApprovedSites(user.organizationId, normalised);
+    const saved: string[] = updated.approvedExternalSites
+      ? JSON.parse(updated.approvedExternalSites)
+      : [];
+    res.json({ sites: saved });
+  });
+
   // Budget settings - get
   app.get("/api/org/budget-settings", async (req, res) => {
     const user = req.user as User | undefined;

@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, Link2, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send, UserCheck, TrendingUp, Loader2 } from "lucide-react";
+import { Building2, CreditCard, Shield, AlertTriangle, Copy, Check, Users, ExternalLink, Pencil, ArrowUpDown, Trash2, Store, Plus, Tag, FolderTree, Link2, ToggleLeft, RefreshCw, KeyRound, Eye, EyeOff, Mail, Send, UserCheck, TrendingUp, Loader2, Globe, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -833,6 +833,8 @@ export default function AdminSettingsPage() {
 
             <FeatureFlagsSection org={org} />
 
+            <ApprovedSitesSection />
+
             <RoleLabelsSection org={org} />
             <DepartmentsSection />
             <SuperUserTransferSection />
@@ -1447,6 +1449,108 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
             data-testid="switch-require-social-signup-approval"
           />
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ApprovedSitesSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newSite, setNewSite] = useState("");
+
+  const { data, isLoading } = useQuery<{ sites: string[] }>({
+    queryKey: ["/api/org/approved-external-sites"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/org/approved-external-sites");
+      return res.json();
+    },
+  });
+  const sites = data?.sites ?? [];
+
+  const mutation = useMutation({
+    mutationFn: async (updatedSites: string[]) => {
+      const res = await apiRequest("PUT", "/api/org/approved-external-sites", { sites: updatedSites });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org/approved-external-sites"] });
+      toast({ title: "Approved sites saved" });
+    },
+    onError: () => toast({ title: "Error", description: "Could not save sites.", variant: "destructive" }),
+  });
+
+  function addSite() {
+    const domain = newSite.trim().toLowerCase().replace(/^www\./, "").replace(/\/.*$/, "").replace(/^https?:\/\//, "");
+    if (!domain || sites.includes(domain)) { setNewSite(""); return; }
+    mutation.mutate([...sites, domain]);
+    setNewSite("");
+  }
+
+  function removeSite(site: string) {
+    mutation.mutate(sites.filter((s) => s !== site));
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5" />
+          Approved External Order Stores
+        </CardTitle>
+        <CardDescription>
+          Restrict which online stores employees can link to when placing external orders.
+          Leave empty to allow any store.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="e.g. amazon.com"
+            value={newSite}
+            onChange={(e) => setNewSite(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSite(); } }}
+            className="flex-1"
+            disabled={mutation.isPending}
+          />
+          <Button onClick={addSite} disabled={!newSite.trim() || mutation.isPending} size="sm">
+            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+            Add
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : sites.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">
+            No restrictions — employees can submit links from any store.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {sites.map((site) => (
+              <div key={site} className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm bg-muted/50">
+                <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <span className="font-medium">{site}</span>
+                <button
+                  onClick={() => removeSite(site)}
+                  disabled={mutation.isPending}
+                  className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                  aria-label={`Remove ${site}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {sites.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Employees who submit a link from a non-approved store will see an error. Subdomains (e.g. <code>www.amazon.com</code>) are automatically matched.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

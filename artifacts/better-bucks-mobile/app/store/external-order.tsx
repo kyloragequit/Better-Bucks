@@ -11,7 +11,7 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";
@@ -45,6 +45,7 @@ export default function ExternalOrderScreen() {
   const [phase, setPhase] = useState<Phase>("input");
   const [url, setUrl] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const [approvedSites, setApprovedSites] = useState<string[]>([]);
   const [preview, setPreview] = useState<ProductPreview | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -54,6 +55,16 @@ export default function ExternalOrderScreen() {
   const [editedPrice, setEditedPrice] = useState("");
 
   const balance = dashData?.balance ?? 0;
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(apiUrl("/api/mobile/org/approved-sites"), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d?.sites)) setApprovedSites(d.sites); })
+      .catch(() => {});
+  }, [token]);
 
   async function handleAnalyze() {
     const trimmedUrl = url.trim();
@@ -224,6 +235,26 @@ export default function ExternalOrderScreen() {
                   Copy the link directly from your browser or the retailer's app.
                 </Text>
               </View>
+
+              {approvedSites.length > 0 && (
+                <View style={styles.sitesCard}>
+                  <View style={styles.sitesHeaderRow}>
+                    <Ionicons name="checkmark-circle-outline" size={14} color={brand.green} />
+                    <Text style={styles.sitesLabel}>ACCEPTED STORES</Text>
+                  </View>
+                  <View style={styles.chipsRow}>
+                    {approvedSites.map((site) => (
+                      <View key={site} style={styles.siteChip}>
+                        <Ionicons name="globe-outline" size={11} color={brand.navy} />
+                        <Text style={styles.siteChipText}>{site}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={styles.sitesNote}>
+                    Only links from these stores will be accepted.
+                  </Text>
+                </View>
+              )}
 
               <TouchableOpacity
                 style={[
@@ -563,6 +594,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     lineHeight: 18,
+  },
+
+  sitesCard: {
+    backgroundColor: "rgba(34,197,94,0.06)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.25)",
+    padding: 14,
+    gap: 10,
+  },
+  sitesHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  sitesLabel: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+  siteChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: brand.white,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: brand.border,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  siteChipText: {
+    color: brand.navy,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+  },
+  sitesNote: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
   },
 
   // Preview Phase

@@ -108,6 +108,7 @@ export interface IStorage {
   setPageContent(entries: Record<string, string>): Promise<void>;
 
   updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean, requireSocialSignupApproval: boolean): Promise<Organization>;
+  updateOrganizationApprovedSites(id: number, sites: string[]): Promise<Organization>;
   updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number, budgetSetByName?: string): Promise<Organization>;
   updateOrganizationLockoutSettings(id: number, maxFailedAttempts: number, lockoutDurationMinutes: number): Promise<Organization>;
   updateOrganizationSecurityAlertEmail(id: number, securityAlertEmail: string | null): Promise<Organization>;
@@ -957,6 +958,12 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean, requireSocialSignupApproval: boolean): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled, requireSocialSignupApproval }).where(eq(organizations.id, id)).returning();
+    return updated;
+  }
+
+  async updateOrganizationApprovedSites(id: number, sites: string[]): Promise<Organization> {
+    const val = sites.length === 0 ? null : JSON.stringify(sites);
+    const [updated] = await db.update(organizations).set({ approvedExternalSites: val }).where(eq(organizations.id, id)).returning();
     return updated;
   }
 

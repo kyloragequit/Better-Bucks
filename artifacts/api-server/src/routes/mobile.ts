@@ -3134,4 +3134,199 @@ ${stripped}`,
       res.status(500).json({ message: msg });
     }
   });
+
+  // ── Item transfers ──────────────────────────────────────────────────────────
+
+  // GET /api/mobile/items/catalog — org's available store items
+  app.get("/api/mobile/items/catalog", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const items = await storage.getStoreItemsByOrganization(mobileUser.organizationId);
+      const available = items.filter((i) => i.available);
+      res.json(available);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/catalog] failed");
+      res.status(500).json({ message: "Failed to load catalog" });
+    }
+  });
+
+  // GET /api/mobile/items/admins — list of admins in the org (for employees to send to)
+  app.get("/api/mobile/items/admins", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const users = await storage.getUsersByOrganization(mobileUser.organizationId);
+      const admins = users
+        .filter((u) => (u.role === "admin" || u.role === "prime_admin") && u.id !== mobileUser.id)
+        .map((u) => ({ id: u.id, fullName: u.fullName, username: u.username }));
+      res.json(admins);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/admins] failed");
+      res.status(500).json({ message: "Failed to load admins" });
+    }
+  });
+
+  // GET /api/mobile/items/employees — list of employees in the org (for admins to send to)
+  app.get("/api/mobile/items/employees", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const orgUsers = await storage.getUsersByOrganization(mobileUser.organizationId);
+      const employees = orgUsers
+        .filter((u) => u.role === "employee" && u.id !== mobileUser.id)
+        .map((u) => ({ id: u.id, fullName: u.fullName, username: u.username }));
+      res.json(employees);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/employees] failed");
+      res.status(500).json({ message: "Failed to load employees" });
+    }
+  });
+
+  // GET /api/mobile/items/inbox — pending transfers sent TO the current user
+  app.get("/api/mobile/items/inbox", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const items = await storage.getItemTransfersInbox(mobileUser.id, mobileUser.organizationId);
+      res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/inbox] failed");
+      res.status(500).json({ message: "Failed to load inbox" });
+    }
+  });
+
+  // GET /api/mobile/items/mine — accepted transfers held by the current user
+  app.get("/api/mobile/items/mine", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const items = await storage.getItemTransfersMine(mobileUser.id, mobileUser.organizationId);
+      res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/mine] failed");
+      res.status(500).json({ message: "Failed to load items" });
+    }
+  });
+
+  // GET /api/mobile/items/sent — transfers the current user sent
+  app.get("/api/mobile/items/sent", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const items = await storage.getItemTransfersSent(mobileUser.id, mobileUser.organizationId);
+      res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/sent] failed");
+      res.status(500).json({ message: "Failed to load sent items" });
+    }
+  });
+
+  // POST /api/mobile/items/send — create an item transfer
+  app.post("/api/mobile/items/send", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const schema = z.object({
+        itemId: z.number().int().positive(),
+        toUserId: z.number().int().positive(),
+        notes: z.string().max(500).optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+      const { itemId, toUserId, notes } = parsed.data;
+
+      if (!mobileUser.organizationId) return res.status(400).json({ message: "No organization" });
+
+      // Validate that the item belongs to the org and is available
+      const item = await storage.getStoreItem(itemId);
+      if (!item || item.organizationId !== mobileUser.organizationId || !item.available) {
+        return res.status(404).json({ message: "Item not found or unavailable" });
+      }
+
+      // Validate recipient is in the same org
+      const recipient = await storage.getUser(toUserId);
+      if (!recipient || recipient.organizationId !== mobileUser.organizationId) {
+        return res.status(404).json({ message: "Recipient not found" });
+      }
+
+      // Enforce: employee↔admin only — no employee→employee transfers
+      const senderIsEmployee = mobileUser.role === "employee";
+      const recipientIsEmployee = recipient.role === "employee";
+      if (senderIsEmployee && recipientIsEmployee) {
+        return res.status(403).json({ message: "Items can only be sent between employees and admins" });
+      }
+      const senderIsAdmin = mobileUser.role === "admin" || mobileUser.role === "prime_admin";
+      const recipientIsAdmin = recipient.role === "admin" || recipient.role === "prime_admin";
+      if (senderIsAdmin && recipientIsAdmin) {
+        return res.status(403).json({ message: "Items can only be sent between employees and admins" });
+      }
+
+      const transfer = await storage.createItemTransfer({
+        organizationId: mobileUser.organizationId,
+        itemId,
+        fromUserId: mobileUser.id,
+        toUserId,
+        notes,
+      });
+
+      res.status(201).json(transfer);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/send] failed");
+      res.status(500).json({ message: "Failed to send item" });
+    }
+  });
+
+  // PUT /api/mobile/items/:id/accept — accept a pending incoming transfer
+  app.put("/api/mobile/items/:id/accept", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const transfer = await storage.getItemTransferById(id);
+      if (!transfer) return res.status(404).json({ message: "Transfer not found" });
+      if (transfer.toUserId !== mobileUser.id) return res.status(403).json({ message: "Not your transfer" });
+      if (transfer.status !== "pending") return res.status(400).json({ message: "Transfer is no longer pending" });
+      const updated = await storage.updateItemTransferStatus(id, "accepted");
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/accept] failed");
+      res.status(500).json({ message: "Failed to accept transfer" });
+    }
+  });
+
+  // PUT /api/mobile/items/:id/decline — decline a pending incoming transfer
+  app.put("/api/mobile/items/:id/decline", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const transfer = await storage.getItemTransferById(id);
+      if (!transfer) return res.status(404).json({ message: "Transfer not found" });
+      if (transfer.toUserId !== mobileUser.id) return res.status(403).json({ message: "Not your transfer" });
+      if (transfer.status !== "pending") return res.status(400).json({ message: "Transfer is no longer pending" });
+      const updated = await storage.updateItemTransferStatus(id, "declined");
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/decline] failed");
+      res.status(500).json({ message: "Failed to decline transfer" });
+    }
+  });
+
+  // PUT /api/mobile/items/:id/recall — sender recalls a pending transfer
+  app.put("/api/mobile/items/:id/recall", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const transfer = await storage.getItemTransferById(id);
+      if (!transfer) return res.status(404).json({ message: "Transfer not found" });
+      if (transfer.fromUserId !== mobileUser.id) return res.status(403).json({ message: "Not your transfer" });
+      if (transfer.status !== "pending") return res.status(400).json({ message: "Transfer cannot be recalled" });
+      const updated = await storage.updateItemTransferStatus(id, "recalled");
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/items/recall] failed");
+      res.status(500).json({ message: "Failed to recall transfer" });
+    }
+  });
 }

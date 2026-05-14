@@ -52,15 +52,13 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Employees only: Send Bucks */}
+      {/* Send & Receive — employees and admins */}
       <Tabs.Screen
         name="send"
         options={{
-          title: "Send",
-          tabBarIcon: ({ focused }) => <TabIcon name="paper-plane" focused={focused} />,
-          headerTitle: "Send Bucks",
-          tabBarItemStyle: admin ? { display: "none" } : undefined,
-          href: admin ? null : undefined,
+          title: "Items",
+          tabBarIcon: ({ focused }) => <TabIcon name="swap-horizontal" focused={focused} />,
+          headerTitle: "Send & Receive Items",
         }}
       />
 

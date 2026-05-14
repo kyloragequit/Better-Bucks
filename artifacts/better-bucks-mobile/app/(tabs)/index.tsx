@@ -1,5 +1,6 @@
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -174,25 +175,9 @@ export default function HomeTab() {
           </View>
         )}
 
-        {/* NFC Bucks transfer — employees only */}
+        {/* My Items shortcut — employees only */}
         {isEmployee && (
-          <Pressable
-            style={({ pressed }) => [styles.nfcCard, pressed && { opacity: 0.82 }]}
-            onPress={() => router.push("/(tabs)/send")}
-            accessibilityRole="button"
-            accessibilityLabel="Send Bucks via NFC tap"
-          >
-            <View style={styles.nfcCardIcon}>
-              <Ionicons name="radio-outline" size={22} color={brand.white} />
-            </View>
-            <View style={styles.nfcCardBody}>
-              <Text style={styles.nfcCardTitle}>Send Bucks via NFC</Text>
-              <Text style={styles.nfcCardSub}>
-                Hold phones together to transfer Bucks instantly
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
-          </Pressable>
+          <MyItemsSection token={token} onViewAll={() => router.push("/(tabs)/send")} />
         )}
 
         {/* Admin org dashboard */}
@@ -549,6 +534,160 @@ const txStyles = StyleSheet.create({
   amount: {
     fontFamily: "Inter_700Bold",
     fontSize: 15,
+  },
+});
+
+type HeldItem = {
+  id: number;
+  item: { id: number; name: string; imageUrl: string | null };
+  fromUser: { id: number; fullName: string; username: string };
+  createdAt: string;
+};
+
+function MyItemsSection({
+  token,
+  onViewAll,
+}: {
+  token: string | null;
+  onViewAll: () => void;
+}) {
+  const { data: items = [], isLoading } = useQuery<HeldItem[]>({
+    queryKey: ["item-mine", token],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/mobile/items/mine"), {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to load items");
+      return res.json();
+    },
+    enabled: !!token,
+    staleTime: 30_000,
+  });
+
+  return (
+    <View style={myItemsStyles.container}>
+      <View style={myItemsStyles.header}>
+        <View style={myItemsStyles.headerLeft}>
+          <Ionicons name="cube-outline" size={15} color={brand.navy} />
+          <Text style={myItemsStyles.title}>My Items</Text>
+        </View>
+        <Pressable onPress={onViewAll} hitSlop={8} accessibilityRole="button">
+          <Text style={myItemsStyles.viewAll}>Manage →</Text>
+        </Pressable>
+      </View>
+
+      {isLoading ? (
+        <ActivityIndicator color={brand.green} style={{ marginVertical: 8 }} />
+      ) : items.length === 0 ? (
+        <Text style={myItemsStyles.emptyText}>No items yet — admins can send you items.</Text>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={myItemsStyles.row}
+        >
+          {items.map((held) => (
+            <View key={held.id} style={myItemsStyles.chip}>
+              {held.item.imageUrl ? (
+                <Image source={{ uri: held.item.imageUrl }} style={myItemsStyles.chipImg} />
+              ) : (
+                <View style={myItemsStyles.chipImgPlaceholder}>
+                  <Ionicons name="cube-outline" size={16} color={brand.textMuted} />
+                </View>
+              )}
+              <Text style={myItemsStyles.chipName} numberOfLines={2}>
+                {held.item.name}
+              </Text>
+            </View>
+          ))}
+          <Pressable style={myItemsStyles.moreChip} onPress={onViewAll}>
+            <Ionicons name="arrow-forward" size={16} color={brand.green} />
+            <Text style={myItemsStyles.moreText}>All</Text>
+          </Pressable>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+const myItemsStyles = StyleSheet.create({
+  container: {
+    backgroundColor: brand.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: brand.border,
+    padding: 16,
+    marginBottom: 20,
+    gap: 10,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  title: {
+    color: brand.text,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+  },
+  viewAll: {
+    color: brand.green,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+  },
+  row: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  chip: {
+    alignItems: "center",
+    gap: 6,
+    width: 72,
+  },
+  chipImg: {
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+  },
+  chipImgPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: brand.offWhite,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipName: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    color: brand.textSecondary,
+    textAlign: "center",
+  },
+  moreChip: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: brand.offWhite,
+    alignSelf: "flex-start",
+  },
+  moreText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    color: brand.green,
+  },
+  emptyText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: brand.textMuted,
+    lineHeight: 18,
   },
 });
 

@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, securityEvents, transfers, transferLimits, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type SecurityEvent, type Transfer, type InsertTransfer, type TransferLimit } from "@workspace/db";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, securityEvents, transfers, transferLimits, itemTransfers, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type SecurityEvent, type Transfer, type InsertTransfer, type TransferLimit, type ItemTransfer } from "@workspace/db";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -126,6 +126,14 @@ export interface IStorage {
   removeFromWishlist(userId: number, storeItemId: number): Promise<void>;
   getWishlistByUser(userId: number): Promise<(Wishlist & { storeItem: StoreItem })[]>;
   getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]>;
+
+  // Item transfers
+  createItemTransfer(data: { organizationId: number; itemId: number; fromUserId: number; toUserId: number; notes?: string }): Promise<ItemTransfer>;
+  getItemTransferById(id: number): Promise<ItemTransfer | undefined>;
+  getItemTransfersInbox(userId: number, orgId: number): Promise<(ItemTransfer & { item: StoreItem; fromUser: Pick<User, "id" | "fullName" | "username"> })[]>;
+  getItemTransfersMine(userId: number, orgId: number): Promise<(ItemTransfer & { item: StoreItem; fromUser: Pick<User, "id" | "fullName" | "username"> })[]>;
+  getItemTransfersSent(userId: number, orgId: number): Promise<(ItemTransfer & { item: StoreItem; toUser: Pick<User, "id" | "fullName" | "username"> })[]>;
+  updateItemTransferStatus(id: number, status: "accepted" | "declined" | "recalled"): Promise<ItemTransfer>;
 
   getMarketingSubscribers(): Promise<Array<{ name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null }>>;
   acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
@@ -2154,6 +2162,91 @@ DatabaseStorage.prototype.getSecurityEventsByUser = async function (userId, limi
     .where(eq(securityEvents.userId, userId))
     .orderBy(desc(securityEvents.createdAt))
     .limit(limit);
+};
+
+// ── Item transfers ─────────────────────────────────────────────────────────────
+DatabaseStorage.prototype.createItemTransfer = async function ({ organizationId, itemId, fromUserId, toUserId, notes }) {
+  const [row] = await db
+    .insert(itemTransfers)
+    .values({ organizationId, itemId, fromUserId, toUserId, notes: notes ?? null })
+    .returning();
+  return row;
+};
+
+DatabaseStorage.prototype.getItemTransferById = async function (id) {
+  const [row] = await db.select().from(itemTransfers).where(eq(itemTransfers.id, id)).limit(1);
+  return row;
+};
+
+DatabaseStorage.prototype.getItemTransfersInbox = async function (userId, orgId) {
+  const rows = await db
+    .select({
+      transfer: itemTransfers,
+      item: storeItems,
+      fromUser: { id: users.id, fullName: users.fullName, username: users.username },
+    })
+    .from(itemTransfers)
+    .innerJoin(storeItems, eq(itemTransfers.itemId, storeItems.id))
+    .innerJoin(users, eq(itemTransfers.fromUserId, users.id))
+    .where(
+      and(
+        eq(itemTransfers.toUserId, userId),
+        eq(itemTransfers.organizationId, orgId),
+        eq(itemTransfers.status, "pending"),
+      ),
+    )
+    .orderBy(desc(itemTransfers.createdAt));
+  return rows.map(({ transfer, item, fromUser }) => ({ ...transfer, item, fromUser }));
+};
+
+DatabaseStorage.prototype.getItemTransfersMine = async function (userId, orgId) {
+  const rows = await db
+    .select({
+      transfer: itemTransfers,
+      item: storeItems,
+      fromUser: { id: users.id, fullName: users.fullName, username: users.username },
+    })
+    .from(itemTransfers)
+    .innerJoin(storeItems, eq(itemTransfers.itemId, storeItems.id))
+    .innerJoin(users, eq(itemTransfers.fromUserId, users.id))
+    .where(
+      and(
+        eq(itemTransfers.toUserId, userId),
+        eq(itemTransfers.organizationId, orgId),
+        eq(itemTransfers.status, "accepted"),
+      ),
+    )
+    .orderBy(desc(itemTransfers.createdAt));
+  return rows.map(({ transfer, item, fromUser }) => ({ ...transfer, item, fromUser }));
+};
+
+DatabaseStorage.prototype.getItemTransfersSent = async function (userId, orgId) {
+  const rows = await db
+    .select({
+      transfer: itemTransfers,
+      item: storeItems,
+      toUser: { id: users.id, fullName: users.fullName, username: users.username },
+    })
+    .from(itemTransfers)
+    .innerJoin(storeItems, eq(itemTransfers.itemId, storeItems.id))
+    .innerJoin(users, eq(itemTransfers.toUserId, users.id))
+    .where(
+      and(
+        eq(itemTransfers.fromUserId, userId),
+        eq(itemTransfers.organizationId, orgId),
+      ),
+    )
+    .orderBy(desc(itemTransfers.createdAt));
+  return rows.map(({ transfer, item, toUser }) => ({ ...transfer, item, toUser }));
+};
+
+DatabaseStorage.prototype.updateItemTransferStatus = async function (id, status) {
+  const [row] = await db
+    .update(itemTransfers)
+    .set({ status })
+    .where(eq(itemTransfers.id, id))
+    .returning();
+  return row;
 };
 
 export const storage: IStorage = new DatabaseStorage();

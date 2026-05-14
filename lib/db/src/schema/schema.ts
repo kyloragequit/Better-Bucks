@@ -748,3 +748,29 @@ export const securityEvents = pgTable("security_events", {
 
 export type SecurityEvent = typeof securityEvents.$inferSelect;
 export type InsertSecurityEvent = typeof securityEvents.$inferInsert;
+
+// ── Item transfers ─────────────────────────────────────────────────────────────
+// Tracks preset store-item transfers between employees and admins.
+// Rules enforced at the API layer: employee ↔ admin only (no employee↔employee).
+export const itemTransfers = pgTable("item_transfers", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  itemId: integer("item_id").notNull(),
+  fromUserId: integer("from_user_id").notNull(),
+  toUserId: integer("to_user_id").notNull(),
+  status: text("status", {
+    enum: ["pending", "accepted", "declined", "recalled"],
+  })
+    .default("pending")
+    .notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertItemTransferSchema = createInsertSchema(itemTransfers).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+});
+export type ItemTransfer = typeof itemTransfers.$inferSelect;
+export type InsertItemTransfer = z.infer<typeof insertItemTransferSchema>;

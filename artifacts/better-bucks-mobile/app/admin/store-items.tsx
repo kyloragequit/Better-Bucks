@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
@@ -109,13 +109,58 @@ function ItemForm({
 }
 
 export default function StoreItemsScreen() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   const [createModal, setCreateModal] = useState(false);
   const [editItem, setEditItem] = useState<StoreItem | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Preferred store URL
+  const [storeUrlInput, setStoreUrlInput] = useState("");
+  const [savingUrl, setSavingUrl] = useState(false);
+  const isPrimeAdmin = user?.role === "prime_admin";
+
+  const { data: urlData, refetch: refetchUrl } = useQuery<{ url: string | null }>({
+    queryKey: ["mobile-admin-preferred-store-url", token],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/mobile/admin/preferred-store-url"), {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!token && isPrimeAdmin,
+  });
+
+  useEffect(() => {
+    if (urlData !== undefined) {
+      setStoreUrlInput(urlData.url ?? "");
+    }
+  }, [urlData]);
+
+  const handleSaveUrl = async () => {
+    Keyboard.dismiss();
+    const trimmed = storeUrlInput.trim();
+    setSavingUrl(true);
+    try {
+      const res = await fetch(apiUrl("/api/mobile/admin/preferred-store-url"), {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ url: trimmed || null }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { Alert.alert("Error", d?.message ?? "Could not save URL."); return; }
+      await refetchUrl();
+      queryClient.invalidateQueries({ queryKey: ["mobile-approved-sites"] });
+      Alert.alert("Saved", trimmed ? "Preferred store website updated." : "Preferred store website cleared.");
+    } catch {
+      Alert.alert("Error", "Network error. Try again.");
+    } finally {
+      setSavingUrl(false);
+    }
+  };
 
   const { data: items = [], isLoading, refetch, isRefetching } = useQuery<StoreItem[]>({
     queryKey: ["mobile-admin-store-items", token],
@@ -234,12 +279,42 @@ export default function StoreItemsScreen() {
           items.length === 0 && styles.center,
         ]}
         ListHeaderComponent={
-          items.length > 0 ? (
-            <Text style={styles.countText}>
-              {items.length} item{items.length !== 1 ? "s" : ""}
-              {" "}· {items.filter((i) => i.available).length} available
-            </Text>
-          ) : null
+          <>
+            {isPrimeAdmin && (
+              <View style={styles.urlCard}>
+                <View style={styles.urlCardHeader}>
+                  <Ionicons name="globe-outline" size={18} color={brand.navy} />
+                  <Text style={styles.urlCardTitle}>Preferred Store Website</Text>
+                </View>
+                <Text style={styles.urlCardSub}>
+                  Employees will see this as a shortcut when they open the store tab.
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={storeUrlInput}
+                  onChangeText={setStoreUrlInput}
+                  placeholder="https://example.com"
+                  placeholderTextColor={brand.textMuted}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={[styles.saveBtn, savingUrl && { opacity: 0.6 }]}
+                  onPress={handleSaveUrl}
+                  disabled={savingUrl}
+                >
+                  <Text style={styles.saveBtnText}>{savingUrl ? "Saving…" : "Save Website"}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {items.length > 0 && (
+              <Text style={[styles.countText, { marginTop: isPrimeAdmin ? 8 : 0 }]}>
+                {items.length} item{items.length !== 1 ? "s" : ""}
+                {" "}· {items.filter((i) => i.available).length} available
+              </Text>
+            )}
+          </>
         }
         ListEmptyComponent={
           <View style={{ alignItems: "center", gap: 12 }}>
@@ -368,6 +443,18 @@ const styles = StyleSheet.create({
   actionChipText: { fontFamily: "Inter_500Medium", fontSize: 13 },
   emptyTitle: { color: brand.text, fontFamily: "Inter_600SemiBold", fontSize: 17 },
   emptySubtitle: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 14 },
+  urlCard: {
+    backgroundColor: brand.white,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: brand.border,
+    gap: 10,
+    marginBottom: 4,
+  },
+  urlCardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  urlCardTitle: { color: brand.text, fontFamily: "Inter_600SemiBold", fontSize: 15 },
+  urlCardSub: { color: brand.textMuted, fontFamily: "Inter_400Regular", fontSize: 13 },
   fab: {
     position: "absolute",
     right: 20,

@@ -2325,6 +2325,42 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
+  // ─── Admin: Preferred Store URL ──────────────────────────────────────────
+
+  app.get("/api/mobile/admin/preferred-store-url", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (!isAdmin(user) || !user.organizationId) {
+      return res.status(403).json({ message: "Admins only" });
+    }
+    try {
+      const org = await storage.getOrganization(user.organizationId);
+      return res.json({ url: org?.preferredStoreUrl ?? null });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/preferred-store-url GET] failed");
+      return res.status(500).json({ message: "Failed" });
+    }
+  });
+
+  app.put("/api/mobile/admin/preferred-store-url", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    if (user.role !== "prime_admin" || !user.organizationId) {
+      return res.status(403).json({ message: "Prime admins only" });
+    }
+    try {
+      const { url } = z.object({
+        url: z.string().url("Must be a valid URL").max(500).nullable(),
+      }).parse(req.body);
+      const updated = await storage.updateOrganizationPreferredStoreUrl(user.organizationId, url);
+      return res.json({ url: updated.preferredStoreUrl ?? null });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0]?.message ?? "Invalid URL" });
+      }
+      logger.error({ err }, "[mobile/admin/preferred-store-url PUT] failed");
+      return res.status(500).json({ message: "Failed to save" });
+    }
+  });
+
   // ─── Admin: Org Settings ──────────────────────────────────────────────────
 
   app.get("/api/mobile/admin/org", mobileAuthMiddleware, async (req, res) => {

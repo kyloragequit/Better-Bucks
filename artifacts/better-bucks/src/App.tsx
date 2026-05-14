@@ -67,7 +67,6 @@ const MerchantScannerPage = lazy(() => import("@/pages/merchant-scanner"));
 const MerchantChangePasswordPage = lazy(() => import("@/pages/merchant-change-password"));
 const MerchantOrdersPage = lazy(() => import("@/pages/merchant-orders"));
 const AdminMerchantsPage = lazy(() => import("@/pages/admin-merchants"));
-const SplashDemoPage = lazy(() => import("@/pages/splash-demo"));
 const AdminMerchantDisputesPage = lazy(() => import("@/pages/admin-merchant-disputes"));
 const AdminInviteLinksPage = lazy(() => import("@/pages/admin-invite-links"));
 const AdminStripeOrphansPage = lazy(() => import("@/pages/admin-stripe-orphans"));
@@ -343,7 +342,6 @@ function Router() {
         <Route path="/change-password" component={ChangePasswordPage} />
         
         <Route path="/demo" component={DemoPage} />
-        <Route path="/splash" component={SplashDemoPage} />
         <Route path="/affiliate" component={AffiliatePage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/blog/:slug" component={BlogPostPage} />

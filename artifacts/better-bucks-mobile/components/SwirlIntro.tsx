@@ -1,246 +1,159 @@
-import React, { useCallback, useEffect, useMemo } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
+import React, { useCallback, useEffect } from "react";
+import { Image, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
   runOnJS,
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Svg, { Circle, G, Line, Path } from "react-native-svg";
 
 const NAVY = "#162E4B";
 const GREEN = "#2E7D32";
 
-const AnimatedG = Animated.createAnimatedComponent(G);
-
-function toRad(deg: number) {
-  return (deg * Math.PI) / 180;
-}
-
-function buildSlices(cx: number, cy: number, r: number) {
-  return Array.from({ length: 8 }, (_, i) => {
-    const s = i * 45 - 90;
-    const e = s + 45;
-    const x1 = cx + r * Math.cos(toRad(s));
-    const y1 = cy + r * Math.sin(toRad(s));
-    const x2 = cx + r * Math.cos(toRad(e));
-    const y2 = cy + r * Math.sin(toRad(e));
-    return {
-      d: `M ${cx.toFixed(1)} ${cy.toFixed(1)} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`,
-      fill: i % 2 === 0 ? NAVY : GREEN,
-      delay: i * 60,
-    };
-  });
-}
-
-// ─── Individual slice ────────────────────────────────────────────────────────
-
-function SwirlSlice({
-  d,
-  fill,
-  delay,
-  cx,
-  cy,
-}: {
-  d: string;
-  fill: string;
-  delay: number;
-  cx: number;
-  cy: number;
-}) {
-  const rotation = useSharedValue(-180);
-  const scale = useSharedValue(0.2);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    opacity.value = withDelay(delay, withTiming(1, { duration: 120 }));
-    // cubic-bezier(0.22,1,0.36,1) — spring that snaps fast with very little overshoot
-    rotation.value = withDelay(
-      delay,
-      withSpring(0, { damping: 15, stiffness: 100, mass: 1 }),
-    );
-    scale.value = withDelay(
-      delay,
-      withSpring(1, { damping: 15, stiffness: 100, mass: 1 }),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const animProps = useAnimatedProps(() => ({
-    rotation: rotation.value,
-    scale: scale.value,
-    opacity: opacity.value,
-  }));
-
-  return (
-    <AnimatedG animatedProps={animProps} originX={cx} originY={cy}>
-      <Path d={d} fill={fill} />
-    </AnimatedG>
-  );
-}
-
-// ─── Logo circle ─────────────────────────────────────────────────────────────
-
-function SwirlLogo({ cx, cy }: { cx: number; cy: number }) {
-  const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    opacity.value = withDelay(550, withTiming(1, { duration: 80 }));
-    // cubic-bezier(0.34,1.56,0.64,1) — big overshoot bounce
-    scale.value = withDelay(
-      550,
-      withSpring(1, { damping: 7, stiffness: 180, mass: 0.5 }),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const animProps = useAnimatedProps(() => ({
-    scale: scale.value,
-    opacity: opacity.value,
-  }));
-
-  return (
-    <AnimatedG animatedProps={animProps} originX={cx} originY={cy}>
-      {/* Face circle */}
-      <Circle
-        cx={cx}
-        cy={cy}
-        r={62}
-        fill="white"
-        stroke={NAVY}
-        strokeWidth={3.5}
-      />
-      {/* Eyes */}
-      <Circle cx={cx - 20} cy={cy - 14} r={5} fill={NAVY} />
-      <Circle cx={cx + 20} cy={cy - 14} r={5} fill={NAVY} />
-      {/* Smile */}
-      <Path
-        d={`M ${cx - 22} ${cy + 10} Q ${cx} ${cy + 32} ${cx + 22} ${cy + 10}`}
-        stroke={NAVY}
-        strokeWidth={3.5}
-        fill="none"
-        strokeLinecap="round"
-      />
-      {/* Dollar tick — top */}
-      <Line
-        x1={cx}
-        y1={cy - 32}
-        x2={cx}
-        y2={cy - 44}
-        stroke={NAVY}
-        strokeWidth={3}
-        strokeLinecap="round"
-      />
-      <Line
-        x1={cx - 8}
-        y1={cy - 40}
-        x2={cx + 8}
-        y2={cy - 40}
-        stroke={NAVY}
-        strokeWidth={2.5}
-        strokeLinecap="round"
-      />
-      {/* Dollar tick — bottom */}
-      <Line
-        x1={cx}
-        y1={cy + 32}
-        x2={cx}
-        y2={cy + 44}
-        stroke={NAVY}
-        strokeWidth={3}
-        strokeLinecap="round"
-      />
-      <Line
-        x1={cx - 8}
-        y1={cy + 40}
-        x2={cx + 8}
-        y2={cy + 40}
-        stroke={NAVY}
-        strokeWidth={2.5}
-        strokeLinecap="round"
-      />
-    </AnimatedG>
-  );
-}
-
-// ─── Main overlay ─────────────────────────────────────────────────────────────
+const logoImage = require("../assets/images/logo.png");
 
 export function SwirlIntro({ onDone }: { onDone: () => void }) {
   const { width, height } = useWindowDimensions();
-  const cx = width / 2;
-  const cy = height / 2;
-  const r = Math.ceil(Math.sqrt(cx * cx + cy * cy)) + 20;
 
-  const slices = useMemo(
-    () => buildSlices(cx, cy, r),
-    // stable once mounted — dimensions don't change mid-animation
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  // ── Logo ──────────────────────────────────────────────────────────────────
+  const logoScale = useSharedValue(0.55);
+  const logoOpacity = useSharedValue(0);
 
-  const overlayOpacity = useSharedValue(1);
-  const overlayScale = useSharedValue(1);
+  // ── "Better Bucks" wordmark ───────────────────────────────────────────────
+  const wordmarkOpacity = useSharedValue(0);
+  const wordmarkY = useSharedValue(18);
+
+  // ── Tagline ───────────────────────────────────────────────────────────────
+  const taglineOpacity = useSharedValue(0);
+  const taglineY = useSharedValue(10);
+
+  // ── Exit overlay ──────────────────────────────────────────────────────────
+  const screenOpacity = useSharedValue(1);
 
   const triggerDone = useCallback(() => onDone(), [onDone]);
 
   useEffect(() => {
-    // swirlFadeOut at 1400ms, 350ms duration, ease-in
-    overlayOpacity.value = withDelay(
-      1400,
+    // Logo pops in with spring bounce — starts immediately
+    logoOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.quad) });
+    logoScale.value = withSpring(1, { damping: 10, stiffness: 140, mass: 0.8 });
+
+    // Wordmark slides up and fades in
+    wordmarkOpacity.value = withDelay(220, withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) }));
+    wordmarkY.value = withDelay(220, withSpring(0, { damping: 18, stiffness: 160 }));
+
+    // Tagline follows 120ms after wordmark
+    taglineOpacity.value = withDelay(420, withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) }));
+    taglineY.value = withDelay(420, withSpring(0, { damping: 18, stiffness: 160 }));
+
+    // Whole screen fades out after 1 700ms hold
+    screenOpacity.value = withDelay(
+      1700,
       withTiming(
         0,
-        { duration: 350, easing: Easing.in(Easing.quad) },
+        { duration: 380, easing: Easing.in(Easing.quad) },
         (finished) => {
           if (finished) runOnJS(triggerDone)();
         },
       ),
     );
-    overlayScale.value = withDelay(
-      1400,
-      withTiming(1.08, { duration: 350, easing: Easing.in(Easing.quad) }),
-    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-    transform: [{ scale: overlayScale.value }],
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: logoScale.value }],
   }));
+
+  const wordmarkStyle = useAnimatedStyle(() => ({
+    opacity: wordmarkOpacity.value,
+    transform: [{ translateY: wordmarkY.value }],
+  }));
+
+  const taglineStyle = useAnimatedStyle(() => ({
+    opacity: taglineOpacity.value,
+    transform: [{ translateY: taglineY.value }],
+  }));
+
+  const screenStyle = useAnimatedStyle(() => ({
+    opacity: screenOpacity.value,
+  }));
+
+  const logoSize = Math.min(width * 0.38, 160);
 
   return (
     <Animated.View
-      style={[StyleSheet.absoluteFill, styles.overlay, overlayStyle]}
+      style={[StyleSheet.absoluteFill, styles.screen, screenStyle]}
       pointerEvents="none"
     >
-      <Svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-      >
-        {slices.map((s, i) => (
-          <SwirlSlice
-            key={i}
-            d={s.d}
-            fill={s.fill}
-            delay={s.delay}
-            cx={cx}
-            cy={cy}
-          />
-        ))}
-        <SwirlLogo cx={cx} cy={cy} />
-      </Svg>
+      {/* Subtle radial glow behind the logo */}
+      <View
+        style={[
+          styles.glow,
+          {
+            width: logoSize * 2.4,
+            height: logoSize * 2.4,
+            borderRadius: logoSize * 1.2,
+          },
+        ]}
+      />
+
+      {/* Logo image */}
+      <Animated.View style={[styles.logoWrap, logoStyle]}>
+        <Image
+          source={logoImage}
+          style={{ width: logoSize, height: logoSize }}
+          resizeMode="contain"
+        />
+      </Animated.View>
+
+      {/* "Better Bucks" wordmark */}
+      <Animated.Text style={[styles.wordmark, wordmarkStyle]}>
+        Better Bucks
+      </Animated.Text>
+
+      {/* Tagline */}
+      <Animated.Text style={[styles.tagline, taglineStyle]}>
+        Rewards that inspire
+      </Animated.Text>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  screen: {
     zIndex: 50,
     backgroundColor: NAVY,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  glow: {
+    position: "absolute",
+    backgroundColor: "transparent",
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 80,
+    elevation: 0,
+  },
+  logoWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 28,
+  },
+  wordmark: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 34,
+    color: "#FFFFFF",
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  tagline: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    color: "rgba(255,255,255,0.50)",
+    letterSpacing: 0.3,
   },
 });

@@ -34,7 +34,7 @@ const SLIDES: Slide[] = [
     key: "budget",
     emoji: "💰",
     title: "Set your monthly budget",
-    body: "Decide how many Bucks your organisation has to give each month. Open the dashboard and tap 'Monthly Incentive Budget' to get started.",
+    body: "Decide how many Bucks your organization has to give each month. Open the dashboard and tap 'Monthly Incentive Budget' to get started.",
   },
   {
     key: "allocate",

@@ -301,7 +301,7 @@ export default function HomeTab() {
             <View style={styles.adminDashCard}>
               <View style={styles.adminDashHeader}>
                 <Ionicons name="bar-chart-outline" size={16} color={brand.navy} />
-                <Text style={styles.adminDashTitle}>Organisation Overview</Text>
+                <Text style={styles.adminDashTitle}>Organization Overview</Text>
                 {(isFromCache && cachedAt !== null) ? (
                   <Text style={styles.adminDashCached}>· {formatLastUpdated(cachedAt)}</Text>
                 ) : null}

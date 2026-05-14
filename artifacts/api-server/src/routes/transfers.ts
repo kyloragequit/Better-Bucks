@@ -202,7 +202,7 @@ transferRouter.post("/nfc/complete", async (req: Request, res: Response) => {
   const sender = await storage.getUser(payload.s);
   if (!sender) return res.status(400).json({ message: "Sender not found" });
   if (sender.organizationId !== recipient.organizationId) {
-    return res.status(403).json({ message: "Transfers must be within the same organisation" });
+    return res.status(403).json({ message: "Transfers must be within the same organization" });
   }
 
   // Re-check sender balance at completion time
@@ -272,7 +272,7 @@ transferRouter.post("/qr/redeem", async (req: Request, res: Response) => {
   const sender = await storage.getUser(payload.s);
   if (!sender) return res.status(400).json({ message: "Sender not found" });
   if (sender.organizationId !== recipient.organizationId) {
-    return res.status(403).json({ message: "Transfers must be within the same organisation" });
+    return res.status(403).json({ message: "Transfers must be within the same organization" });
   }
   if (sender.balance < payload.a) {
     return res.status(400).json({ message: "Sender has insufficient balance" });
@@ -300,12 +300,12 @@ transferRouter.post("/direct/send", async (req: Request, res: Response) => {
   const { recipientUsername, amount, note } = body.data;
 
   if (sender.organizationId == null) {
-    return res.status(400).json({ message: "Sender has no organisation" });
+    return res.status(400).json({ message: "Sender has no organization" });
   }
 
   const recipient = await storage.getUserByUsernameAndOrg(recipientUsername, sender.organizationId);
   if (!recipient) {
-    return res.status(404).json({ message: "Recipient not found in your organisation" });
+    return res.status(404).json({ message: "Recipient not found in your organization" });
   }
   if (recipient.id === sender.id) {
     return res.status(400).json({ message: "Cannot transfer to yourself" });

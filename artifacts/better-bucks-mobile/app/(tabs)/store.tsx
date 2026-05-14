@@ -16,7 +16,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
-import NfcManager, { Ndef, NfcTech } from "react-native-nfc-manager";
+import { Platform } from "react-native";
+
+// react-native-nfc-manager is a native-only module — require it lazily so the
+// web bundle doesn't crash trying to load it. All call-sites are already
+// guarded by the `isExpoGo` / `!supported` checks below.
+const _nfc = Platform.OS !== "web"
+  ? (() => { try { return require("react-native-nfc-manager"); } catch { return null; } })()
+  : null;
+const NfcManager: typeof import("react-native-nfc-manager").default = _nfc?.default ?? ({} as any);
+const Ndef: typeof import("react-native-nfc-manager").Ndef = _nfc?.Ndef ?? ({} as any);
+const NfcTech: typeof import("react-native-nfc-manager").NfcTech = _nfc?.NfcTech ?? ({} as any);
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";

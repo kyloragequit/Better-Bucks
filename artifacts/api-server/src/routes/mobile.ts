@@ -2545,7 +2545,7 @@ export function registerMobileRoutes(app: Express) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const msg = await client.messages.create({
-      model: "claude-3-haiku-20240307",
+      model: "claude-haiku-4-5",
       max_tokens: 512,
       messages: [
         {

@@ -302,7 +302,7 @@ export default function SignupPage() {
                       <div className="space-y-0.5">
                         <div>
                           <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
-                          <span className="text-sm text-muted-foreground">/mo per org</span>
+                          <span className="text-sm text-muted-foreground">/mo</span>
                         </div>
                       </div>
                     )}
@@ -366,7 +366,7 @@ export default function SignupPage() {
                 Claim Your Spot
               </CardTitle>
               <CardDescription>
-                {selectedTierData?.name}{selectedTierData?.id !== "enterprise" ? ` — locked in at $${selectedTierData?.price}/month per org` : " — contact us for custom pricing"}
+                {selectedTierData?.name}{selectedTierData?.id !== "enterprise" ? ` — locked in at $${selectedTierData?.price}/month` : " — contact us for custom pricing"}
               </CardDescription>
             </CardHeader>
             <CardContent>

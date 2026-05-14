@@ -177,7 +177,7 @@ export default function ReactivatePage() {
                     ) : (
                       <>
                         <span className="text-3xl font-bold text-gray-900">${tier.price}</span>
-                        <span className="text-sm text-muted-foreground">/mo per org</span>
+                        <span className="text-sm text-muted-foreground">/mo</span>
                       </>
                     )}
                   </div>
@@ -219,7 +219,7 @@ export default function ReactivatePage() {
                 Confirm Reactivation
               </CardTitle>
               <CardDescription>
-                {selectedTierData?.name}{selectedTierData?.price === 0 ? " — contact us for custom pricing" : ` - $${selectedTierData?.price}/month per org`}
+                {selectedTierData?.name}{selectedTierData?.price === 0 ? " — contact us for custom pricing" : ` - $${selectedTierData?.price}/month`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -241,7 +241,7 @@ export default function ReactivatePage() {
                   ) : (
                     <>
                       <CreditCard className="mr-2 h-4 w-4" />
-                      {selectedTierData?.price === 0 ? "Request Info →" : `Continue to Payment - $${selectedTierData?.price}/mo per org`}
+                      {selectedTierData?.price === 0 ? "Request Info →" : `Continue to Payment - $${selectedTierData?.price}/month`}
                     </>
                   )}
                 </Button>

@@ -151,7 +151,7 @@ function PlanCard({
 function formatPrice(cents: number | null): string {
   if (cents == null) return "Contact us";
   const monthly = cents / 100;
-  return `$${monthly.toFixed(2)}/mo per org`;
+  return `$${monthly.toFixed(2)}/mo`;
 }
 
 const planStyles = StyleSheet.create({

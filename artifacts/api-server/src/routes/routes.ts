@@ -3351,7 +3351,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     orgCode: string; referralCode?: string; mode: "stripe" | "contactPending" | "promo";
   }) {
     const planPrices: Record<string, string> = {
-      small: "$18/mo per org", mid: "$30/mo per org", large: "$48/mo per org", enterprise: "Contact us",
+      small: "$18/mo", mid: "$30/mo", large: "$48/mo", enterprise: "Contact us",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;

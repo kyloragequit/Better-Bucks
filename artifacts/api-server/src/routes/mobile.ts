@@ -2535,11 +2535,35 @@ export function registerMobileRoutes(app: Express) {
       clearTimeout(timer);
     }
 
+    // Pull out JSON-LD structured data BEFORE stripping scripts — this is the
+    // most reliable machine-readable source of price/title on major retailers.
+    const jsonLdBlocks: string[] = [];
+    const jsonLdRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let ldMatch: RegExpExecArray | null;
+    while ((ldMatch = jsonLdRe.exec(html)) !== null) {
+      try {
+        // Validate it parses, then keep it compact
+        const obj = JSON.parse(ldMatch[1]);
+        jsonLdBlocks.push(JSON.stringify(obj));
+      } catch { /* skip malformed */ }
+    }
+
+    // Also grab Open Graph / Twitter meta tags which often carry price/title
+    const metaRe = /<meta[^>]+(?:property|name)=["'][^"']*(?:title|price|og:|twitter:)[^"']*["'][^>]*>/gi;
+    const metaTags = (html.match(metaRe) ?? []).slice(0, 20).join("\n");
+
     // Strip scripts/styles, truncate to keep within token budget
     const stripped = html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .slice(0, 25_000);
+      .slice(0, 20_000);
+
+    const structuredSection = [
+      jsonLdBlocks.length
+        ? `=== JSON-LD structured data (most reliable for price/title) ===\n${jsonLdBlocks.join("\n")}`
+        : "",
+      metaTags ? `=== Meta tags ===\n${metaTags}` : "",
+    ].filter(Boolean).join("\n\n");
 
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -2550,19 +2574,26 @@ export function registerMobileRoutes(app: Express) {
       messages: [
         {
           role: "user",
-          content: `Extract product data from this HTML page. Reply with ONLY a single valid JSON object (no markdown, no explanation).
+          content: `Extract product data from this page. Prefer prices from the JSON-LD structured data or meta tags over the raw HTML. Reply with ONLY a single valid JSON object (no markdown, no explanation).
 
 Required shape:
 {
   "productName": "<product title>",
   "productDescription": "<one sentence, max 120 chars>",
-  "priceUsd": <number e.g. 29.99>,
+  "priceUsd": <number — USD price as a plain number e.g. 29.99, never a string>,
   "imageUrl": "<absolute URL of main product image, or null>",
   "sizes": ["<option>", ...],
   "colors": ["<option>", ...]
 }
 
-HTML:
+Rules:
+- priceUsd MUST be a JSON number, not a string. Strip any currency symbols or commas first.
+- If the price is not available, use 0.
+- imageUrl must be an absolute URL starting with http.
+
+${structuredSection}
+
+=== Page HTML ===
 ${stripped}`,
         },
       ],
@@ -2576,11 +2607,27 @@ ${stripped}`,
       .trim();
     const parsed = JSON.parse(jsonStr);
 
+    // Robustly parse the price: handle strings like "$29.99", "1,299.00", "29,99"
+    function parsePrice(raw: unknown): number {
+      if (typeof raw === "number" && isFinite(raw)) return raw;
+      if (typeof raw === "string") {
+        // Remove currency symbols and whitespace, normalise European comma-decimals
+        const cleaned = raw.replace(/[^0-9.,]/g, "").trim();
+        // If there's a comma but no dot (e.g. "29,99") treat comma as decimal
+        const normalised = /,\d{1,2}$/.test(cleaned) && !cleaned.includes(".")
+          ? cleaned.replace(",", ".")
+          : cleaned.replace(/,/g, ""); // strip thousands commas
+        const n = parseFloat(normalised);
+        return isFinite(n) ? n : 0;
+      }
+      return 0;
+    }
+
     return {
       productName: String(parsed.productName ?? "Unknown Product"),
       productDescription: String(parsed.productDescription ?? ""),
-      priceUsd: Number(parsed.priceUsd) || 0,
-      imageUrl: typeof parsed.imageUrl === "string" && parsed.imageUrl ? parsed.imageUrl : null,
+      priceUsd: parsePrice(parsed.priceUsd),
+      imageUrl: typeof parsed.imageUrl === "string" && parsed.imageUrl.startsWith("http") ? parsed.imageUrl : null,
       sizes: Array.isArray(parsed.sizes) ? parsed.sizes.map(String).filter(Boolean) : [],
       colors: Array.isArray(parsed.colors) ? parsed.colors.map(String).filter(Boolean) : [],
     };

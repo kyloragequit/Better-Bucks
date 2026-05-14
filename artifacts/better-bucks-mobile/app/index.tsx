@@ -22,22 +22,22 @@ export default function HomeScreen() {
     <View
       style={[
         styles.container,
-        { paddingTop: insets.top, paddingBottom: insets.bottom + 32 },
+        { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 32 },
       ]}
     >
+      <Button
+        testID="cta-signup"
+        title="Create a New Organization"
+        variant="navy"
+        onPress={() => router.push("/signup/plan")}
+      />
+
       <View style={styles.center}>
         <Logo size={160} />
         <Text style={styles.tagline}>Rewards that actually work.</Text>
       </View>
 
       <View style={styles.actions}>
-        <Button
-          testID="cta-signup"
-          title="Create a New Organization"
-          variant="navy"
-          onPress={() => router.push("/signup/plan")}
-        />
-        <View style={{ height: 12 }} />
         <Button
           testID="cta-login"
           title="Log In"

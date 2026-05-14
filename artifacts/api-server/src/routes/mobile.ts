@@ -3135,6 +3135,291 @@ ${stripped}`,
     }
   });
 
+  // ── Reward cards (non-monetary perk cards) ─────────────────────────────────
+
+  // Admin: list all reward card types for org
+  app.get("/api/mobile/reward-cards/catalog", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const cards = await storage.getRewardCardsByOrg(mobileUser.organizationId);
+      res.json(cards);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/catalog] failed");
+      res.status(500).json({ message: "Failed to load reward cards" });
+    }
+  });
+
+  // Admin: create a reward card type
+  app.post("/api/mobile/admin/reward-cards", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!isAdmin(mobileUser)) return res.status(403).json({ message: "Admin only" });
+      if (!mobileUser.organizationId) return res.status(400).json({ message: "No organization" });
+      const schema = z.object({
+        name: z.string().min(1).max(80),
+        description: z.string().max(300).optional(),
+        emoji: z.string().max(8).optional(),
+        color: z.string().max(20).optional(),
+        active: z.boolean().optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+      const card = await storage.createRewardCard({
+        organizationId: mobileUser.organizationId,
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        emoji: parsed.data.emoji ?? "🎫",
+        color: parsed.data.color ?? "#1A237E",
+        active: parsed.data.active ?? true,
+      });
+      res.status(201).json(card);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/reward-cards POST] failed");
+      res.status(500).json({ message: "Failed to create reward card" });
+    }
+  });
+
+  // Admin: update a reward card type
+  app.put("/api/mobile/admin/reward-cards/:id", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!isAdmin(mobileUser)) return res.status(403).json({ message: "Admin only" });
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getRewardCard(id);
+      if (!existing || existing.organizationId !== mobileUser.organizationId) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+      const schema = z.object({
+        name: z.string().min(1).max(80).optional(),
+        description: z.string().max(300).nullable().optional(),
+        emoji: z.string().max(8).optional(),
+        color: z.string().max(20).optional(),
+        active: z.boolean().optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+      const updated = await storage.updateRewardCard(id, parsed.data as any);
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/reward-cards PUT] failed");
+      res.status(500).json({ message: "Failed to update reward card" });
+    }
+  });
+
+  // Admin: delete a reward card type
+  app.delete("/api/mobile/admin/reward-cards/:id", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!isAdmin(mobileUser)) return res.status(403).json({ message: "Admin only" });
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const existing = await storage.getRewardCard(id);
+      if (!existing || existing.organizationId !== mobileUser.organizationId) {
+        return res.status(404).json({ message: "Card not found" });
+      }
+      await storage.deleteRewardCard(id);
+      res.json({ success: true });
+    } catch (err) {
+      logger.error({ err }, "[mobile/admin/reward-cards DELETE] failed");
+      res.status(500).json({ message: "Failed to delete reward card" });
+    }
+  });
+
+  // GET employees (for admins sending cards)
+  app.get("/api/mobile/reward-cards/employees", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const orgUsers = await storage.getUsersByOrganization(mobileUser.organizationId);
+      const employees = orgUsers
+        .filter((u) => u.role === "employee" && u.id !== mobileUser.id)
+        .map((u) => ({ id: u.id, fullName: u.fullName, username: u.username }));
+      res.json(employees);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/employees] failed");
+      res.status(500).json({ message: "Failed to load employees" });
+    }
+  });
+
+  // GET admins (for employees returning cards)
+  app.get("/api/mobile/reward-cards/admins", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const orgUsers = await storage.getUsersByOrganization(mobileUser.organizationId);
+      const admins = orgUsers
+        .filter((u) => (u.role === "admin" || u.role === "prime_admin") && u.id !== mobileUser.id)
+        .map((u) => ({ id: u.id, fullName: u.fullName, username: u.username }));
+      res.json(admins);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/admins] failed");
+      res.status(500).json({ message: "Failed to load admins" });
+    }
+  });
+
+  // Inbox — pending cards sent TO me
+  app.get("/api/mobile/reward-cards/inbox", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const items = await storage.getRewardCardTransfersInbox(mobileUser.id, mobileUser.organizationId);
+      res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/inbox] failed");
+      res.status(500).json({ message: "Failed to load inbox" });
+    }
+  });
+
+  // Mine — accepted cards I hold
+  app.get("/api/mobile/reward-cards/mine", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const items = await storage.getRewardCardTransfersMine(mobileUser.id, mobileUser.organizationId);
+      res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/mine] failed");
+      res.status(500).json({ message: "Failed to load cards" });
+    }
+  });
+
+  // Sent — cards I sent
+  app.get("/api/mobile/reward-cards/sent", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      if (!mobileUser.organizationId) return res.json([]);
+      const items = await storage.getRewardCardTransfersSent(mobileUser.id, mobileUser.organizationId);
+      res.json(items);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/sent] failed");
+      res.status(500).json({ message: "Failed to load sent cards" });
+    }
+  });
+
+  // Send a reward card (admin→employee or employee→admin)
+  app.post("/api/mobile/reward-cards/send", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const schema = z.object({
+        rewardCardId: z.number().int().positive(),
+        toUserId: z.number().int().positive(),
+        notes: z.string().max(500).optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+      const { rewardCardId, toUserId, notes } = parsed.data;
+      if (!mobileUser.organizationId) return res.status(400).json({ message: "No organization" });
+
+      const card = await storage.getRewardCard(rewardCardId);
+      if (!card || card.organizationId !== mobileUser.organizationId || !card.active) {
+        return res.status(404).json({ message: "Reward card not found or inactive" });
+      }
+
+      const recipient = await storage.getUser(toUserId);
+      if (!recipient || recipient.organizationId !== mobileUser.organizationId) {
+        return res.status(404).json({ message: "Recipient not found" });
+      }
+
+      // Enforce: employee↔admin only
+      const senderIsEmployee = mobileUser.role === "employee";
+      const recipientIsEmployee = recipient.role === "employee";
+      if (senderIsEmployee && recipientIsEmployee) {
+        return res.status(403).json({ message: "Reward cards can only be sent between employees and admins" });
+      }
+      const senderIsAdmin = !senderIsEmployee;
+      const recipientIsAdmin = !recipientIsEmployee;
+      if (senderIsAdmin && recipientIsAdmin) {
+        return res.status(403).json({ message: "Reward cards can only be sent between employees and admins" });
+      }
+
+      const transfer = await storage.createRewardCardTransfer({
+        organizationId: mobileUser.organizationId,
+        rewardCardId,
+        fromUserId: mobileUser.id,
+        toUserId,
+        notes,
+      });
+      res.status(201).json(transfer);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/send] failed");
+      res.status(500).json({ message: "Failed to send reward card" });
+    }
+  });
+
+  // Accept incoming card
+  app.put("/api/mobile/reward-cards/:id/accept", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const transfer = await storage.getRewardCardTransferById(id);
+      if (!transfer) return res.status(404).json({ message: "Transfer not found" });
+      if (transfer.toUserId !== mobileUser.id) return res.status(403).json({ message: "Not your transfer" });
+      if (transfer.status !== "pending") return res.status(400).json({ message: "Transfer is no longer pending" });
+      const updated = await storage.updateRewardCardTransferStatus(id, "accepted");
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/accept] failed");
+      res.status(500).json({ message: "Failed to accept" });
+    }
+  });
+
+  // Mark card as used (employee redeems/uses the card)
+  app.put("/api/mobile/reward-cards/:id/use", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const transfer = await storage.getRewardCardTransferById(id);
+      if (!transfer) return res.status(404).json({ message: "Transfer not found" });
+      if (transfer.toUserId !== mobileUser.id) return res.status(403).json({ message: "Not your card" });
+      if (transfer.status !== "accepted") return res.status(400).json({ message: "Card must be accepted before use" });
+      const updated = await storage.updateRewardCardTransferStatus(id, "used");
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/use] failed");
+      res.status(500).json({ message: "Failed to mark as used" });
+    }
+  });
+
+  // Decline incoming card
+  app.put("/api/mobile/reward-cards/:id/decline", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const transfer = await storage.getRewardCardTransferById(id);
+      if (!transfer) return res.status(404).json({ message: "Transfer not found" });
+      if (transfer.toUserId !== mobileUser.id) return res.status(403).json({ message: "Not your transfer" });
+      if (transfer.status !== "pending") return res.status(400).json({ message: "Transfer is no longer pending" });
+      const updated = await storage.updateRewardCardTransferStatus(id, "declined");
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/decline] failed");
+      res.status(500).json({ message: "Failed to decline" });
+    }
+  });
+
+  // Recall pending card (sender cancels)
+  app.put("/api/mobile/reward-cards/:id/recall", mobileAuthMiddleware, async (req: MobileRequest, res: Response) => {
+    try {
+      const { mobileUser } = req;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const transfer = await storage.getRewardCardTransferById(id);
+      if (!transfer) return res.status(404).json({ message: "Transfer not found" });
+      if (transfer.fromUserId !== mobileUser.id) return res.status(403).json({ message: "Not your transfer" });
+      if (transfer.status !== "pending") return res.status(400).json({ message: "Cannot recall" });
+      const updated = await storage.updateRewardCardTransferStatus(id, "recalled");
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "[mobile/reward-cards/recall] failed");
+      res.status(500).json({ message: "Failed to recall" });
+    }
+  });
+
   // ── Item transfers ──────────────────────────────────────────────────────────
 
   // GET /api/mobile/items/catalog — org's available store items

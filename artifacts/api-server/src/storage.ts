@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, securityEvents, transfers, transferLimits, itemTransfers, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type SecurityEvent, type Transfer, type InsertTransfer, type TransferLimit, type ItemTransfer } from "@workspace/db";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, securityEvents, transfers, transferLimits, itemTransfers, rewardCards, rewardCardTransfers, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type SecurityEvent, type Transfer, type InsertTransfer, type TransferLimit, type ItemTransfer, type RewardCard, type InsertRewardCard, type RewardCardTransfer } from "@workspace/db";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -127,13 +127,26 @@ export interface IStorage {
   getWishlistByUser(userId: number): Promise<(Wishlist & { storeItem: StoreItem })[]>;
   getWishlistsByOrganization(organizationId: number): Promise<(Wishlist & { storeItem: StoreItem; user: User })[]>;
 
-  // Item transfers
+  // Item transfers (store-item trading)
   createItemTransfer(data: { organizationId: number; itemId: number; fromUserId: number; toUserId: number; notes?: string }): Promise<ItemTransfer>;
   getItemTransferById(id: number): Promise<ItemTransfer | undefined>;
   getItemTransfersInbox(userId: number, orgId: number): Promise<(ItemTransfer & { item: StoreItem; fromUser: Pick<User, "id" | "fullName" | "username"> })[]>;
   getItemTransfersMine(userId: number, orgId: number): Promise<(ItemTransfer & { item: StoreItem; fromUser: Pick<User, "id" | "fullName" | "username"> })[]>;
   getItemTransfersSent(userId: number, orgId: number): Promise<(ItemTransfer & { item: StoreItem; toUser: Pick<User, "id" | "fullName" | "username"> })[]>;
   updateItemTransferStatus(id: number, status: "accepted" | "declined" | "recalled"): Promise<ItemTransfer>;
+
+  // Reward cards (non-monetary perk cards)
+  createRewardCard(data: InsertRewardCard): Promise<RewardCard>;
+  getRewardCardsByOrg(organizationId: number): Promise<RewardCard[]>;
+  getRewardCard(id: number): Promise<RewardCard | undefined>;
+  updateRewardCard(id: number, data: Partial<InsertRewardCard>): Promise<RewardCard>;
+  deleteRewardCard(id: number): Promise<void>;
+  createRewardCardTransfer(data: { organizationId: number; rewardCardId: number; fromUserId: number; toUserId: number; notes?: string }): Promise<RewardCardTransfer>;
+  getRewardCardTransferById(id: number): Promise<RewardCardTransfer | undefined>;
+  getRewardCardTransfersInbox(userId: number, orgId: number): Promise<(RewardCardTransfer & { card: RewardCard; fromUser: Pick<User, "id" | "fullName" | "username"> })[]>;
+  getRewardCardTransfersMine(userId: number, orgId: number): Promise<(RewardCardTransfer & { card: RewardCard; fromUser: Pick<User, "id" | "fullName" | "username"> })[]>;
+  getRewardCardTransfersSent(userId: number, orgId: number): Promise<(RewardCardTransfer & { card: RewardCard; toUser: Pick<User, "id" | "fullName" | "username"> })[]>;
+  updateRewardCardTransferStatus(id: number, status: "accepted" | "used" | "declined" | "recalled"): Promise<RewardCardTransfer>;
 
   getMarketingSubscribers(): Promise<Array<{ name: string; email: string | null; source: string; orgName: string | null; role: string | null; dateOptedIn: string | null }>>;
   acceptTerms(userId: number, marketingOptIn: boolean): Promise<User>;
@@ -2162,6 +2175,118 @@ DatabaseStorage.prototype.getSecurityEventsByUser = async function (userId, limi
     .where(eq(securityEvents.userId, userId))
     .orderBy(desc(securityEvents.createdAt))
     .limit(limit);
+};
+
+// ── Reward cards ──────────────────────────────────────────────────────────────
+DatabaseStorage.prototype.createRewardCard = async function (data) {
+  const [row] = await db.insert(rewardCards).values(data).returning();
+  return row;
+};
+
+DatabaseStorage.prototype.getRewardCardsByOrg = async function (organizationId) {
+  return db
+    .select()
+    .from(rewardCards)
+    .where(eq(rewardCards.organizationId, organizationId))
+    .orderBy(desc(rewardCards.createdAt));
+};
+
+DatabaseStorage.prototype.getRewardCard = async function (id) {
+  const [row] = await db.select().from(rewardCards).where(eq(rewardCards.id, id)).limit(1);
+  return row;
+};
+
+DatabaseStorage.prototype.updateRewardCard = async function (id, data) {
+  const [row] = await db.update(rewardCards).set(data).where(eq(rewardCards.id, id)).returning();
+  return row;
+};
+
+DatabaseStorage.prototype.deleteRewardCard = async function (id) {
+  await db.delete(rewardCards).where(eq(rewardCards.id, id));
+};
+
+DatabaseStorage.prototype.createRewardCardTransfer = async function ({ organizationId, rewardCardId, fromUserId, toUserId, notes }) {
+  const [row] = await db
+    .insert(rewardCardTransfers)
+    .values({ organizationId, rewardCardId, fromUserId, toUserId, notes: notes ?? null })
+    .returning();
+  return row;
+};
+
+DatabaseStorage.prototype.getRewardCardTransferById = async function (id) {
+  const [row] = await db.select().from(rewardCardTransfers).where(eq(rewardCardTransfers.id, id)).limit(1);
+  return row;
+};
+
+DatabaseStorage.prototype.getRewardCardTransfersInbox = async function (userId, orgId) {
+  const rows = await db
+    .select({
+      transfer: rewardCardTransfers,
+      card: rewardCards,
+      fromUser: { id: users.id, fullName: users.fullName, username: users.username },
+    })
+    .from(rewardCardTransfers)
+    .innerJoin(rewardCards, eq(rewardCardTransfers.rewardCardId, rewardCards.id))
+    .innerJoin(users, eq(rewardCardTransfers.fromUserId, users.id))
+    .where(
+      and(
+        eq(rewardCardTransfers.toUserId, userId),
+        eq(rewardCardTransfers.organizationId, orgId),
+        eq(rewardCardTransfers.status, "pending"),
+      ),
+    )
+    .orderBy(desc(rewardCardTransfers.createdAt));
+  return rows.map(({ transfer, card, fromUser }) => ({ ...transfer, card, fromUser }));
+};
+
+DatabaseStorage.prototype.getRewardCardTransfersMine = async function (userId, orgId) {
+  const rows = await db
+    .select({
+      transfer: rewardCardTransfers,
+      card: rewardCards,
+      fromUser: { id: users.id, fullName: users.fullName, username: users.username },
+    })
+    .from(rewardCardTransfers)
+    .innerJoin(rewardCards, eq(rewardCardTransfers.rewardCardId, rewardCards.id))
+    .innerJoin(users, eq(rewardCardTransfers.fromUserId, users.id))
+    .where(
+      and(
+        eq(rewardCardTransfers.toUserId, userId),
+        eq(rewardCardTransfers.organizationId, orgId),
+        eq(rewardCardTransfers.status, "accepted"),
+      ),
+    )
+    .orderBy(desc(rewardCardTransfers.createdAt));
+  return rows.map(({ transfer, card, fromUser }) => ({ ...transfer, card, fromUser }));
+};
+
+DatabaseStorage.prototype.getRewardCardTransfersSent = async function (userId, orgId) {
+  const rows = await db
+    .select({
+      transfer: rewardCardTransfers,
+      card: rewardCards,
+      toUser: { id: users.id, fullName: users.fullName, username: users.username },
+    })
+    .from(rewardCardTransfers)
+    .innerJoin(rewardCards, eq(rewardCardTransfers.rewardCardId, rewardCards.id))
+    .innerJoin(users, eq(rewardCardTransfers.toUserId, users.id))
+    .where(
+      and(
+        eq(rewardCardTransfers.fromUserId, userId),
+        eq(rewardCardTransfers.organizationId, orgId),
+      ),
+    )
+    .orderBy(desc(rewardCardTransfers.createdAt));
+  return rows.map(({ transfer, card, toUser }) => ({ ...transfer, card, toUser }));
+};
+
+DatabaseStorage.prototype.updateRewardCardTransferStatus = async function (id, status) {
+  const [row] = await db
+    .update(rewardCardTransfers)
+    .set({ status })
+    .where(eq(rewardCardTransfers.id, id))
+    .returning();
+  return row;
 };
 
 // ── Item transfers ─────────────────────────────────────────────────────────────

@@ -1,7 +1,6 @@
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,30 +18,31 @@ import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
-type StoreItemRow = {
+type RewardCard = {
   id: number;
   name: string;
   description: string | null;
-  imageUrl: string | null;
-  price: number;
+  emoji: string;
+  color: string;
+  active: boolean;
 };
 
-type AdminRow = { id: number; fullName: string; username: string };
+type TargetUser = { id: number; fullName: string; username: string };
 
-type TransferRow = {
+type Transfer = {
   id: number;
-  itemId: number;
+  rewardCardId: number;
   fromUserId: number;
   toUserId: number;
-  status: "pending" | "accepted" | "declined" | "recalled";
+  status: "pending" | "accepted" | "used" | "declined" | "recalled";
   notes: string | null;
   createdAt: string;
-  item: StoreItemRow;
-  fromUser?: { id: number; fullName: string; username: string };
-  toUser?: { id: number; fullName: string; username: string };
+  card: RewardCard;
+  fromUser?: TargetUser;
+  toUser?: TargetUser;
 };
 
-type Tab = "send" | "inbox" | "sent";
+type Tab = "send" | "inbox" | "wallet" | "sent";
 
 export default function SendReceiveTab() {
   const { token, user } = useAuth();
@@ -52,105 +52,107 @@ export default function SendReceiveTab() {
   const isAdmin = user?.role === "admin" || user?.role === "prime_admin";
 
   const [activeTab, setActiveTab] = useState<Tab>("send");
-  const [selectedItem, setSelectedItem] = useState<StoreItemRow | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState<AdminRow | null>(null);
+  const [selectedCard, setSelectedCard] = useState<RewardCard | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<TargetUser | null>(null);
   const [note, setNote] = useState("");
   const [sendLoading, setSendLoading] = useState(false);
 
-  // Fetch org's available store items (catalog)
-  const { data: catalog = [], isLoading: catalogLoading, refetch: refetchCatalog } = useQuery<StoreItemRow[]>({
-    queryKey: ["item-catalog", token],
+  const { data: catalog = [], isLoading: catalogLoading, refetch: refetchCatalog } = useQuery<RewardCard[]>({
+    queryKey: ["rc-catalog", token],
     queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/items/catalog"), {
+      const res = await fetch(apiUrl("/api/mobile/reward-cards/catalog"), {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error("Failed to load catalog");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!token,
+    staleTime: 30_000,
+  });
+
+  const targetEndpoint = isEmployee ? "/api/mobile/reward-cards/admins" : "/api/mobile/reward-cards/employees";
+  const { data: targets = [], isLoading: targetsLoading } = useQuery<TargetUser[]>({
+    queryKey: ["rc-targets", token, user?.role],
+    queryFn: async () => {
+      const res = await fetch(apiUrl(targetEndpoint), {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed");
       return res.json();
     },
     enabled: !!token,
     staleTime: 60_000,
   });
 
-  // Fetch admins (for employees to send to) or employees (for admins to send to)
-  const { data: targets = [], isLoading: targetsLoading } = useQuery<AdminRow[]>({
-    queryKey: ["item-targets", token, user?.role],
+  const { data: inbox = [], isLoading: inboxLoading, refetch: refetchInbox } = useQuery<Transfer[]>({
+    queryKey: ["rc-inbox", token],
     queryFn: async () => {
-      const endpoint = isEmployee
-        ? "/api/mobile/items/admins"
-        : "/api/mobile/items/employees";
-      const res = await fetch(apiUrl(endpoint), {
+      const res = await fetch(apiUrl("/api/mobile/reward-cards/inbox"), {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error("Failed to load targets");
-      return res.json();
-    },
-    enabled: !!token,
-    staleTime: 60_000,
-  });
-
-  // Inbox (pending items sent TO me)
-  const { data: inbox = [], isLoading: inboxLoading, refetch: refetchInbox } = useQuery<TransferRow[]>({
-    queryKey: ["item-inbox", token],
-    queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/items/inbox"), {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      if (!res.ok) throw new Error("Failed to load inbox");
+      if (!res.ok) throw new Error("Failed");
       return res.json();
     },
     enabled: !!token,
     staleTime: 15_000,
   });
 
-  // Sent items
-  const { data: sent = [], isLoading: sentLoading, refetch: refetchSent } = useQuery<TransferRow[]>({
-    queryKey: ["item-sent", token],
+  const { data: wallet = [], isLoading: walletLoading, refetch: refetchWallet } = useQuery<Transfer[]>({
+    queryKey: ["rc-mine", token],
     queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/items/sent"), {
+      const res = await fetch(apiUrl("/api/mobile/reward-cards/mine"), {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error("Failed to load sent items");
+      if (!res.ok) throw new Error("Failed");
       return res.json();
     },
     enabled: !!token,
     staleTime: 15_000,
   });
 
-  const pendingInboxCount = inbox.filter((t) => t.status === "pending").length;
+  const { data: sent = [], isLoading: sentLoading, refetch: refetchSent } = useQuery<Transfer[]>({
+    queryKey: ["rc-sent", token],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/mobile/reward-cards/sent"), {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!token,
+    staleTime: 15_000,
+  });
+
+  const pendingInbox = inbox.length;
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([refetchCatalog(), refetchInbox(), refetchSent()]);
-  }, [refetchCatalog, refetchInbox, refetchSent]);
+    await Promise.all([refetchCatalog(), refetchInbox(), refetchWallet(), refetchSent()]);
+  }, [refetchCatalog, refetchInbox, refetchWallet, refetchSent]);
+
+  const activeCards = catalog.filter((c) => c.active);
 
   async function handleSend() {
-    if (!token || !selectedItem || !selectedTarget) return;
+    if (!token || !selectedCard || !selectedTarget) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setSendLoading(true);
     try {
-      const res = await fetch(apiUrl("/api/mobile/items/send"), {
+      const res = await fetch(apiUrl("/api/mobile/reward-cards/send"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          itemId: selectedItem.id,
-          toUserId: selectedTarget.id,
-          notes: note.trim() || undefined,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rewardCardId: selectedCard.id, toUserId: selectedTarget.id, notes: note.trim() || undefined }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        Alert.alert("Error", (body as any)?.message ?? "Could not send item");
+        Alert.alert("Error", (body as any)?.message ?? "Could not send card");
         return;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setSelectedItem(null);
+      setSelectedCard(null);
       setSelectedTarget(null);
       setNote("");
-      qc.invalidateQueries({ queryKey: ["item-sent", token] });
-      qc.invalidateQueries({ queryKey: ["item-inbox", token] });
-      Alert.alert("Sent!", `"${selectedItem.name}" was sent to ${selectedTarget.fullName}.`);
+      qc.invalidateQueries({ queryKey: ["rc-sent", token] });
+      qc.invalidateQueries({ queryKey: ["rc-inbox", token] });
+      Alert.alert("Sent!", `"${selectedCard.name}" sent to ${selectedTarget.fullName}.`);
     } catch {
       Alert.alert("Error", "Network error — please try again");
     } finally {
@@ -158,130 +160,182 @@ export default function SendReceiveTab() {
     }
   }
 
-  const acceptMutation = useMutation({
+  const acceptMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(apiUrl(`/api/mobile/items/${id}/accept`), {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token ?? ""}` },
+      const res = await fetch(apiUrl(`/api/mobile/reward-cards/${id}/accept`), {
+        method: "PUT", headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error("Failed to accept");
+      if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["item-inbox", token] });
-      qc.invalidateQueries({ queryKey: ["item-mine", token] });
+      qc.invalidateQueries({ queryKey: ["rc-inbox", token] });
+      qc.invalidateQueries({ queryKey: ["rc-mine", token] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     },
-    onError: () => Alert.alert("Error", "Could not accept item"),
+    onError: () => Alert.alert("Error", "Could not accept"),
   });
 
-  const declineMutation = useMutation({
+  const useMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(apiUrl(`/api/mobile/items/${id}/decline`), {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token ?? ""}` },
+      const res = await fetch(apiUrl(`/api/mobile/reward-cards/${id}/use`), {
+        method: "PUT", headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error("Failed to decline");
+      if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["item-inbox", token] });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["rc-mine", token] });
+      qc.invalidateQueries({ queryKey: ["rc-wallet", token] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     },
-    onError: () => Alert.alert("Error", "Could not decline item"),
+    onError: () => Alert.alert("Error", "Could not mark as used"),
   });
 
-  const recallMutation = useMutation({
+  const declineMut = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(apiUrl(`/api/mobile/items/${id}/recall`), {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token ?? ""}` },
+      const res = await fetch(apiUrl(`/api/mobile/reward-cards/${id}/decline`), {
+        method: "PUT", headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error("Failed to recall");
+      if (!res.ok) throw new Error("Failed");
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["item-sent", token] });
-    },
-    onError: () => Alert.alert("Error", "Could not recall item"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rc-inbox", token] }),
+    onError: () => Alert.alert("Error", "Could not decline"),
   });
+
+  const recallMut = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(apiUrl(`/api/mobile/reward-cards/${id}/recall`), {
+        method: "PUT", headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rc-sent", token] }),
+    onError: () => Alert.alert("Error", "Could not recall"),
+  });
+
+  const TABS: { key: Tab; label: string }[] = isEmployee
+    ? [
+        { key: "wallet", label: `Cards${wallet.length > 0 ? ` (${wallet.length})` : ""}` },
+        { key: "inbox", label: `Inbox${pendingInbox > 0 ? ` (${pendingInbox})` : ""}` },
+        { key: "send", label: "Return" },
+        { key: "sent", label: "History" },
+      ]
+    : [
+        { key: "send", label: "Send" },
+        { key: "inbox", label: `Inbox${pendingInbox > 0 ? ` (${pendingInbox})` : ""}` },
+        { key: "sent", label: "History" },
+      ];
 
   return (
     <ScrollView
       style={styles.root}
       contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
       keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={brand.green} />
-      }
+      refreshControl={<RefreshControl refreshing={false} onRefresh={handleRefresh} tintColor={brand.green} />}
     >
-      {/* Tab bar */}
+      {/* Segment tabs */}
       <View style={styles.tabBar}>
-        {(["send", "inbox", "sent"] as Tab[]).map((t) => {
-          const active = activeTab === t;
-          const label = t === "send" ? "Send" : t === "inbox" ? "Inbox" : "Sent";
+        {TABS.map((t) => {
+          const active = activeTab === t.key;
           return (
             <Pressable
-              key={t}
+              key={t.key}
               style={[styles.tabBtn, active && styles.tabBtnActive]}
-              onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
-                setActiveTab(t);
-              }}
+              onPress={() => { Haptics.selectionAsync().catch(() => {}); setActiveTab(t.key); }}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
             >
-              <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>
-                {label}
-                {t === "inbox" && pendingInboxCount > 0 ? ` (${pendingInboxCount})` : ""}
-              </Text>
+              <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>{t.label}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      {/* ── Send tab ── */}
+      {/* ── Wallet / My Cards (employees) ── */}
+      {activeTab === "wallet" && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Your reward cards</Text>
+          {walletLoading ? (
+            <ActivityIndicator color={brand.green} style={{ marginTop: 20 }} />
+          ) : wallet.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyEmoji}>🎫</Text>
+              <Text style={styles.emptyTitle}>No cards yet</Text>
+              <Text style={styles.emptyText}>Your manager can send you reward cards here.</Text>
+            </View>
+          ) : (
+            wallet.map((tr) => (
+              <WalletCard key={tr.id} transfer={tr} onUse={() => useMut.mutate(tr.id)} using={useMut.isPending} />
+            ))
+          )}
+        </View>
+      )}
+
+      {/* ── Inbox ── */}
+      {activeTab === "inbox" && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Incoming cards</Text>
+          {inboxLoading ? (
+            <ActivityIndicator color={brand.green} style={{ marginTop: 20 }} />
+          ) : inbox.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyEmoji}>📬</Text>
+              <Text style={styles.emptyTitle}>Empty inbox</Text>
+              <Text style={styles.emptyText}>Nothing pending right now.</Text>
+            </View>
+          ) : (
+            inbox.map((tr) => (
+              <InboxCard
+                key={tr.id}
+                transfer={tr}
+                onAccept={() => acceptMut.mutate(tr.id)}
+                onDecline={() => declineMut.mutate(tr.id)}
+                accepting={acceptMut.isPending}
+                declining={declineMut.isPending}
+              />
+            ))
+          )}
+        </View>
+      )}
+
+      {/* ── Send / Return card ── */}
       {activeTab === "send" && (
         <>
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>
-              {isEmployee ? "Select an item to send to an admin" : "Select an item to send to an employee"}
+              {isEmployee ? "Choose a card to return to an admin" : "Choose a card to send to an employee"}
             </Text>
 
             {catalogLoading ? (
-              <ActivityIndicator color={brand.green} style={{ marginTop: 12 }} />
-            ) : catalog.length === 0 ? (
+              <ActivityIndicator color={brand.green} style={{ marginTop: 20 }} />
+            ) : activeCards.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="cube-outline" size={32} color={brand.textMuted} />
+                <Text style={styles.emptyEmoji}>🎴</Text>
+                <Text style={styles.emptyTitle}>No card types yet</Text>
                 <Text style={styles.emptyText}>
-                  No items in your org's catalog yet.
+                  {isAdmin
+                    ? "Create card types in Reward Cards management."
+                    : "Your admin hasn't set up any reward cards yet."}
                 </Text>
               </View>
             ) : (
-              <View style={styles.catalogGrid}>
-                {catalog.map((item) => {
-                  const selected = selectedItem?.id === item.id;
+              <View style={styles.cardGrid}>
+                {activeCards.map((card) => {
+                  const sel = selectedCard?.id === card.id;
                   return (
                     <Pressable
-                      key={item.id}
-                      style={[styles.catalogCard, selected && styles.catalogCardSelected]}
-                      onPress={() => {
-                        Haptics.selectionAsync().catch(() => {});
-                        setSelectedItem(selected ? null : item);
-                      }}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: selected }}
+                      key={card.id}
+                      style={[styles.cardChip, sel && styles.cardChipSelected, { borderColor: sel ? card.color : "transparent" }]}
+                      onPress={() => { Haptics.selectionAsync().catch(() => {}); setSelectedCard(sel ? null : card); }}
                     >
-                      {item.imageUrl ? (
-                        <Image source={{ uri: item.imageUrl }} style={styles.catalogImg} />
-                      ) : (
-                        <View style={styles.catalogImgPlaceholder}>
-                          <Ionicons name="cube-outline" size={28} color={brand.textMuted} />
-                        </View>
-                      )}
-                      <Text style={[styles.catalogName, selected && styles.catalogNameSelected]} numberOfLines={2}>
-                        {item.name}
+                      <View style={[styles.cardChipEmoji, { backgroundColor: card.color + "22" }]}>
+                        <Text style={styles.cardChipEmojiText}>{card.emoji}</Text>
+                      </View>
+                      <Text style={[styles.cardChipName, sel && { color: card.color }]} numberOfLines={2}>
+                        {card.name}
                       </Text>
-                      {selected && (
-                        <View style={styles.catalogCheck}>
-                          <Ionicons name="checkmark-circle" size={18} color={brand.green} />
+                      {sel && (
+                        <View style={styles.cardChipCheck}>
+                          <Ionicons name="checkmark-circle" size={16} color={card.color} />
                         </View>
                       )}
                     </Pressable>
@@ -291,7 +345,7 @@ export default function SendReceiveTab() {
             )}
           </View>
 
-          {selectedItem && (
+          {selectedCard && (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>
                 {isEmployee ? "Send to which admin?" : "Send to which employee?"}
@@ -299,7 +353,7 @@ export default function SendReceiveTab() {
               {targetsLoading ? (
                 <ActivityIndicator color={brand.green} />
               ) : targets.length === 0 ? (
-                <Text style={styles.emptyText}>No targets found</Text>
+                <Text style={styles.emptyText}>No recipients found</Text>
               ) : (
                 targets.map((t) => {
                   const sel = selectedTarget?.id === t.id;
@@ -307,15 +361,10 @@ export default function SendReceiveTab() {
                     <Pressable
                       key={t.id}
                       style={[styles.targetRow, sel && styles.targetRowSelected]}
-                      onPress={() => {
-                        Haptics.selectionAsync().catch(() => {});
-                        setSelectedTarget(sel ? null : t);
-                      }}
+                      onPress={() => { Haptics.selectionAsync().catch(() => {}); setSelectedTarget(sel ? null : t); }}
                     >
                       <View style={styles.targetAvatar}>
-                        <Text style={styles.targetAvatarText}>
-                          {t.fullName?.[0]?.toUpperCase() ?? "?"}
-                        </Text>
+                        <Text style={styles.targetAvatarText}>{t.fullName?.[0]?.toUpperCase() ?? "?"}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.targetName}>{t.fullName}</Text>
@@ -329,14 +378,14 @@ export default function SendReceiveTab() {
             </View>
           )}
 
-          {selectedItem && selectedTarget && (
+          {selectedCard && selectedTarget && (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Note (optional)</Text>
               <TextInput
                 style={styles.textInput}
                 value={note}
                 onChangeText={setNote}
-                placeholder="Add a note..."
+                placeholder="Add a message..."
                 placeholderTextColor={brand.textMuted}
                 maxLength={200}
                 returnKeyType="done"
@@ -344,12 +393,11 @@ export default function SendReceiveTab() {
             </View>
           )}
 
-          {selectedItem && selectedTarget && (
-            <View style={styles.sendSummary}>
-              <Ionicons name="cube-outline" size={16} color={brand.navy} />
-              <Text style={styles.sendSummaryText} numberOfLines={2}>
-                Sending <Text style={{ fontFamily: "Inter_600SemiBold" }}>"{selectedItem.name}"</Text> to{" "}
-                <Text style={{ fontFamily: "Inter_600SemiBold" }}>{selectedTarget.fullName}</Text>
+          {selectedCard && selectedTarget && (
+            <View style={[styles.sendSummary, { borderColor: selectedCard.color + "44", backgroundColor: selectedCard.color + "0D" }]}>
+              <Text style={styles.sendSummaryEmoji}>{selectedCard.emoji}</Text>
+              <Text style={[styles.sendSummaryText, { color: selectedCard.color }]}>
+                Sending <Text style={{ fontFamily: "Inter_700Bold" }}>"{selectedCard.name}"</Text> to {selectedTarget.fullName}
               </Text>
             </View>
           )}
@@ -357,69 +405,41 @@ export default function SendReceiveTab() {
           <Pressable
             style={({ pressed }) => [
               styles.sendBtn,
-              (!selectedItem || !selectedTarget || sendLoading) && styles.sendBtnDisabled,
-              pressed && selectedItem && selectedTarget && { opacity: 0.85 },
+              { backgroundColor: selectedCard ? selectedCard.color : brand.border },
+              (!selectedCard || !selectedTarget || sendLoading) && styles.sendBtnDisabled,
+              pressed && selectedCard && selectedTarget && { opacity: 0.85 },
             ]}
             onPress={handleSend}
-            disabled={!selectedItem || !selectedTarget || sendLoading}
-            accessibilityRole="button"
-            accessibilityLabel="Send item"
+            disabled={!selectedCard || !selectedTarget || sendLoading}
           >
             {sendLoading ? (
-              <ActivityIndicator color={brand.white} size="small" />
+              <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons name="paper-plane" size={18} color={brand.white} />
-                <Text style={styles.sendBtnText}>Send Item</Text>
+                <Text style={styles.sendBtnEmoji}>{selectedCard?.emoji ?? "🎫"}</Text>
+                <Text style={styles.sendBtnText}>
+                  {isEmployee ? "Return Card" : "Send Card"}
+                </Text>
               </>
             )}
           </Pressable>
         </>
       )}
 
-      {/* ── Inbox tab ── */}
-      {activeTab === "inbox" && (
-        <View style={styles.section}>
-          {inboxLoading ? (
-            <ActivityIndicator color={brand.green} style={{ marginTop: 20 }} />
-          ) : inbox.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Ionicons name="mail-open-outline" size={40} color={brand.textMuted} />
-              <Text style={styles.emptyText}>No incoming items</Text>
-            </View>
-          ) : (
-            inbox.map((tr) => (
-              <InboxCard
-                key={tr.id}
-                transfer={tr}
-                onAccept={() => acceptMutation.mutate(tr.id)}
-                onDecline={() => declineMutation.mutate(tr.id)}
-                accepting={acceptMutation.isPending}
-                declining={declineMutation.isPending}
-              />
-            ))
-          )}
-        </View>
-      )}
-
-      {/* ── Sent tab ── */}
+      {/* ── History / Sent ── */}
       {activeTab === "sent" && (
         <View style={styles.section}>
+          <Text style={styles.sectionLabel}>History</Text>
           {sentLoading ? (
             <ActivityIndicator color={brand.green} style={{ marginTop: 20 }} />
           ) : sent.length === 0 ? (
             <View style={styles.emptyBox}>
-              <Ionicons name="paper-plane-outline" size={40} color={brand.textMuted} />
-              <Text style={styles.emptyText}>No sent items yet</Text>
+              <Text style={styles.emptyEmoji}>📋</Text>
+              <Text style={styles.emptyTitle}>Nothing sent yet</Text>
             </View>
           ) : (
             sent.map((tr) => (
-              <SentCard
-                key={tr.id}
-                transfer={tr}
-                onRecall={() => recallMutation.mutate(tr.id)}
-                recalling={recallMutation.isPending}
-              />
+              <SentCard key={tr.id} transfer={tr} onRecall={() => recallMut.mutate(tr.id)} recalling={recallMut.isPending} />
             ))
           )}
         </View>
@@ -428,139 +448,112 @@ export default function SendReceiveTab() {
   );
 }
 
-function StatusBadge({ status }: { status: TransferRow["status"] }) {
-  const config = {
-    pending: { color: "#F59E0B", bg: "#FEF3C7", label: "Pending" },
-    accepted: { color: brand.green, bg: "#D1FAE5", label: "Accepted" },
-    declined: { color: brand.danger, bg: "#FEE2E2", label: "Declined" },
-    recalled: { color: brand.textMuted, bg: brand.offWhite, label: "Recalled" },
+function StatusBadge({ status, color }: { status: Transfer["status"]; color?: string }) {
+  const cfg = {
+    pending: { bg: "#FEF3C7", text: "#92400E", label: "Pending" },
+    accepted: { bg: "#D1FAE5", text: "#065F46", label: "Accepted" },
+    used: { bg: "#EDE9FE", text: "#5B21B6", label: "Used" },
+    declined: { bg: "#FEE2E2", text: "#991B1B", label: "Declined" },
+    recalled: { bg: brand.offWhite, text: brand.textMuted, label: "Recalled" },
   }[status];
   return (
-    <View style={[badgeStyles.badge, { backgroundColor: config.bg }]}>
-      <Text style={[badgeStyles.text, { color: config.color }]}>{config.label}</Text>
+    <View style={[bStyles.badge, { backgroundColor: cfg.bg }]}>
+      <Text style={[bStyles.text, { color: cfg.text }]}>{cfg.label}</Text>
     </View>
   );
 }
-
-const badgeStyles = StyleSheet.create({
+const bStyles = StyleSheet.create({
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   text: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
 });
 
+function WalletCard({ transfer, onUse, using }: { transfer: Transfer; onUse: () => void; using: boolean }) {
+  return (
+    <View style={[cStyles.card, { borderLeftWidth: 4, borderLeftColor: transfer.card.color }]}>
+      <View style={cStyles.row}>
+        <View style={[cStyles.emojiBox, { backgroundColor: transfer.card.color + "1A" }]}>
+          <Text style={cStyles.emoji}>{transfer.card.emoji}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={cStyles.name}>{transfer.card.name}</Text>
+          {transfer.card.description ? (
+            <Text style={cStyles.desc} numberOfLines={2}>{transfer.card.description}</Text>
+          ) : null}
+          <Text style={cStyles.meta}>From: {transfer.fromUser?.fullName ?? "—"}</Text>
+        </View>
+      </View>
+      <Pressable
+        style={[cStyles.useBtn, { backgroundColor: transfer.card.color }, using && { opacity: 0.6 }]}
+        onPress={onUse}
+        disabled={using}
+      >
+        {using ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={cStyles.useBtnText}>Mark as Used</Text>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
 function InboxCard({
-  transfer,
-  onAccept,
-  onDecline,
-  accepting,
-  declining,
+  transfer, onAccept, onDecline, accepting, declining,
 }: {
-  transfer: TransferRow;
-  onAccept: () => void;
-  onDecline: () => void;
-  accepting: boolean;
-  declining: boolean;
+  transfer: Transfer; onAccept: () => void; onDecline: () => void; accepting: boolean; declining: boolean;
 }) {
   return (
-    <View style={cardStyles.card}>
-      <View style={cardStyles.row}>
-        <View style={cardStyles.iconBox}>
-          {transfer.item.imageUrl ? (
-            <Image source={{ uri: transfer.item.imageUrl }} style={cardStyles.itemImg} />
-          ) : (
-            <Ionicons name="cube-outline" size={22} color={brand.navy} />
-          )}
+    <View style={[cStyles.card, { borderLeftWidth: 4, borderLeftColor: transfer.card.color }]}>
+      <View style={cStyles.row}>
+        <View style={[cStyles.emojiBox, { backgroundColor: transfer.card.color + "1A" }]}>
+          <Text style={cStyles.emoji}>{transfer.card.emoji}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={cardStyles.itemName}>{transfer.item.name}</Text>
-          <Text style={cardStyles.meta}>
-            From: {transfer.fromUser?.fullName ?? "—"}
-          </Text>
-          {transfer.notes ? (
-            <Text style={cardStyles.note} numberOfLines={2}>"{transfer.notes}"</Text>
+          <Text style={cStyles.name}>{transfer.card.name}</Text>
+          {transfer.card.description ? (
+            <Text style={cStyles.desc} numberOfLines={1}>{transfer.card.description}</Text>
           ) : null}
+          <Text style={cStyles.meta}>From: {transfer.fromUser?.fullName ?? "—"}</Text>
+          {transfer.notes ? <Text style={cStyles.note}>"{transfer.notes}"</Text> : null}
+        </View>
+        <StatusBadge status={transfer.status} />
+      </View>
+      <View style={cStyles.actionRow}>
+        <Pressable style={[cStyles.acceptBtn, accepting && { opacity: 0.6 }]} onPress={onAccept} disabled={accepting}>
+          {accepting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={cStyles.acceptText}>Accept</Text>}
+        </Pressable>
+        <Pressable style={[cStyles.declineBtn, declining && { opacity: 0.6 }]} onPress={onDecline} disabled={declining}>
+          {declining ? <ActivityIndicator size="small" color={brand.danger} /> : <Text style={cStyles.declineText}>Decline</Text>}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function SentCard({ transfer, onRecall, recalling }: { transfer: Transfer; onRecall: () => void; recalling: boolean }) {
+  return (
+    <View style={[cStyles.card, { borderLeftWidth: 4, borderLeftColor: transfer.card.color }]}>
+      <View style={cStyles.row}>
+        <View style={[cStyles.emojiBox, { backgroundColor: transfer.card.color + "1A" }]}>
+          <Text style={cStyles.emoji}>{transfer.card.emoji}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={cStyles.name}>{transfer.card.name}</Text>
+          <Text style={cStyles.meta}>To: {transfer.toUser?.fullName ?? "—"}</Text>
+          {transfer.notes ? <Text style={cStyles.note}>"{transfer.notes}"</Text> : null}
         </View>
         <StatusBadge status={transfer.status} />
       </View>
       {transfer.status === "pending" && (
-        <View style={cardStyles.actionRow}>
-          <Pressable
-            style={[cardStyles.acceptBtn, accepting && { opacity: 0.6 }]}
-            onPress={onAccept}
-            disabled={accepting}
-          >
-            {accepting ? (
-              <ActivityIndicator size="small" color={brand.white} />
-            ) : (
-              <Text style={cardStyles.acceptText}>Accept</Text>
-            )}
-          </Pressable>
-          <Pressable
-            style={[cardStyles.declineBtn, declining && { opacity: 0.6 }]}
-            onPress={onDecline}
-            disabled={declining}
-          >
-            {declining ? (
-              <ActivityIndicator size="small" color={brand.danger} />
-            ) : (
-              <Text style={cardStyles.declineText}>Decline</Text>
-            )}
-          </Pressable>
-        </View>
+        <Pressable style={[cStyles.declineBtn, recalling && { opacity: 0.6 }]} onPress={onRecall} disabled={recalling}>
+          {recalling ? <ActivityIndicator size="small" color={brand.danger} /> : <Text style={cStyles.declineText}>Recall</Text>}
+        </Pressable>
       )}
     </View>
   );
 }
 
-function SentCard({
-  transfer,
-  onRecall,
-  recalling,
-}: {
-  transfer: TransferRow;
-  onRecall: () => void;
-  recalling: boolean;
-}) {
-  return (
-    <View style={cardStyles.card}>
-      <View style={cardStyles.row}>
-        <View style={cardStyles.iconBox}>
-          {transfer.item.imageUrl ? (
-            <Image source={{ uri: transfer.item.imageUrl }} style={cardStyles.itemImg} />
-          ) : (
-            <Ionicons name="cube-outline" size={22} color={brand.navy} />
-          )}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={cardStyles.itemName}>{transfer.item.name}</Text>
-          <Text style={cardStyles.meta}>
-            To: {transfer.toUser?.fullName ?? "—"}
-          </Text>
-          {transfer.notes ? (
-            <Text style={cardStyles.note} numberOfLines={2}>"{transfer.notes}"</Text>
-          ) : null}
-        </View>
-        <StatusBadge status={transfer.status} />
-      </View>
-      {transfer.status === "pending" && (
-        <View style={cardStyles.actionRow}>
-          <Pressable
-            style={[cardStyles.declineBtn, recalling && { opacity: 0.6 }]}
-            onPress={onRecall}
-            disabled={recalling}
-          >
-            {recalling ? (
-              <ActivityIndicator size="small" color={brand.danger} />
-            ) : (
-              <Text style={cardStyles.declineText}>Recall</Text>
-            )}
-          </Pressable>
-        </View>
-      )}
-    </View>
-  );
-}
-
-const cardStyles = StyleSheet.create({
+const cStyles = StyleSheet.create({
   card: {
     backgroundColor: brand.white,
     borderRadius: 14,
@@ -570,69 +563,26 @@ const cardStyles = StyleSheet.create({
     borderColor: brand.border,
     gap: 10,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: brand.offWhite,
+  row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  emojiBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
   },
-  itemImg: { width: 44, height: 44, borderRadius: 10 },
-  itemName: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    color: brand.text,
-    marginBottom: 2,
-  },
-  meta: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: brand.textSecondary,
-  },
-  note: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: brand.textMuted,
-    fontStyle: "italic",
-    marginTop: 2,
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  acceptBtn: {
-    flex: 1,
-    backgroundColor: brand.green,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  acceptText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
-    color: brand.white,
-  },
-  declineBtn: {
-    flex: 1,
-    backgroundColor: brand.offWhite,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: brand.border,
-  },
-  declineText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
-    color: brand.danger,
-  },
+  emoji: { fontSize: 22 },
+  name: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: brand.text, marginBottom: 2 },
+  desc: { fontFamily: "Inter_400Regular", fontSize: 12, color: brand.textMuted, marginBottom: 2 },
+  meta: { fontFamily: "Inter_400Regular", fontSize: 12, color: brand.textSecondary },
+  note: { fontFamily: "Inter_400Regular", fontSize: 12, color: brand.textMuted, fontStyle: "italic", marginTop: 2 },
+  actionRow: { flexDirection: "row", gap: 10 },
+  acceptBtn: { flex: 1, backgroundColor: brand.green, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  acceptText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#fff" },
+  declineBtn: { flex: 1, backgroundColor: brand.offWhite, borderRadius: 10, paddingVertical: 10, alignItems: "center", borderWidth: 1, borderColor: brand.border },
+  declineText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: brand.danger },
+  useBtn: { borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  useBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#fff" },
 });
 
 const styles = StyleSheet.create({
@@ -645,64 +595,34 @@ const styles = StyleSheet.create({
     padding: 4,
     gap: 4,
   },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 9,
-    alignItems: "center",
-  },
+  tabBtn: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: "center" },
   tabBtnActive: { backgroundColor: brand.white, shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 4, elevation: 2 },
-  tabBtnText: { fontFamily: "Inter_500Medium", fontSize: 13, color: brand.textMuted },
+  tabBtnText: { fontFamily: "Inter_500Medium", fontSize: 12, color: brand.textMuted },
   tabBtnTextActive: { color: brand.navy, fontFamily: "Inter_600SemiBold" },
   section: { gap: 10 },
   sectionLabel: {
     color: brand.textSecondary,
     fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
+    fontSize: 11,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
-  catalogGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  catalogCard: {
+  cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  cardChip: {
     width: "47%",
     backgroundColor: brand.offWhite,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     alignItems: "center",
     gap: 8,
     borderWidth: 2,
-    borderColor: "transparent",
     position: "relative",
   },
-  catalogCardSelected: {
-    borderColor: brand.green,
-    backgroundColor: "rgba(46,125,50,0.05)",
-  },
-  catalogImg: { width: 64, height: 64, borderRadius: 8 },
-  catalogImgPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-    backgroundColor: brand.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  catalogName: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    color: brand.text,
-    textAlign: "center",
-  },
-  catalogNameSelected: { color: brand.navy, fontFamily: "Inter_600SemiBold" },
-  catalogCheck: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-  },
+  cardChipSelected: { backgroundColor: brand.white },
+  cardChipEmoji: { width: 52, height: 52, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  cardChipEmojiText: { fontSize: 26 },
+  cardChipName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: brand.text, textAlign: "center" },
+  cardChipCheck: { position: "absolute", top: 6, right: 6 },
   targetRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -727,21 +647,14 @@ const styles = StyleSheet.create({
   targetUsername: { fontFamily: "Inter_400Regular", fontSize: 12, color: brand.textMuted },
   sendSummary: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(26,35,126,0.05)",
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(26,35,126,0.1)",
   },
-  sendSummaryText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: brand.navy,
-    flex: 1,
-    lineHeight: 19,
-  },
+  sendSummaryEmoji: { fontSize: 22 },
+  sendSummaryText: { fontFamily: "Inter_500Medium", fontSize: 13, flex: 1, lineHeight: 19 },
   textInput: {
     backgroundColor: brand.offWhite,
     borderRadius: 12,
@@ -754,7 +667,6 @@ const styles = StyleSheet.create({
     borderColor: brand.border,
   },
   sendBtn: {
-    backgroundColor: brand.green,
     borderRadius: 14,
     paddingVertical: 16,
     flexDirection: "row",
@@ -763,16 +675,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sendBtnDisabled: { backgroundColor: brand.border },
-  sendBtnText: { color: brand.white, fontFamily: "Inter_700Bold", fontSize: 16 },
-  emptyBox: {
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 32,
-  },
-  emptyText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: brand.textMuted,
-    textAlign: "center",
-  },
+  sendBtnEmoji: { fontSize: 18 },
+  sendBtnText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 16 },
+  emptyBox: { alignItems: "center", gap: 6, paddingVertical: 36 },
+  emptyEmoji: { fontSize: 40 },
+  emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: brand.text },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 13, color: brand.textMuted, textAlign: "center", lineHeight: 19 },
 });

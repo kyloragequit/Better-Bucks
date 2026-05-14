@@ -440,8 +440,9 @@ const ADMIN_TOOLS: {
   { icon: "people-outline", label: "Pending Accounts", route: "/admin/pending" },
   { icon: "trophy-outline", label: "Goals", route: "/admin/goals" },
   { icon: "document-text-outline", label: "Surveys", route: "/admin/surveys" },
+  { icon: "gift-outline", label: "Reward Cards", route: "/admin/reward-cards" },
   { icon: "storefront-outline", label: "Store Items", route: "/admin/store-items" },
-  { icon: "settings-outline", label: "Organization Settings", route: "/admin/org-settings" },
+  { icon: "settings-outline", label: "Org Settings", route: "/admin/org-settings" },
 ];
 
 function AdminToolCard({
@@ -537,9 +538,9 @@ const txStyles = StyleSheet.create({
   },
 });
 
-type HeldItem = {
+type HeldCard = {
   id: number;
-  item: { id: number; name: string; imageUrl: string | null };
+  card: { id: number; name: string; emoji: string; color: string };
   fromUser: { id: number; fullName: string; username: string };
   createdAt: string;
 };
@@ -551,13 +552,13 @@ function MyItemsSection({
   token: string | null;
   onViewAll: () => void;
 }) {
-  const { data: items = [], isLoading } = useQuery<HeldItem[]>({
-    queryKey: ["item-mine", token],
+  const { data: items = [], isLoading } = useQuery<HeldCard[]>({
+    queryKey: ["rc-mine", token],
     queryFn: async () => {
-      const res = await fetch(apiUrl("/api/mobile/items/mine"), {
+      const res = await fetch(apiUrl("/api/mobile/reward-cards/mine"), {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
-      if (!res.ok) throw new Error("Failed to load items");
+      if (!res.ok) throw new Error("Failed to load cards");
       return res.json();
     },
     enabled: !!token,
@@ -568,18 +569,18 @@ function MyItemsSection({
     <View style={myItemsStyles.container}>
       <View style={myItemsStyles.header}>
         <View style={myItemsStyles.headerLeft}>
-          <Ionicons name="cube-outline" size={15} color={brand.navy} />
-          <Text style={myItemsStyles.title}>My Items</Text>
+          <Text style={{ fontSize: 15 }}>🎫</Text>
+          <Text style={myItemsStyles.title}>My Reward Cards</Text>
         </View>
         <Pressable onPress={onViewAll} hitSlop={8} accessibilityRole="button">
-          <Text style={myItemsStyles.viewAll}>Manage →</Text>
+          <Text style={myItemsStyles.viewAll}>View all →</Text>
         </Pressable>
       </View>
 
       {isLoading ? (
         <ActivityIndicator color={brand.green} style={{ marginVertical: 8 }} />
       ) : items.length === 0 ? (
-        <Text style={myItemsStyles.emptyText}>No items yet — admins can send you items.</Text>
+        <Text style={myItemsStyles.emptyText}>No reward cards yet — your manager can send them here.</Text>
       ) : (
         <ScrollView
           horizontal
@@ -587,18 +588,14 @@ function MyItemsSection({
           contentContainerStyle={myItemsStyles.row}
         >
           {items.map((held) => (
-            <View key={held.id} style={myItemsStyles.chip}>
-              {held.item.imageUrl ? (
-                <Image source={{ uri: held.item.imageUrl }} style={myItemsStyles.chipImg} />
-              ) : (
-                <View style={myItemsStyles.chipImgPlaceholder}>
-                  <Ionicons name="cube-outline" size={16} color={brand.textMuted} />
-                </View>
-              )}
+            <Pressable key={held.id} style={myItemsStyles.chip} onPress={onViewAll}>
+              <View style={[myItemsStyles.chipEmoji, { backgroundColor: held.card.color + "22" }]}>
+                <Text style={{ fontSize: 22 }}>{held.card.emoji}</Text>
+              </View>
               <Text style={myItemsStyles.chipName} numberOfLines={2}>
-                {held.item.name}
+                {held.card.name}
               </Text>
-            </View>
+            </Pressable>
           ))}
           <Pressable style={myItemsStyles.moreChip} onPress={onViewAll}>
             <Ionicons name="arrow-forward" size={16} color={brand.green} />
@@ -649,16 +646,10 @@ const myItemsStyles = StyleSheet.create({
     gap: 6,
     width: 72,
   },
-  chipImg: {
+  chipEmoji: {
     width: 52,
     height: 52,
     borderRadius: 10,
-  },
-  chipImgPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    backgroundColor: brand.offWhite,
     alignItems: "center",
     justifyContent: "center",
   },

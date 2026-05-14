@@ -56,9 +56,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="send"
         options={{
-          title: "Items",
-          tabBarIcon: ({ focused }) => <TabIcon name="swap-horizontal" focused={focused} />,
-          headerTitle: "Send & Receive Items",
+          title: "Cards",
+          tabBarIcon: ({ focused }) => <TabIcon name="gift" focused={focused} />,
+          headerTitle: "Reward Cards",
         }}
       />
 

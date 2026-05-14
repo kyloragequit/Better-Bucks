@@ -749,9 +749,54 @@ export const securityEvents = pgTable("security_events", {
 export type SecurityEvent = typeof securityEvents.$inferSelect;
 export type InsertSecurityEvent = typeof securityEvents.$inferInsert;
 
-// ── Item transfers ─────────────────────────────────────────────────────────────
-// Tracks preset store-item transfers between employees and admins.
-// Rules enforced at the API layer: employee ↔ admin only (no employee↔employee).
+// ── Reward cards ───────────────────────────────────────────────────────────────
+// Org-defined perk card types (e.g. "15-min break", "Free lunch").
+// No Bucks value — purely non-monetary rewards admins hand to employees.
+export const rewardCards = pgTable("reward_cards", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  emoji: text("emoji").default("🎫").notNull(),
+  color: text("color").default("#1A237E").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRewardCardSchema = createInsertSchema(rewardCards).omit({
+  id: true,
+  createdAt: true,
+});
+export type RewardCard = typeof rewardCards.$inferSelect;
+export type InsertRewardCard = z.infer<typeof insertRewardCardSchema>;
+
+// ── Reward card transfers ───────────────────────────────────────────────────────
+// Individual card instances sent admin→employee (or employee→admin to redeem).
+// Rules enforced at API layer: employee ↔ admin only (no employee↔employee).
+export const rewardCardTransfers = pgTable("reward_card_transfers", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull(),
+  rewardCardId: integer("reward_card_id").notNull(),
+  fromUserId: integer("from_user_id").notNull(),
+  toUserId: integer("to_user_id").notNull(),
+  status: text("status", {
+    enum: ["pending", "accepted", "used", "declined", "recalled"],
+  })
+    .default("pending")
+    .notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRewardCardTransferSchema = createInsertSchema(rewardCardTransfers).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+});
+export type RewardCardTransfer = typeof rewardCardTransfers.$inferSelect;
+export type InsertRewardCardTransfer = z.infer<typeof insertRewardCardTransferSchema>;
+
+// ── Item transfers (store-item trading — reserved for future use) ───────────────
 export const itemTransfers = pgTable("item_transfers", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").notNull(),

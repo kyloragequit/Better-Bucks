@@ -3307,9 +3307,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
   // Tier pricing configuration
   const tierConfig = {
-    small:      { price: 1758,  maxEmployees: 25,  name: "A Little Better",  description: "25 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
-    mid:        { price: 3038,  maxEmployees: 75,  name: "Much Better",      description: "75 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    large:      { price: 4798,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    small:      { price: 1800,  maxEmployees: 25,  name: "A Little Better",  description: "25 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
+    mid:        { price: 3000,  maxEmployees: 75,  name: "Much Better",      description: "75 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
+    large:      { price: 4800,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
     enterprise: { price: 0,     maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — custom pricing, please contact us for a personalized quote." },
   } as const;
 
@@ -3351,7 +3351,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     orgCode: string; referralCode?: string; mode: "stripe" | "contactPending" | "promo";
   }) {
     const planPrices: Record<string, string> = {
-      small: "$17.58/mo per org", mid: "$30.38/mo per org", large: "$47.98/mo per org", enterprise: "Contact us",
+      small: "$18/mo per org", mid: "$30/mo per org", large: "$48/mo per org", enterprise: "Contact us",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;
@@ -6026,10 +6026,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }).parse(req.body);
 
     const tiers = [
-      { tier: "small", price: 9998, name: "A Little Better", maxEmp: 25 },
-      { tier: "mid", price: 19998, name: "Much Better", maxEmp: 75 },
-      { tier: "large", price: 29998, name: "A LOT Better", maxEmp: 150 },
-      { tier: "enterprise", price: 59998, name: "How much Better?", maxEmp: "Unlimited" },
+      { tier: "small", price: 10000, name: "A Little Better", maxEmp: 25 },
+      { tier: "mid", price: 20000, name: "Much Better", maxEmp: 75 },
+      { tier: "large", price: 30000, name: "A LOT Better", maxEmp: 150 },
+      { tier: "enterprise", price: 60000, name: "How much Better?", maxEmp: "Unlimited" },
     ];
 
     const laTaxRate = 0.0945;

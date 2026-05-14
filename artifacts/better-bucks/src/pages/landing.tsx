@@ -575,10 +575,10 @@ export default function LandingPage() {
               <p className="text-2xl font-extrabold text-primary mt-1 mb-1">25 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 25 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-gray-900">$17.58</span>
+                <span className="text-4xl font-bold text-gray-900">$18</span>
                 <span className="text-sm text-gray-500">/mo per org</span>
               </div>
-              <p className="text-xs text-gray-500 mb-5">~$0.70 per login</p>
+              <p className="text-xs text-gray-500 mb-5">~$0.72 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
                 {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
@@ -603,10 +603,10 @@ export default function LandingPage() {
               <p className="text-2xl font-extrabold text-secondary mt-1 mb-1">75 Logins</p>
               <p className="text-xs text-white/70 mb-4">Up to 75 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-white">$30.38</span>
+                <span className="text-4xl font-bold text-white">$30</span>
                 <span className="text-sm text-white/70">/mo per org</span>
               </div>
-              <p className="text-xs text-white/70 mb-5">~$0.41 per login</p>
+              <p className="text-xs text-white/70 mb-5">~$0.40 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
                 {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-white/90">
@@ -628,7 +628,7 @@ export default function LandingPage() {
               <p className="text-2xl font-extrabold text-primary mt-1 mb-1">150 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 150 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-gray-900">$47.98</span>
+                <span className="text-4xl font-bold text-gray-900">$48</span>
                 <span className="text-sm text-gray-500">/mo per org</span>
               </div>
               <p className="text-xs text-gray-500 mb-5">~$0.32 per login</p>

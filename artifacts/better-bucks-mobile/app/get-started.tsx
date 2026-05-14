@@ -1,17 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { TextField } from "@/components/TextField";
 import { brand } from "@/constants/colors";
 import { apiUrl } from "@/constants/api";
@@ -45,7 +39,7 @@ export default function GetStartedScreen() {
       const res = await fetch(apiUrl(`/api/join/${encodeURIComponent(trimmed.toLowerCase())}`));
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.message ?? "Site ID not found. Please check with your manager.");
+        setError(data?.message ?? "Site ID not found. Check with your manager.");
         return;
       }
       setOrgName(data.orgName ?? "");
@@ -112,30 +106,23 @@ export default function GetStartedScreen() {
 
   if (step === "pending") {
     return (
-      <View style={styles.centeredContainer}>
-        <Ionicons name="time-outline" size={56} color={brand.green} />
-        <Text style={styles.pendingTitle}>Almost there!</Text>
-        <Text style={styles.pendingBody}>
-          Your account is waiting for approval by your manager. You'll be able to log in once they approve it.
-        </Text>
-        <Button title="Back to Login" onPress={() => router.replace("/login")} style={{ marginTop: 24 }} />
-      </View>
+      <ScreenContainer scroll={false}>
+        <View style={styles.pendingCenter}>
+          <Ionicons name="time-outline" size={56} color={brand.green} />
+          <Text style={styles.pendingTitle}>Almost there!</Text>
+          <Text style={styles.pendingBody}>
+            Your account is waiting for approval by your manager. You'll be able to log in once they approve it.
+          </Text>
+          <Button title="Back to Login" onPress={() => router.replace("/login")} style={{ marginTop: 24 }} />
+        </View>
+      </ScreenContainer>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <TouchableOpacity style={styles.back} onPress={() => {
-        if (step === "site-id") router.back();
-        else if (step === "employee-code") { setStep("site-id"); setError(null); }
-        else if (step === "register") { setStep("employee-code"); setError(null); }
-      }}>
-        <Ionicons name="arrow-back" size={22} color={brand.navy} />
-      </TouchableOpacity>
-
+    <ScreenContainer>
       <View style={styles.header}>
         <Logo size={64} />
-        <Text style={styles.title}>New Employee Setup</Text>
         {orgName ? (
           <View style={styles.orgBadge}>
             <Text style={styles.orgBadgeText}>{orgName}</Text>
@@ -178,6 +165,12 @@ export default function GetStartedScreen() {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button title="Continue" onPress={handleEmployeeCodeContinue} loading={loading} style={{ marginTop: 8 }} />
+          <View style={{ height: 8 }} />
+          <Button
+            title="Back"
+            variant="ghost"
+            onPress={() => { setStep("site-id"); setError(null); }}
+          />
         </View>
       )}
 
@@ -212,53 +205,32 @@ export default function GetStartedScreen() {
           )}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button title="Submit" onPress={handleRegister} loading={loading} style={{ marginTop: 8 }} />
+          <View style={{ height: 8 }} />
+          <Button
+            title="Back"
+            variant="ghost"
+            onPress={() => { setStep("employee-code"); setError(null); }}
+          />
         </View>
       )}
-    </ScrollView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    backgroundColor: brand.white,
-    paddingHorizontal: 24,
-    paddingTop: 56,
-    paddingBottom: 40,
-  },
-  centeredContainer: {
-    flex: 1,
-    backgroundColor: brand.white,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  back: {
-    position: "absolute",
-    top: 56,
-    left: 16,
-    padding: 8,
-  },
   header: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 28,
     gap: 10,
   },
-  title: {
-    color: brand.text,
-    fontFamily: "Inter_700Bold",
-    fontSize: 22,
-    marginTop: 4,
-  },
   orgBadge: {
-    backgroundColor: brand.greenLight ?? "#e8f5e9",
+    backgroundColor: brand.greenLight,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 4,
   },
   orgBadgeText: {
-    color: brand.green,
+    color: brand.white,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
   },
@@ -289,6 +261,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     marginTop: 4,
+  },
+  pendingCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
   },
   pendingTitle: {
     color: brand.text,

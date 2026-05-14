@@ -38,6 +38,7 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ title: "Log In" }} />
+      <Stack.Screen name="get-started" options={{ title: "New Employee Setup" }} />
       <Stack.Screen name="forgot-password" options={{ title: "Forgot Password" }} />
       <Stack.Screen name="change-password" options={{ title: "Change Password" }} />
       <Stack.Screen name="social-signup" options={{ title: "Finish Sign-Up" }} />

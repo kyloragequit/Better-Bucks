@@ -13,6 +13,7 @@ type Tier = {
   blurb: string;
   monthlyCents: number | null;
   employees: string;
+  perEmployee: string;
   popular?: boolean;
 };
 
@@ -23,6 +24,7 @@ const TIERS: Tier[] = [
     blurb: "Best for small teams getting started.",
     monthlyCents: 1800,
     employees: "Up to 25 employees",
+    perEmployee: "~$0.72/employee",
   },
   {
     key: "mid",
@@ -30,6 +32,7 @@ const TIERS: Tier[] = [
     blurb: "Most popular for growing teams.",
     monthlyCents: 3000,
     employees: "Up to 75 employees",
+    perEmployee: "~$0.40/employee",
     popular: true,
   },
   {
@@ -38,6 +41,7 @@ const TIERS: Tier[] = [
     blurb: "For mid-size organizations.",
     monthlyCents: 4800,
     employees: "Up to 150 employees",
+    perEmployee: "~$0.32/employee",
   },
   {
     key: "enterprise",
@@ -45,6 +49,7 @@ const TIERS: Tier[] = [
     blurb: "Custom pricing for unlimited teams.",
     monthlyCents: null,
     employees: "Unlimited employees",
+    perEmployee: "Contact us",
   },
 ];
 
@@ -138,6 +143,12 @@ function PlanCard({
           {tier.employees}
         </Text>
       </View>
+      {tier.monthlyCents !== null && (
+        <View style={planStyles.perEmpRow}>
+          <Ionicons name="person-outline" size={13} color={brand.textMuted} />
+          <Text style={planStyles.perEmpText}>{tier.perEmployee}</Text>
+        </View>
+      )}
       {selected && (
         <View style={planStyles.checkRow}>
           <Ionicons name="checkmark-circle" size={16} color={brand.green} />
@@ -220,6 +231,17 @@ const planStyles = StyleSheet.create({
     color: brand.navy,
     fontFamily: "Inter_700Bold",
     fontSize: 13,
+  },
+  perEmpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  perEmpText: {
+    color: brand.textMuted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
   },
   checkRow: {
     flexDirection: "row",

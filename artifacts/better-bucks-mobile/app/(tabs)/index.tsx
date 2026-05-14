@@ -10,15 +10,12 @@ import {
   ActivityIndicator,
   ToastAndroid,
 } from "react-native";
-import { useState, useEffect, useRef, useCallback } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { OnboardingModal } from "@/components/OnboardingModal";
-import { File as EFSFile, Paths } from "expo-file-system";
-import * as Linking from "expo-linking";
 import { apiUrl } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,15 +30,6 @@ type MonthlySummary = {
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function walletStorageKey(userId: number | string) {
-  return `wallet_pass_added_at_${userId}`;
-}
-
-function formatPassDate(isoStr: string) {
-  const d = new Date(isoStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatLastUpdated(cachedAt: number): string {
@@ -59,11 +47,6 @@ export default function HomeTab() {
   const { token, user } = useAuth();
   const insets = useSafeAreaInsets();
   const { visible: onboardingVisible, dismiss: dismissOnboarding } = useOnboarding();
-  const [walletLoading, setWalletLoading] = useState(false);
-  const [passAddedAt, setPassAddedAt] = useState<string | null>(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const isEmployee = user?.role === "employee";
   const admin = user?.role === "admin" || user?.role === "prime_admin";
 
@@ -82,67 +65,6 @@ export default function HomeTab() {
     enabled: !!token && isEmployee,
     staleTime: 30_000,
   });
-
-  useEffect(() => {
-    if (!user?.id) {
-      setPassAddedAt(null);
-      return;
-    }
-    AsyncStorage.getItem(walletStorageKey(user.id)).then((val) => {
-      setPassAddedAt(val ?? null);
-    });
-  }, [user?.id]);
-
-  useEffect(() => {
-    return () => {
-      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-    };
-  }, []);
-
-  async function handleAddToWallet() {
-    if (!token) return;
-    setWalletLoading(true);
-    try {
-      if (Platform.OS === "android") {
-        const res = await fetch(apiUrl("/api/mobile/wallet-pass/android"), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          Alert.alert(
-            "Google Wallet",
-            (body as any)?.message ?? "Could not generate your wallet pass. Please try again.",
-          );
-          return;
-        }
-        const { saveUrl } = (await res.json()) as { saveUrl: string };
-        await Linking.openURL(saveUrl);
-      } else {
-        const url = apiUrl("/api/mobile/wallet-pass");
-        const destFile = new EFSFile(Paths.cache, "betterbucks.pkpass");
-        const downloaded = await EFSFile.downloadFileAsync(url, destFile, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!downloaded.exists) {
-          Alert.alert("Apple Wallet", "Could not download your wallet pass. Please try again.");
-          return;
-        }
-        await Linking.openURL(downloaded.uri);
-      }
-      const now = new Date().toISOString();
-      setPassAddedAt(now);
-      if (user?.id) {
-        AsyncStorage.setItem(walletStorageKey(user.id), now).catch(() => {});
-      }
-      setShowConfirmation(true);
-      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-      confirmTimerRef.current = setTimeout(() => setShowConfirmation(false), 4000);
-    } catch {
-      Alert.alert("Wallet Pass", "Something went wrong. Please try again.");
-    } finally {
-      setWalletLoading(false);
-    }
-  }
 
   const handleRefresh = useCallback(async () => {
     if (isOffline) {
@@ -252,47 +174,25 @@ export default function HomeTab() {
           </View>
         )}
 
-        {/* Wallet pass section — employees only */}
+        {/* NFC Bucks transfer — employees only */}
         {isEmployee && (
-          <View style={styles.walletSection}>
-            {showConfirmation && (
-              <View style={styles.confirmationBanner}>
-                <Ionicons name="checkmark-circle" size={16} color={brand.green} />
-                <Text style={styles.confirmationText}>Pass Added! Open the Wallet app to view your Bucks card.</Text>
-              </View>
-            )}
-            <Pressable
-              style={({ pressed }) => [
-                styles.walletButton,
-                passAddedAt ? styles.walletButtonUpdate : null,
-                pressed && { opacity: 0.75 },
-                walletLoading && { opacity: 0.6 },
-              ]}
-              onPress={handleAddToWallet}
-              disabled={walletLoading}
-              accessibilityLabel={passAddedAt ? "Re-download Bucks card to Wallet" : "Add to Apple Wallet"}
-              accessibilityRole="button"
-            >
-              {walletLoading ? (
-                <ActivityIndicator color={passAddedAt ? brand.green : brand.white} size="small" />
-              ) : (
-                <Ionicons
-                  name="wallet-outline"
-                  size={18}
-                  color={passAddedAt ? brand.green : brand.white}
-                />
-              )}
-              <Text style={[styles.walletButtonText, passAddedAt ? styles.walletButtonTextUpdate : null]}>
-                {walletLoading ? "Downloading…" : passAddedAt ? "Update Pass" : "Add to Wallet"}
+          <Pressable
+            style={({ pressed }) => [styles.nfcCard, pressed && { opacity: 0.82 }]}
+            onPress={() => router.push("/(tabs)/send")}
+            accessibilityRole="button"
+            accessibilityLabel="Send Bucks via NFC tap"
+          >
+            <View style={styles.nfcCardIcon}>
+              <Ionicons name="radio-outline" size={22} color={brand.white} />
+            </View>
+            <View style={styles.nfcCardBody}>
+              <Text style={styles.nfcCardTitle}>Send Bucks via NFC</Text>
+              <Text style={styles.nfcCardSub}>
+                Hold phones together to transfer Bucks instantly
               </Text>
-            </Pressable>
-            {passAddedAt && !showConfirmation && (
-              <View style={styles.passStatusRow}>
-                <Ionicons name="checkmark-circle-outline" size={13} color={brand.green} />
-                <Text style={styles.passStatusText}>Added on {formatPassDate(passAddedAt)}</Text>
-              </View>
-            )}
-          </View>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
+          </Pressable>
         )}
 
         {/* Admin org dashboard */}
@@ -779,59 +679,37 @@ const styles = StyleSheet.create({
     backgroundColor: brand.border,
     marginHorizontal: 12,
   },
-  walletSection: {
-    marginBottom: 20,
-    gap: 8,
-  },
-  confirmationBanner: {
+  nfcCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(46,125,50,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(46,125,50,0.20)",
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    gap: 14,
+    backgroundColor: brand.navy,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
   },
-  confirmationText: {
-    color: brand.green,
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    flex: 1,
-  },
-  walletButton: {
-    flexDirection: "row",
+  nfcCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: brand.green,
-    borderRadius: 10,
-    paddingVertical: 14,
   },
-  walletButtonUpdate: {
-    backgroundColor: brand.white,
-    borderWidth: 1.5,
-    borderColor: brand.green,
+  nfcCardBody: {
+    flex: 1,
+    gap: 3,
   },
-  walletButtonText: {
+  nfcCardTitle: {
     color: brand.white,
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
   },
-  walletButtonTextUpdate: {
-    color: brand.green,
-  },
-  passStatusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  passStatusText: {
-    color: brand.textMuted,
+  nfcCardSub: {
+    color: "rgba(255,255,255,0.60)",
     fontFamily: "Inter_400Regular",
     fontSize: 12,
+    lineHeight: 16,
   },
   statsRow: {
     flexDirection: "row",

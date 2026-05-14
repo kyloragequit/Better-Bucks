@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   FlatList,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -71,6 +73,10 @@ function EmployeeStore() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+
+  const [pendingItem, setPendingItem] = useState<StoreItem | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   const minVal = minPrice === "" ? null : Number(minPrice);
   const maxVal = maxPrice === "" ? null : Number(maxPrice);
@@ -188,47 +194,62 @@ function EmployeeStore() {
     }
   }, [scanningNfc, token, queryClient]);
 
+  const executePurchase = useCallback(
+    async (item: StoreItem, size: string | null, color: string | null) => {
+      setPurchasing(item.id);
+      try {
+        const res = await fetch(
+          apiUrl(`/api/mobile/store-items/${item.id}/purchase`),
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token ?? ""}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              quantity: 1,
+              ...(size ? { selectedSize: size } : {}),
+              ...(color ? { selectedColor: color } : {}),
+            }),
+          },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          Alert.alert("Purchase failed", data?.message ?? "Try again.");
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ["mobile-dashboard"] });
+        Alert.alert("Purchased!", "Your order has been placed.");
+      } catch (e: any) {
+        Alert.alert("Error", e?.message ?? "Network error.");
+      } finally {
+        setPurchasing(null);
+      }
+    },
+    [token, queryClient],
+  );
+
   const handlePurchase = useCallback(
-    async (item: StoreItem) => {
+    (item: StoreItem) => {
+      const needsAttrs =
+        (item.requiresSize && (item.sizes ?? []).length > 0) ||
+        (item.requiresColor && (item.colors ?? []).length > 0);
+      if (needsAttrs) {
+        setSelectedSize(null);
+        setSelectedColor(null);
+        setPendingItem(item);
+        return;
+      }
       Alert.alert(
         `Buy "${item.name}"?`,
         `This will cost ${item.price.toLocaleString()} Bucks.`,
         [
           { text: "Cancel", style: "cancel" },
-          {
-            text: "Buy",
-            onPress: async () => {
-              setPurchasing(item.id);
-              try {
-                const res = await fetch(
-                  apiUrl(`/api/mobile/store-items/${item.id}/purchase`),
-                  {
-                    method: "POST",
-                    headers: {
-                      Authorization: `Bearer ${token ?? ""}`,
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ quantity: 1 }),
-                  },
-                );
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                  Alert.alert("Purchase failed", data?.message ?? "Try again.");
-                  return;
-                }
-                queryClient.invalidateQueries({ queryKey: ["mobile-dashboard"] });
-                Alert.alert("Purchased!", "Your order has been placed.");
-              } catch (e: any) {
-                Alert.alert("Error", e?.message ?? "Network error.");
-              } finally {
-                setPurchasing(null);
-              }
-            },
-          },
+          { text: "Buy", onPress: () => executePurchase(item, null, null) },
         ],
       );
     },
-    [token, queryClient],
+    [executePurchase],
   );
 
   if (isLoading) {
@@ -399,44 +420,68 @@ function EmployeeStore() {
           )}
         </View>
       }
-      renderItem={({ item }) => (
-        <View style={styles.itemCard}>
-          <View style={styles.itemHeader}>
-            <View style={styles.itemIconBox}>
-              <Ionicons name="gift-outline" size={26} color={brand.green} />
+      renderItem={({ item }) => {
+        const hasAttrs =
+          (item.requiresSize && (item.sizes ?? []).length > 0) ||
+          (item.requiresColor && (item.colors ?? []).length > 0);
+        return (
+          <View style={styles.itemCard}>
+            <View style={styles.itemHeader}>
+              <View style={styles.itemIconBox}>
+                <Ionicons name="gift-outline" size={26} color={brand.green} />
+              </View>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                {item.description ? (
+                  <Text style={styles.itemDesc} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+                ) : null}
+                {hasAttrs && (
+                  <View style={attrStyles.badgeRow}>
+                    {item.requiresSize &&
+                      (item.sizes ?? []).slice(0, 5).map((s) => (
+                        <View key={s} style={attrStyles.badge}>
+                          <Text style={attrStyles.badgeText}>{s}</Text>
+                        </View>
+                      ))}
+                    {item.requiresColor &&
+                      (item.colors ?? []).slice(0, 5).map((c) => (
+                        <View key={c} style={attrStyles.badge}>
+                          <Text style={attrStyles.badgeText}>{c}</Text>
+                        </View>
+                      ))}
+                  </View>
+                )}
+              </View>
             </View>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              {item.description ? (
-                <Text style={styles.itemDesc} numberOfLines={2}>
-                  {item.description}
-                </Text>
-              ) : null}
+            <View style={styles.itemFooter}>
+              <Text style={styles.itemPrice}>
+                {item.price.toLocaleString()} Bucks
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.buyBtn,
+                  hasAttrs ? attrStyles.selectBtn : null,
+                  purchasing === item.id ? { opacity: 0.6 } : null,
+                ]}
+                onPress={() => handlePurchase(item)}
+                disabled={purchasing === item.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Redeem ${item.name} for ${item.price} Bucks`}
+              >
+                {purchasing === item.id ? (
+                  <ActivityIndicator size="small" color={brand.white} />
+                ) : (
+                  <Text style={styles.buyBtnText}>
+                    {hasAttrs ? "Select & Buy" : "Redeem"}
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.itemFooter}>
-            <Text style={styles.itemPrice}>
-              {item.price.toLocaleString()} Bucks
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.buyBtn,
-                purchasing === item.id ? { opacity: 0.6 } : null,
-              ]}
-              onPress={() => handlePurchase(item)}
-              disabled={purchasing === item.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Redeem ${item.name} for ${item.price} Bucks`}
-            >
-              {purchasing === item.id ? (
-                <ActivityIndicator size="small" color={brand.white} />
-              ) : (
-                <Text style={styles.buyBtnText}>Redeem</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+        );
+      }}
     />
     <TouchableOpacity
       style={[styles.nfcFab, { bottom: insets.bottom + 24 }]}
@@ -453,6 +498,132 @@ function EmployeeStore() {
         </>
       )}
     </TouchableOpacity>
+
+    {/* ── Attribute selection sheet ── */}
+    <Modal
+      visible={pendingItem !== null}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setPendingItem(null)}
+    >
+      <Pressable style={attrStyles.overlay} onPress={() => setPendingItem(null)}>
+        <Pressable style={attrStyles.sheet} onPress={() => {}}>
+          <View style={attrStyles.sheetHandle} />
+          {pendingItem && (
+            <>
+              <View style={attrStyles.sheetHeader}>
+                <View style={attrStyles.sheetIconBox}>
+                  <Ionicons name="gift-outline" size={22} color={brand.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={attrStyles.sheetTitle}>{pendingItem.name}</Text>
+                  <Text style={attrStyles.sheetPrice}>
+                    {pendingItem.price.toLocaleString()} Bucks
+                  </Text>
+                </View>
+              </View>
+
+              {pendingItem.requiresSize && (pendingItem.sizes ?? []).length > 0 && (
+                <View style={attrStyles.optionSection}>
+                  <Text style={attrStyles.optionLabel}>
+                    Size{selectedSize ? ` — ${selectedSize}` : " (required)"}
+                  </Text>
+                  <View style={attrStyles.optionsRow}>
+                    {(pendingItem.sizes ?? []).map((s) => (
+                      <Pressable
+                        key={s}
+                        style={[
+                          attrStyles.optionChip,
+                          selectedSize === s && attrStyles.optionChipActive,
+                        ]}
+                        onPress={() => setSelectedSize(s)}
+                      >
+                        <Text
+                          style={[
+                            attrStyles.optionChipText,
+                            selectedSize === s && attrStyles.optionChipTextActive,
+                          ]}
+                        >
+                          {s}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {pendingItem.requiresColor && (pendingItem.colors ?? []).length > 0 && (
+                <View style={attrStyles.optionSection}>
+                  <Text style={attrStyles.optionLabel}>
+                    Color{selectedColor ? ` — ${selectedColor}` : " (required)"}
+                  </Text>
+                  <View style={attrStyles.optionsRow}>
+                    {(pendingItem.colors ?? []).map((c) => (
+                      <Pressable
+                        key={c}
+                        style={[
+                          attrStyles.optionChip,
+                          selectedColor === c && attrStyles.optionChipActive,
+                        ]}
+                        onPress={() => setSelectedColor(c)}
+                      >
+                        <Text
+                          style={[
+                            attrStyles.optionChipText,
+                            selectedColor === c && attrStyles.optionChipTextActive,
+                          ]}
+                        >
+                          {c}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View style={attrStyles.sheetButtons}>
+                <TouchableOpacity
+                  style={attrStyles.cancelBtn}
+                  onPress={() => setPendingItem(null)}
+                >
+                  <Text style={attrStyles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    attrStyles.confirmBtn,
+                    ((pendingItem.requiresSize && !selectedSize) ||
+                      (pendingItem.requiresColor && !selectedColor)) &&
+                      attrStyles.confirmBtnDisabled,
+                  ]}
+                  disabled={
+                    (pendingItem.requiresSize && !selectedSize) ||
+                    (pendingItem.requiresColor && !selectedColor)
+                  }
+                  onPress={() => {
+                    const item = pendingItem;
+                    const size = selectedSize;
+                    const color = selectedColor;
+                    setPendingItem(null);
+                    Alert.alert(
+                      "Confirm Purchase",
+                      `${item.name}${[size, color].filter(Boolean).length ? `\n${[size, color].filter(Boolean).join(" · ")}` : ""}\n\n${item.price.toLocaleString()} Bucks`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Buy", onPress: () => executePurchase(item, size, color) },
+                      ],
+                    );
+                  }}
+                >
+                  <Text style={attrStyles.confirmBtnText}>
+                    Confirm — {pendingItem.price.toLocaleString()} Bucks
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
     </View>
   );
 }
@@ -997,5 +1168,149 @@ const styles = StyleSheet.create({
     color: brand.white,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
+  },
+});
+
+const attrStyles = StyleSheet.create({
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 6,
+  },
+  badge: {
+    backgroundColor: brand.offWhite,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: brand.border,
+  },
+  badgeText: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+  },
+  selectBtn: {
+    backgroundColor: brand.navy,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.48)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: brand.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    gap: 18,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: brand.border,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  sheetIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "rgba(46,125,50,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetTitle: {
+    color: brand.text,
+    fontFamily: "Inter_700Bold",
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  sheetPrice: {
+    color: brand.navy,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    marginTop: 2,
+  },
+  optionSection: {
+    gap: 10,
+  },
+  optionLabel: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+  },
+  optionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  optionChip: {
+    borderWidth: 1.5,
+    borderColor: brand.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: brand.white,
+  },
+  optionChipActive: {
+    borderColor: brand.green,
+    backgroundColor: "rgba(46,125,50,0.08)",
+  },
+  optionChipText: {
+    color: brand.text,
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+  },
+  optionChipTextActive: {
+    color: brand.green,
+    fontFamily: "Inter_600SemiBold",
+  },
+  sheetButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: brand.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBtnText: {
+    color: brand.textSecondary,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
+  confirmBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: brand.green,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  confirmBtnDisabled: {
+    backgroundColor: brand.border,
+  },
+  confirmBtnText: {
+    color: brand.white,
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+    textAlign: "center",
   },
 });

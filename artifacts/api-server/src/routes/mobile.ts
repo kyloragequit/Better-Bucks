@@ -163,13 +163,27 @@ export function registerMobileRoutes(app: Express) {
   // Login — JSON token instead of cookie session
   app.post("/api/mobile/login", async (req, res) => {
     try {
-      const { username, password } = z
-        .object({ username: z.string().min(1), password: z.string().min(1) })
+      const { username, password, orgCode } = z
+        .object({
+          username: z.string().min(1),
+          password: z.string().min(1),
+          orgCode: z.string().optional(),
+        })
         .parse(req.body);
 
-      let user = await storage.getUserByUsername(username);
-      if (!user && username.includes("@")) {
-        user = await storage.getUserByEmailGlobal(username);
+      let user: User | undefined;
+      if (orgCode && orgCode.trim()) {
+        const org = await storage.getOrganizationBySiteId(orgCode.trim().toLowerCase())
+          ?? await storage.getOrganizationByCode(orgCode.trim().toUpperCase());
+        if (org) {
+          user = await storage.getUserByUsernameAndOrg(username, org.id)
+            ?? await storage.getUserByEmailAndOrg(username, org.id);
+        }
+      } else {
+        user = await storage.getUserByUsername(username);
+        if (!user && username.includes("@")) {
+          user = await storage.getUserByEmailGlobal(username);
+        }
       }
       if (!user) {
         res
@@ -213,6 +227,89 @@ export function registerMobileRoutes(app: Express) {
       }
       console.error("[mobile/login]", err);
       res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Public: employee first-time join / self-registration via Site ID (mobile JWT variant)
+  app.post("/api/mobile/join", async (req, res) => {
+    try {
+      const { siteId, username, fullName, email, password } = z
+        .object({
+          siteId: z.string().min(1),
+          username: z.string().min(1),
+          fullName: z.string().optional(),
+          email: z.string().email().optional().or(z.literal("")),
+          password: z.string().optional(),
+        })
+        .parse(req.body);
+
+      const trimmedSiteId = siteId.trim().toLowerCase();
+      const trimmedUsername = username.trim();
+
+      const org = await storage.getOrganizationBySiteId(trimmedSiteId);
+      if (!org || org.status !== "active") {
+        res.status(404).json({ message: "Invalid or inactive Site ID" });
+        return;
+      }
+
+      const existingUser = await storage.getUserByUsernameAndOrg(trimmedUsername, org.id);
+      if (existingUser) {
+        if (existingUser.status !== "approved") {
+          res.status(403).json({ message: "Your account is pending approval. Please contact your administrator." });
+          return;
+        }
+        const freshUser = await storage.recordSuccessfulLogin(existingUser.id);
+        const token = signMobileToken(existingUser.id);
+        res.json({ token, user: safeUser(freshUser) });
+        return;
+      }
+
+      if (!fullName || !fullName.trim()) {
+        res.status(200).json({
+          needsRegistration: true,
+          allowPasswordCreation: org.allowEmployeePasswordCreation ?? true,
+          orgName: org.name,
+        });
+        return;
+      }
+
+      const trimmedFullName = fullName.trim();
+
+      if (org.maxEmployees > 0) {
+        const orgUsers = await storage.getUsersByOrganization(org.id);
+        if (orgUsers.length >= org.maxEmployees) {
+          res.status(400).json({ message: `This organization has reached its employee limit (${org.maxEmployees}). Please contact your administrator.` });
+          return;
+        }
+      }
+
+      const allowPwdCreation = org.allowEmployeePasswordCreation ?? true;
+      const rawPass = (allowPwdCreation && password && password.trim().length >= 6)
+        ? password.trim()
+        : crypto.randomBytes(32).toString("hex");
+      const hashedPass = await hashPassword(rawPass);
+      await storage.createUser({
+        username: trimmedUsername,
+        password: hashedPass,
+        lastPlainPassword: (allowPwdCreation && password && password.trim().length >= 6) ? password.trim() : null,
+        fullName: trimmedFullName,
+        email: (email && email.trim()) ? email.trim() : null,
+        phone: null,
+        emailVerified: true,
+        role: "employee",
+        barcode: trimmedUsername,
+        status: "pending",
+        organizationId: org.id,
+      });
+
+      res.status(201).json({ pendingApproval: true, fullName: trimmedFullName });
+    } catch (err: any) {
+      if (err?.issues) {
+        res.status(400).json({ message: err.issues[0]?.message ?? "Invalid input" });
+        return;
+      }
+      logger.error({ err }, "[mobile/join]");
+      res.status(500).json({ message: "Internal Server Error" });
     }
   });
 

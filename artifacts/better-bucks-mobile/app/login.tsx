@@ -29,6 +29,7 @@ export default function LoginScreen() {
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [orgCode, setOrgCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [bioSubmitting, setBioSubmitting] = useState(false);
   const [socialSubmitting, setSocialSubmitting] = useState<"apple" | "google" | null>(null);
@@ -114,7 +115,7 @@ export default function LoginScreen() {
     }
     setSubmitting(true);
     setError(null);
-    const result = await login(username.trim(), password);
+    const result = await login(username.trim(), password, orgCode.trim() || undefined);
     setSubmitting(false);
     if (!result.ok) {
       setError(result.message);
@@ -208,8 +209,17 @@ export default function LoginScreen() {
       </View>
 
       <TextField
+        label="Site ID (employees only)"
+        placeholder="e.g. fef55758"
+        autoCapitalize="none"
+        textContentType="organizationName"
+        value={orgCode}
+        onChangeText={setOrgCode}
+      />
+
+      <TextField
         label="Email or username"
-        placeholder="you@company.com"
+        placeholder="you@company.com or your employee code"
         autoCapitalize="none"
         keyboardType="email-address"
         textContentType="username"
@@ -241,6 +251,13 @@ export default function LoginScreen() {
         title="Forgot Password?"
         variant="ghost"
         onPress={() => router.push("/forgot-password")}
+      />
+
+      <View style={{ height: 4 }} />
+      <Button
+        title="New Employee? Get Started"
+        variant="ghost"
+        onPress={() => router.push("/get-started" as any)}
       />
 
       <View style={{ height: 4 }} />

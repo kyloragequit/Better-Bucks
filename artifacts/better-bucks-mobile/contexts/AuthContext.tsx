@@ -45,7 +45,20 @@ type AuthContextValue = {
   login: (
     username: string,
     password: string,
+    orgCode?: string,
   ) => Promise<{ ok: true } | { ok: false; message: string }>;
+  joinAsEmployee: (
+    siteId: string,
+    username: string,
+    fullName?: string,
+    email?: string,
+    password?: string,
+  ) => Promise<
+    | { ok: true }
+    | { ok: false; message: string }
+    | { ok: "needs_registration"; allowPasswordCreation: boolean; orgName: string }
+    | { ok: "pending_approval" }
+  >;
   loginWithBiometrics: () => Promise<
     { ok: true } | { ok: false; message: string }
   >;
@@ -203,12 +216,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const login = useCallback<AuthContextValue["login"]>(
-    async (username, password) => {
+    async (username, password, orgCode) => {
       try {
         const res = await fetch(apiUrl("/api/mobile/login"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify({ username, password, ...(orgCode ? { orgCode } : {}) }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -224,6 +237,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ok: false as const,
           message: err?.message ?? "Network error",
         };
+      }
+    },
+    [signIn],
+  );
+
+  const joinAsEmployee = useCallback<AuthContextValue["joinAsEmployee"]>(
+    async (siteId, username, fullName, email, password) => {
+      try {
+        const res = await fetch(apiUrl("/api/mobile/join"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ siteId, username, fullName, email, password }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 201 && data.pendingApproval) {
+          return { ok: "pending_approval" as const };
+        }
+        if (res.status === 200 && data.needsRegistration) {
+          return {
+            ok: "needs_registration" as const,
+            allowPasswordCreation: data.allowPasswordCreation ?? true,
+            orgName: data.orgName ?? "",
+          };
+        }
+        if (!res.ok) {
+          return { ok: false as const, message: data?.message ?? "Request failed" };
+        }
+        await signIn(data.token, data.user);
+        return { ok: true as const };
+      } catch (err: any) {
+        return { ok: false as const, message: err?.message ?? "Network error" };
       }
     },
     [signIn],
@@ -468,6 +512,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signOut,
       login,
+      joinAsEmployee,
       loginWithBiometrics,
       loginWithApple,
       loginWithGoogle,
@@ -486,6 +531,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signOut,
       login,
+      joinAsEmployee,
       loginWithBiometrics,
       loginWithApple,
       loginWithGoogle,

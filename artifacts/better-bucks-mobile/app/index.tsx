@@ -39,9 +39,16 @@ export default function HomeScreen() {
         />
         <View style={{ height: 12 }} />
         <Button
-          testID="cta-signup"
-          title="Sign Up"
+          testID="cta-get-started"
+          title="New Employee? Get Started"
           variant="outline"
+          onPress={() => router.push("/get-started" as any)}
+        />
+        <View style={{ height: 12 }} />
+        <Button
+          testID="cta-signup"
+          title="Create a new account"
+          variant="ghost"
           onPress={() => router.push("/signup/plan")}
         />
       </View>

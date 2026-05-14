@@ -38,6 +38,7 @@ export const organizations = pgTable("organizations", {
   requireSocialSignupApproval: boolean("require_social_signup_approval").default(false).notNull(),
   securityAlertEmail: text("security_alert_email"),
   approvedExternalSites: text("approved_external_sites"),
+  preferredStoreUrl: text("preferred_store_url"),
 });
 
 export const departments = pgTable("departments", {

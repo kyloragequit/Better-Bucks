@@ -1,6 +1,7 @@
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -47,6 +48,7 @@ export default function ExternalOrderScreen() {
   const [url, setUrl] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [approvedSites, setApprovedSites] = useState<string[]>([]);
+  const [preferredStoreUrl, setPreferredStoreUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<ProductPreview | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -63,7 +65,10 @@ export default function ExternalOrderScreen() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d?.sites)) setApprovedSites(d.sites); })
+      .then((d) => {
+        if (Array.isArray(d?.sites)) setApprovedSites(d.sites);
+        if (typeof d?.preferredStoreUrl === "string") setPreferredStoreUrl(d.preferredStoreUrl);
+      })
       .catch(() => {});
   }, [token]);
 
@@ -211,6 +216,31 @@ export default function ExternalOrderScreen() {
                   calculate the Bucks cost automatically.
                 </Text>
               </View>
+
+              {/* Preferred store shortcut */}
+              {!!preferredStoreUrl && (
+                <TouchableOpacity
+                  style={styles.preferredStoreCard}
+                  onPress={() => Linking.openURL(preferredStoreUrl).catch(() => {})}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.preferredStoreLeft}>
+                    <View style={styles.preferredStoreIconWrap}>
+                      <Ionicons name="storefront" size={18} color={brand.navy} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.preferredStoreLabel}>PREFERRED STORE</Text>
+                      <Text style={styles.preferredStoreUrl} numberOfLines={1}>
+                        {(() => { try { return new URL(preferredStoreUrl).hostname.replace(/^www\./, ""); } catch { return preferredStoreUrl; } })()}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.preferredStoreBtn}>
+                    <Ionicons name="open-outline" size={14} color={brand.navy} />
+                    <Text style={styles.preferredStoreBtnText}>Shop here</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               <View style={styles.inputCard}>
                 <Text style={styles.inputLabel}>Product URL</Text>
@@ -606,6 +636,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     lineHeight: 18,
+  },
+  preferredStoreCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    backgroundColor: "rgba(22,46,75,0.06)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(22,46,75,0.15)",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  preferredStoreLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  preferredStoreIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: "rgba(22,46,75,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  preferredStoreLabel: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    color: brand.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  preferredStoreUrl: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: brand.navy,
+  },
+  preferredStoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: brand.navy,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexShrink: 0,
+  },
+  preferredStoreBtnText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    color: brand.white,
   },
   warningBanner: {
     flexDirection: "row",

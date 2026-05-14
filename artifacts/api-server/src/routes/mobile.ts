@@ -2679,9 +2679,12 @@ ${stripped}`,
   // Get approved external sites for the employee's org
   app.get("/api/mobile/org/approved-sites", mobileAuthMiddleware, async (req, res) => {
     const user = (req as MobileRequest).mobileUser;
-    if (!user.organizationId) return res.json({ sites: [] });
+    if (!user.organizationId) return res.json({ sites: [], preferredStoreUrl: null });
     const org = await storage.getOrganization(user.organizationId).catch(() => undefined);
-    res.json({ sites: getApprovedSites(org ?? {}) });
+    res.json({
+      sites: getApprovedSites(org ?? {}),
+      preferredStoreUrl: org?.preferredStoreUrl ?? null,
+    });
   });
 
   // Preview: analyze a product URL and return extracted info + Bucks cost

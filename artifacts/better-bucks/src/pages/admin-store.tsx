@@ -12,7 +12,7 @@ import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus"
 import { Loader } from "@/components/ui/loader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2, Ruler, Palette, Search } from "lucide-react";
+import { ShoppingBag, Plus, Pencil, Trash2, ExternalLink, Upload, ImageIcon, Link2, Heart, HelpCircle, X, Tag, DollarSign, Image, Star, CheckCircle2, Ruler, Palette, Search, Store, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -509,10 +509,12 @@ export default function AdminStorePage() {
           </CardContent>
         </Card>
 
+        <PreferredStoreSection />
+
         {/* Wishlists */}
         <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-base" data-testid="text-wishlist-title">
             <Heart className="h-4 w-4 text-red-500 fill-red-500" />
             Employee Wishlists
           </CardTitle>
@@ -566,5 +568,123 @@ export default function AdminStorePage() {
         </Card>
       </div>
     </AdminLayout>
+  );
+}
+
+function PreferredStoreSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const { data, isLoading } = useQuery<{ url: string | null }>({
+    queryKey: ["/api/org/preferred-store-url"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/org/preferred-store-url");
+      return res.json();
+    },
+  });
+  const current = data?.url ?? null;
+
+  function startEdit() {
+    setDraft(current ?? "");
+    setEditing(true);
+  }
+
+  const mutation = useMutation({
+    mutationFn: async (url: string | null) => {
+      const res = await apiRequest("PUT", "/api/org/preferred-store-url", { url });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/org/preferred-store-url"] });
+      toast({ title: "Preferred store saved" });
+      setEditing(false);
+    },
+    onError: () => toast({ title: "Error", description: "Could not save the URL.", variant: "destructive" }),
+  });
+
+  function save() {
+    const trimmed = draft.trim() || null;
+    if (trimmed && !/^https?:\/\/.+/.test(trimmed)) {
+      toast({ title: "Invalid URL", description: "Must start with https://", variant: "destructive" });
+      return;
+    }
+    mutation.mutate(trimmed);
+  }
+
+  return (
+    <Card data-testid="card-preferred-store">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Store className="h-5 w-5" />
+          Preferred Store for External Orders
+        </CardTitle>
+        <CardDescription>
+          Set a link to your organisation's preferred online store. Employees will see this as
+          a shortcut when placing external orders from the mobile app.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : editing ? (
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://www.amazon.com/stores/your-store"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }}
+              className="flex-1"
+              autoFocus
+              data-testid="input-preferred-store-url"
+            />
+            <Button onClick={save} disabled={mutation.isPending} size="sm" data-testid="button-save-preferred-store">
+              {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditing(false)} disabled={mutation.isPending}>
+              Cancel
+            </Button>
+          </div>
+        ) : current ? (
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+            <Store className="h-4 w-4 text-muted-foreground shrink-0" />
+            <a
+              href={current}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-sm font-medium text-primary hover:underline truncate"
+              data-testid="link-preferred-store"
+            >
+              {current}
+            </a>
+            <Button variant="ghost" size="sm" onClick={startEdit} className="shrink-0 gap-1.5" data-testid="button-edit-preferred-store">
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => mutation.mutate(null)}
+              disabled={mutation.isPending}
+              className="shrink-0 text-destructive hover:text-destructive"
+              data-testid="button-remove-preferred-store"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground italic" data-testid="text-no-preferred-store">
+              No preferred store set — employees can link to any approved store.
+            </p>
+            <Button variant="outline" size="sm" onClick={startEdit} className="gap-1.5 shrink-0" data-testid="button-set-preferred-store">
+              <Plus className="h-3.5 w-3.5" /> Set Store
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

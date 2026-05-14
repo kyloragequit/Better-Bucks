@@ -29,6 +29,7 @@ export default function LoginScreen() {
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [bioSubmitting, setBioSubmitting] = useState(false);
   const [socialSubmitting, setSocialSubmitting] = useState<"apple" | "google" | null>(null);
@@ -220,10 +221,19 @@ export default function LoginScreen() {
       <TextField
         label="Password"
         placeholder="••••••••"
-        secureTextEntry
+        secureTextEntry={!showPassword}
         textContentType="password"
         value={password}
         onChangeText={setPassword}
+        rightElement={
+          <Pressable onPress={() => setShowPassword(p => !p)} hitSlop={8}>
+            <Ionicons
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              size={20}
+              color={brand.textMuted}
+            />
+          </Pressable>
+        }
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -7030,6 +7030,61 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     res.json(updated);
   }));
 
+  // ── Reward items (non-monetary perk items defined by org admins) ─────────────
+  app.get("/api/admin/reward-items", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).send("No organization");
+    const items = await storage.getRewardCardsByOrg(user.organizationId);
+    res.json(items);
+  }));
+
+  app.post("/api/admin/reward-items", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).send("Forbidden");
+    if (!user.organizationId) return res.status(400).send("No organization");
+    const { name, description, emoji, color, active } = req.body as Record<string, unknown>;
+    if (!name || typeof name !== "string" || name.trim().length === 0) return res.status(400).json({ message: "Name is required" });
+    const item = await storage.createRewardCard({
+      organizationId: user.organizationId,
+      name: name.trim(),
+      description: typeof description === "string" ? description : null,
+      emoji: typeof emoji === "string" ? emoji : "🎫",
+      color: typeof color === "string" ? color : "#1A237E",
+      active: typeof active === "boolean" ? active : true,
+    });
+    res.status(201).json(item);
+  }));
+
+  app.put("/api/admin/reward-items/:id", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).send("Forbidden");
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+    const existing = await storage.getRewardCard(id);
+    if (!existing || existing.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
+    const { name, description, emoji, color, active } = req.body as Record<string, unknown>;
+    const patch: Record<string, unknown> = {};
+    if (name !== undefined) patch.name = name;
+    if (description !== undefined) patch.description = description;
+    if (emoji !== undefined) patch.emoji = emoji;
+    if (color !== undefined) patch.color = color;
+    if (active !== undefined) patch.active = active;
+    const updated = await storage.updateRewardCard(id, patch as any);
+    res.json(updated);
+  }));
+
+  app.delete("/api/admin/reward-items/:id", asyncHandler(async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "admin" && user.role !== "prime_admin")) return res.status(403).send("Forbidden");
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+    const existing = await storage.getRewardCard(id);
+    if (!existing || existing.organizationId !== user.organizationId) return res.status(404).json({ message: "Not found" });
+    await storage.deleteRewardCard(id);
+    res.json({ success: true });
+  }));
+
   // GET /api/leaderboard/top-rewarded — top 3 employees rewarded last calendar month.
   // Excludes admins/prime_admins (employees only). Returns category percentage breakdown
   // for each, never the raw bucks amount. Visible to every authenticated user (incl. demo).

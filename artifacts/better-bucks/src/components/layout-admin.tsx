@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, MessageCircle, Store as StoreIcon, Link2 as LinkIcon, AlertTriangle, AlertOctagon } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, MessageCircle, Store as StoreIcon, Link2 as LinkIcon, AlertTriangle, AlertOctagon, Gift } from "lucide-react";
 import { MobileBottomNav, type MobileNavItem } from "@/components/mobile-bottom-nav";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
@@ -114,6 +114,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { href: "/admin/goals", label: "Goals", icon: Target },
     { href: "/admin/surveys", label: "Surveys", icon: ClipboardList },
     { href: "/admin/items", label: "Items", icon: Package },
+    { href: "/admin/reward-items", label: "Reward Items", icon: Gift },
     { href: "/admin/merchants", label: "Merchants", icon: StoreIcon },
     { href: "/admin/merchant-disputes", label: "Disputes", icon: AlertTriangle },
     { href: "/admin/documents", label: "Documents", icon: FileText },

@@ -1,0 +1,168 @@
+You are performing a full Apple App Store compliance audit on this codebase before submission. Go through every file, function, screen, permission, and configuration. Do not stop to ask questions — identify all issues and fix them. Use the checklist and rules below as your guide.
+
+---
+
+## SECTION 1: PERFORMANCE (Guideline 2.x)
+### What to look for and fix:
+
+**2.1 – App Completeness**
+- Scan every screen and route for placeholder text (e.g. "Lorem ipsum", "TODO", "Coming soon", "Under construction"). Remove or replace all of them.
+- Check every button, link, and CTA — every one must navigate somewhere functional.
+- Verify no screens are empty or render blank on load.
+- Make sure demo/test accounts are either removed from production or clearly documented in App Review Notes.
+- Confirm all backend API endpoints are live and reachable — no localhost URLs, no hardcoded dev/staging URLs.
+- Ensure the app does not crash on launch. Run startup flow and check for unhandled exceptions.
+- Ensure all features advertised in metadata or screenshots actually work in the build.
+
+**2.3 – Accurate Metadata**
+- Cross-reference the app name, subtitle, description, and screenshots against actual app functionality.
+- Remove any feature claims in the description that aren't present in this build.
+- Screenshots must show real UI — no mockups, no fake data presented as real.
+- Keywords must not include competitor app names or misleading terms.
+
+**2.4 – Hardware Compatibility**
+- Verify the app runs on all declared supported devices (iPhone, iPad if listed).
+- Check for hardcoded screen sizes — use responsive layouts.
+- Test on smallest supported screen size.
+
+---
+
+## SECTION 2: PRIVACY (Guideline 5.1.x)
+### What to look for and fix:
+
+**5.1.1 – Data Collection and Storage**
+- Audit every permission requested in Info.plist (NSLocationWhenInUseUsageDescription, NSCameraUsageDescription, NSContactsUsageDescription, NSMicrophoneUsageDescription, NSPhotoLibraryUsageDescription, NFCReaderUsageDescription, etc.).
+- Every permission string MUST have a plain-English explanation of WHY the app needs it. Generic strings like "This app requires access to your location" are not sufficient — be specific.
+- Remove any permissions not actively used by the app.
+- Ensure no sensitive data (passwords, tokens, PII) is stored in UserDefaults, plaintext files, or unencrypted local storage.
+- All data sent to the server must go over HTTPS. Check for any HTTP calls and upgrade them.
+- If user data is ever sent to a third-party service (analytics, AI API, etc.), this must be disclosed in the privacy policy and in the App Privacy Labels in App Store Connect.
+
+**5.1.2 – Data Use and Sharing**
+- If the app uses an AI feature or sends any user input to an external AI API (e.g. OpenAI, Anthropic, Google), add explicit user consent before transmitting data.
+- Privacy policy must be accessible inside the app — add a "Privacy Policy" link in Settings or a visible footer. It must be a working URL.
+- App Privacy Labels in App Store Connect must accurately reflect all data collected — check every analytics SDK, crash reporter, and third-party library.
+
+**5.1.5 – Location Data**
+- If location is collected, confirm it is only requested when the feature requiring it is actively in use.
+- Never request "Always On" location unless the core function requires background tracking — and if so, clearly justify it.
+
+**Account Deletion (Required as of 2022)**
+- If the app allows account creation, it MUST allow account deletion from within the app.
+- The delete account option must be easy to find (Settings > Account, or similar).
+- Deletion must permanently remove user data from the backend — not just deactivate the account.
+- Do NOT rely on "email support to delete" as the only path. Build the in-app flow.
+
+---
+
+## SECTION 3: IN-APP PURCHASE & PAYMENTS (Guideline 3.1.x)
+### What to look for and fix:
+
+**3.1.1 – In-App Purchase**
+- If the app unlocks any digital content, features, premium tiers, credits, or subscriptions, these MUST be purchased through Apple's StoreKit (IAP) — not Stripe, PayPal, or any external processor for digital goods consumed inside the app.
+- Exception (3.1.3c): If this is a B2B app sold ONLY to organizations (not individual consumers), and users log in with an enterprise account to access pre-purchased content, IAP is not required. Confirm the app login flow enforces this — it must require an existing enterprise account, not allow consumer self-signup.
+- Scan all checkout flows, paywall screens, and subscription flows. If any of them use a non-Apple payment method for digital goods, either switch to StoreKit or confirm the B2B enterprise exemption applies.
+- If IAP is used: add a "Restore Purchases" button accessible from the paywall and/or Settings. This is required and a common rejection reason.
+- Do not reference pricing from external sources (e.g. "Subscribe on our website for $X/mo") in a way that directs users away from IAP for digital goods.
+
+**External Payment Links (Updated May 2025 – U.S. Only)**
+- As of May 2025, U.S. App Store apps may include buttons or links to external payment flows. If using this, add an Apple-required disclosure modal before redirecting the user off-app. This is mandatory — no modal = rejection.
+
+**3.1.1(a) – Free Trial / Subscriptions**
+- If subscriptions are offered, clearly display before purchase: renewal period, price, and cancellation instructions.
+- Do not auto-enroll users into paid subscriptions without explicit confirmation.
+
+---
+
+## SECTION 4: DESIGN & USER INTERFACE (Guideline 4.x / HIG)
+### What to look for and fix:
+
+**4.0 – Design Quality**
+- Scan all screens for typos, grammatical errors, broken layouts, or misaligned elements.
+- Ensure all text is legible — minimum contrast ratio of 4.5:1 for body text.
+- Every modal, sheet, and alert must have a clear dismiss/close action.
+- No screen should trap the user with no way to go back.
+
+**4.2 – Minimum Functionality**
+- The app must provide meaningful, unique value. If it is primarily a web wrapper around a website, it will be rejected.
+- Ensure there are native iOS features being used (push notifications, NFC, camera, local storage, etc.) — not just a WKWebView of a website.
+- If using a WebView for any portion, ensure it is scoped to specific in-app content, not a general browser.
+
+**Human Interface Guidelines**
+- Do not replicate iOS system UI elements with custom versions in ways that confuse users.
+- Bottom navigation bars, back gestures, and standard iOS navigation patterns should be respected.
+- Dark mode: ensure the app renders correctly in both light and dark mode, or explicitly locks to one mode.
+
+---
+
+## SECTION 5: SAFETY (Guideline 1.x)
+### What to look for and fix:
+
+**1.1 – Objectionable Content**
+- Scan all hardcoded strings, error messages, and content for offensive language, hate speech, or inappropriate content.
+- If the app allows user-generated content (UGC), a moderation system or reporting mechanism must be in place.
+
+**1.4 – Physical Harm**
+- If the app provides any health, safety, or emergency-related information, it must refer users to emergency services or professional resources where appropriate.
+
+---
+
+## SECTION 6: LEGAL (Guideline 5.x)
+### What to look for and fix:
+
+**Terms of Service**
+- The app must link to Terms of Service. Add a ToS link in Settings or onboarding if missing.
+- ToS must be a functional URL — test it.
+
+**Age Rating**
+- Review the app's age rating in App Store Connect. Ensure it accurately reflects content.
+- If the app includes AI chatbot features, evaluate whether responses could produce mature content and set rating accordingly.
+
+**Copyright / Trademark**
+- Do not use any third-party brand names, logos, or copyrighted assets without a license.
+- App name must not include competitor names or terms like "Pro", "Plus" in misleading ways.
+
+**5.2 – Intellectual Property**
+- Confirm all images, icons, and fonts used are either original, licensed, or open-source.
+- Remove any placeholder/stock assets that are not licensed.
+
+---
+
+## SECTION 7: NFC-SPECIFIC RULES
+### What to look for and fix:
+- NFC entitlement (com.apple.developer.nfc.readersession.formats) must be present in the .entitlements file.
+- NFCReaderUsageDescription must be in Info.plist with a specific explanation.
+- NFC scanning must only be initiated by a user action (button tap) — never triggered automatically on screen load.
+- Background NFC tag reading is available on iPhone XS+ with iOS 14+ — if used, explicitly declare the supported tag types.
+- Core NFC framework must be listed under Frameworks in Build Phases.
+- Test NFC flows on a physical device — NFC does not work in Simulator.
+
+---
+
+## SECTION 8: AUTHENTICATION & SIGN IN WITH APPLE (Guideline 4.8)
+### What to look for and fix:
+- If the app offers any third-party login (Google, Facebook, LinkedIn), Sign in with Apple MUST also be offered as an option. It must be at least as prominent as other login options.
+- Exception: If this is a pure B2B app that only allows login via a specific company/enterprise account (no social login at all), Sign in with Apple is not required.
+- Audit the login/signup screens — if any social OAuth is present, add Sign in with Apple.
+- Apple ID tokens must be validated on the server side.
+
+---
+
+## SECTION 9: APP STORE CONNECT METADATA (Pre-Submission)
+### What to verify exists:
+- Privacy Policy URL is set and resolves correctly.
+- Support URL is set and resolves correctly.
+- App description does not contain pricing information (e.g. "$X/month") — this violates guidelines.
+- Screenshots match the current build UI — not an older version.
+- App Preview video (if included) shows real app usage only.
+- Review Notes include: demo login credentials, any special setup steps, explanation of any non-obvious features.
+- If any features require special hardware (e.g. NFC reader, specific iPhone model), document this in Review Notes.
+
+---
+
+## FINAL INSTRUCTIONS:
+1. Go through every file in the codebase.
+2. For each issue found, fix it directly — do not just flag it.
+3. After all fixes, output a summary list of every change made and which guideline it addresses.
+4. If any issue requires backend changes (e.g. adding an account deletion endpoint), implement both the frontend UI and the backend route.
+5. Do not remove any existing features in the process of fixing compliance issues — only add or modify what is needed.

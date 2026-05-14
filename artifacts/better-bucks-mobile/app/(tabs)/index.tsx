@@ -440,7 +440,7 @@ const ADMIN_TOOLS: {
   { icon: "people-outline", label: "Pending Accounts", route: "/admin/pending" },
   { icon: "trophy-outline", label: "Goals", route: "/admin/goals" },
   { icon: "document-text-outline", label: "Surveys", route: "/admin/surveys" },
-  { icon: "gift-outline", label: "Reward Cards", route: "/admin/reward-cards" },
+  { icon: "gift-outline", label: "Reward Items", route: "/admin/reward-items" },
   { icon: "storefront-outline", label: "Store Items", route: "/admin/store-items" },
   { icon: "settings-outline", label: "Org Settings", route: "/admin/org-settings" },
 ];
@@ -570,7 +570,7 @@ function MyItemsSection({
       <View style={myItemsStyles.header}>
         <View style={myItemsStyles.headerLeft}>
           <Text style={{ fontSize: 15 }}>🎫</Text>
-          <Text style={myItemsStyles.title}>My Reward Cards</Text>
+          <Text style={myItemsStyles.title}>My Reward Items</Text>
         </View>
         <Pressable onPress={onViewAll} hitSlop={8} accessibilityRole="button">
           <Text style={myItemsStyles.viewAll}>View all →</Text>
@@ -580,7 +580,7 @@ function MyItemsSection({
       {isLoading ? (
         <ActivityIndicator color={brand.green} style={{ marginVertical: 8 }} />
       ) : items.length === 0 ? (
-        <Text style={myItemsStyles.emptyText}>No reward cards yet — your manager can send them here.</Text>
+        <Text style={myItemsStyles.emptyText}>No reward items yet — your manager can send them here.</Text>
       ) : (
         <ScrollView
           horizontal

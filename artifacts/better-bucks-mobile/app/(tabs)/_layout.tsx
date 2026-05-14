@@ -56,9 +56,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="send"
         options={{
-          title: "Cards",
+          title: "Items",
           tabBarIcon: ({ focused }) => <TabIcon name="gift" focused={focused} />,
-          headerTitle: "Reward Cards",
+          headerTitle: "Reward Items",
         }}
       />
 

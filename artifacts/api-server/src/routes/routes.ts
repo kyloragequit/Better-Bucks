@@ -3050,7 +3050,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const adminIds = allOrgUsers.filter(u => u.role === "admin" || u.role === "prime_admin").map(u => u.id);
 
     if (employeeIds.length === 0 || adminIds.length === 0) {
-      return res.json({ week: 0, month: 0, year: 0, weekDebited: 0, monthDebited: 0, yearDebited: 0 });
+      return res.json({ week: 0, month: 0, year: 0, prevMonth: 0, weekDebited: 0, monthDebited: 0, yearDebited: 0, prevMonthDebited: 0 });
     }
 
     const adminIdFilter = req.query.adminId ? parseInt(req.query.adminId as string) : null;
@@ -3062,15 +3062,20 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
     const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    // Previous calendar month window (30-60 days ago) for trend comparison
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+    const prevMonthEnd = monthAgo;
 
     // Single query replacing 6 — conditional aggregation with CASE WHEN
     const [row] = await db.select({
-      week:         sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${weekAgo}  AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
-      month:        sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${monthAgo} AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
-      year:         sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${yearAgo}  AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
-      weekDebited:  sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${weekAgo}  THEN ABS(${transactions.amount}) END), 0)`,
-      monthDebited: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${monthAgo} THEN ABS(${transactions.amount}) END), 0)`,
-      yearDebited:  sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${yearAgo}  THEN ABS(${transactions.amount}) END), 0)`,
+      week:             sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${weekAgo}       AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
+      month:            sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${monthAgo}      AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
+      year:             sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${yearAgo}       AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
+      prevMonth:        sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} > 0 AND ${transactions.createdAt} >= ${prevMonthStart} AND ${transactions.createdAt} < ${prevMonthEnd} AND (${performedByFilter}) THEN ${transactions.amount} END), 0)`,
+      weekDebited:      sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${weekAgo}       THEN ABS(${transactions.amount}) END), 0)`,
+      monthDebited:     sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${monthAgo}      THEN ABS(${transactions.amount}) END), 0)`,
+      yearDebited:      sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${yearAgo}       THEN ABS(${transactions.amount}) END), 0)`,
+      prevMonthDebited: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.amount} < 0 AND ${transactions.createdAt} >= ${prevMonthStart} AND ${transactions.createdAt} < ${prevMonthEnd} THEN ABS(${transactions.amount}) END), 0)`,
     }).from(transactions)
       .where(and(
         inArray(transactions.userId, employeeIds),
@@ -3081,9 +3086,11 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       week: Number(row.week),
       month: Number(row.month),
       year: Number(row.year),
+      prevMonth: Number(row.prevMonth),
       weekDebited: Number(row.weekDebited),
       monthDebited: Number(row.monthDebited),
       yearDebited: Number(row.yearDebited),
+      prevMonthDebited: Number(row.prevMonthDebited),
     });
   });
 

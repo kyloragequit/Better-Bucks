@@ -701,7 +701,7 @@ export default function AdminDashboardPage() {
     queryKey: ["/api/departments"],
   });
 
-  const { data: pointsStats, isLoading: statsLoading } = useQuery<{ week: number; month: number; year: number; weekDebited: number; monthDebited: number; yearDebited: number }>({
+  const { data: pointsStats, isLoading: statsLoading } = useQuery<{ week: number; month: number; year: number; prevMonth: number; weekDebited: number; monthDebited: number; yearDebited: number; prevMonthDebited: number }>({
     queryKey: ["/api/stats/points", { adminId: selectedAdminId, departmentId: selectedDeptId, managerId: selectedMgrId }],
     queryFn: async () => {
       const res = await fetch(buildStatsUrl("/api/stats/points"), { credentials: "include" });
@@ -767,6 +767,30 @@ export default function AdminDashboardPage() {
   const totalRedeemed = pointsStats?.monthDebited ?? 0;
   const bucksBalance = Math.max(0, totalIssued - totalRedeemed);
   const monthlyBudget = budgetSettings?.monthlyBudgetBucks ?? 0;
+
+  // Trend helpers — compare current month vs previous month
+  const prevIssued = pointsStats?.prevMonth ?? 0;
+  const prevRedeemed = pointsStats?.prevMonthDebited ?? 0;
+  const prevBalance = Math.max(0, prevIssued - prevRedeemed);
+
+  function pctChange(current: number, previous: number): number | null {
+    if (previous === 0) return null;
+    return Math.round(((current - previous) / previous) * 100);
+  }
+
+  function TrendBadge({ current, previous, label = "vs last month" }: { current: number; previous: number; label?: string }) {
+    const pct = pctChange(current, previous);
+    if (pct === null) return null;
+    const up = pct >= 0;
+    return (
+      <span className={`inline-flex items-center gap-0.5 text-xs font-semibold mt-1 ${up ? "text-green-600" : "text-red-500"}`}>
+        {up
+          ? <TrendingUp className="h-3 w-3" aria-hidden="true" />
+          : <TrendingDown className="h-3 w-3" aria-hidden="true" />}
+        {up ? "+" : ""}{pct}% {label}
+      </span>
+    );
+  }
 
   const [overviewShowDollars, setOverviewShowDollars] = useState(false);
 
@@ -889,6 +913,7 @@ export default function AdminDashboardPage() {
                   {!overviewShowDollars && bpd > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">≈ ${(totalIssued / bpd).toFixed(2)}</p>
                   )}
+                  <TrendBadge current={totalIssued} previous={prevIssued} />
                 </CardContent>
               </Card>
 
@@ -909,6 +934,7 @@ export default function AdminDashboardPage() {
                   {!overviewShowDollars && bpd > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">≈ ${(totalRedeemed / bpd).toFixed(2)}</p>
                   )}
+                  <TrendBadge current={totalRedeemed} previous={prevRedeemed} />
                 </CardContent>
               </Card>
 
@@ -929,6 +955,7 @@ export default function AdminDashboardPage() {
                   {!overviewShowDollars && bpd > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">≈ ${(bucksBalance / bpd).toFixed(2)}</p>
                   )}
+                  <TrendBadge current={bucksBalance} previous={prevBalance} />
                 </CardContent>
               </Card>
 
@@ -951,6 +978,7 @@ export default function AdminDashboardPage() {
                   {monthlyBudget > 0 && !overviewShowDollars && bpd > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">≈ ${(monthlyBudget / bpd).toFixed(2)}</p>
                   )}
+                  {monthlyBudget > 0 && <TrendBadge current={totalIssued} previous={prevIssued} label="spending vs last month" />}
                 </CardContent>
               </Card>
             </div>

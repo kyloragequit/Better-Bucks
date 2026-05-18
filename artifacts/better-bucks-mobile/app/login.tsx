@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { needsAccountSetup } from "@/contexts/AuthContext";
 
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -26,6 +27,7 @@ export default function LoginScreen() {
     enrollBiometrics,
     biometricCapable,
     biometricEnrolled,
+    user,
   } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -122,6 +124,10 @@ export default function LoginScreen() {
       return;
     }
 
+    if (needsAccountSetup(user)) {
+      router.replace("/account-setup" as any);
+      return;
+    }
     if (biometricCapable && !biometricEnrolled) {
       Alert.alert(
         "Enable Face ID / Touch ID?",

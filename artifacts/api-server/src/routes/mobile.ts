@@ -372,6 +372,56 @@ export function registerMobileRoutes(app: Express) {
     },
   );
 
+  // First-time account setup — sets a new password, email, and shipping address
+  // in one atomic call. Clears mustChangePassword on success. No current-password
+  // verification: the employee just authenticated via JWT to reach this endpoint.
+  app.post("/api/mobile/account/setup", mobileAuthMiddleware, async (req, res) => {
+    const user = (req as MobileRequest).mobileUser;
+    let parsed: {
+      newPassword: string;
+      email: string;
+      shippingAddressLine1: string;
+      shippingAddressLine2?: string;
+      shippingCity: string;
+      shippingState: string;
+      shippingZip: string;
+      shippingCountry?: string;
+    };
+    try {
+      parsed = z.object({
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+        email: z.string().email("Enter a valid email address"),
+        shippingAddressLine1: z.string().min(2, "Address is required"),
+        shippingAddressLine2: z.string().optional(),
+        shippingCity: z.string().min(1, "City is required"),
+        shippingState: z.string().min(1, "State is required"),
+        shippingZip: z.string().min(1, "ZIP code is required"),
+        shippingCountry: z.string().optional(),
+      }).parse(req.body);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.issues?.[0]?.message ?? "Invalid input" });
+      return;
+    }
+    try {
+      const updated = await storage.updateUserProfile(user.id, {
+        password: parsed.newPassword,
+        email: parsed.email,
+        shippingAddressLine1: parsed.shippingAddressLine1,
+        shippingAddressLine2: parsed.shippingAddressLine2 ?? null,
+        shippingCity: parsed.shippingCity,
+        shippingState: parsed.shippingState,
+        shippingZip: parsed.shippingZip,
+        shippingCountry: parsed.shippingCountry ?? "US",
+        clearMustChangePassword: true,
+        clearLastPlainPassword: true,
+      });
+      res.json({ success: true, user: safeUser(updated) });
+    } catch (err) {
+      logger.error({ err }, "[mobile/account/setup] failed");
+      res.status(500).json({ message: "Setup failed. Please try again." });
+    }
+  });
+
   // Social sign-in — verifies an Apple or Google identity token and returns a
   // mobile session token. If the provider is already linked to an account the
   // user is signed in; if the verified email matches an existing account it is

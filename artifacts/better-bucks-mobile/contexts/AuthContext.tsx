@@ -30,7 +30,15 @@ export type AuthUser = {
   email?: string | null;
   role: string;
   organizationId?: number | null;
+  mustChangePassword?: boolean;
+  shippingAddressLine1?: string | null;
 };
+
+export function needsAccountSetup(user: AuthUser | null): boolean {
+  if (!user) return false;
+  if (user.role === "prime_admin" || user.role === "developer") return false;
+  return !!(user.mustChangePassword || !user.email || !user.shippingAddressLine1);
+}
 
 export type SocialLink = { provider: "google" | "apple"; email: string | null };
 
@@ -41,6 +49,7 @@ type AuthContextValue = {
   biometricCapable: boolean;
   biometricEnrolled: boolean;
   signIn: (token: string, user: AuthUser) => Promise<void>;
+  updateUser: (user: AuthUser) => Promise<void>;
   signOut: () => Promise<void>;
   login: (
     username: string,
@@ -199,6 +208,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
     setUser(u);
     registerPushToken(t);
+  }, []);
+
+  const updateUser = useCallback(async (u: AuthUser) => {
+    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(u));
+    setUser(u);
   }, []);
 
   const signOut = useCallback(async () => {
@@ -510,6 +524,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       biometricCapable,
       biometricEnrolled,
       signIn,
+      updateUser,
       signOut,
       login,
       joinAsEmployee,
@@ -529,6 +544,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       biometricCapable,
       biometricEnrolled,
       signIn,
+      updateUser,
       signOut,
       login,
       joinAsEmployee,

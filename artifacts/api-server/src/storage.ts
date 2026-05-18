@@ -67,7 +67,7 @@ export interface IStorage {
   deleteShopWebsite(id: number): Promise<void>;
 
   updateUserPassword(userId: number, password: string): Promise<User>;
-  updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null }): Promise<User>;
+  updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null; shippingAddressLine1?: string | null; shippingAddressLine2?: string | null; shippingCity?: string | null; shippingState?: string | null; shippingZip?: string | null; shippingCountry?: string | null; clearMustChangePassword?: boolean }): Promise<User>;
 
   createOrganization(org: InsertOrganization): Promise<Organization>;
   createMobileSignup(params: {
@@ -339,18 +339,27 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
-  async updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null; clearLastPlainPassword?: boolean }): Promise<User> {
+  async updateUserProfile(userId: number, data: { fullName?: string; username?: string; password?: string; email?: string | null; departmentId?: number | null; shippingAddressLine1?: string | null; shippingAddressLine2?: string | null; shippingCity?: string | null; shippingState?: string | null; shippingZip?: string | null; shippingCountry?: string | null; clearLastPlainPassword?: boolean; clearMustChangePassword?: boolean }): Promise<User> {
     const { hashPassword } = await import("./auth");
     const updateData: Record<string, any> = {};
     if (data.fullName !== undefined) updateData.fullName = data.fullName;
     if (data.username !== undefined) updateData.username = data.username;
     if (data.email !== undefined) updateData.email = data.email;
     if (data.departmentId !== undefined) updateData.departmentId = data.departmentId;
+    if (data.shippingAddressLine1 !== undefined) updateData.shippingAddressLine1 = data.shippingAddressLine1;
+    if (data.shippingAddressLine2 !== undefined) updateData.shippingAddressLine2 = data.shippingAddressLine2;
+    if (data.shippingCity !== undefined) updateData.shippingCity = data.shippingCity;
+    if (data.shippingState !== undefined) updateData.shippingState = data.shippingState;
+    if (data.shippingZip !== undefined) updateData.shippingZip = data.shippingZip;
+    if (data.shippingCountry !== undefined) updateData.shippingCountry = data.shippingCountry;
     if (data.password && data.password.length > 0) {
       updateData.password = await hashPassword(data.password);
       updateData.lastPlainPassword = data.clearLastPlainPassword ? null : data.password;
       updateData.mustChangePassword = false;
       updateData.passwordLastChanged = new Date();
+    }
+    if (data.clearMustChangePassword) {
+      updateData.mustChangePassword = false;
     }
     const [updatedUser] = await db
       .update(users)

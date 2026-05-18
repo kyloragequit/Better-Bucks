@@ -42,6 +42,10 @@ function RootLayoutNav() {
       <Stack.Screen name="get-started" options={{ title: "New Employee Setup" }} />
       <Stack.Screen name="forgot-password" options={{ title: "Forgot Password" }} />
       <Stack.Screen name="change-password" options={{ title: "Change Password" }} />
+      <Stack.Screen
+        name="account-setup"
+        options={{ title: "Account Setup", headerShown: false, gestureEnabled: false }}
+      />
       <Stack.Screen name="social-signup" options={{ title: "Finish Sign-Up" }} />
       <Stack.Screen name="pending-approval" options={{ title: "Account Pending", gestureEnabled: false }} />
       <Stack.Screen name="signup/account" options={{ title: "Create Account" }} />

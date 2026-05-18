@@ -6,17 +6,22 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
 import { brand } from "@/constants/colors";
-import { useAuth } from "@/contexts/AuthContext";
+import { needsAccountSetup, useAuth } from "@/contexts/AuthContext";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { token, loading } = useAuth();
+  const { token, loading, user } = useAuth();
 
   useEffect(() => {
-    if (!loading && token) {
-      router.replace("/(tabs)" as any);
+    if (loading) return;
+    if (token) {
+      if (needsAccountSetup(user)) {
+        router.replace("/account-setup" as any);
+      } else {
+        router.replace("/(tabs)" as any);
+      }
     }
-  }, [loading, token]);
+  }, [loading, token, user]);
 
   return (
     <View

@@ -80,6 +80,12 @@ export const users = pgTable("users", {
   expoPushToken: text("expo_push_token"),
   welcomeNotificationSent: boolean("welcome_notification_sent").default(false).notNull(),
   pendingWelcomeNotification: boolean("pending_welcome_notification").default(false).notNull(),
+  shippingAddressLine1: text("shipping_address_line1"),
+  shippingAddressLine2: text("shipping_address_line2"),
+  shippingCity: text("shipping_city"),
+  shippingState: text("shipping_state"),
+  shippingZip: text("shipping_zip"),
+  shippingCountry: text("shipping_country"),
 });
 
 export const transactionCategories = pgTable("transaction_categories", {

@@ -3561,7 +3561,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
               description: tier === "custom" ? `Custom plan: ${customBucks} Bucks per month, billed at $1 per Buck.` : config.description,
               metadata: { tier },
             },
-            unit_amount: tier === "custom" ? (customBucks! * 100) : config.price,
+            unit_amount: 0,  // $0 anchor — variable charges applied via invoice.created webhook
             recurring: { interval: 'month' },
             tax_behavior: 'exclusive',
           },
@@ -3575,14 +3575,14 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
           trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
           metadata: { organizationId: String(org.id), tier, orgCode },
           description: tier === "custom"
-            ? `Better Bucks Custom — ${trialLabel} free trial, then $${customBucks}/month (${customBucks} Bucks) + applicable taxes.${referralNote}`
-            : `Better Bucks ${config.name} — ${trialLabel} free trial, then $${(config.price / 100).toFixed(2)}/month + applicable taxes.${referralNote}`,
+            ? `Better Bucks Custom — ${trialLabel} free trial, then billed dynamically: $1/Buck × (${customBucks} Bucks − recalled balance) each month.${referralNote}`
+            : `Better Bucks ${config.name} — ${trialLabel} free trial, then billed dynamically: up to $${(config.price / 100).toFixed(0)}/month depending on recalled Buck balance.${referralNote}`,
         },
         payment_method_collection: 'always',
         consent_collection: { terms_of_service: 'required' },
         custom_text: {
           submit: {
-            message: `Your card won't be charged until after your ${trialLabel} free trial ends. Applicable sales tax will be added based on your location.${referralNote}`,
+            message: `Your card won't be charged until after your ${trialLabel} free trial ends. Each month you're only charged for the Bucks you actually need — unused recalled Bucks roll forward.${referralNote}`,
           },
           terms_of_service_acceptance: {
             message: `I agree to the [Terms of Service](${baseUrl}/terms).`,
@@ -3652,7 +3652,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
               description: config.description,
               metadata: { tier },
             },
-            unit_amount: config.price,
+            unit_amount: 0,  // $0 anchor — variable charges applied via invoice.created webhook
             recurring: { interval: 'month' },
             tax_behavior: 'exclusive',
           },

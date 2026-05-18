@@ -58,10 +58,12 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       return;
     }
 
-    // Top up the org's distributable Buck pool each billing cycle
-    if (org.planBucks && org.planBucks > 0) {
+    // Top up the org's distributable Buck pool by the amount actually charged
+    // (dynamic billing: charged amount = planBucks − orgBucksBalance at invoice time)
+    const bucksAdded = Math.round(invoice.amount_paid / 100);
+    if (bucksAdded > 0) {
       try {
-        await storage.topUpOrgBucksBalance(org.id, org.planBucks);
+        await storage.topUpOrgBucksBalance(org.id, bucksAdded);
         // Run any saved auto-allocation rules from the pool
         const autoAllocs = await storage.getOrgAutoAllocations(org.id);
         for (const alloc of autoAllocs) {
@@ -212,6 +214,48 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
   }
 }
 
+async function handleInvoiceCreated(invoice: Stripe.Invoice): Promise<void> {
+  try {
+    // Only act on draft subscription invoices — we inject the variable charge amount here
+    if (invoice.status !== "draft") return;
+    if (!invoice.subscription) return;
+
+    const customerId = typeof invoice.customer === "string" ? invoice.customer : (invoice.customer as any)?.id;
+    if (!customerId) return;
+
+    const allOrgs = await storage.getAllOrganizations();
+    const org = allOrgs.find(o => o.stripeCustomerId === customerId);
+    if (!org) {
+      console.log(`[Webhook] invoice.created — no org found for customer ${customerId}`);
+      return;
+    }
+
+    const planBucks = org.planBucks ?? 0;
+    if (planBucks === 0) return;
+
+    const currentBalance = org.orgBucksBalance ?? 0;
+    const bucksDue = Math.max(0, planBucks - currentBalance);
+
+    if (bucksDue === 0) {
+      console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): balance ${currentBalance} >= plan ${planBucks} — no charge this cycle`);
+      return;
+    }
+
+    console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): injecting ${bucksDue} Bucks ($${bucksDue}) [plan=${planBucks}, balance=${currentBalance}]`);
+
+    const stripe = await getUncachableStripeClient();
+    await stripe.invoiceItems.create({
+      customer: customerId,
+      invoice: invoice.id,
+      amount: bucksDue * 100,
+      currency: "usd",
+      description: `Monthly Buck top-up — ${bucksDue} Bucks (plan: ${planBucks}, recalled balance: ${currentBalance})`,
+    });
+  } catch (err) {
+    console.error("[Webhook] handleInvoiceCreated error:", err);
+  }
+}
+
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string): Promise<void> {
     if (!Buffer.isBuffer(payload)) {
@@ -231,12 +275,16 @@ export class WebhookHandlers {
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
       if (webhookSecret) {
         const event = stripe.webhooks.constructEvent(payload.toString(), signature, webhookSecret);
-        if (event.type === "invoice.paid") {
+        if (event.type === "invoice.created") {
+          await handleInvoiceCreated(event.data.object as Stripe.Invoice);
+        } else if (event.type === "invoice.paid") {
           await handleInvoicePaid(event.data.object as Stripe.Invoice);
         }
       } else {
         const parsed = JSON.parse(payload.toString());
-        if (parsed.type === "invoice.paid" && parsed.data?.object) {
+        if (parsed.type === "invoice.created" && parsed.data?.object) {
+          await handleInvoiceCreated(parsed.data.object as Stripe.Invoice);
+        } else if (parsed.type === "invoice.paid" && parsed.data?.object) {
           await handleInvoicePaid(parsed.data.object as Stripe.Invoice);
         }
       }
@@ -246,4 +294,4 @@ export class WebhookHandlers {
   }
 }
 
-export { handleInvoicePaid };
+export { handleInvoicePaid, handleInvoiceCreated };

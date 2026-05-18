@@ -16,6 +16,7 @@ import Stripe from "stripe";
 const WEBHOOK_URL = "https://betterbucks.net/api/stripe/webhook";
 
 const REQUIRED_EVENTS: Stripe.WebhookEndpointUpdateParams.EnabledEvent[] = [
+  "invoice.created",
   "invoice.paid",
   "customer.subscription.updated",
   "customer.subscription.deleted",

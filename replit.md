@@ -68,7 +68,7 @@ Better Bucks is an employee rewards platform that lets companies give, track, an
 ### Stripe
 - `STRIPE_SECRET_KEY` — server-side secret key (`sk_live_…` or `sk_test_…`)
 - `STRIPE_PUBLISHABLE_KEY` — publishable key (`pk_live_…` or `pk_test_…`); exposed to the frontend via `GET /api/stripe/publishable-key` — **not** a VITE_ variable
-- `STRIPE_WEBHOOK_SECRET` — webhook signing secret (`whsec_…`); enables signature verification in `artifacts/api-server/src/webhookHandlers.ts`; requires the endpoint `POST /api/stripe/webhook` to be registered in the Stripe Dashboard
+- `STRIPE_WEBHOOK_SECRET` — webhook signing secret (`whsec_…`); enables signature verification in `artifacts/api-server/src/webhookHandlers.ts`. The webhook endpoint `POST /api/stripe/webhook` is registered in Stripe to receive `invoice.paid`, `customer.subscription.updated`, and `customer.subscription.deleted` events. To re-register or rotate: `STRIPE_SECRET_KEY=sk_live_... pnpm --filter @workspace/scripts run register-stripe-webhook` (prints the new `whsec_…` to save as this secret).
 
 ### Frontend (Vite — must be prefixed `VITE_` to be exposed to the browser)
 - `VITE_GA_MEASUREMENT_ID` — Google Analytics 4 Measurement ID (`G-XXXXXXXXXX`); initialised in `artifacts/better-bucks/src/lib/analytics.ts`

@@ -966,6 +966,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
+      stripe:
+        specifier: ^22.1.1
+        version: 22.1.1(@types/node@25.3.5)
       tsx:
         specifier: 'catalog:'
         version: 4.21.0

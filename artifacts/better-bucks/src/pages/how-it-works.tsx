@@ -28,6 +28,8 @@ import {
   ShoppingBag,
   Coins,
   ClipboardList,
+  DollarSign,
+  RotateCcw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1092,6 +1094,74 @@ export default function HowItWorksPage() {
 
           <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
             <ProgramPreview />
+          </div>
+        </div>
+      </section>
+
+      {/* ─── How It Works — 3-step explainer + Keep Your Bucks ── */}
+      <section className="py-16 sm:py-20 bg-white border-b border-gray-100" data-testid="section-how-it-works">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: NAVY }}>How It Works</h2>
+            <p className="text-gray-500 max-w-xl mx-auto text-base">
+              Reward your team in three simple steps — then keep what you don't use.
+            </p>
+          </div>
+
+          <div className="grid gap-10 md:grid-cols-3 mb-14">
+            <div className="text-center relative" data-testid="step-1">
+              <div className="relative inline-flex mb-5">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full" style={{ background: `${NAVY}15` }}>
+                  <Users className="h-7 w-7" style={{ color: NAVY }} />
+                </div>
+                <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center shadow" style={{ background: NAVY }}>1</span>
+              </div>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: NAVY }}>Select Your Team Size</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                Tell us how many employees you have so we can match you with the right monthly Buck plan.
+              </p>
+            </div>
+
+            <div className="text-center relative" data-testid="step-2">
+              <div className="relative inline-flex mb-5">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-50">
+                  <DollarSign className="h-7 w-7 text-green-600" />
+                </div>
+                <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center shadow">2</span>
+              </div>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: NAVY }}>Choose Your Monthly Bucks</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                Pick how many Bucks to reward each month. Every Buck equals $1 — plans start at 50 Bucks/mo or go fully custom.
+              </p>
+            </div>
+
+            <div className="text-center relative" data-testid="step-3">
+              <div className="relative inline-flex mb-5">
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-yellow-50">
+                  <Zap className="h-7 w-7 text-yellow-500" />
+                </div>
+                <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-yellow-500 text-white text-xs font-bold flex items-center justify-center shadow">3</span>
+              </div>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: NAVY }}>Make Your Team Better!</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                Distribute Bucks to your admins and they pass them down to employees. Watch performance and morale improve.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border p-7 flex flex-col sm:flex-row items-start gap-5" style={{ background: `${NAVY}08`, borderColor: `${NAVY}25` }} data-testid="section-keep-your-bucks">
+            <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full" style={{ background: `${NAVY}15` }}>
+              <RotateCcw className="h-6 w-6" style={{ color: NAVY }} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — Unused Bucks Come Back to You</h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Your organization receives a fresh set of Bucks each month based on your plan. Any Bucks left unspent in <strong>admin accounts</strong> at month end are automatically returned to your organization and applied as a <strong>discount against your next bill</strong>. Bucks already earned by employees are always theirs to keep — only admin balances are subject to the end-of-month recall.
+              </p>
+              <p className="text-gray-400 text-xs mt-2 italic">
+                Example: Pay for 400 Bucks but admins only spend 310 → the remaining 90 come back, making your next month's charge just $310.
+              </p>
+            </div>
           </div>
         </div>
       </section>

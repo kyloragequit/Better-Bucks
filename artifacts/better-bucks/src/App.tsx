@@ -13,6 +13,7 @@ const TutorialModal = lazy(() => import("@/components/tutorial-modal").then(m =>
 const FullTutorialOverlay = lazy(() => import("@/components/full-tutorial").then(m => ({ default: m.FullTutorialOverlay })));
 import { TermsAgreementModal } from "@/components/terms-agreement-modal";
 import { TwoFaPrompt } from "@/components/two-fa-prompt";
+import { BuckPlanSetupModal } from "@/components/buck-plan-setup-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Trophy, XCircle, Coins } from "lucide-react";
@@ -179,6 +180,25 @@ function ProtectedRoute({
     staleTime: 30 * 1000,
   });
 
+  const { data: creditStatus } = useQuery<{ planBucks: number; orgBucksBalance: number }>({
+    queryKey: ["/api/org/credit-status"],
+    enabled: !!user && user.role === "prime_admin" && !devStatus?.impersonating,
+    staleTime: 30 * 1000,
+  });
+
+  useEffect(() => {
+    if (!user || user.role !== "prime_admin") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("billing_setup") === "success") {
+      apiRequest("POST", "/api/organizations/finalize-billing-setup")
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/org/credit-status"] });
+          window.history.replaceState({}, "", window.location.pathname);
+        })
+        .catch(() => {});
+    }
+  }, [user?.id]);
+
   if (isLoading) return <FullPageLoader />;
 
   if (!user) {
@@ -224,7 +244,19 @@ function ProtectedRoute({
      return <Redirect to="/admin/dashboard" />;
   }
 
-  return <Component />;
+  const needsBillingSetup =
+    user.role === "prime_admin" &&
+    !demoStatus?.inDemo &&
+    !devStatus?.impersonating &&
+    creditStatus !== undefined &&
+    (creditStatus?.planBucks ?? 0) === 0;
+
+  return (
+    <>
+      <Component />
+      {needsBillingSetup && <BuckPlanSetupModal />}
+    </>
+  );
 }
 
 function LoginRoute() {

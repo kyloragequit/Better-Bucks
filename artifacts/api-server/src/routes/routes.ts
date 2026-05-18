@@ -4139,6 +4139,135 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     return res.json({ ok: true });
   });
 
+  // Buck plan billing setup — creates a Stripe checkout for an existing org (prime_admin only)
+  app.post("/api/organizations/setup-billing", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const parseResult = z.object({
+      tier: z.enum(["starter", "growth", "pro", "custom"]),
+      customBucks: z.number().int().min(1).optional(),
+    }).safeParse(req.body);
+    if (!parseResult.success) return res.status(400).json({ message: "Invalid request", errors: parseResult.error.issues });
+    const { tier, customBucks } = parseResult.data;
+
+    if (tier === "custom" && !customBucks) return res.status(400).json({ message: "customBucks is required for custom tier" });
+
+    const config = tierConfig[tier];
+    if (!config) return res.status(400).json({ message: "Invalid tier" });
+
+    const planBucks = tier === "custom" ? customBucks! : config.planBucks;
+    if (planBucks <= 0) return res.status(400).json({ message: "Selected tier has no Buck amount configured" });
+
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    if (org.status !== "active") return res.status(400).json({ message: "Organization must be active to set up billing" });
+
+    try {
+      const stripe = await getUncachableStripeClient();
+
+      let customerId = org.stripeCustomerId && org.stripeCustomerId !== "pending_checkout" ? org.stripeCustomerId : null;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: (user as any).email || undefined,
+          name: org.name,
+          metadata: { organizationId: String(org.id) },
+        });
+        customerId = customer.id;
+        await storage.updateOrganizationStripe(org.id, customerId, org.stripeSubscriptionId || "pending_checkout");
+      }
+
+      const baseUrl = getAppBaseUrl(req);
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name:
+                  tier === "custom"
+                    ? `Better Bucks – Custom (${planBucks} Bucks/mo)`
+                    : `Better Bucks – ${config.name}`,
+                description: `${planBucks} Bucks/month at $1/Buck — billed dynamically after monthly recall.`,
+              },
+              unit_amount: 0,
+              recurring: { interval: "month" },
+              tax_behavior: "exclusive",
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        automatic_tax: { enabled: true },
+        customer_update: { address: "auto" },
+        billing_address_collection: "required",
+        payment_method_collection: "always",
+        subscription_data: {
+          metadata: {
+            organizationId: String(org.id),
+            tier,
+            planBucks: String(planBucks),
+            orgCode: org.code,
+          },
+        },
+        success_url: `${baseUrl}/admin/dashboard?billing_setup=success`,
+        cancel_url: `${baseUrl}/admin/dashboard`,
+        metadata: {
+          organizationId: String(org.id),
+          tier,
+          planBucks: String(planBucks),
+          orgCode: org.code,
+        },
+      });
+
+      return res.json({ url: session.url });
+    } catch (err: any) {
+      req.log.error({ err }, "setup-billing: Stripe error");
+      return res.status(500).json({ message: err?.message || "Failed to create billing session" });
+    }
+  });
+
+  // Finalize billing setup — called from frontend after Stripe success redirect to persist planBucks
+  app.post("/api/organizations/finalize-billing-setup", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org?.stripeCustomerId || org.stripeCustomerId === "pending_checkout") {
+      return res.status(400).json({ message: "No Stripe customer configured" });
+    }
+
+    try {
+      const stripe = await getUncachableStripeClient();
+      // Look for active or trialing subscription for this customer
+      let sub: import("stripe").default.Subscription | null = null;
+      for (const status of ["active", "trialing"] as const) {
+        const list = await stripe.subscriptions.list({ customer: org.stripeCustomerId, status, limit: 1 });
+        if (list.data.length > 0) { sub = list.data[0]; break; }
+      }
+      if (!sub) return res.status(202).json({ message: "Subscription not yet active — webhook will set planBucks shortly", planBucks: org.planBucks ?? 0 });
+
+      const metaPlanBucks = parseInt(sub.metadata?.planBucks || "0");
+      if (metaPlanBucks > 0 && (org.planBucks ?? 0) !== metaPlanBucks) {
+        await storage.updateOrgBucksPlan(org.id, metaPlanBucks);
+        // Update subscription ID if needed
+        if (org.stripeSubscriptionId !== sub.id) {
+          await storage.updateOrganizationStripe(org.id, org.stripeCustomerId, sub.id);
+        }
+        return res.json({ planBucks: metaPlanBucks, ok: true });
+      }
+
+      return res.json({ planBucks: org.planBucks ?? 0, ok: true });
+    } catch (err: any) {
+      req.log.error({ err }, "finalize-billing-setup: error");
+      return res.status(500).json({ message: err?.message || "Failed to finalize billing setup" });
+    }
+  });
+
   // Leaderboard stats - admins by bucks given, or employees by balance/spent
   app.get("/api/stats/leaderboard", async (req, res) => {
     const user = req.user as User | undefined;

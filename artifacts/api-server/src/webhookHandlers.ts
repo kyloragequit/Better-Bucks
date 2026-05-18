@@ -230,7 +230,35 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice): Promise<void> {
       return;
     }
 
-    const planBucks = org.planBucks ?? 0;
+    let planBucks = org.planBucks ?? 0;
+
+    // Auto-set planBucks from subscription metadata if not yet configured (first billing after setup-billing flow)
+    if (planBucks === 0 && invoice.subscription) {
+      const subscriptionId =
+        typeof invoice.subscription === "string"
+          ? invoice.subscription
+          : (invoice.subscription as { id: string }).id;
+      if (subscriptionId) {
+        try {
+          const stripeForMeta = await getUncachableStripeClient();
+          const sub = await stripeForMeta.subscriptions.retrieve(subscriptionId);
+          const metaPlanBucks = parseInt(sub.metadata?.planBucks || "0");
+          if (metaPlanBucks > 0) {
+            await storage.updateOrgBucksPlan(org.id, metaPlanBucks);
+            planBucks = metaPlanBucks;
+            console.log(
+              `[Webhook] invoice.created — auto-set planBucks=${metaPlanBucks} for org ${org.id} (${org.name})`,
+            );
+          }
+        } catch (err) {
+          console.error(
+            `[Webhook] invoice.created — failed to auto-set planBucks for org ${org.id}:`,
+            err,
+          );
+        }
+      }
+    }
+
     if (planBucks === 0) return;
 
     const currentBalance = org.orgBucksBalance ?? 0;

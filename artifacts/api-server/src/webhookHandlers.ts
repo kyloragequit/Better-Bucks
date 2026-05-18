@@ -58,6 +58,28 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       return;
     }
 
+    // Top up the org's distributable Buck pool each billing cycle
+    if (org.planBucks && org.planBucks > 0) {
+      try {
+        await storage.topUpOrgBucksBalance(org.id, org.planBucks);
+        // Run any saved auto-allocation rules from the pool
+        const autoAllocs = await storage.getOrgAutoAllocations(org.id);
+        for (const alloc of autoAllocs) {
+          if (!alloc.active || alloc.monthlyBucks <= 0) continue;
+          await storage.deductOrgBucksBalance(org.id, alloc.monthlyBucks);
+          await storage.updateUserBalance(alloc.adminUserId, alloc.monthlyBucks);
+          await storage.createTransaction({
+            userId: alloc.adminUserId,
+            amount: alloc.monthlyBucks,
+            reason: "Auto monthly Buck allocation",
+            performedBy: 0,
+          });
+        }
+      } catch (err) {
+        console.error(`[Webhook] Failed to top up Buck pool for org ${org.id}:`, err);
+      }
+    }
+
     const orgUsers = await storage.getUsersByOrganization(org.id);
     const primeAdmins = orgUsers.filter(u => u.role === "prime_admin" && u.email);
     if (primeAdmins.length === 0) {

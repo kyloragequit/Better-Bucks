@@ -3313,18 +3313,23 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   });
 
   // Tier pricing configuration
-  const tierConfig = {
-    small:      { price: 1800,  maxEmployees: 25,  name: "A Little Better",  description: "25 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support." },
-    mid:        { price: 3000,  maxEmployees: 75,  name: "Much Better",      description: "75 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    large:      { price: 4800,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support." },
-    enterprise: { price: 0,     maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — custom pricing, please contact us for a personalized quote." },
-  } as const;
+  const tierConfig: Record<string, { price: number; maxEmployees: number; name: string; description: string; planBucks: number }> = {
+    small:      { price: 1800,  maxEmployees: 25,  name: "A Little Better",  description: "25 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, basic reporting, and email support.",       planBucks: 0 },
+    mid:        { price: 3000,  maxEmployees: 75,  name: "Much Better",      description: "75 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support.",    planBucks: 0 },
+    large:      { price: 4800,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support.", planBucks: 0 },
+    enterprise: { price: 0,     maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — custom pricing, please contact us for a personalized quote.",                                      planBucks: 0 },
+    starter:    { price: 5000,  maxEmployees: -1,  name: "Starter",          description: "50 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, email support.",                        planBucks: 50 },
+    growth:     { price: 40000, maxEmployees: -1,  name: "Growth",           description: "400 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 400 },
+    pro:        { price: 75000, maxEmployees: -1,  name: "Pro",              description: "750 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 750 },
+    custom:     { price: 0,     maxEmployees: -1,  name: "Custom",           description: "Custom Bucks per month — billed at $1 per Buck, admin dashboard, Bucks tracking.",                                             planBucks: 0 },
+  };
 
   // Organization signup - create checkout session
   const signupSchema = z.object({
     organizationName: z.string().min(2, "Organization name is required"),
     email: z.string().email("Valid email is required"),
-    tier: z.enum(["small", "mid", "large", "enterprise"]),
+    tier: z.enum(["small", "mid", "large", "enterprise", "starter", "growth", "pro", "custom"]),
+    customBucks: z.number().int().min(1).optional(),
     referralCode: z.string().optional(),
     licenseAccepted: z.boolean().refine(v => v === true, { message: "You must agree to the Terms of Service and Software License Agreement to proceed." }),
     marketingOptIn: z.boolean().optional().default(false),
@@ -3359,6 +3364,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   }) {
     const planPrices: Record<string, string> = {
       small: "$18/mo", mid: "$30/mo", large: "$48/mo", enterprise: "Contact us",
+      starter: "$50/mo", growth: "$400/mo", pro: "$750/mo", custom: "$1/Buck",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;
@@ -3407,7 +3413,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
   app.post("/api/organizations/signup", async (req, res) => {
     try {
-      const { organizationName, email, tier, referralCode, marketingOptIn, hcaptchaToken } = signupSchema.parse(req.body);
+      const { organizationName, email, tier, customBucks, referralCode, marketingOptIn, hcaptchaToken } = signupSchema.parse(req.body);
+      if (tier === "custom" && (!customBucks || customBucks < 1)) {
+        return res.status(400).json({ message: "Please specify how many Bucks you want per month (minimum 1)." });
+      }
       const config = tierConfig[tier];
 
       const captchaOk = await verifyWebHcaptchaToken(hcaptchaToken);
@@ -3486,6 +3495,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         maxEmployees: config.maxEmployees,
         licenseAcceptedAt: new Date(),
         marketingOptIn: marketingOptIn ?? false,
+        planBucks: tier === "custom" ? (customBucks ?? 0) : config.planBucks,
       });
 
       // Alert when the 45th company signs up (5 slots left for founder pricing)
@@ -3547,11 +3557,11 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Better Bucks – ${config.name}`,
-              description: config.description,
+              name: tier === "custom" ? `Better Bucks – Custom (${customBucks} Bucks/mo)` : `Better Bucks – ${config.name}`,
+              description: tier === "custom" ? `Custom plan: ${customBucks} Bucks per month, billed at $1 per Buck.` : config.description,
               metadata: { tier },
             },
-            unit_amount: config.price,
+            unit_amount: tier === "custom" ? (customBucks! * 100) : config.price,
             recurring: { interval: 'month' },
             tax_behavior: 'exclusive',
           },
@@ -3564,7 +3574,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
           trial_period_days: trialDays,
           trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
           metadata: { organizationId: String(org.id), tier, orgCode },
-          description: `Better Bucks ${config.name} — ${trialLabel} free trial, then $${(config.price / 100).toFixed(2)}/month + applicable taxes.${referralNote}`,
+          description: tier === "custom"
+            ? `Better Bucks Custom — ${trialLabel} free trial, then $${customBucks}/month (${customBucks} Bucks) + applicable taxes.${referralNote}`
+            : `Better Bucks ${config.name} — ${trialLabel} free trial, then $${(config.price / 100).toFixed(2)}/month + applicable taxes.${referralNote}`,
         },
         payment_method_collection: 'always',
         consent_collection: { terms_of_service: 'required' },
@@ -4068,6 +4080,63 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       adminsAllocated++;
     }
     res.json({ allocated: adminsAllocated, total: totalAllocated });
+  });
+
+  // ── Buck Pool & Auto-Allocation Management ──────────────────────────────────
+
+  app.get("/api/org/credit-status", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    const recallHistory = await storage.getOrgRecallHistory(user.organizationId, 12);
+    return res.json({
+      planBucks: org.planBucks ?? 0,
+      orgBucksBalance: org.orgBucksBalance ?? 0,
+      lastRecallMonth: org.lastRecallMonth ?? null,
+      tier: org.tier,
+      recallHistory,
+    });
+  });
+
+  app.get("/api/org/auto-allocations", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const allocations = await storage.getOrgAutoAllocations(user.organizationId);
+    return res.json({ allocations });
+  });
+
+  app.put("/api/org/auto-allocations", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const { adminUserId, monthlyBucks } = z.object({
+      adminUserId: z.number().int().min(1),
+      monthlyBucks: z.number().int().min(0),
+    }).parse(req.body);
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const admin = orgUsers.find(u => u.id === adminUserId && u.role === "admin");
+    if (!admin) return res.status(400).json({ message: "User is not an admin in this organization" });
+    if (monthlyBucks === 0) {
+      const allocs = await storage.getOrgAutoAllocations(user.organizationId);
+      const existing = allocs.find(a => a.adminUserId === adminUserId);
+      if (existing) await storage.removeOrgAutoAllocation(existing.id, user.organizationId);
+      return res.json({ removed: true });
+    }
+    const alloc = await storage.upsertOrgAutoAllocation({ orgId: user.organizationId, adminUserId, monthlyBucks });
+    return res.json({ alloc });
+  });
+
+  app.delete("/api/org/auto-allocations/:id", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    await storage.removeOrgAutoAllocation(id, user.organizationId);
+    return res.json({ ok: true });
   });
 
   // Leaderboard stats - admins by bucks given, or employees by balance/spent
@@ -7621,6 +7690,56 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       console.log(`[BudgetReminder] Sent reminders to ${sent} org(s)`);
     } catch (err) {
       console.error("[BudgetReminder] Cron error:", err);
+    }
+  });
+
+  // ── Month-End Buck Recall (runs nightly 28-31; only fires on actual last day) ──
+  cron.schedule("0 23 28-31 * *", async () => {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    if (tomorrow.getMonth() === now.getMonth()) return; // not the last day of the month
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    console.log(`[BuckRecall] Running month-end admin-balance recall for ${monthKey}...`);
+    try {
+      const allOrgs = await storage.getAllOrganizations();
+      let totalRecalled = 0;
+      for (const org of allOrgs) {
+        if (org.status !== "active" || !org.planBucks || org.planBucks === 0) continue;
+        if (org.lastRecallMonth === monthKey) continue;
+        try {
+          const orgUsers = await storage.getUsersByOrganization(org.id);
+          const admins = orgUsers.filter(u => u.role === "admin" && (u.balance ?? 0) > 0);
+          let recalled = 0;
+          for (const admin of admins) {
+            const bal = admin.balance ?? 0;
+            if (bal <= 0) continue;
+            recalled += bal;
+            await storage.updateUserBalance(admin.id, -bal);
+            await storage.createTransaction({
+              userId: admin.id,
+              amount: -bal,
+              reason: `Month-end Buck recall (${monthKey})`,
+              performedBy: 0,
+            });
+          }
+          if (recalled > 0) {
+            await storage.topUpOrgBucksBalance(org.id, recalled);
+            await storage.createOrgRecallEntry({
+              orgId: org.id,
+              recallMonth: monthKey,
+              totalRecalled: recalled,
+              discountCents: recalled * 100,
+            });
+            totalRecalled += recalled;
+          }
+          await storage.setOrgLastRecallMonth(org.id, monthKey);
+        } catch (err) {
+          console.error(`[BuckRecall] Failed for org ${org.name} (${org.id}):`, err);
+        }
+      }
+      console.log(`[BuckRecall] Complete for ${monthKey}: ${totalRecalled} Bucks recalled`);
+    } catch (err) {
+      console.error("[BuckRecall] Cron error:", err);
     }
   });
 

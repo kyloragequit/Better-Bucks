@@ -9,7 +9,7 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
   siteId: text("site_id").unique(),
-  tier: text("tier", { enum: ["small", "mid", "large", "enterprise"] }).default("small").notNull(),
+  tier: text("tier", { enum: ["small", "mid", "large", "enterprise", "starter", "growth", "pro", "custom"] }).default("small").notNull(),
   maxEmployees: integer("max_employees").default(25).notNull(),
   storeUrl: text("store_url").default("https://dscpromostore.com/").notNull(),
   stripeCustomerId: text("stripe_customer_id"),
@@ -39,7 +39,30 @@ export const organizations = pgTable("organizations", {
   securityAlertEmail: text("security_alert_email"),
   approvedExternalSites: text("approved_external_sites"),
   preferredStoreUrl: text("preferred_store_url"),
+  planBucks: integer("plan_bucks").default(0).notNull(),
+  orgBucksBalance: integer("org_bucks_balance").default(0).notNull(),
+  lastRecallMonth: text("last_recall_month"),
 });
+
+export const orgAutoAllocations = pgTable("org_auto_allocations", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  adminUserId: integer("admin_user_id").notNull(),
+  monthlyBucks: integer("monthly_bucks").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const insertOrgAutoAllocationSchema = createInsertSchema(orgAutoAllocations).omit({ id: true, createdAt: true });
+
+export const orgRecallHistory = pgTable("org_recall_history", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull(),
+  recallMonth: text("recall_month").notNull(),
+  totalRecalled: integer("total_recalled").notNull(),
+  discountCents: integer("discount_cents").notNull(),
+  recalledAt: timestamp("recalled_at").defaultNow().notNull(),
+});
+export const insertOrgRecallHistorySchema = createInsertSchema(orgRecallHistory).omit({ id: true, recalledAt: true });
 
 export const departments = pgTable("departments", {
   id: serial("id").primaryKey(),

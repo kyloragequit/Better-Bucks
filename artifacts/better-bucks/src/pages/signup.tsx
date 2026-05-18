@@ -21,45 +21,45 @@ import { HCaptchaWidget } from "@/components/hcaptcha-widget";
 
 const tiers = [
   {
-    id: "small" as const,
-    name: "A Little Better",
-    price: 18,
-    maxEmployees: 25,
-    description: "25 Employee Logins",
-    perEmployee: "~$0.72",
+    id: "starter" as const,
+    name: "Starter",
+    price: 50,
+    bucks: 50,
+    description: "50 Bucks / month",
+    perBuck: "Perfect for small teams",
     icon: Users,
-    features: ["25 employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"],
+    features: ["50 Bucks per month ($50 value)", "1 Buck = $1 — simple, transparent", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Basic reporting", "Email support"],
   },
   {
-    id: "mid" as const,
-    name: "Much Better",
-    price: 30,
-    maxEmployees: 75,
-    description: "75 Employee Logins",
-    perEmployee: "~$0.40",
+    id: "growth" as const,
+    name: "Growth",
+    price: 400,
+    bucks: 400,
+    description: "400 Bucks / month",
+    perBuck: "Great for growing teams",
     icon: Building2,
     popular: true,
-    features: ["75 employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
+    features: ["400 Bucks per month ($400 value)", "1 Buck = $1 — simple, transparent", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Advanced reporting", "Priority support"],
   },
   {
-    id: "large" as const,
-    name: "A LOT Better",
-    price: 48,
-    maxEmployees: 150,
-    description: "150 Employee Logins",
-    perEmployee: "~$0.32",
+    id: "pro" as const,
+    name: "Pro",
+    price: 750,
+    bucks: 750,
+    description: "750 Bucks / month",
+    perBuck: "For larger, high-volume teams",
     icon: Zap,
-    features: ["150 employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"],
+    features: ["750 Bucks per month ($750 value)", "1 Buck = $1 — simple, transparent", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Advanced reporting", "Priority support"],
   },
   {
-    id: "enterprise" as const,
-    name: "How much Better?",
+    id: "custom" as const,
+    name: "Custom",
     price: 0,
-    maxEmployees: -1,
-    description: "Unlimited Logins",
-    perEmployee: "Custom pricing — contact us",
+    bucks: 0,
+    description: "You choose the amount",
+    perBuck: "Billed at $1 per Buck",
     icon: Crown,
-    features: ["Unlimited employee logins", "60-day free pilot program", "Admin dashboard", "Bucks tracking", "Custom reporting", "Dedicated support"],
+    features: ["Choose your exact monthly Bucks", "Billed at exactly $1 per Buck", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Advanced reporting", "Dedicated support"],
   },
 ];
 
@@ -76,6 +76,7 @@ export default function SignupPage() {
   const [contactPending, setContactPending] = useState(false);
   const [licenseAccepted, setLicenseAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [customBucks, setCustomBucks] = useState<number | "">(100);
 
   const [hcaptchaToken, setHcaptchaToken] = useState<string | null>(null);
 
@@ -130,6 +131,7 @@ export default function SignupPage() {
         organizationName: orgName,
         email,
         tier: selectedTier,
+        customBucks: selectedTier === "custom" && typeof customBucks === "number" ? customBucks : undefined,
         referralCode: referralCode.trim() || undefined,
         licenseAccepted: true,
         marketingOptIn,
@@ -168,6 +170,10 @@ export default function SignupPage() {
     e.preventDefault();
     if (!selectedTier) {
       toast({ title: "Select a Plan", description: "Please choose a pricing tier to continue.", variant: "destructive" });
+      return;
+    }
+    if (selectedTier === "custom" && (typeof customBucks !== "number" || customBucks < 1)) {
+      toast({ title: "Enter Bucks Amount", description: "Please enter how many Bucks you want per month (minimum 1).", variant: "destructive" });
       return;
     }
     startCheckout();
@@ -263,23 +269,18 @@ export default function SignupPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {tiers.map((tier) => {
-            const isEnterprise = tier.id === "enterprise";
+            const isCustom = tier.id === "custom";
             const isSelected = selectedTier === tier.id;
             const TierIcon = tier.icon;
             return (
               <Card
                 key={tier.id}
                 className={`relative transition-all duration-200 ${
-                  isEnterprise
-                    ? "cursor-default border-muted hover-elevate"
-                    : isSelected
+                  isSelected
                     ? "cursor-pointer ring-2 ring-primary border-primary shadow-lg"
                     : "cursor-pointer border-muted hover-elevate"
                 } ${tier.popular ? "border-primary/50" : ""}`}
-                onClick={() => {
-                  if (isEnterprise) { setSelectedTier(null); setTimeout(scrollToRfi, 80); }
-                  else setSelectedTier(tier.id);
-                }}
+                onClick={() => setSelectedTier(tier.id)}
                 data-testid={`card-tier-${tier.id}`}
               >
                 {tier.popular && (
@@ -296,8 +297,8 @@ export default function SignupPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-center">
                   <div>
-                    {isEnterprise ? (
-                      <span className="text-2xl font-bold text-primary">Contact Us</span>
+                    {isCustom ? (
+                      <span className="text-2xl font-bold text-primary">You Choose</span>
                     ) : (
                       <div className="space-y-0.5">
                         <div>
@@ -311,7 +312,7 @@ export default function SignupPage() {
                     60-Day Free Pilot
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {isEnterprise ? tier.perEmployee : `${tier.perEmployee} per employee`}
+                    {tier.perBuck}
                   </div>
                   <div className="space-y-1.5 text-left">
                     {tier.features.map((feature, i) => (
@@ -322,35 +323,18 @@ export default function SignupPage() {
                     ))}
                   </div>
                   <div className="pt-2">
-                    {isEnterprise ? (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedTier(null);
-                          setTimeout(scrollToRfi, 80);
-                        }}
-                        data-testid="button-select-tier-enterprise"
-                      >
-                        <Mail className="mr-1.5 h-3 w-3" />
-                        Contact Us
-                      </Button>
-                    ) : (
-                      <Button
-                        variant={isSelected ? "default" : "outline"}
-                        size="sm"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedTier(tier.id);
-                        }}
-                        data-testid={`button-select-tier-${tier.id}`}
-                      >
-                        {isSelected ? "Selected" : "Select Plan"}
-                      </Button>
-                    )}
+                    <Button
+                      variant={isSelected ? "default" : "outline"}
+                      size="sm"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTier(tier.id);
+                      }}
+                      data-testid={`button-select-tier-${tier.id}`}
+                    >
+                      {isSelected ? "Selected" : "Select Plan"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -366,7 +350,12 @@ export default function SignupPage() {
                 Claim Your Spot
               </CardTitle>
               <CardDescription>
-                {selectedTierData?.name}{selectedTierData?.id !== "enterprise" ? ` — locked in at $${selectedTierData?.price}/month` : " — contact us for custom pricing"}
+                {selectedTierData?.name}
+                {selectedTierData?.id === "custom"
+                  ? (typeof customBucks === "number" && customBucks > 0
+                    ? ` — $${customBucks}/month (${customBucks} Bucks)`
+                    : " — choose your Bucks amount below")
+                  : ` — $${selectedTierData?.price}/month (${selectedTierData?.bucks} Bucks)`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -416,6 +405,29 @@ export default function SignupPage() {
                     <p className="text-xs text-muted-foreground">Have a referral or promo code? Enter it here — referral codes add an extra month free!</p>
                   )}
                 </div>
+
+                {selectedTier === "custom" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="custom-bucks">How many Bucks per month?</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="custom-bucks"
+                        type="number"
+                        min={1}
+                        value={customBucks}
+                        onChange={(e) => setCustomBucks(parseInt(e.target.value) || "")}
+                        placeholder="e.g. 200"
+                        required
+                        data-testid="input-custom-bucks"
+                      />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap font-medium">
+                        = ${typeof customBucks === "number" ? customBucks : 0}/month
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">1 Buck = $1. You'll be billed exactly this amount each month.</p>
+                  </div>
+                )}
+
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center gap-2 mb-1">
                     <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />

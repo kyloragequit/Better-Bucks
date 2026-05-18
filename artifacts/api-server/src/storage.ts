@@ -1,6 +1,6 @@
 
 import { db } from "./db";
-import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, securityEvents, transfers, transferLimits, itemTransfers, rewardCards, rewardCardTransfers, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type SecurityEvent, type Transfer, type InsertTransfer, type TransferLimit, type ItemTransfer, type RewardCard, type InsertRewardCard, type RewardCardTransfer } from "@workspace/db";
+import { users, transactions, orders, organizations, shopWebsites, documents, departments, pageContent, storeItems, wishlists, blogPosts, goals, goalNotifications, referralCodes, passkeys, surveys, surveyQuestions, surveyResponses, surveyAnswers, customItems, customItemBalances, customItemTransactions, invitations, inviteLinks, transactionCategories, monthlyReports, enterpriseAccounts, merchants, merchantTransactions, merchantTransactionDisputes, walletPasses, walletPassDevices, userSocialLinks, notificationLogs, securityEvents, transfers, transferLimits, itemTransfers, rewardCards, rewardCardTransfers, orgAutoAllocations, orgRecallHistory, type User, type InsertUser, type Transaction, type InsertTransaction, type Order, type InsertOrder, type Organization, type InsertOrganization, type ShopWebsite, type InsertShopWebsite, type Document, type InsertDocument, type Department, type InsertDepartment, type StoreItem, type InsertStoreItem, type Wishlist, type BlogPost, type InsertBlogPost, type Goal, type InsertGoal, type GoalNotification, type ReferralCode, type InsertReferralCode, type Passkey, type InsertPasskey, type Survey, type InsertSurvey, type SurveyQuestion, type InsertSurveyQuestion, type SurveyResponse, type SurveyAnswer, type CustomItem, type InsertCustomItem, type CustomItemBalance, type CustomItemTransaction, type InsertCustomItemTransaction, type Invitation, type InsertInvitation, type InviteLink, type InsertInviteLink, type TransactionCategory, type InsertTransactionCategory, type MonthlyReport, type InsertMonthlyReport, type EnterpriseAccount, type Merchant, type InsertMerchant, type MerchantTransaction, type InsertMerchantTransaction, type WalletPass, type InsertWalletPass, type WalletPassDevice, type InsertWalletPassDevice, type UserSocialLink, type MerchantTransactionDispute, type NotificationLog, type SecurityEvent, type Transfer, type InsertTransfer, type TransferLimit, type ItemTransfer, type RewardCard, type InsertRewardCard, type RewardCardTransfer } from "@workspace/db";
 import { eq, desc, and, ne, ilike, or, gte, lte, isNull, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -85,7 +85,7 @@ export interface IStorage {
   updateOrganizationStripe(id: number, stripeCustomerId: string, stripeSubscriptionId: string): Promise<Organization>;
   updateOrganizationStatus(id: number, status: "active" | "inactive" | "pending" | "paused" | "deleted"): Promise<Organization>;
   updateOrganizationStoreUrl(id: number, storeUrl: string): Promise<Organization>;
-  updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization>;
+  updateOrganizationTier(id: number, tier: string, maxEmployees: number): Promise<Organization>;
   updateOrganizationSignupPrice(id: number, signupPrice: number): Promise<Organization>;
   deleteOrganization(id: number): Promise<void>;
 
@@ -113,6 +113,15 @@ export interface IStorage {
   updateOrganizationBudgetSettings(id: number, bucksPerDollar: number, monthlyBudgetBucks: number, budgetSetByName?: string): Promise<Organization>;
   updateOrganizationLockoutSettings(id: number, maxFailedAttempts: number, lockoutDurationMinutes: number): Promise<Organization>;
   updateOrganizationSecurityAlertEmail(id: number, securityAlertEmail: string | null): Promise<Organization>;
+  updateOrgBucksPlan(orgId: number, planBucks: number): Promise<Organization>;
+  topUpOrgBucksBalance(orgId: number, amount: number): Promise<Organization>;
+  deductOrgBucksBalance(orgId: number, amount: number): Promise<Organization>;
+  getOrgAutoAllocations(orgId: number): Promise<typeof orgAutoAllocations.$inferSelect[]>;
+  upsertOrgAutoAllocation(data: { orgId: number; adminUserId: number; monthlyBucks: number }): Promise<typeof orgAutoAllocations.$inferSelect>;
+  removeOrgAutoAllocation(id: number, orgId: number): Promise<void>;
+  getOrgRecallHistory(orgId: number, limit?: number): Promise<typeof orgRecallHistory.$inferSelect[]>;
+  createOrgRecallEntry(data: { orgId: number; recallMonth: string; totalRecalled: number; discountCents: number }): Promise<void>;
+  setOrgLastRecallMonth(orgId: number, month: string): Promise<void>;
   setOrganizationDefaultPin(orgId: number, hashedPin: string | null, plainPin?: string | null): Promise<Organization>;
   setOrganizationReportRecipients(orgId: number, userIds: number[] | null): Promise<Organization>;
 
@@ -751,7 +760,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async updateOrganizationTier(id: number, tier: "small" | "mid" | "large" | "enterprise", maxEmployees: number): Promise<Organization> {
+  async updateOrganizationTier(id: number, tier: string, maxEmployees: number): Promise<Organization> {
     const [updated] = await db.update(organizations).set({ tier, maxEmployees }).where(eq(organizations.id, id)).returning();
     return updated;
   }
@@ -2381,6 +2390,62 @@ DatabaseStorage.prototype.updateItemTransferStatus = async function (id, status)
     .where(eq(itemTransfers.id, id))
     .returning();
   return row;
+};
+
+DatabaseStorage.prototype.updateOrgBucksPlan = async function(orgId, planBucks) {
+  const [row] = await db.update(organizations).set({ planBucks }).where(eq(organizations.id, orgId)).returning();
+  return row;
+};
+
+DatabaseStorage.prototype.topUpOrgBucksBalance = async function(orgId, amount) {
+  const [row] = await db.update(organizations)
+    .set({ orgBucksBalance: sql`${organizations.orgBucksBalance} + ${amount}` })
+    .where(eq(organizations.id, orgId)).returning();
+  return row;
+};
+
+DatabaseStorage.prototype.deductOrgBucksBalance = async function(orgId, amount) {
+  const [row] = await db.update(organizations)
+    .set({ orgBucksBalance: sql`GREATEST(${organizations.orgBucksBalance} - ${amount}, 0)` })
+    .where(eq(organizations.id, orgId)).returning();
+  return row;
+};
+
+DatabaseStorage.prototype.getOrgAutoAllocations = async function(orgId) {
+  return db.select().from(orgAutoAllocations).where(eq(orgAutoAllocations.orgId, orgId)).orderBy(orgAutoAllocations.createdAt);
+};
+
+DatabaseStorage.prototype.upsertOrgAutoAllocation = async function(data) {
+  const existing = await db.select().from(orgAutoAllocations)
+    .where(and(eq(orgAutoAllocations.orgId, data.orgId), eq(orgAutoAllocations.adminUserId, data.adminUserId)))
+    .limit(1);
+  if (existing.length > 0) {
+    const [row] = await db.update(orgAutoAllocations)
+      .set({ monthlyBucks: data.monthlyBucks, active: true })
+      .where(eq(orgAutoAllocations.id, existing[0].id)).returning();
+    return row;
+  }
+  const [row] = await db.insert(orgAutoAllocations).values(data).returning();
+  return row;
+};
+
+DatabaseStorage.prototype.removeOrgAutoAllocation = async function(id, orgId) {
+  await db.delete(orgAutoAllocations).where(and(eq(orgAutoAllocations.id, id), eq(orgAutoAllocations.orgId, orgId)));
+};
+
+DatabaseStorage.prototype.getOrgRecallHistory = async function(orgId, limit) {
+  return db.select().from(orgRecallHistory)
+    .where(eq(orgRecallHistory.orgId, orgId))
+    .orderBy(desc(orgRecallHistory.recalledAt))
+    .limit(limit ?? 50);
+};
+
+DatabaseStorage.prototype.createOrgRecallEntry = async function(data) {
+  await db.insert(orgRecallHistory).values(data);
+};
+
+DatabaseStorage.prototype.setOrgLastRecallMonth = async function(orgId, month) {
+  await db.update(organizations).set({ lastRecallMonth: month }).where(eq(organizations.id, orgId));
 };
 
 export const storage: IStorage = new DatabaseStorage();

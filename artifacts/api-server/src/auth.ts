@@ -293,7 +293,7 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/user", (req, res): void => {
+  app.get("/api/user", async (req, res): Promise<void> => {
     // Mobile Safari/Chrome will aggressively cache GET responses. Without
     // these headers the client can replay a stale "terms not accepted" or
     // "tutorial not completed" response after the user finished those flows,
@@ -304,17 +304,34 @@ export function setupAuth(app: Express) {
     if (req.isAuthenticated()) {
       const isPublicDemo = (req.session as any)?.isPublicDemo === true;
       const user = req.user as User;
+
+      // Include orgPlanBucks for prime_admins so the frontend can gate the
+      // Buck plan setup modal immediately on login — no separate API round-trip.
+      let orgPlanBucks: number | undefined;
+      if (user.role === "prime_admin" && user.organizationId) {
+        try {
+          const org = await storage.getOrganization(user.organizationId);
+          orgPlanBucks = org?.planBucks ?? 0;
+        } catch {
+          orgPlanBucks = undefined;
+        }
+      }
+
+      const extra: Record<string, unknown> = {};
+      if (orgPlanBucks !== undefined) extra.orgPlanBucks = orgPlanBucks;
+
       if (isPublicDemo) {
         const tutorialMap = (req.session as any)?.demoTutorialMap as Record<string, boolean> | undefined;
         if (tutorialMap && tutorialMap[user.id] !== undefined) {
           res.json({
             ...(user as object),
             tutorialCompleted: tutorialMap[user.id],
+            ...extra,
           });
           return;
         }
       }
-      res.json(req.user);
+      res.json({ ...(user as object), ...extra });
     } else {
       res.status(401).send("Not authenticated");
     }

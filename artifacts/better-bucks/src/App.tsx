@@ -203,6 +203,7 @@ function ProtectedRoute({
       apiRequest("POST", "/api/organizations/finalize-billing-setup")
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/org/credit-status"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/user"] });
           window.history.replaceState({}, "", window.location.pathname);
         })
         .catch(() => {});
@@ -254,11 +255,13 @@ function ProtectedRoute({
      return <Redirect to="/admin/dashboard" />;
   }
 
+  // orgPlanBucks is included in the /api/user response for prime_admins,
+  // so this check is instant — no second API call window to exploit.
   const needsBillingSetup =
     user.role === "prime_admin" &&
     !demoStatus?.inDemo &&
     !devStatus?.impersonating &&
-    creditStatus?.planBucks === 0;
+    (user as any).orgPlanBucks === 0;
 
   return (
     <>

@@ -4178,6 +4178,18 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         await storage.updateOrganizationStripe(org.id, customerId, org.stripeSubscriptionId || "pending_checkout");
       }
 
+      // Keep Your Bucks™ — if the org has recalled Bucks in their pool, credit them on the first invoice.
+      // Stripe checkout in subscription mode automatically includes pending invoice items in the displayed total.
+      const recalledBucks = Math.min((org as any).orgBucksBalance ?? 0, planBucks);
+      if (recalledBucks > 0) {
+        await stripe.invoiceItems.create({
+          customer: customerId,
+          amount: -(recalledBucks * 100),
+          currency: "usd",
+          description: `Keep Your Bucks™ credit — ${recalledBucks} recalled Bucks deducted from first invoice`,
+        });
+      }
+
       const baseUrl = getAppBaseUrl(req);
       const session = await stripe.checkout.sessions.create({
         customer: customerId,

@@ -184,7 +184,8 @@ function ProtectedRoute({
   const { data: creditStatus } = useQuery<{ planBucks: number; orgBucksBalance: number }>({
     queryKey: ["/api/org/credit-status"],
     enabled: !!user && user.role === "prime_admin" && !devStatus?.impersonating,
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {
@@ -249,8 +250,7 @@ function ProtectedRoute({
     user.role === "prime_admin" &&
     !demoStatus?.inDemo &&
     !devStatus?.impersonating &&
-    creditStatus !== undefined &&
-    (creditStatus?.planBucks ?? 0) === 0;
+    creditStatus?.planBucks === 0;
 
   return (
     <>

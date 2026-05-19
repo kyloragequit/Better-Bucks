@@ -323,7 +323,7 @@ function MiniShop({
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: `${GREEN}18`, color: GREEN }}>
           <Truck className="h-3 w-3" />
-          <span>Your manager will fulfill your request</span>
+          <span>Your order will be fulfilled and shipped to you</span>
         </div>
         <p className="text-xs text-gray-400 max-w-xs">
           That's it! In the real app your Bucks are deducted and the order shows up in your Orders tab.
@@ -751,8 +751,8 @@ function buildSlides(role: string, name: string): Slide[] {
             </div>
           </div>
           <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: `${NAVY}08` }}>
-            <ExternalLink className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
-            <p className="text-gray-500">After approving, <strong className="text-gray-700">visit your store website to place the physical order</strong> for the employee. Upload a fulfillment photo to confirm delivery.</p>
+            <Package className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
+            <p className="text-gray-500">Once approved, Better Bucks handles fulfillment and ships the item directly to the employee.</p>
           </div>
         </div>
       ),

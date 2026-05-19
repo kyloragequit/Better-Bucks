@@ -370,7 +370,7 @@ function ProgramPreview() {
     timers.push(setTimeout(() => {
       setCursor((s) => ({ ...s, clicking: false, visible: false }));
       setStoreRedeemed(true);
-      setCaption({ text: "Order goes straight to your admin", benefit: "Track every redemption from one dashboard" });
+      setCaption({ text: "Order submitted — fulfillment handled for you", benefit: "Track every redemption from one dashboard" });
     }, 2200));
     timers.push(setTimeout(() => advanceTo("poll"), 4200));
     return () => timers.forEach(clearTimeout);

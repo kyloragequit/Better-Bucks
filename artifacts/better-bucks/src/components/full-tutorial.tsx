@@ -231,7 +231,7 @@ const adminSteps: Step[] = [
     id: "orders",
     path: "/admin/orders",
     title: "Orders",
-    description: "Review and fulfill employee reward requests. Approve, reject, or mark items as delivered.",
+    description: "Review employee reward requests. Approve or reject orders — fulfillment is handled automatically.",
   },
   {
     id: "goals",

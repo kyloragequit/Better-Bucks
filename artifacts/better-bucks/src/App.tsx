@@ -172,6 +172,14 @@ function ProtectedRoute({
   primeAdminOnly?: boolean,
 }) {
   const { data: user, isLoading } = useUser();
+
+  // Mark the browser session as active so LoginRoute knows to log out
+  // if the user presses the browser back button back to /login.
+  useEffect(() => {
+    if (user) {
+      try { sessionStorage.setItem("bb_in_session", "1"); } catch {}
+    }
+  }, [user?.id]);
   const { data: demoStatus, isLoading: demoLoading } = useQuery<DemoStatus>({
     queryKey: ["/api/demo/status"],
     staleTime: 30 * 1000,
@@ -262,8 +270,29 @@ function ProtectedRoute({
 
 function LoginRoute() {
   const { data: user, isLoading } = useUser();
-  if (isLoading) return <FullPageLoader />;
-  if (user) {
+  const qc = useQueryClient();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      try { sessionStorage.removeItem("bb_in_session"); } catch {}
+      return;
+    }
+    // User arrived at /login while authenticated — must have pressed browser back.
+    // Log them out so the login page is clean.
+    let inSession = false;
+    try { inSession = sessionStorage.getItem("bb_in_session") === "1"; } catch {}
+    if (inSession) {
+      setLoggingOut(true);
+      try { sessionStorage.removeItem("bb_in_session"); } catch {}
+      apiRequest("POST", "/api/logout")
+        .catch(() => {})
+        .finally(() => { qc.clear(); setLoggingOut(false); });
+    }
+  }, [user?.id]);
+
+  if (isLoading || loggingOut) return <FullPageLoader />;
+  if (user && !loggingOut) {
     if (user.role === 'developer') return <Redirect to="/developer/dashboard" />;
     if (user.role === 'admin' || user.role === 'prime_admin') return <Redirect to="/admin/dashboard" />;
     return <Redirect to="/dashboard" />;

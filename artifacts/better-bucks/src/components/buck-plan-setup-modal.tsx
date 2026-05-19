@@ -10,12 +10,15 @@ import { Users, Zap, Crown, Check, DollarSign, Building2, RotateCcw, ArrowRight,
 const NAVY = "#162A4A";
 const GREEN = "#4E9F3D";
 
+const SERVICE_FEE = 5;
+
 const TIERS = [
   {
     id: "starter",
     name: "Starter",
     bucks: 50,
     price: 50,
+    total: 55,
     icon: Users,
     description: "Small teams",
     popular: false,
@@ -25,6 +28,7 @@ const TIERS = [
     name: "Growth",
     bucks: 400,
     price: 400,
+    total: 405,
     icon: Zap,
     description: "Growing teams",
     popular: true,
@@ -34,6 +38,7 @@ const TIERS = [
     name: "Pro",
     bucks: 750,
     price: 750,
+    total: 755,
     icon: Crown,
     description: "Large teams",
     popular: false,
@@ -43,6 +48,7 @@ const TIERS = [
     name: "Custom",
     bucks: null,
     price: null,
+    total: null,
     icon: Building2,
     description: "You choose",
     popular: false,
@@ -146,15 +152,15 @@ export function BuckPlanSetupModal() {
               <div>
                 <span className="font-semibold" style={{ color: GREEN }}>Example: </span>
                 <span className="text-gray-600">
-                  You're on the 400 Bucks/month plan ($400/mo). Your admins only distributed 310 Bucks.
-                  At month-end, 90 Bucks return to your pool and your next invoice is <strong>$310</strong> instead of $400.
-                  Bucks already earned by employees are always theirs to keep.
+                  You're on the 400 Bucks/month plan. Monthly bill = $400 Bucks + $5 service fee = <strong>$405</strong>.
+                  Your admins only used 310 Bucks, so 90 are recalled. Next invoice: $310 + $5 = <strong>$315</strong>.
+                  Bucks employees already earned are always theirs to keep.
                 </span>
               </div>
             </div>
 
             <p className="text-[11px] text-gray-400 text-center">
-              1 Buck = $1 &mdash; simple, transparent pricing for every organization
+              1 Buck = $1 &mdash; plus a flat <strong>$5/month</strong> service fee per organization
             </p>
           </div>
 
@@ -198,16 +204,19 @@ export function BuckPlanSetupModal() {
                   <p className="font-semibold text-gray-900 text-sm">{tier.name}</p>
                   <p className="text-xs text-gray-400 mb-2">{tier.description}</p>
                   {tier.bucks !== null ? (
-                    <p className="text-xl font-bold" style={{ color: NAVY }}>
-                      ${tier.price}
-                      <span className="text-xs font-normal text-gray-400">/mo</span>
-                    </p>
+                    <>
+                      <p className="text-xl font-bold" style={{ color: NAVY }}>
+                        ${tier.total}
+                        <span className="text-xs font-normal text-gray-400">/mo</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{tier.bucks} Bucks + $5 fee</p>
+                    </>
                   ) : (
-                    <p className="text-base font-bold" style={{ color: NAVY }}>You Choose</p>
+                    <>
+                      <p className="text-base font-bold" style={{ color: NAVY }}>You Choose</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">+ $5/mo service fee</p>
+                    </>
                   )}
-                  <p className="text-[11px] text-gray-400 mt-0.5">
-                    {tier.bucks !== null ? `${tier.bucks} Bucks` : "any amount"}
-                  </p>
                 </button>
               );
             })}
@@ -233,12 +242,15 @@ export function BuckPlanSetupModal() {
                 <span className="text-sm text-gray-500">
                   ={" "}
                   <strong>
-                    ${typeof customBucks === "number" ? customBucks.toLocaleString() : 0}/month
+                    ${typeof customBucks === "number" ? (customBucks + SERVICE_FEE).toLocaleString() : SERVICE_FEE}/month
                   </strong>
+                  <span className="text-xs font-normal ml-1 text-gray-400">
+                    ({typeof customBucks === "number" ? customBucks : 0} Bucks + $5 fee)
+                  </span>
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                1 Buck = $1. Unspent admin Bucks are recalled and credited — you never overpay.
+                1 Buck = $1 + a flat $5/mo service fee. Unspent admin Bucks are recalled and credited — you never overpay on Bucks.
               </p>
             </div>
           )}

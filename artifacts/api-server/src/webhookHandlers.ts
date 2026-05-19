@@ -262,22 +262,25 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice): Promise<void> {
     if (planBucks === 0) return;
 
     const currentBalance = org.orgBucksBalance ?? 0;
-    const bucksDue = Math.max(0, planBucks - currentBalance);
+    // Recalled Bucks sitting in the pool are credited back — org only pays for Bucks actually used.
+    // The subscription line item already charges the full planBucks amount; we add a negative item
+    // here for any Bucks that were recalled from admin accounts at month-end.
+    const creditBucks = Math.min(currentBalance, planBucks);
 
-    if (bucksDue === 0) {
-      console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): balance ${currentBalance} >= plan ${planBucks} — no charge this cycle`);
+    if (creditBucks === 0) {
+      console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): no recalled Bucks to credit (balance=${currentBalance}) — full plan charge of $${planBucks} applies`);
       return;
     }
 
-    console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): injecting ${bucksDue} Bucks ($${bucksDue}) [plan=${planBucks}, balance=${currentBalance}]`);
+    console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): applying Keep Your Bucks™ credit of -$${creditBucks} [plan=${planBucks}, recalled=${currentBalance}]`);
 
     const stripe = await getUncachableStripeClient();
     await stripe.invoiceItems.create({
       customer: customerId,
       invoice: invoice.id,
-      amount: bucksDue * 100,
+      amount: -(creditBucks * 100),
       currency: "usd",
-      description: `Monthly Buck top-up — ${bucksDue} Bucks (plan: ${planBucks}, recalled balance: ${currentBalance})`,
+      description: `Keep Your Bucks™ credit — ${creditBucks} Bucks recalled from admin accounts (plan: ${planBucks}, pool balance: ${currentBalance})`,
     });
   } catch (err) {
     console.error("[Webhook] handleInvoiceCreated error:", err);

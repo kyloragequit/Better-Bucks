@@ -36,11 +36,13 @@ const BUCK_TIERS = [
 ];
 
 const LOGIN_TIERS: Record<string, { name: string; priceCents: number; maxEmployees: number }> = {
-  small:      { name: "A Little Better",  priceCents: 1799,  maxEmployees: 25 },
-  mid:        { name: "Much Better",      priceCents: 2999,  maxEmployees: 75 },
-  large:      { name: "A LOT Better",     priceCents: 4799,  maxEmployees: 150 },
+  small:      { name: "A Little Better",  priceCents: 1800,  maxEmployees: 25 },
+  mid:        { name: "Much Better",      priceCents: 3000,  maxEmployees: 75 },
+  large:      { name: "A LOT Better",     priceCents: 4800,  maxEmployees: 150 },
   enterprise: { name: "How Much Better?", priceCents: 0,     maxEmployees: -1 },
 };
+
+const LOGIN_TIER_IDS = new Set(["small", "mid", "large", "enterprise"]);
 
 type TierPricingMap = Record<string, { price: number; maxEmployees: number; name: string }>;
 
@@ -133,7 +135,7 @@ export default function AdminSubscriptionPage() {
 
   const totalEmployees = empData?.totalEmployees ?? empData?.admins?.reduce((s, a) => s + a.employeeCount, 0) ?? 0;
 
-  const loginTierKey = org?.tier ?? "small";
+  const loginTierKey = (org?.tier && LOGIN_TIER_IDS.has(org.tier)) ? org.tier : "small";
   const loginTierDefaults = LOGIN_TIERS[loginTierKey] ?? LOGIN_TIERS.small;
   const loginTierLive = livePricing?.[loginTierKey];
   const loginTierName = loginTierLive?.name ?? loginTierDefaults.name;
@@ -226,9 +228,10 @@ export default function AdminSubscriptionPage() {
                 <div className="text-right">
                   <p className="text-xs text-gray-500">Monthly price</p>
                   <p className="text-lg font-bold" style={{ color: NAVY }}>
-                    ${creditStatus?.planBucks ?? 0}
+                    ${(creditStatus?.planBucks ?? 0) + 5}
                     <span className="text-xs font-normal text-gray-400">/mo</span>
                   </p>
+                  <p className="text-[10px] text-gray-400">${creditStatus?.planBucks ?? 0} Bucks + $5 service fee</p>
                 </div>
               </div>
 
@@ -239,14 +242,14 @@ export default function AdminSubscriptionPage() {
                   <p className="text-[11px] text-gray-400">Bucks</p>
                 </div>
                 <div className="px-5 py-4 text-center">
-                  <p className="text-xs text-gray-500 mb-1">Max This Month</p>
+                  <p className="text-xs text-gray-500 mb-1">Plan Bucks/Mo</p>
                   <p className="text-xl font-bold" style={{ color: NAVY }}>{creditStatus?.planBucks ?? 0}</p>
                   <p className="text-[11px] text-gray-400">Bucks</p>
                 </div>
                 <div className="px-5 py-4 text-center">
                   <p className="text-xs text-gray-500 mb-1">Rate</p>
                   <p className="text-xl font-bold" style={{ color: NAVY }}>1:1</p>
-                  <p className="text-[11px] text-gray-400">1 Buck = $1</p>
+                  <p className="text-[11px] text-gray-400">+ $5/mo service fee</p>
                 </div>
               </div>
             </div>
@@ -386,13 +389,13 @@ export default function AdminSubscriptionPage() {
               <div>
                 <p className="font-bold text-sm mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — How Buck Billing Works</p>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Each month you receive a fresh pool of Bucks equal to your Buck plan amount (1 Buck = $1). Any Bucks still
-                  sitting in <strong>admin accounts</strong> at month-end are automatically returned to your organization pool and
-                  applied as a <strong>credit against your next Buck invoice</strong>. Bucks already earned by employees are
-                  always theirs to keep — only unspent admin Bucks are recalled.
+                  Your monthly Buck charge equals your plan Bucks at 1 Buck = $1, plus a flat <strong>$5/month service fee</strong>.
+                  Any Bucks still sitting in <strong>admin accounts</strong> at month-end are automatically recalled and applied as a
+                  <strong> credit against your next invoice</strong> — so you only pay for Bucks your team actually used.
+                  Bucks already earned by employees are always theirs to keep.
                 </p>
                 <p className="text-xs text-gray-400 italic mt-2">
-                  Example: 400 Bucks/month plan, admins spent 310 → 90 Bucks recalled → next month's Buck charge is $310 instead of $400.
+                  Example: 400 Bucks/month plan ($405/mo total). Admins used 310 Bucks → 90 recalled → next invoice is $310 + $5 = <strong>$315</strong> instead of $405.
                 </p>
               </div>
             </div>

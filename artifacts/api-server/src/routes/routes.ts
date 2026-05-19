@@ -4191,9 +4191,22 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
                   tier === "custom"
                     ? `Better Bucks – Custom (${planBucks} Bucks/mo)`
                     : `Better Bucks – ${config.name}`,
-                description: `${planBucks} Bucks/month at $1/Buck — billed dynamically after monthly recall.`,
+                description: `${planBucks} Bucks/month at 1 Buck = $1. Keep Your Bucks™: unspent admin Bucks are recalled and credited against next month's invoice.`,
               },
-              unit_amount: 0,
+              unit_amount: planBucks * 100,
+              recurring: { interval: "month" },
+              tax_behavior: "exclusive",
+            },
+            quantity: 1,
+          },
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: "Better Bucks – Monthly Service Fee",
+                description: "Flat monthly service fee for the Better Bucks platform.",
+              },
+              unit_amount: 500,
               recurring: { interval: "month" },
               tax_behavior: "exclusive",
             },

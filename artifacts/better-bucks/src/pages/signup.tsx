@@ -21,45 +21,45 @@ import { HCaptchaWidget } from "@/components/hcaptcha-widget";
 
 const tiers = [
   {
-    id: "starter" as const,
-    name: "Starter",
-    price: 50,
-    bucks: 50,
-    description: "50 Bucks / month",
-    perBuck: "Perfect for small teams",
+    id: "small" as const,
+    name: "A Little Better",
+    price: 17.99,
+    maxEmployees: 25,
+    description: "Up to 25 employees",
+    perBuck: "Perfect for small operations",
     icon: Users,
-    features: ["50 Bucks per month ($50 value)", "1 Buck = $1 — simple, transparent", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Basic reporting", "Email support"],
+    features: ["Up to 25 employee logins", "Employee mobile app", "Bucks rewards & tracking", "Admin dashboard", "Basic reporting", "Email support"],
   },
   {
-    id: "growth" as const,
-    name: "Growth",
-    price: 400,
-    bucks: 400,
-    description: "400 Bucks / month",
+    id: "mid" as const,
+    name: "Much Better",
+    price: 29.99,
+    maxEmployees: 75,
+    description: "Up to 75 employees",
     perBuck: "Great for growing teams",
     icon: Building2,
     popular: true,
-    features: ["400 Bucks per month ($400 value)", "1 Buck = $1 — simple, transparent", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Advanced reporting", "Priority support"],
+    features: ["Up to 75 employee logins", "Employee mobile app", "Bucks rewards & tracking", "Admin dashboard", "Advanced reporting", "Priority support"],
   },
   {
-    id: "pro" as const,
-    name: "Pro",
-    price: 750,
-    bucks: 750,
-    description: "750 Bucks / month",
-    perBuck: "For larger, high-volume teams",
+    id: "large" as const,
+    name: "A LOT Better",
+    price: 47.99,
+    maxEmployees: 150,
+    description: "Up to 150 employees",
+    perBuck: "Built for larger operations",
     icon: Zap,
-    features: ["750 Bucks per month ($750 value)", "1 Buck = $1 — simple, transparent", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Advanced reporting", "Priority support"],
+    features: ["Up to 150 employee logins", "Employee mobile app", "Bucks rewards & tracking", "Admin dashboard", "Advanced reporting", "Priority support"],
   },
   {
-    id: "custom" as const,
-    name: "Custom",
+    id: "enterprise" as const,
+    name: "How Much Better?",
     price: 0,
-    bucks: 0,
-    description: "You choose the amount",
-    perBuck: "Billed at $1 per Buck",
+    maxEmployees: -1,
+    description: "Unlimited employees",
+    perBuck: "Contact us for pricing",
     icon: Crown,
-    features: ["Choose your exact monthly Bucks", "Billed at exactly $1 per Buck", "Distribute to admins & employees", "Admin dashboard & Bucks tracking", "Advanced reporting", "Dedicated support"],
+    features: ["Unlimited employee logins", "Employee mobile app", "Bucks rewards & tracking", "Admin dashboard", "Advanced reporting", "Dedicated account manager"],
   },
 ];
 
@@ -76,7 +76,6 @@ export default function SignupPage() {
   const [contactPending, setContactPending] = useState(false);
   const [licenseAccepted, setLicenseAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
-  const [customBucks, setCustomBucks] = useState<number | "">(100);
 
   const [hcaptchaToken, setHcaptchaToken] = useState<string | null>(null);
 
@@ -131,7 +130,6 @@ export default function SignupPage() {
         organizationName: orgName,
         email,
         tier: selectedTier,
-        customBucks: selectedTier === "custom" && typeof customBucks === "number" ? customBucks : undefined,
         referralCode: referralCode.trim() || undefined,
         licenseAccepted: true,
         marketingOptIn,
@@ -170,10 +168,6 @@ export default function SignupPage() {
     e.preventDefault();
     if (!selectedTier) {
       toast({ title: "Select a Plan", description: "Please choose a pricing tier to continue.", variant: "destructive" });
-      return;
-    }
-    if (selectedTier === "custom" && (typeof customBucks !== "number" || customBucks < 1)) {
-      toast({ title: "Enter Bucks Amount", description: "Please enter how many Bucks you want per month (minimum 1).", variant: "destructive" });
       return;
     }
     startCheckout();
@@ -269,7 +263,7 @@ export default function SignupPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {tiers.map((tier) => {
-            const isCustom = tier.id === "custom";
+            const isEnterprise = tier.id === "enterprise";
             const isSelected = selectedTier === tier.id;
             const TierIcon = tier.icon;
             return (
@@ -297,8 +291,8 @@ export default function SignupPage() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-center">
                   <div>
-                    {isCustom ? (
-                      <span className="text-2xl font-bold text-primary">You Choose</span>
+                    {isEnterprise ? (
+                      <span className="text-2xl font-bold text-primary">Contact Us</span>
                     ) : (
                       <div className="space-y-0.5">
                         <div>
@@ -351,11 +345,11 @@ export default function SignupPage() {
               </CardTitle>
               <CardDescription>
                 {selectedTierData?.name}
-                {selectedTierData?.id === "custom"
-                  ? (typeof customBucks === "number" && customBucks > 0
-                    ? ` — $${customBucks}/month (${customBucks} Bucks)`
-                    : " — choose your Bucks amount below")
-                  : ` — $${selectedTierData?.price}/month (${selectedTierData?.bucks} Bucks)`}
+                {selectedTierData?.id === "enterprise"
+                  ? " — we'll reach out to set you up"
+                  : selectedTierData?.price
+                    ? ` — $${selectedTierData.price}/month · ${selectedTierData.description}`
+                    : ""}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -405,28 +399,6 @@ export default function SignupPage() {
                     <p className="text-xs text-muted-foreground">Have a referral or promo code? Enter it here — referral codes add an extra month free!</p>
                   )}
                 </div>
-
-                {selectedTier === "custom" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="custom-bucks">How many Bucks per month?</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="custom-bucks"
-                        type="number"
-                        min={1}
-                        value={customBucks}
-                        onChange={(e) => setCustomBucks(parseInt(e.target.value) || "")}
-                        placeholder="e.g. 200"
-                        required
-                        data-testid="input-custom-bucks"
-                      />
-                      <span className="text-sm text-muted-foreground whitespace-nowrap font-medium">
-                        = ${typeof customBucks === "number" ? customBucks : 0}/month
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">1 Buck = $1. You'll be billed exactly this amount each month.</p>
-                  </div>
-                )}
 
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center gap-2 mb-1">

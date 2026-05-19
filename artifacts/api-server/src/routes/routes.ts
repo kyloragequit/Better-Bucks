@@ -2693,11 +2693,17 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       });
       invalidateUserCache(user.id);
       void notifyEmployeeBalanceChange(user.id, -pointsCost, `Order #${order.id}: ${description}`);
+      let finalOrder: typeof order = order;
       if (user.organizationId) {
-        void notifyAdminsOfNewOrder(user.organizationId, user, { ...order, convertedValue: convertedValue ?? null });
+        const userOrg = await storage.getOrganization(user.organizationId);
+        if (userOrg && userOrg.code !== "PRIME1") {
+          finalOrder = await storage.updateOrderStatus(order.id, "approved");
+        } else {
+          void notifyAdminsOfNewOrder(user.organizationId, user, { ...order, convertedValue: convertedValue ?? null });
+        }
       }
 
-      res.status(201).json(order);
+      res.status(201).json(finalOrder);
     } catch (e) {
       console.error("Order creation error:", e);
       res.status(500).json({ message: "Internal Server Error" });
@@ -6508,6 +6514,86 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       console.error("Cancel enterprise account error:", e);
       res.status(500).json({ message: e.message || "Failed to cancel" });
     }
+  });
+
+  // Developer: list all approved orders across all orgs with employee + shipping info
+  app.get("/api/developer/orders", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    try {
+      const allOrgs = await storage.getAllOrganizations();
+      const orgIdFilter = req.query.orgId ? parseInt(req.query.orgId as string) : null;
+      const targetOrgs = (orgIdFilter && !isNaN(orgIdFilter))
+        ? allOrgs.filter(o => o.id === orgIdFilter)
+        : allOrgs;
+
+      const results: any[] = [];
+      for (const org of targetOrgs) {
+        const orders = await storage.getOrdersByOrganization(org.id, "approved");
+        for (const o of orders) {
+          results.push({
+            ...o,
+            orgId: org.id,
+            orgName: org.name,
+            orgCode: org.code,
+            shippingAddress: {
+              line1: o.user.shippingAddressLine1 ?? null,
+              line2: o.user.shippingAddressLine2 ?? null,
+              city: o.user.shippingCity ?? null,
+              state: o.user.shippingState ?? null,
+              zip: o.user.shippingZip ?? null,
+              country: o.user.shippingCountry ?? null,
+            },
+          });
+        }
+      }
+
+      results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      res.json(results);
+    } catch (e) {
+      console.error("Developer orders fetch error:", e);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  });
+
+  // Developer: fulfill an order — mark completed and send confirmation email to employee
+  app.patch("/api/developer/orders/:id/fulfill", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
+    const order = await storage.getOrder(id);
+    if (!order) return res.status(404).send("Order not found");
+
+    const employee = await storage.getUser(order.userId);
+    if (!employee) return res.status(404).send("Employee not found");
+
+    const updated = await storage.updateOrderStatus(id, "completed", req.body?.adminNotes);
+
+    if (employee.email) {
+      const subject = `Better Bucks — Order #${order.id} Fulfilled!`;
+      const html = `
+        <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+          ${emailLogoHeader}
+          <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Your Order Has Been Fulfilled!</h2>
+          <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Great news — your Better Bucks order is on its way.</p>
+          <div style="background:#F0F9F4;border:1px solid #BBF7D0;border-radius:12px;padding:20px;margin-bottom:20px;">
+            <p style="margin:0 0 8px;color:#166534;font-size:15px;font-weight:600;">Order #${order.id} — ${escapeHtml(order.description)}</p>
+            ${order.selectedSize ? `<p style="margin:4px 0 0;color:#6B7280;font-size:13px;">Size: ${escapeHtml(order.selectedSize)}</p>` : ""}
+            ${order.selectedColor ? `<p style="margin:4px 0 0;color:#6B7280;font-size:13px;">Color: ${escapeHtml(order.selectedColor)}</p>` : ""}
+            <p style="margin:8px 0 0;color:#374151;font-size:14px;font-weight:500;">${order.pointsCost} Bucks redeemed</p>
+          </div>
+          <p style="color:#374151;font-size:14px;margin:0 0 16px;">Your item has been ordered and will be delivered to your address on file. If you have any questions, please reach out to your organization admin.</p>
+          <p style="color:#64748b;font-size:12px;margin:0;">Thank you for using Better Bucks!</p>
+        </div>
+      `;
+      void sendEmail({ to: employee.email, subject, html });
+    }
+
+    res.json(updated);
   });
 
   app.post("/api/developer/enterprise-accounts/:id/send-test-email", async (req, res) => {

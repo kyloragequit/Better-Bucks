@@ -116,7 +116,8 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude" | "marketing" | "stripe-orphans">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude" | "marketing" | "stripe-orphans" | "orders">("orgs");
+  const [ordersOrgFilter, setOrdersOrgFilter] = useState<string>("");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
@@ -473,6 +474,39 @@ export default function DeveloperDashboardPage() {
     enabled: activeTab === "marketing",
   });
 
+  type DevOrder = {
+    id: number; description: string; photoUrls: string[] | null; itemUrl: string | null;
+    selectedSize: string | null; selectedColor: string | null; quantity: number; pointsCost: number;
+    convertedValue: string | null; status: string; adminNotes: string | null; createdAt: string;
+    orgId: number; orgName: string; orgCode: string;
+    user: { id: number; fullName: string; email: string | null; username: string };
+    shippingAddress: { line1: string | null; line2: string | null; city: string | null; state: string | null; zip: string | null; country: string | null };
+  };
+  const { data: devOrders, isLoading: ordersLoading, refetch: refetchOrders } = useQuery<DevOrder[]>({
+    queryKey: ["/api/developer/orders", ordersOrgFilter],
+    queryFn: async () => {
+      const url = ordersOrgFilter ? `/api/developer/orders?orgId=${ordersOrgFilter}` : "/api/developer/orders";
+      const res = await apiRequest("GET", url);
+      return res.json();
+    },
+    enabled: activeTab === "orders",
+    staleTime: 0,
+  });
+
+  const fulfillOrderMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      const res = await apiRequest("PATCH", `/api/developer/orders/${orderId}/fulfill`);
+      return res.json();
+    },
+    onSuccess: () => {
+      void refetchOrders();
+      toast({ title: "Order Fulfilled", description: "Marked as completed and confirmation email sent." });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
   type StripeOrphanRow = { id: number; stripeCustomerId: string | null; stripeSubscriptionId: string | null; status: string; retryCount: number; lastError: string | null; resolutionNote: string | null; createdAt: string; updatedAt: string };
   type StripeOrphansData = { rows: StripeOrphanRow[]; counts: Record<string, number> };
   const { data: stripeOrphansData, isLoading: stripeOrphansLoading, refetch: refetchStripeOrphans } = useQuery<StripeOrphansData>({
@@ -698,7 +732,7 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : activeTab === "marketing" ? "Everyone who opted in to marketing communications — export to CSV for email campaigns." : activeTab === "stripe-orphans" ? "Stripe cleanup records that could not be automatically linked — manually mark resolved when Stripe already cleaned them up." : "View all organizations and manage customer accounts."}
+              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : activeTab === "marketing" ? "Everyone who opted in to marketing communications — export to CSV for email campaigns." : activeTab === "stripe-orphans" ? "Stripe cleanup records that could not be automatically linked — manually mark resolved when Stripe already cleaned them up." : activeTab === "orders" ? "All approved orders waiting to be purchased and shipped. Select an org to filter, then mark each order as fulfilled when sent." : "View all organizations and manage customer accounts."}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -802,6 +836,16 @@ export default function DeveloperDashboardPage() {
                   {permanentlyFailedCount}
                 </span>
               )}
+            </Button>
+            <Button
+              variant={activeTab === "orders" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("orders"); setBlogForm(null); }}
+              data-testid="button-tab-orders"
+              className={activeTab === "orders" ? "" : "border-amber-300 text-amber-700 hover:bg-amber-50"}
+            >
+              <CheckCircle2 className="mr-1.5 h-4 w-4" />
+              Orders to Fulfill
             </Button>
           </div>
         </div>
@@ -1868,6 +1912,123 @@ export default function DeveloperDashboardPage() {
         )}
 
         {activeTab === "enterprise" && <EnterpriseAccountsTab />}
+
+        {activeTab === "orders" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-amber-600" />
+                Orders to Fulfill
+              </CardTitle>
+              <CardDescription>
+                Approved orders across all organizations, ready to be purchased and shipped.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3 mb-5">
+                <Label htmlFor="orders-org-filter" className="shrink-0 text-sm font-medium">Filter by org:</Label>
+                <select
+                  id="orders-org-filter"
+                  value={ordersOrgFilter}
+                  onChange={e => setOrdersOrgFilter(e.target.value)}
+                  className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  data-testid="select-orders-org-filter"
+                >
+                  <option value="">All Organizations</option>
+                  {(organizations ?? []).map(o => (
+                    <option key={o.id} value={String(o.id)}>{o.name}</option>
+                  ))}
+                </select>
+                <Button size="sm" variant="outline" onClick={() => void refetchOrders()} disabled={ordersLoading}>
+                  <RefreshCw className={`h-4 w-4 ${ordersLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : !devOrders || devOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <CheckCircle2 className="h-8 w-8 text-green-400" />
+                  <p className="text-sm font-medium">No pending orders to fulfill</p>
+                  <p className="text-xs">All approved orders have been processed.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {devOrders.map(order => {
+                    const addr = order.shippingAddress;
+                    const hasAddress = addr.line1 || addr.city;
+                    const addressStr = [addr.line1, addr.line2, addr.city, addr.state, addr.zip, addr.country].filter(Boolean).join(", ");
+                    const photo = order.photoUrls?.[0];
+                    return (
+                      <div key={order.id} className="border border-border rounded-xl p-4 bg-card hover:bg-muted/30 transition-colors">
+                        <div className="flex gap-4">
+                          {photo && (
+                            <img src={photo} alt={order.description} className="h-20 w-20 rounded-lg object-cover shrink-0 border border-border" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                              <div>
+                                <p className="font-semibold text-sm text-foreground leading-snug">{order.description}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <Badge variant="outline" className="text-xs">{order.orgName}</Badge>
+                                  <span className="text-xs text-muted-foreground">Order #{order.id}</span>
+                                  <span className="text-xs text-muted-foreground">{order.pointsCost} Bucks</span>
+                                  {order.convertedValue && <span className="text-xs text-muted-foreground">≈ {order.convertedValue}</span>}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => fulfillOrderMutation.mutate(order.id)}
+                                disabled={fulfillOrderMutation.isPending}
+                                className="shrink-0 bg-green-600 hover:bg-green-700 text-white"
+                                data-testid={`button-fulfill-order-${order.id}`}
+                              >
+                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                Mark Fulfilled
+                              </Button>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                              <div>
+                                <p className="text-muted-foreground font-medium uppercase tracking-wide text-[10px] mb-0.5">Employee</p>
+                                <p className="font-medium text-foreground">{order.user.fullName}</p>
+                                {order.user.email && <p className="text-muted-foreground">{order.user.email}</p>}
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground font-medium uppercase tracking-wide text-[10px] mb-0.5">Ship To</p>
+                                {hasAddress ? (
+                                  <p className="text-foreground whitespace-pre-line">{addressStr}</p>
+                                ) : (
+                                  <p className="text-amber-600 italic">No shipping address on file</p>
+                                )}
+                              </div>
+                              {(order.selectedSize || order.selectedColor || order.quantity > 1) && (
+                                <div>
+                                  <p className="text-muted-foreground font-medium uppercase tracking-wide text-[10px] mb-0.5">Details</p>
+                                  <p className="text-foreground">
+                                    {[order.selectedSize && `Size: ${order.selectedSize}`, order.selectedColor && `Color: ${order.selectedColor}`, order.quantity > 1 && `Qty: ${order.quantity}`].filter(Boolean).join(" · ")}
+                                  </p>
+                                </div>
+                              )}
+                              {order.itemUrl && (
+                                <div>
+                                  <p className="text-muted-foreground font-medium uppercase tracking-wide text-[10px] mb-0.5">Item Link</p>
+                                  <a href={order.itemUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 break-all">
+                                    View item <ExternalLink className="inline h-3 w-3 ml-0.5" />
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {activeTab === "inbox" && <InboxTab />}
 

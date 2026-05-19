@@ -176,7 +176,7 @@ function ProtectedRoute({
   // Mark the browser session as active so LoginRoute knows to log out
   // if the user presses the browser back button back to /login.
   useEffect(() => {
-    if (user) {
+    if (user && !(user as any).isFreeOrg) {
       try { sessionStorage.setItem("bb_in_session", "1"); } catch {}
     }
   }, [user?.id]);
@@ -261,6 +261,7 @@ function ProtectedRoute({
     user.role === "prime_admin" &&
     !demoStatus?.inDemo &&
     !devStatus?.impersonating &&
+    !(user as any).isFreeOrg &&
     (user as any).orgPlanBucks === 0;
 
   return (

@@ -308,10 +308,12 @@ export function setupAuth(app: Express) {
       // Include orgPlanBucks for prime_admins so the frontend can gate the
       // Buck plan setup modal immediately on login — no separate API round-trip.
       let orgPlanBucks: number | undefined;
+      let isFreeOrg = false;
       if (user.role === "prime_admin" && user.organizationId) {
         try {
           const org = await storage.getOrganization(user.organizationId);
-          orgPlanBucks = org?.planBucks ?? 0;
+          isFreeOrg = org?.stripeCustomerId === "free_membership";
+          orgPlanBucks = isFreeOrg ? undefined : (org?.planBucks ?? 0);
         } catch {
           orgPlanBucks = undefined;
         }
@@ -319,6 +321,7 @@ export function setupAuth(app: Express) {
 
       const extra: Record<string, unknown> = {};
       if (orgPlanBucks !== undefined) extra.orgPlanBucks = orgPlanBucks;
+      if (isFreeOrg) extra.isFreeOrg = true;
 
       if (isPublicDemo) {
         const tutorialMap = (req.session as any)?.demoTutorialMap as Record<string, boolean> | undefined;

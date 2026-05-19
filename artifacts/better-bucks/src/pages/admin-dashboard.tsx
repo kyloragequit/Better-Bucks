@@ -47,7 +47,7 @@ type OrderPeriodStats = { totalOrders: number; pendingDollars: string; approvedD
 
 type AdminLeaderboardEntry = { id: number; name: string; bucks: number; balance: number };
 type EmployeeEntry = { id: number; name: string; balance: number; spent: number };
-type BudgetSettings = { bucksPerDollar: number; monthlyBudgetBucks: number; budgetSetByName: string | null };
+type BudgetSettings = { monthlyBudgetBucks: number; budgetSetByName: string | null };
 
 type CategoryStat = { categoryId: number | null; categoryName: string | null; categoryColor: string | null; totalBucks: number };
 type CategoryAnalytics = { stats: CategoryStat[]; budgetUsed: number; monthlyBudgetBucks: number; year: number; month: number };
@@ -65,18 +65,17 @@ const EMP_COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#06b6d4", "#ef4
 const BAR_MIN_WIDTH = 48;
 const SCROLL_THRESHOLD = 8;
 
-function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDollars }: {
+function LeaderboardBar({ data, valueKey, color, unit, showDollars }: {
   data: { name: string; value: number }[];
   valueKey: string;
   color: string;
   unit: string;
-  bucksPerDollar: number;
   showDollars: boolean;
 }) {
   const [showTable, setShowTable] = useState(false);
   const display = data.map(d => ({
     ...d,
-    display: showDollars ? +(d.value / bucksPerDollar).toFixed(2) : d.value,
+    display: showDollars ? +(d.value).toFixed(2) : d.value,
   }));
   const hasData = display.some(d => d.display > 0);
   const needsScroll = display.length > SCROLL_THRESHOLD;
@@ -226,8 +225,7 @@ function LeaderboardBar({ data, valueKey, color, unit, bucksPerDollar, showDolla
 type AdminCredit = { id: number; name: string; credited: number };
 type AdminCreditsData = { totalCredited: number; admins: AdminCredit[] };
 
-function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admins, onSaved }: {
-  bucksPerDollar: number;
+function BudgetPanel({ monthlyBudgetBucks, budgetSetByName, admins, onSaved }: {
   monthlyBudgetBucks: number;
   budgetSetByName: string | null;
   admins: { id: number; fullName: string; role: string }[];
@@ -235,7 +233,6 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [bpd, setBpd] = useState(String(bucksPerDollar));
   const [budget, setBudget] = useState(String(monthlyBudgetBucks));
   const [selectedAdmins, setSelectedAdmins] = useState<number[]>([]);
   const [bucksEach, setBucksEach] = useState("");
@@ -255,7 +252,6 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
 
   const { mutate: saveSettings, isPending: savingSettings } = useMutation({
     mutationFn: () => apiRequest("PATCH", "/api/org/budget-settings", {
-      bucksPerDollar: Math.max(1, parseInt(bpd) || 100),
       monthlyBudgetBucks: Math.max(0, parseInt(budget) || 0),
     }),
     onSuccess: () => {
@@ -308,13 +304,10 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
   });
 
   const budgetNum = parseInt(budget) || 0;
-  const bpdNum = Math.max(1, parseInt(bpd) || 100);
-  const dollarEquiv = budgetNum > 0 ? (budgetNum / bpdNum).toFixed(2) : null;
 
   const allocationAmount = (parseInt(bucksEach) || 0) * selectedAdmins.length;
   const currentCredited = adminCredits?.totalCredited ?? 0;
   const serverBudget = monthlyBudgetBucks;
-  const serverBpd = Math.max(1, bucksPerDollar);
   const newTotal = currentCredited + allocationAmount;
   const wouldExceedBudget = serverBudget > 0 && newTotal > serverBudget;
   const overBy = newTotal - serverBudget;
@@ -341,50 +334,25 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="flex items-start gap-3">
-                <Award className="h-5 w-5 text-blue-600 mt-1.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <label htmlFor="input-monthly-budget" className="block text-xs font-semibold text-blue-700 mb-1.5">Monthly Budget</label>
-                  <div className="flex items-baseline gap-1.5">
-                    <input
-                      id="input-monthly-budget"
-                      type="number" inputMode="numeric"
-                      min="0"
-                      value={budget}
-                      onChange={e => setBudget(e.target.value)}
-                      className="w-full text-2xl font-bold text-blue-800 bg-transparent border-0 border-b-2 border-blue-300 focus:border-blue-600 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      data-testid="input-monthly-budget"
-                      placeholder="10000"
-                      aria-label="Monthly budget in bucks"
-                    />
-                    <span className="text-sm font-medium text-blue-700 whitespace-nowrap">bucks</span>
-                  </div>
-                  {dollarEquiv && (
-                    <p className="text-xs text-blue-700 mt-1">≈ ${dollarEquiv} / month</p>
-                  )}
+            <div className="flex items-start gap-3">
+              <Award className="h-5 w-5 text-blue-600 mt-1.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <label htmlFor="input-monthly-budget" className="block text-xs font-semibold text-blue-700 mb-1.5">Monthly Distribution Budget</label>
+                <div className="flex items-baseline gap-1.5">
+                  <input
+                    id="input-monthly-budget"
+                    type="number" inputMode="numeric"
+                    min="0"
+                    value={budget}
+                    onChange={e => setBudget(e.target.value)}
+                    className="w-full text-2xl font-bold text-blue-800 bg-transparent border-0 border-b-2 border-blue-300 focus:border-blue-600 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    data-testid="input-monthly-budget"
+                    placeholder="10000"
+                    aria-label="Monthly budget in bucks"
+                  />
+                  <span className="text-sm font-medium text-blue-700 whitespace-nowrap">Bucks</span>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <BadgeDollarSign className="h-5 w-5 text-green-700 mt-1.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <label htmlFor="input-bucks-per-dollar" className="block text-xs font-semibold text-green-800 mb-1.5">Bucks per $1</label>
-                  <div className="flex items-baseline gap-1.5">
-                    <input
-                      id="input-bucks-per-dollar"
-                      type="number" inputMode="numeric"
-                      min="1"
-                      value={bpd}
-                      onChange={e => setBpd(e.target.value)}
-                      className="w-full text-2xl font-bold text-green-800 bg-transparent border-0 border-b-2 border-green-300 focus:border-green-700 focus:outline-none p-0 pb-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      data-testid="input-bucks-per-dollar"
-                      placeholder="100"
-                      aria-label="Bucks awarded per US dollar"
-                    />
-                    <span className="text-sm font-medium text-green-800 whitespace-nowrap">= $1</span>
-                  </div>
-                  <p className="text-xs text-green-800 mt-1">conversion rate</p>
-                </div>
+                <p className="text-xs text-blue-700 mt-1">1 Buck = $1 &mdash; how many you distribute to admins each month</p>
               </div>
             </div>
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -428,7 +396,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                   {currentCredited > serverBudget && (
                     <p className="text-xs text-red-700 flex items-center gap-1 mt-1" data-testid="text-over-budget-warning">
                       <AlertTriangle className="h-3 w-3" />
-                      Over budget by {(currentCredited - serverBudget).toLocaleString()} bucks (${((currentCredited - serverBudget) / serverBpd).toFixed(2)})
+                      Over budget by {(currentCredited - serverBudget).toLocaleString()} bucks (${(currentCredited - serverBudget).toFixed(2)})
                     </p>
                   )}
                 </div>
@@ -590,7 +558,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground" data-testid="text-auto-alloc-summary">
                     Auto-allocated <span className="font-semibold text-foreground">{Object.values(autoAllocAmounts).reduce((s, v) => s + v, 0).toLocaleString()} bucks</span> based on employee distribution
-                    {serverBpd > 0 && <span className="text-muted-foreground"> — ${(Object.values(autoAllocAmounts).reduce((s, v) => s + v, 0) / serverBpd).toFixed(2)}</span>}
+                    <span className="text-muted-foreground"> — ${Object.values(autoAllocAmounts).reduce((s, v) => s + v, 0).toFixed(2)}</span>
                   </p>
                   <div className="flex gap-2">
                     <Button
@@ -616,7 +584,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                 <p className="text-sm text-muted-foreground" data-testid="text-allocation-total">
                   Total: <span className="font-semibold text-foreground">{allocationAmount.toLocaleString()} bucks</span>
                   {" "}({(parseInt(bucksEach) || 0).toLocaleString()} × {selectedAdmins.length} admin{selectedAdmins.length !== 1 ? "s" : ""})
-                  {serverBpd > 0 && <span className="text-muted-foreground"> — ${(allocationAmount / serverBpd).toFixed(2)}</span>}
+                  <span className="text-muted-foreground"> — ${allocationAmount.toFixed(2)}</span>
                 </p>
               )}
               {!autoAllocAmounts && allocationAmount > 0 && wouldExceedBudget && (
@@ -644,7 +612,7 @@ function BudgetPanel({ bucksPerDollar, monthlyBudgetBucks, budgetSetByName, admi
                 which exceeds your monthly budget of <span className="font-semibold">{serverBudget.toLocaleString()} bucks</span>.
               </p>
               <p className="text-red-600 font-semibold">
-                You will be over budget by {overBy.toLocaleString()} bucks (${(overBy / serverBpd).toFixed(2)}).
+                You will be over budget by {overBy.toLocaleString()} bucks (${overBy.toFixed(2)}).
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -760,7 +728,7 @@ export default function AdminDashboardPage() {
   const debitTotal = debitPeriod === "week" ? pointsStats?.weekDebited : debitPeriod === "month" ? pointsStats?.monthDebited : pointsStats?.yearDebited;
   const periodTabLabel = (p: "week" | "month" | "year") => p === "week" ? "This Week" : p === "month" ? "This Month" : "This Year";
 
-  const bpd = budgetSettings?.bucksPerDollar ?? 100;
+  const bpd = 1;
 
   // Summary metrics for the overview section
   const totalIssued = pointsStats?.month ?? 0;
@@ -1121,7 +1089,6 @@ export default function AdminDashboardPage() {
           {/* Budget panel - prime admin gets edit controls, regular admin gets read-only view */}
           {isPrime && budgetSettings && (
             <BudgetPanel
-              bucksPerDollar={budgetSettings.bucksPerDollar}
               monthlyBudgetBucks={budgetSettings.monthlyBudgetBucks}
               budgetSetByName={budgetSettings.budgetSetByName}
               admins={admins ?? []}
@@ -1420,7 +1387,6 @@ export default function AdminDashboardPage() {
                     valueKey="value"
                     color={leaderboardMode === "admins" ? "#3b82f6" : "#10b981"}
                     unit="bucks"
-                    bucksPerDollar={bpd}
                     showDollars={leaderboardMode === "employees" && showDollars}
                   />
                 )}

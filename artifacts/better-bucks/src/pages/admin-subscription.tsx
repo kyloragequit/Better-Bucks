@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -23,16 +22,27 @@ import {
   Wallet,
   ChevronDown,
   ChevronUp,
+  LogIn,
 } from "lucide-react";
+import type { Organization } from "@shared/schema";
 
 const NAVY = "#162A4A";
 
-const TIERS = [
+const BUCK_TIERS = [
   { id: "starter", name: "Starter", bucks: 50, price: 50, icon: Users, popular: false },
   { id: "growth", name: "Growth", bucks: 400, price: 400, icon: Zap, popular: true },
   { id: "pro", name: "Pro", bucks: 750, price: 750, icon: Crown, popular: false },
   { id: "custom", name: "Custom", bucks: null, price: null, icon: Building2, popular: false },
 ];
+
+const LOGIN_TIERS: Record<string, { name: string; priceCents: number; maxEmployees: number }> = {
+  small:      { name: "A Little Better",  priceCents: 1799,  maxEmployees: 25 },
+  mid:        { name: "Much Better",      priceCents: 2999,  maxEmployees: 75 },
+  large:      { name: "A LOT Better",     priceCents: 4799,  maxEmployees: 150 },
+  enterprise: { name: "How Much Better?", priceCents: 0,     maxEmployees: -1 },
+};
+
+type TierPricingMap = Record<string, { price: number; maxEmployees: number; name: string }>;
 
 interface CreditStatus {
   planBucks: number;
@@ -47,7 +57,9 @@ interface ManagerEmployeeCounts {
   totalEmployees: number;
 }
 
-function TierBadge({ tier }: { tier: string | null }) {
+type OrgWithFree = Organization & { isFree: boolean; employeeCount: number };
+
+function BuckTierBadge({ tier }: { tier: string | null }) {
   const map: Record<string, string> = {
     starter: "bg-blue-100 text-blue-700",
     growth: "bg-green-100 text-green-700",
@@ -65,15 +77,26 @@ function TierBadge({ tier }: { tier: string | null }) {
 export default function AdminSubscriptionPage() {
   const { data: user } = useUser();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [customBucks, setCustomBucks] = useState<number | "">("");
 
-  const { data: creditStatus, isLoading } = useQuery<CreditStatus>({
+  const { data: creditStatus, isLoading: creditLoading } = useQuery<CreditStatus>({
     queryKey: ["/api/org/credit-status"],
     enabled: user?.role === "prime_admin",
     staleTime: 30000,
+  });
+
+  const { data: org, isLoading: orgLoading } = useQuery<OrgWithFree>({
+    queryKey: ["/api/organizations/my-org"],
+    enabled: user?.role === "prime_admin",
+    staleTime: 30000,
+  });
+
+  const { data: livePricing } = useQuery<TierPricingMap>({
+    queryKey: ["/api/organizations/tier-pricing"],
+    enabled: user?.role === "prime_admin",
+    staleTime: 60000,
   });
 
   const { data: empData } = useQuery<ManagerEmployeeCounts>({
@@ -110,6 +133,17 @@ export default function AdminSubscriptionPage() {
 
   const totalEmployees = empData?.totalEmployees ?? empData?.admins?.reduce((s, a) => s + a.employeeCount, 0) ?? 0;
 
+  const loginTierKey = org?.tier ?? "small";
+  const loginTierDefaults = LOGIN_TIERS[loginTierKey] ?? LOGIN_TIERS.small;
+  const loginTierLive = livePricing?.[loginTierKey];
+  const loginTierName = loginTierLive?.name ?? loginTierDefaults.name;
+  const loginTierPriceCents = loginTierLive?.price ?? loginTierDefaults.priceCents;
+  const loginTierMax = loginTierLive?.maxEmployees ?? loginTierDefaults.maxEmployees;
+  const loginPriceDisplay = loginTierPriceCents > 0 ? `$${(loginTierPriceCents / 100).toFixed(2)}` : "Custom";
+  const loginMaxDisplay = loginTierMax === -1 ? "Unlimited" : `Up to ${loginTierMax}`;
+
+  const isLoading = creditLoading || orgLoading;
+
   return (
     <AdminLayout>
       <div className="max-w-3xl mx-auto space-y-6">
@@ -118,15 +152,61 @@ export default function AdminSubscriptionPage() {
             Subscription Management
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Manage your monthly Buck budget, view billing history, and update your payment method.
+            You have two separate subscriptions — your login plan (how many employees can log in) and your Buck plan (how many Bucks you receive each month).
           </p>
         </div>
 
         {isLoading ? (
-          <div className="h-40 bg-gray-100 animate-pulse rounded-xl" />
+          <div className="space-y-4">
+            <div className="h-28 bg-gray-100 animate-pulse rounded-xl" />
+            <div className="h-40 bg-gray-100 animate-pulse rounded-xl" />
+          </div>
         ) : (
           <>
-            {/* Current Plan Card */}
+            {/* ── LOGIN PLAN ── */}
+            <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b flex items-center justify-between" style={{ background: `${NAVY}08` }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: NAVY }}>
+                    <LogIn className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Login Plan</p>
+                    <p className="font-bold text-lg" style={{ color: NAVY }}>{loginTierName}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Monthly price</p>
+                  <p className="text-lg font-bold" style={{ color: NAVY }}>
+                    {loginPriceDisplay}
+                    <span className="text-xs font-normal text-gray-400">/mo</span>
+                  </p>
+                </div>
+              </div>
+              <div className="px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-6 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">Employee Logins</p>
+                    <p className="font-semibold" style={{ color: NAVY }}>{loginMaxDisplay}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-0.5">Currently Active</p>
+                    <p className="font-semibold" style={{ color: NAVY }}>{totalEmployees}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => portalMutation.mutate()}
+                  disabled={portalMutation.isPending}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                  {portalMutation.isPending ? "Opening…" : "Manage in Stripe"}
+                </Button>
+              </div>
+            </div>
+
+            {/* ── BUCK PLAN ── */}
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b flex items-center justify-between" style={{ background: `${NAVY}08` }}>
                 <div className="flex items-center gap-3">
@@ -134,12 +214,12 @@ export default function AdminSubscriptionPage() {
                     <Wallet className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 font-medium">Current Plan</p>
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Buck Plan</p>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-lg" style={{ color: NAVY }}>
                         {creditStatus?.planBucks ?? 0} Bucks/month
                       </span>
-                      <TierBadge tier={creditStatus?.tier ?? null} />
+                      <BuckTierBadge tier={creditStatus?.tier ?? null} />
                     </div>
                   </div>
                 </div>
@@ -164,14 +244,14 @@ export default function AdminSubscriptionPage() {
                   <p className="text-[11px] text-gray-400">Bucks</p>
                 </div>
                 <div className="px-5 py-4 text-center">
-                  <p className="text-xs text-gray-500 mb-1">Employees</p>
-                  <p className="text-xl font-bold" style={{ color: NAVY }}>{totalEmployees}</p>
-                  <p className="text-[11px] text-gray-400">active</p>
+                  <p className="text-xs text-gray-500 mb-1">Rate</p>
+                  <p className="text-xl font-bold" style={{ color: NAVY }}>1:1</p>
+                  <p className="text-[11px] text-gray-400">1 Buck = $1</p>
                 </div>
               </div>
             </div>
 
-            {/* Change Plan */}
+            {/* Change Buck Plan */}
             <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
               <button
                 type="button"
@@ -182,7 +262,7 @@ export default function AdminSubscriptionPage() {
                   <DollarSign className="h-5 w-5" style={{ color: NAVY }} />
                   <div className="text-left">
                     <p className="font-semibold text-gray-900">Change Monthly Bucks</p>
-                    <p className="text-xs text-gray-500">Select a new plan — you'll go through Stripe to update billing</p>
+                    <p className="text-xs text-gray-500">Select a new Buck plan — you'll go through Stripe to update billing</p>
                   </div>
                 </div>
                 {showChangePlan ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
@@ -191,7 +271,7 @@ export default function AdminSubscriptionPage() {
               {showChangePlan && (
                 <div className="px-6 pb-6 border-t pt-5 space-y-5">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {TIERS.map((tier) => {
+                    {BUCK_TIERS.map((tier) => {
                       const Icon = tier.icon;
                       const isSelected = selectedTier === tier.id;
                       return (
@@ -272,19 +352,19 @@ export default function AdminSubscriptionPage() {
                     </Button>
                   </div>
                   <p className="text-xs text-gray-400">
-                    Changing your plan requires updating your Stripe subscription. You'll be redirected to complete the change securely.
+                    Changing your Buck plan requires updating your Stripe subscription. You'll be redirected to complete the change securely.
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Billing Portal */}
+            {/* Payment Method & Invoices */}
             <div className="rounded-xl border bg-white shadow-sm px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <CreditCard className="h-5 w-5 text-gray-400" />
                 <div>
                   <p className="font-semibold text-gray-900">Payment Method &amp; Invoices</p>
-                  <p className="text-xs text-gray-500">Manage your card, view past invoices, and download receipts via Stripe</p>
+                  <p className="text-xs text-gray-500">Manage cards, view past invoices, and download receipts via Stripe</p>
                 </div>
               </div>
               <Button
@@ -304,15 +384,15 @@ export default function AdminSubscriptionPage() {
                 <RotateCcw className="h-5 w-5" style={{ color: NAVY }} />
               </div>
               <div>
-                <p className="font-bold text-sm mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — How Billing Works</p>
+                <p className="font-bold text-sm mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — How Buck Billing Works</p>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Each month you receive a fresh pool of Bucks equal to your plan amount. Any Bucks still sitting in{" "}
-                  <strong>admin accounts</strong> at month-end are automatically returned to your organization pool and
-                  applied as a <strong>credit against your next invoice</strong>. Bucks already earned by employees are
+                  Each month you receive a fresh pool of Bucks equal to your Buck plan amount (1 Buck = $1). Any Bucks still
+                  sitting in <strong>admin accounts</strong> at month-end are automatically returned to your organization pool and
+                  applied as a <strong>credit against your next Buck invoice</strong>. Bucks already earned by employees are
                   always theirs to keep — only unspent admin Bucks are recalled.
                 </p>
                 <p className="text-xs text-gray-400 italic mt-2">
-                  Example: 400 Bucks/month plan, admins spent 310 → 90 Bucks recalled → next month's charge is $310 instead of $400.
+                  Example: 400 Bucks/month plan, admins spent 310 → 90 Bucks recalled → next month's Buck charge is $310 instead of $400.
                 </p>
               </div>
             </div>
@@ -322,7 +402,7 @@ export default function AdminSubscriptionPage() {
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b flex items-center gap-2">
                   <TrendingDown className="h-4 w-4 text-gray-400" />
-                  <h2 className="font-semibold text-gray-900">Recall History</h2>
+                  <h2 className="font-semibold text-gray-900">Buck Recall History</h2>
                   <span className="text-xs text-gray-400 ml-auto">Last 12 months</span>
                 </div>
                 <div className="divide-y">

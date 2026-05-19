@@ -1790,11 +1790,11 @@ function ShopWebsitesSection() {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
-  const [newRate, setNewRate] = useState("");
+  const [newRate] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editUrl, setEditUrl] = useState("");
-  const [editRate, setEditRate] = useState("");
+  const [editRate] = useState("");
 
   const { data: websites, isLoading } = useQuery<ShopWebsite[]>({
     queryKey: ["/api/shop-websites"],
@@ -1811,7 +1811,6 @@ function ShopWebsitesSection() {
       setAdding(false);
       setNewName("");
       setNewUrl("");
-      setNewRate("");
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -1847,22 +1846,20 @@ function ShopWebsitesSection() {
   });
 
   const handleAdd = () => {
-    const rate = parseInt(newRate);
-    if (!newName.trim() || !newUrl.trim() || !rate || rate <= 0) {
-      toast({ title: "Error", description: "All fields are required. Bucks must be a positive number.", variant: "destructive" });
+    if (!newName.trim() || !newUrl.trim()) {
+      toast({ title: "Error", description: "Name and URL are required.", variant: "destructive" });
       return;
     }
-    addMutation.mutate({ name: newName.trim(), url: newUrl.trim(), pointsPerDollar: rate });
+    addMutation.mutate({ name: newName.trim(), url: newUrl.trim(), pointsPerDollar: 1 });
   };
 
   const handleUpdate = () => {
     if (editingId === null) return;
-    const rate = parseInt(editRate);
-    if (!editName.trim() || !editUrl.trim() || !rate || rate <= 0) {
-      toast({ title: "Error", description: "All fields are required.", variant: "destructive" });
+    if (!editName.trim() || !editUrl.trim()) {
+      toast({ title: "Error", description: "Name and URL are required.", variant: "destructive" });
       return;
     }
-    updateMutation.mutate({ id: editingId, name: editName.trim(), url: editUrl.trim(), pointsPerDollar: rate });
+    updateMutation.mutate({ id: editingId, name: editName.trim(), url: editUrl.trim(), pointsPerDollar: 1 });
   };
 
   return (
@@ -1914,24 +1911,8 @@ function ShopWebsitesSection() {
                   data-testid="input-new-shop-url"
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="shop-rate">Bucks per $1</Label>
-                <Input
-                  id="shop-rate"
-                  type="number" inputMode="numeric"
-                  min={1}
-                  placeholder="e.g. 50"
-                  value={newRate}
-                  onChange={(e) => setNewRate(e.target.value)}
-                  data-testid="input-new-shop-rate"
-                />
-              </div>
             </div>
-            {newRate && parseInt(newRate) > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Example: {parseInt(newRate)} Bucks = $1.00 {newName ? `on ${newName}` : ""}
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">1 Buck = $1 — standard rate applied automatically.</p>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -1945,7 +1926,7 @@ function ShopWebsitesSection() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setAdding(false); setNewName(""); setNewUrl(""); setNewRate(""); }}
+                onClick={() => { setAdding(false); setNewName(""); setNewUrl(""); }}
               >
                 Cancel
               </Button>
@@ -1985,16 +1966,6 @@ function ShopWebsitesSection() {
                           data-testid={`input-edit-shop-url-${shop.id}`}
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label>Bucks per $1</Label>
-                        <Input
-                          type="number" inputMode="numeric"
-                          min={1}
-                          value={editRate}
-                          onChange={(e) => setEditRate(e.target.value)}
-                          data-testid={`input-edit-shop-rate-${shop.id}`}
-                        />
-                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button size="sm" onClick={handleUpdate} disabled={updateMutation.isPending}>
@@ -2032,7 +2003,6 @@ function ShopWebsitesSection() {
                           setEditingId(shop.id);
                           setEditName(shop.name);
                           setEditUrl(shop.url);
-                          setEditRate(String(shop.pointsPerDollar));
                         }}
                         data-testid={`button-edit-shop-${shop.id}`}
                       >

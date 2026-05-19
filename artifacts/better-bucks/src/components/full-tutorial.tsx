@@ -284,9 +284,9 @@ const primeAdminExtraSteps: Step[] = [
   {
     id: "budget",
     path: "/admin/dashboard",
-    selector: '[data-testid="input-bucks-per-dollar"]',
+    selector: '[data-testid="input-monthly-budget"]',
     title: "Budget & Allocation",
-    description: "Configure your monthly budget and allocate Bucks to your admin team from the dashboard.",
+    description: "Set your monthly Buck budget and allocate Bucks to your admin team from the dashboard.",
   },
   {
     id: "subscription",

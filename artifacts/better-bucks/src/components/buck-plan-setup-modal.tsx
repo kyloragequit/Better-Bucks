@@ -26,9 +26,9 @@ const TIERS = [
   {
     id: "growth",
     name: "Growth",
-    bucks: 400,
-    price: 400,
-    total: 405,
+    bucks: 150,
+    price: 150,
+    total: 155,
     icon: Zap,
     description: "Growing teams",
     popular: true,
@@ -36,9 +36,9 @@ const TIERS = [
   {
     id: "pro",
     name: "Pro",
-    bucks: 750,
-    price: 750,
-    total: 755,
+    bucks: 300,
+    price: 300,
+    total: 305,
     icon: Crown,
     description: "Large teams",
     popular: false,
@@ -152,8 +152,8 @@ export function BuckPlanSetupModal() {
               <div>
                 <span className="font-semibold" style={{ color: GREEN }}>Example: </span>
                 <span className="text-gray-600">
-                  You're on the 400 Bucks/month plan. Monthly bill = $400 Bucks + $5 service fee = <strong>$405</strong>.
-                  Your admins only used 310 Bucks, so 90 are recalled. Next invoice: $310 + $5 = <strong>$315</strong>.
+                  You're on the 150 Bucks/month plan. Monthly bill = $150 Bucks + $5 service fee = <strong>$155</strong>.
+                  Your admins only used 110 Bucks, so 40 are recalled. Next invoice: $110 + $5 = <strong>$115</strong>.
                   Bucks employees already earned are always theirs to keep.
                 </span>
               </div>

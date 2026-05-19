@@ -3319,8 +3319,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     large:      { price: 4800,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support.", planBucks: 0 },
     enterprise: { price: 0,     maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — custom pricing, please contact us for a personalized quote.",                                      planBucks: 0 },
     starter:    { price: 5000,  maxEmployees: -1,  name: "Starter",          description: "50 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, email support.",                        planBucks: 50 },
-    growth:     { price: 40000, maxEmployees: -1,  name: "Growth",           description: "400 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 400 },
-    pro:        { price: 75000, maxEmployees: -1,  name: "Pro",              description: "750 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 750 },
+    growth:     { price: 15000, maxEmployees: -1,  name: "Growth",           description: "150 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 150 },
+    pro:        { price: 30000, maxEmployees: -1,  name: "Pro",              description: "300 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 300 },
     custom:     { price: 0,     maxEmployees: -1,  name: "Custom",           description: "Custom Bucks per month — billed at $1 per Buck, admin dashboard, Bucks tracking.",                                             planBucks: 0 },
   };
 
@@ -3364,7 +3364,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   }) {
     const planPrices: Record<string, string> = {
       small: "$18/mo", mid: "$30/mo", large: "$48/mo", enterprise: "Contact us",
-      starter: "$50/mo", growth: "$400/mo", pro: "$750/mo", custom: "$1/Buck",
+      starter: "$55/mo", growth: "$155/mo", pro: "$305/mo", custom: "$1/Buck + $5/mo",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;

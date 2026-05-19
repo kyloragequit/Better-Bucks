@@ -30,8 +30,8 @@ const NAVY = "#162A4A";
 
 const BUCK_TIERS = [
   { id: "starter", name: "Starter", bucks: 50, price: 50, icon: Users, popular: false },
-  { id: "growth", name: "Growth", bucks: 400, price: 400, icon: Zap, popular: true },
-  { id: "pro", name: "Pro", bucks: 750, price: 750, icon: Crown, popular: false },
+  { id: "growth", name: "Growth", bucks: 150, price: 150, icon: Zap, popular: true },
+  { id: "pro", name: "Pro", bucks: 300, price: 300, icon: Crown, popular: false },
   { id: "custom", name: "Custom", bucks: null, price: null, icon: Building2, popular: false },
 ];
 
@@ -395,7 +395,7 @@ export default function AdminSubscriptionPage() {
                   Bucks already earned by employees are always theirs to keep.
                 </p>
                 <p className="text-xs text-gray-400 italic mt-2">
-                  Example: 400 Bucks/month plan ($405/mo total). Admins used 310 Bucks → 90 recalled → next invoice is $310 + $5 = <strong>$315</strong> instead of $405.
+                  Example: 150 Bucks/month plan ($155/mo total). Admins used 110 Bucks → 40 recalled → next invoice is $110 + $5 = <strong>$115</strong> instead of $155.
                 </p>
               </div>
             </div>

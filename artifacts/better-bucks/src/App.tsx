@@ -273,16 +273,20 @@ function LoginRoute() {
   const qc = useQueryClient();
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // Read synchronously every render so the redirect is suppressed on the
+  // very first render after the user presses Back — before the effect fires.
+  let inSession = false;
+  try { inSession = sessionStorage.getItem("bb_in_session") === "1"; } catch {}
+
   useEffect(() => {
     if (!user) {
       try { sessionStorage.removeItem("bb_in_session"); } catch {}
       return;
     }
-    // User arrived at /login while authenticated — must have pressed browser back.
-    // Log them out so the login page is clean.
-    let inSession = false;
-    try { inSession = sessionStorage.getItem("bb_in_session") === "1"; } catch {}
-    if (inSession) {
+    // Re-read inside the effect so we don't rely on a stale closure value.
+    let shouldLogout = false;
+    try { shouldLogout = sessionStorage.getItem("bb_in_session") === "1"; } catch {}
+    if (shouldLogout) {
       setLoggingOut(true);
       try { sessionStorage.removeItem("bb_in_session"); } catch {}
       apiRequest("POST", "/api/logout")
@@ -291,8 +295,10 @@ function LoginRoute() {
     }
   }, [user?.id]);
 
-  if (isLoading || loggingOut) return <FullPageLoader />;
-  if (user && !loggingOut) {
+  // Show loader while: query loading, logout in progress, OR user is authenticated
+  // but we know bb_in_session is set (logout is about to begin in the effect).
+  if (isLoading || loggingOut || (!!user && inSession)) return <FullPageLoader />;
+  if (user) {
     if (user.role === 'developer') return <Redirect to="/developer/dashboard" />;
     if (user.role === 'admin' || user.role === 'prime_admin') return <Redirect to="/admin/dashboard" />;
     return <Redirect to="/dashboard" />;

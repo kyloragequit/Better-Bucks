@@ -4532,7 +4532,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       const baseUrl = getAppBaseUrl(req);
       const session = await stripe.billingPortal.sessions.create({
         customer: org.stripeCustomerId,
-        return_url: `${baseUrl}/admin/settings`,
+        return_url: `${baseUrl}/admin/subscription`,
       });
       res.json({ url: session.url });
     } catch (error) {

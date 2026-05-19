@@ -30,6 +30,7 @@ const EmployeeOrdersPage = lazy(() => import("@/pages/employee-orders"));
 const EmployeeStorePage = lazy(() => import("@/pages/employee-store"));
 const EmployeeRedemptionsPage = lazy(() => import("@/pages/employee-redemptions"));
 const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard"));
+const AdminSubscriptionPage = lazy(() => import("@/pages/admin-subscription"));
 const AdminEmployeesPage = lazy(() => import("@/pages/admin-employees"));
 const AdminEmployeeDetailPage = lazy(() => import("@/pages/admin-employee-detail"));
 const AdminOrdersPage = lazy(() => import("@/pages/admin-orders"));
@@ -337,6 +338,9 @@ function Router() {
         </Route>
         <Route path="/admin/orders">
           <ProtectedRoute component={AdminOrdersPage} adminOnly />
+        </Route>
+        <Route path="/admin/subscription">
+          <ProtectedRoute component={AdminSubscriptionPage} primeAdminOnly />
         </Route>
         <Route path="/admin/pending">
           <ProtectedRoute component={AdminPendingPage} adminOnly />

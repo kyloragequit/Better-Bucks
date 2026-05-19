@@ -270,7 +270,7 @@ const adminSteps: Step[] = [
     path: "/admin/settings",
     selector: '[data-testid="text-settings-org-code"]',
     title: "Settings",
-    description: "Your org code, passkey, role labels, and subscription details are all here.",
+    description: "Your org code, passkey, and role labels live here. Use this to customize how your program runs.",
   },
   {
     id: "done",
@@ -280,18 +280,26 @@ const adminSteps: Step[] = [
   },
 ];
 
-const primeAdminExtraStep: Step = {
-  id: "budget",
-  path: "/admin/dashboard",
-  selector: '[data-testid="input-bucks-per-dollar"]',
-  title: "Budget & Conversion",
-  description: "Set how many Bucks equal a dollar, configure your monthly budget, and allocate to admins.",
-};
+const primeAdminExtraSteps: Step[] = [
+  {
+    id: "budget",
+    path: "/admin/dashboard",
+    selector: '[data-testid="input-bucks-per-dollar"]',
+    title: "Budget & Allocation",
+    description: "Configure your monthly budget and allocate Bucks to your admin team from the dashboard.",
+  },
+  {
+    id: "subscription",
+    path: "/admin/subscription",
+    title: "Subscription Management",
+    description: "View and change your monthly Buck plan, manage your payment method, and review Keep Your Bucks™ recall history — all from one place.",
+  },
+];
 
 function getSteps(role: string): Step[] {
   if (role === "employee") return employeeSteps;
   const base = [...adminSteps];
-  if (role === "prime_admin") base.splice(3, 0, primeAdminExtraStep);
+  if (role === "prime_admin") base.splice(3, 0, ...primeAdminExtraSteps);
   return base;
 }
 

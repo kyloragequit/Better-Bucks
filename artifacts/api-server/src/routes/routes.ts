@@ -2696,10 +2696,14 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       let finalOrder: typeof order = order;
       if (user.organizationId) {
         const userOrg = await storage.getOrganization(user.organizationId);
-        if (userOrg && userOrg.code !== "PRIME1") {
-          finalOrder = await storage.updateOrderStatus(order.id, "approved");
-        } else {
-          void notifyAdminsOfNewOrder(user.organizationId, user, { ...order, convertedValue: convertedValue ?? null });
+        if (userOrg) {
+          // Spent Bucks are permanently consumed from the org pool — not recycled back on rejection
+          void storage.deductOrgBucksBalance(user.organizationId, pointsCost);
+          if (userOrg.code !== "PRIME1") {
+            finalOrder = await storage.updateOrderStatus(order.id, "approved");
+          } else {
+            void notifyAdminsOfNewOrder(user.organizationId, user, { ...order, convertedValue: convertedValue ?? null });
+          }
         }
       }
 

@@ -1,5 +1,5 @@
 
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uniqueIndex, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { relations, sql } from "drizzle-orm";
@@ -40,7 +40,7 @@ export const organizations = pgTable("organizations", {
   approvedExternalSites: text("approved_external_sites"),
   preferredStoreUrl: text("preferred_store_url"),
   planBucks: integer("plan_bucks").default(0).notNull(),
-  orgBucksBalance: integer("org_bucks_balance").default(0).notNull(),
+  orgBucksBalance: doublePrecision("org_bucks_balance").default(0).notNull(),
   lastRecallMonth: text("last_recall_month"),
 });
 
@@ -77,7 +77,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role", { enum: ["admin", "employee", "prime_admin", "developer"] }).default("employee").notNull(),
   status: text("status", { enum: ["pending", "approved"] }).default("approved").notNull(),
-  balance: integer("balance").default(0).notNull(),
+  balance: doublePrecision("balance").default(0).notNull(),
   barcode: text("barcode").notNull(),
   fullName: text("full_name").notNull(),
   mustChangePassword: boolean("must_change_password").default(false).notNull(),
@@ -131,7 +131,7 @@ export const monthlyReports = pgTable("monthly_reports", {
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  amount: integer("amount").notNull(), // Positive for credit, negative for debit
+  amount: doublePrecision("amount").notNull(), // Positive for credit, negative for debit
   reason: text("reason").notNull(),
   performedBy: integer("performed_by"),
   categoryId: integer("category_id"),
@@ -229,7 +229,8 @@ export const shopWebsites = pgTable("shop_websites", {
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  pointsCost: integer("points_cost").notNull(),
+  pointsCost: doublePrecision("points_cost").notNull(),
+  taxBucks: doublePrecision("tax_bucks").default(0),
   quantity: integer("quantity").default(1).notNull(),
   convertedValue: text("converted_value"),
   shopWebsiteId: integer("shop_website_id"),

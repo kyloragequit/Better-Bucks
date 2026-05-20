@@ -30,6 +30,22 @@ async function getStripeClient() {
 async function getStripePubKey() {
   return getStripePublishableKey();
 }
+
+const US_STATE_TAX_RATES: Record<string, number> = {
+  AL: 0.04, AK: 0, AZ: 0.056, AR: 0.065, CA: 0.0725, CO: 0.029, CT: 0.0635,
+  DE: 0, FL: 0.06, GA: 0.04, HI: 0.04, ID: 0.06, IL: 0.0625, IN: 0.07,
+  IA: 0.06, KS: 0.065, KY: 0.06, LA: 0.0445, ME: 0.055, MD: 0.06,
+  MA: 0.0625, MI: 0.06, MN: 0.06875, MS: 0.07, MO: 0.04225, MT: 0,
+  NE: 0.055, NV: 0.0685, NH: 0, NJ: 0.06625, NM: 0.05125, NY: 0.04,
+  NC: 0.0475, ND: 0.05, OH: 0.0575, OK: 0.045, OR: 0, PA: 0.06,
+  RI: 0.07, SC: 0.06, SD: 0.045, TN: 0.07, TX: 0.0625, UT: 0.0485,
+  VT: 0.06, VA: 0.053, WA: 0.065, WV: 0.06, WI: 0.05, WY: 0.04,
+};
+
+function getTaxRate(state: string | null | undefined): number {
+  if (!state) return 0;
+  return US_STATE_TAX_RATES[state.toUpperCase().trim()] ?? 0;
+}
 import { sql, eq, and, gte, lte, gt, lt, inArray, isNull, desc } from "drizzle-orm";
 import { db } from "../db";
 import { organizations, users, infoRequests, affiliateApplications, transactions, orders, customItemTransactions, transactionCategories, stripeOrphans, developerActivityLog } from "@workspace/db";
@@ -5600,12 +5616,25 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       selectedSize: z.string().optional(),
       selectedColor: z.string().optional(),
       quantity: z.number().int().min(1).max(99).optional().default(1),
+      bucksToApply: z.number().min(0).optional(),
     });
     const purchaseOptions = purchaseOptionsSchema.safeParse(req.body);
     const selectedSize = purchaseOptions.success ? purchaseOptions.data.selectedSize || null : null;
     const selectedColor = purchaseOptions.success ? purchaseOptions.data.selectedColor || null : null;
     const quantity = purchaseOptions.success ? purchaseOptions.data.quantity : 1;
+    const requestedBucksToApply = purchaseOptions.success ? purchaseOptions.data.bucksToApply : undefined;
+
     const totalCost = item.price * quantity;
+    const currentUser = await storage.getUser(user.id);
+    if (!currentUser) return res.status(400).json({ message: "User not found" });
+
+    const taxRate = getTaxRate(currentUser.shippingState);
+    const taxBucks = Math.round(totalCost * taxRate * 100) / 100;
+    const grandTotal = Math.round((totalCost + taxBucks) * 100) / 100;
+    const maxApplicable = Math.min(grandTotal, currentUser.balance);
+    const appliedBucks = Math.round(
+      Math.max(0, Math.min(requestedBucksToApply ?? maxApplicable, maxApplicable)) * 100
+    ) / 100;
 
     if (item.requiresSize && !selectedSize) {
       return res.status(400).json({ message: "Size selection is required for this item." });
@@ -5613,22 +5642,22 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (item.requiresColor && !selectedColor) {
       return res.status(400).json({ message: "Color selection is required for this item." });
     }
-
-    const currentUser = await storage.getUser(user.id);
-    if (!currentUser || currentUser.balance < totalCost) {
+    if (currentUser.balance < appliedBucks) {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
     const purchaseReason = quantity > 1 ? `Store purchase: ${item.name} (x${quantity})` : `Store purchase: ${item.name}`;
-    await storage.updateUserBalance(user.id, -totalCost);
-    await storage.createTransaction({
-      userId: user.id,
-      amount: -totalCost,
-      reason: purchaseReason,
-      performedBy: user.id,
-    });
+    if (appliedBucks > 0) {
+      await storage.updateUserBalance(user.id, -appliedBucks);
+      await storage.createTransaction({
+        userId: user.id,
+        amount: -appliedBucks,
+        reason: purchaseReason,
+        performedBy: user.id,
+      });
+    }
     invalidateUserCache(user.id);
-    void notifyEmployeeBalanceChange(user.id, -totalCost, purchaseReason);
+    void notifyEmployeeBalanceChange(user.id, -appliedBucks, purchaseReason);
 
     let storeConvertedValue: string | null = null;
     if (user.organizationId) {
@@ -5642,7 +5671,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
     const order = await storage.createOrder({
       userId: user.id,
-      pointsCost: totalCost,
+      pointsCost: appliedBucks,
+      taxBucks,
       quantity,
       description: quantity > 1 ? `Store Purchase: ${item.name} (x${quantity})` : `Store Purchase: ${item.name}`,
       photoUrls: [item.imageUrl],
@@ -5653,7 +5683,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       selectedColor,
     });
 
-    res.json(order);
+    res.json({ ...order, grandTotal, taxBucks, appliedBucks });
   });
 
   // ========== Wishlists ==========

@@ -312,7 +312,7 @@ export function setupAuth(app: Express) {
       if (user.role === "prime_admin" && user.organizationId) {
         try {
           const org = await storage.getOrganization(user.organizationId);
-          isFreeOrg = org?.stripeCustomerId === "free_membership";
+          isFreeOrg = org?.stripeCustomerId === "free_membership" || org?.code === "FEF55758";
           orgPlanBucks = isFreeOrg ? undefined : (org?.planBucks ?? 0);
         } catch {
           orgPlanBucks = undefined;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { EmployeeLayout } from "@/components/layout-employee";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingBag, ExternalLink, Coins, Heart, X, Globe, Ruler, Palette, Plus, Minus, Search, BookOpen } from "lucide-react";
+import { ShoppingBag, ExternalLink, Coins, Heart, X, Globe, Ruler, Palette, Plus, Minus, Search, BookOpen, Receipt } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,28 @@ import { useUserDetails } from "@/hooks/use-users";
 import type { StoreItem, Wishlist } from "@shared/schema";
 
 const STANDARD_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
+
+const US_STATE_TAX_RATES: Record<string, number> = {
+  AL: 0.04, AK: 0, AZ: 0.056, AR: 0.065, CA: 0.0725, CO: 0.029, CT: 0.0635,
+  DE: 0, FL: 0.06, GA: 0.04, HI: 0.04, ID: 0.06, IL: 0.0625, IN: 0.07,
+  IA: 0.06, KS: 0.065, KY: 0.06, LA: 0.0445, ME: 0.055, MD: 0.06,
+  MA: 0.0625, MI: 0.06, MN: 0.06875, MS: 0.07, MO: 0.04225, MT: 0,
+  NE: 0.055, NV: 0.0685, NH: 0, NJ: 0.06625, NM: 0.05125, NY: 0.04,
+  NC: 0.0475, ND: 0.05, OH: 0.0575, OK: 0.045, OR: 0, PA: 0.06,
+  RI: 0.07, SC: 0.06, SD: 0.045, TN: 0.07, TX: 0.0625, UT: 0.0485,
+  VT: 0.06, VA: 0.053, WA: 0.065, WV: 0.06, WI: 0.05, WY: 0.04,
+};
+
+function getTaxRate(state?: string | null): number {
+  if (!state) return 0;
+  return US_STATE_TAX_RATES[state.toUpperCase().trim()] ?? 0;
+}
+
+function formatBucks(n: number): string {
+  return n % 1 === 0
+    ? n.toLocaleString()
+    : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 function SizeSelector({ value, onChange, testIdPrefix }: { value: string; onChange: (v: string) => void; testIdPrefix: string }) {
   const [mode, setMode] = useState<"standard" | "custom">(value && !STANDARD_SIZES.includes(value) ? "custom" : "standard");
@@ -153,6 +175,7 @@ export default function EmployeeStorePage() {
                   key={item.id}
                   item={item}
                   balance={userDetails?.balance || 0}
+                  shippingState={authUser?.shippingState}
                   isWishlisted={wishlistedIds.has(item.id)}
                   onBrowse={() => setBrowsingItem(item)}
                 />
@@ -171,6 +194,7 @@ export default function EmployeeStorePage() {
                     key={item.id}
                     item={item}
                     balance={userDetails?.balance || 0}
+                    shippingState={authUser?.shippingState}
                     isWishlisted={wishlistedIds.has(item.id)}
                   />
                 ))}
@@ -246,21 +270,38 @@ export default function EmployeeStorePage() {
   );
 }
 
-function CatalogueItemRow({ item, balance, isWishlisted }: {
+function CatalogueItemRow({ item, balance, shippingState, isWishlisted }: {
   item: StoreItem;
   balance: number;
+  shippingState?: string | null;
   isWishlisted: boolean;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [bucksToApply, setBucksToApply] = useState(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const taxRate = getTaxRate(shippingState);
+  const totalCost = item.price * quantity;
+  const taxBucks = Math.round(totalCost * taxRate * 100) / 100;
+  const grandTotal = Math.round((totalCost + taxBucks) * 100) / 100;
+  const maxApplicable = Math.min(balance, grandTotal);
+
+  useEffect(() => {
+    if (confirmOpen) setBucksToApply(Math.round(maxApplicable * 100) / 100);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmOpen]);
+
+  useEffect(() => {
+    setBucksToApply(prev => Math.round(Math.min(prev, maxApplicable) * 100) / 100);
+  }, [maxApplicable]);
+
   const purchaseMutation = useMutation({
     mutationFn: async () => {
-      const body: Record<string, string | number> = { quantity };
+      const body: Record<string, string | number> = { quantity, bucksToApply };
       if (selectedSize) body.selectedSize = selectedSize;
       if (selectedColor) body.selectedColor = selectedColor;
       const res = await apiRequest("POST", `/api/store-items/${item.id}/purchase`, body);
@@ -303,8 +344,6 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
     },
   });
 
-  const totalCost = item.price * quantity;
-  const canAfford = balance >= totalCost;
   const canSubmit = (!item.requiresSize || selectedSize.trim()) && (!item.requiresColor || selectedColor.trim());
 
   return (
@@ -372,12 +411,8 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{canAfford ? "Confirm Purchase" : "Insufficient Bucks"}</DialogTitle>
-            <DialogDescription>
-              {canAfford
-                ? `Your request will be sent for admin approval.`
-                : `You do not have enough Bucks. You need ${totalCost.toLocaleString()} Bucks but only have ${balance.toLocaleString()}.`}
-            </DialogDescription>
+            <DialogTitle>Confirm Purchase</DialogTitle>
+            <DialogDescription>Your request will be sent for admin approval.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {(item.requiresSize || item.requiresColor) && (
@@ -453,22 +488,56 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
                 </Button>
               </div>
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
-              <span className="text-sm text-muted-foreground">
-                {quantity > 1 ? `Total (${quantity} × ${item.price.toLocaleString()})` : "Cost"}
-              </span>
-              <span className={`font-bold ${canAfford ? "text-primary" : "text-destructive"}`}>
-                {totalCost.toLocaleString()} Bucks
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+                <span className="text-sm text-muted-foreground">
+                  {quantity > 1 ? `Subtotal (${quantity} × ${formatBucks(item.price)})` : "Subtotal"}
+                </span>
+                <span className="font-semibold">{formatBucks(totalCost)} Bucks</span>
+              </div>
+              {taxBucks > 0 && (
+                <div className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5">
+                  <span className="text-sm text-amber-700 flex items-center gap-1.5">
+                    <Receipt className="h-3.5 w-3.5" />
+                    Tax ({(taxRate * 100).toFixed(2)}%)
+                  </span>
+                  <span className="font-semibold text-amber-700">+{formatBucks(taxBucks)} Bucks</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
+                <span className="text-sm font-medium">Total</span>
+                <span className="font-bold text-primary" data-testid="text-confirm-cost">{formatBucks(grandTotal)} Bucks</span>
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Bucks to apply</label>
+                  <span className="text-sm font-bold text-primary">{formatBucks(bucksToApply)}</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={maxApplicable}
+                  step={0.01}
+                  value={bucksToApply}
+                  onChange={e => setBucksToApply(Math.round(parseFloat(e.target.value) * 100) / 100)}
+                  className="w-full accent-primary"
+                  data-testid="slider-cat-bucks-to-apply"
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>0 Bucks</span>
+                  <span>{formatBucks(maxApplicable)} max</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Balance after: <span className="font-medium">{formatBucks(balance - bucksToApply)} Bucks</span>
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-            {canAfford && (
-              <Button onClick={() => purchaseMutation.mutate()} disabled={purchaseMutation.isPending || !canSubmit} data-testid="button-cat-confirm-purchase">
-                {purchaseMutation.isPending ? "Processing..." : `Purchase ${quantity > 1 ? `${quantity}x ` : ""}for ${totalCost.toLocaleString()} Bucks`}
-              </Button>
-            )}
+            <Button onClick={() => purchaseMutation.mutate()} disabled={purchaseMutation.isPending || !canSubmit} data-testid="button-cat-confirm-purchase">
+              {purchaseMutation.isPending ? "Processing..." : `Order${quantity > 1 ? ` ${quantity}x` : ""} — Apply ${formatBucks(bucksToApply)} Bucks`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -476,9 +545,10 @@ function CatalogueItemRow({ item, balance, isWishlisted }: {
   );
 }
 
-function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
+function StoreItemCard({ item, balance, shippingState, isWishlisted, onBrowse }: {
   item: StoreItem;
   balance: number;
+  shippingState?: string | null;
   isWishlisted: boolean;
   onBrowse: () => void;
 }) {
@@ -486,12 +556,28 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [bucksToApply, setBucksToApply] = useState(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const taxRate = getTaxRate(shippingState);
+  const totalCost = item.price * quantity;
+  const taxBucks = Math.round(totalCost * taxRate * 100) / 100;
+  const grandTotal = Math.round((totalCost + taxBucks) * 100) / 100;
+  const maxApplicable = Math.min(balance, grandTotal);
+
+  useEffect(() => {
+    if (confirmOpen) setBucksToApply(Math.round(maxApplicable * 100) / 100);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmOpen]);
+
+  useEffect(() => {
+    setBucksToApply(prev => Math.round(Math.min(prev, maxApplicable) * 100) / 100);
+  }, [maxApplicable]);
+
   const purchaseMutation = useMutation({
     mutationFn: async () => {
-      const body: Record<string, string | number> = { quantity };
+      const body: Record<string, string | number> = { quantity, bucksToApply };
       if (selectedSize) body.selectedSize = selectedSize;
       if (selectedColor) body.selectedColor = selectedColor;
       const res = await apiRequest("POST", `/api/store-items/${item.id}/purchase`, body);
@@ -534,8 +620,6 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
     },
   });
 
-  const totalCost = item.price * quantity;
-  const canAfford = balance >= totalCost;
   const canSubmit = (!item.requiresSize || selectedSize.trim()) && (!item.requiresColor || selectedColor.trim());
 
   return (
@@ -612,13 +696,9 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle data-testid="text-confirm-title">
-              {canAfford ? "Confirm Purchase" : "Insufficient Bucks"}
-            </DialogTitle>
+            <DialogTitle data-testid="text-confirm-title">Confirm Purchase</DialogTitle>
             <DialogDescription data-testid="text-confirm-description">
-              {canAfford
-                ? `Your request will be sent for admin approval.`
-                : `You do not have enough Bucks. You need ${totalCost.toLocaleString()} Bucks but only have ${balance.toLocaleString()}.`}
+              Your request will be sent for admin approval.
             </DialogDescription>
           </DialogHeader>
 
@@ -714,13 +794,49 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
-              <span className="text-sm text-muted-foreground">
-                {quantity > 1 ? `Total (${quantity} × ${item.price.toLocaleString()})` : "Cost"}
-              </span>
-              <span className={`font-bold ${canAfford ? "text-primary" : "text-destructive"}`} data-testid="text-confirm-cost">
-                {totalCost.toLocaleString()} Bucks
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+                <span className="text-sm text-muted-foreground">
+                  {quantity > 1 ? `Subtotal (${quantity} × ${formatBucks(item.price)})` : "Subtotal"}
+                </span>
+                <span className="font-semibold">{formatBucks(totalCost)} Bucks</span>
+              </div>
+              {taxBucks > 0 && (
+                <div className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5">
+                  <span className="text-sm text-amber-700 flex items-center gap-1.5">
+                    <Receipt className="h-3.5 w-3.5" />
+                    Tax ({(taxRate * 100).toFixed(2)}%)
+                  </span>
+                  <span className="font-semibold text-amber-700">+{formatBucks(taxBucks)} Bucks</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
+                <span className="text-sm font-medium">Total</span>
+                <span className="font-bold text-primary" data-testid="text-confirm-cost">{formatBucks(grandTotal)} Bucks</span>
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Bucks to apply</label>
+                  <span className="text-sm font-bold text-primary">{formatBucks(bucksToApply)}</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={maxApplicable}
+                  step={0.01}
+                  value={bucksToApply}
+                  onChange={e => setBucksToApply(Math.round(parseFloat(e.target.value) * 100) / 100)}
+                  className="w-full accent-primary"
+                  data-testid="slider-bucks-to-apply"
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>0 Bucks</span>
+                  <span>{formatBucks(maxApplicable)} max</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Balance after: <span className="font-medium">{formatBucks(balance - bucksToApply)} Bucks</span>
+                </p>
+              </div>
             </div>
           </div>
 
@@ -728,15 +844,13 @@ function StoreItemCard({ item, balance, isWishlisted, onBrowse }: {
             <Button variant="outline" onClick={() => setConfirmOpen(false)} data-testid="button-cancel-purchase">
               Cancel
             </Button>
-            {canAfford && (
-              <Button
-                onClick={() => purchaseMutation.mutate()}
-                disabled={purchaseMutation.isPending || !canSubmit}
-                data-testid="button-confirm-purchase"
-              >
-                {purchaseMutation.isPending ? "Processing..." : `Purchase ${quantity > 1 ? `${quantity}x ` : ""}for ${totalCost.toLocaleString()} Bucks`}
-              </Button>
-            )}
+            <Button
+              onClick={() => purchaseMutation.mutate()}
+              disabled={purchaseMutation.isPending || !canSubmit}
+              data-testid="button-confirm-purchase"
+            >
+              {purchaseMutation.isPending ? "Processing..." : `Order${quantity > 1 ? ` ${quantity}x` : ""} — Apply ${formatBucks(bucksToApply)} Bucks`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

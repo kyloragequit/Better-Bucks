@@ -18,8 +18,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Trophy, XCircle, Coins } from "lucide-react";
 import type { GoalNotification } from "@shared/schema";
+import HowItWorksPage from "@/pages/how-it-works";
+import AboutPage from "@/pages/about";
+import BlogPage from "@/pages/blog";
+import BlogPostPage from "@/pages/blog-post";
+import WebsiteServicesPage from "@/pages/website-services";
 
-const LandingPage = lazy(() => import("@/pages/landing"));
 const SignupPage = lazy(() => import("@/pages/signup"));
 const SignupSuccessPage = lazy(() => import("@/pages/signup-success"));
 const ReactivatePage = lazy(() => import("@/pages/reactivate"));
@@ -52,14 +56,9 @@ const DeveloperLoginPage = lazy(() => import("@/pages/developer-login"));
 const DeveloperDashboardPage = lazy(() => import("@/pages/developer-dashboard"));
 const AdminInstantTransactionPage = lazy(() => import("@/pages/admin-instant-transaction"));
 const EmployeeSettingsPage = lazy(() => import("@/pages/employee-settings"));
-const AboutPage = lazy(() => import("@/pages/about"));
-const HowItWorksPage = lazy(() => import("@/pages/how-it-works"));
-const WebsiteServicesPage = lazy(() => import("@/pages/website-services"));
 const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/reset-password"));
 const TermsPage = lazy(() => import("@/pages/terms"));
-const BlogPage = lazy(() => import("@/pages/blog"));
-const BlogPostPage = lazy(() => import("@/pages/blog-post"));
 const JoinPage = lazy(() => import("@/pages/join"));
 const GetStartedPage = lazy(() => import("@/pages/get-started"));
 const InviteAcceptPage = lazy(() => import("@/pages/invite-accept"));

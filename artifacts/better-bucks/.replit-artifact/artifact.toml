@@ -19,12 +19,7 @@ run = "pnpm --filter @workspace/better-bucks run dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/better-bucks", "run", "build" ]
-publicDir = "artifacts/better-bucks/dist/public"
-serve = "static"
-
-[[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
+run = [ "pnpm", "--filter", "@workspace/better-bucks", "run", "serve" ]
 
 [services.env]
 PORT = "24586"

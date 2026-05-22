@@ -390,7 +390,7 @@ export default function AdminSubscriptionPage() {
                 <p className="font-bold text-sm mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — How Buck Billing Works</p>
                 <p className="text-xs text-gray-600 leading-relaxed">
                   Your monthly Buck charge equals your plan Bucks at 1 Buck = $1, plus a flat <strong>$5/month service fee</strong>.
-                  Any Bucks still sitting in <strong>admin accounts</strong> at month-end are automatically recalled and applied as a
+                  Any Bucks still sitting in <strong>Bucks in the Bank</strong> at month-end are automatically recalled and applied as a
                   <strong> credit against your next invoice</strong> — so you only pay for Bucks your team actually used.
                   Bucks already earned by employees are always theirs to keep.
                 </p>

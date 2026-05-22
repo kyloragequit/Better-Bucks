@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLogout, useUser } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/site-footer";
-import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, UsersRound, ShoppingCart, ClipboardCheck, X, ShoppingBag, Eye, Target, Home, ClipboardList, Package, FileText, User, MessageCircle, Store as StoreIcon, Link2 as LinkIcon, AlertTriangle, AlertOctagon, Gift, CreditCard } from "lucide-react";
+import { LogOut, Settings, ArrowLeft, Code2, Zap, Menu, LayoutDashboard, Users, ShoppingCart, X, Eye, Home, User, MessageCircle, Store as StoreIcon, Gift, CreditCard } from "lucide-react";
 import { MobileBottomNav, type MobileNavItem } from "@/components/mobile-bottom-nav";
 import { SiInstagram } from "react-icons/si";
 import { AppLogo } from "@/components/app-logo";
@@ -105,34 +105,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/team", label: "Team", icon: UsersRound },
     { href: "/admin/employees", label: "Employees", icon: Users },
-    { href: "/admin/invite-links", label: "Invite Links", icon: LinkIcon },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart, badge: pendingCount },
-    { href: "/store", label: "Shop", icon: ShoppingBag },
+    { href: "/admin/store", label: "Store", icon: StoreIcon },
     { href: "/admin/instant-transaction", label: "Instant Transaction", shortLabel: "Quick TX", icon: Zap, testId: "link-instant-transaction" },
-    { href: "/admin/goals", label: "Goals", icon: Target },
-    { href: "/admin/surveys", label: "Surveys", icon: ClipboardList },
-    { href: "/admin/items", label: "Items", icon: Package },
     { href: "/admin/reward-items", label: "Reward Items", icon: Gift },
-    { href: "/admin/merchant-disputes", label: "Disputes", icon: AlertTriangle },
-    { href: "/admin/documents", label: "Documents", icon: FileText },
     ...(user?.role === "prime_admin" ? [
-      { href: "/admin/pending", label: "Pending Accounts", icon: ClipboardCheck },
       { href: "/admin/subscription", label: "Subscription", icon: CreditCard },
-      { href: "/admin/store", label: "Store Mgmt", icon: StoreIcon },
-      { href: "/admin/settings", label: "Settings", icon: Settings },
+      { href: "/admin/settings", label: "Organization settings", icon: Settings },
     ] : []),
   ];
 
-  // Mobile hamburger: trimmed list — disputes moved to desktop only
-  const MOBILE_HIDDEN = new Set(["/admin/merchant-disputes"]);
-  const mobileNavItems = navItems
-    .filter(item => !MOBILE_HIDDEN.has(item.href))
-    .map(item => item.href === "/admin/instant-transaction"
-      ? { ...item, label: "NFC Tools" }
-      : item
-    );
+  const mobileNavItems = navItems.map(item =>
+    item.href === "/admin/instant-transaction" ? { ...item, label: "NFC Tools" } : item
+  );
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -372,10 +358,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "link-dashboard" },
           { href: "/admin/employees", label: "Employees", icon: Users, testId: "link-employees" },
           { href: "/admin/orders", label: "Orders", icon: ShoppingCart, testId: "link-orders", badge: pendingCount },
-          { href: "/store", label: "Shop", icon: ShoppingBag, testId: "link-shop" },
           {
             href: user?.role === "prime_admin" ? "/admin/settings" : "/admin/account-settings",
-            label: "Settings",
+            label: "Org settings",
             icon: Settings,
             testId: "link-settings",
           },

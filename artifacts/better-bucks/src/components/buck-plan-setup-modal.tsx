@@ -139,8 +139,8 @@ export function BuckPlanSetupModal() {
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white mx-auto mb-2"
                   style={{ background: GREEN }}
                 >3</div>
-                <p className="text-xs font-semibold text-gray-800 mb-1">Unspent admin Bucks return</p>
-                <p className="text-[11px] text-gray-500">Any Bucks still in admin accounts at month-end come back and reduce your next bill</p>
+                <p className="text-xs font-semibold text-gray-800 mb-1">Unspent Bucks return</p>
+                <p className="text-[11px] text-gray-500">Any Bucks still in Bucks in the Bank at month-end come back and reduce your next bill</p>
               </div>
             </div>
 

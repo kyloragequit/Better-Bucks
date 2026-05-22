@@ -1154,12 +1154,12 @@ export default function HowItWorksPage() {
               <RotateCcw className="h-6 w-6" style={{ color: NAVY }} />
             </div>
             <div>
-              <h3 className="text-base font-bold mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — Unused Bucks Come Back to You</h3>
+              <h3 className="text-base font-bold mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — How Buck billing works</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                Your organization receives a fresh set of Bucks each month based on your plan. Any Bucks left unspent in <strong>admin accounts</strong> at month end are automatically returned to your organization and applied as a <strong>discount against your next bill</strong>. Bucks already earned by employees are always theirs to keep — only admin balances are subject to the end-of-month recall.
+                Your monthly Buck charge equals your plan Bucks at 1 Buck = $1, plus a flat $5/month service fee. Any Bucks still sitting in <strong>Bucks in the Bank</strong> at month-end are automatically recalled and applied as a credit against your next invoice — so you only pay for Bucks your team actually used. Bucks already earned by employees are always theirs to keep.
               </p>
               <p className="text-gray-400 text-xs mt-2 italic">
-                Example: Pay for 400 Bucks but admins only spend 310 → the remaining 90 come back, making your next month's charge just $310.
+                Example: 150 Bucks/month plan ($155/mo total). Admins used 110 Bucks → 40 recalled → next invoice is $110 + $5 = $115 instead of $155.
               </p>
             </div>
           </div>

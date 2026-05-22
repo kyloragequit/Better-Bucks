@@ -87,7 +87,7 @@ export default function SetupPrimePage() {
           title: "Account Created!",
           description: `Welcome, ${user.fullName}! Your account is ready.`,
         });
-        setLocation("/admin/dashboard");
+        setLocation("/admin/store-setup");
       } else {
         toast({
           title: "Account Created!",

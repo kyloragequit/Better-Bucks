@@ -34,6 +34,7 @@ const EmployeeOrdersPage = lazy(() => import("@/pages/employee-orders"));
 const EmployeeStorePage = lazy(() => import("@/pages/employee-store"));
 const EmployeeRedemptionsPage = lazy(() => import("@/pages/employee-redemptions"));
 const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard"));
+const AdminStoreSetupPage = lazy(() => import("@/pages/admin-store-setup"));
 const AdminSubscriptionPage = lazy(() => import("@/pages/admin-subscription"));
 const AdminEmployeesPage = lazy(() => import("@/pages/admin-employees"));
 const AdminEmployeeDetailPage = lazy(() => import("@/pages/admin-employee-detail"));
@@ -385,6 +386,9 @@ function Router() {
         </Route>
         <Route path="/admin/instant-transaction">
           <ProtectedRoute component={AdminInstantTransactionPage} adminOnly />
+        </Route>
+        <Route path="/admin/store-setup">
+          <ProtectedRoute component={AdminStoreSetupPage} adminOnly />
         </Route>
         <Route path="/admin/store">
           <ProtectedRoute component={AdminStorePage} adminOnly />

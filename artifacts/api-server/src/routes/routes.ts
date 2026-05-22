@@ -2713,8 +2713,11 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (user.organizationId) {
         const userOrg = await storage.getOrganization(user.organizationId);
         if (userOrg) {
-          // Spent Bucks are permanently consumed from the org pool — not recycled back on rejection
-          void storage.deductOrgBucksBalance(user.organizationId, pointsCost);
+          // FEF55758 org is exempt: deduct org pool immediately at placement (legacy behavior)
+          if (userOrg.code === "FEF55758") {
+            void storage.deductOrgBucksBalance(user.organizationId, pointsCost);
+          }
+          // All orgs auto-approve orders except the demo PRIME1 org
           if (userOrg.code !== "PRIME1") {
             finalOrder = await storage.updateOrderStatus(order.id, "approved");
           } else {
@@ -4062,11 +4065,95 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ totalCredited, admins: adminList });
   });
 
+  // Dashboard summary — Bucks in the Bank, admin balances, employee balances
+  app.get("/api/org/dashboard-summary", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || (user.role !== "prime_admin" && user.role !== "admin")) {
+      return res.status(401).send("Unauthorized");
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+
+    const orgUsers = await storage.getUsersByOrganization(user.organizationId);
+    const adminUsers = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
+    const employeeUsers = orgUsers.filter(u => u.role === "employee");
+    const adminIds = adminUsers.map(a => a.id);
+    const employeeIds = employeeUsers.map(e => e.id);
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const orgCreatedAt = (org as any).createdAt ? new Date((org as any).createdAt) : now;
+    const monthsSince = Math.max(1,
+      (now.getFullYear() - orgCreatedAt.getFullYear()) * 12 +
+      (now.getMonth() - orgCreatedAt.getMonth()) + 1
+    );
+
+    const adminCreditTotals: Record<number, number> = {};
+    if (adminIds.length > 0) {
+      const rows = await db.select({
+        userId: transactions.userId,
+        total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)::int`,
+      }).from(transactions).where(and(
+        inArray(transactions.userId, adminIds),
+        sql`${transactions.amount} > 0`,
+      )).groupBy(transactions.userId);
+      for (const r of rows) adminCreditTotals[r.userId] = Number(r.total);
+    }
+
+    const employeeSpend: Record<number, number> = {};
+    if (employeeIds.length > 0) {
+      const rows = await db.select({
+        userId: transactions.userId,
+        total: sql<number>`COALESCE(SUM(ABS(${transactions.amount})), 0)::int`,
+      }).from(transactions).where(and(
+        inArray(transactions.userId, employeeIds),
+        gte(transactions.createdAt, thirtyDaysAgo),
+        sql`${transactions.amount} < 0`,
+      )).groupBy(transactions.userId);
+      for (const r of rows) employeeSpend[r.userId] = Number(r.total);
+    }
+
+    const employeeOrderCounts: Record<number, number> = {};
+    if (employeeIds.length > 0) {
+      const rows = await db.select({
+        userId: orders.userId,
+        cnt: sql<number>`COUNT(*)::int`,
+      }).from(orders).where(and(
+        inArray(orders.userId, employeeIds),
+        gte(orders.createdAt, thirtyDaysAgo),
+      )).groupBy(orders.userId);
+      for (const r of rows) employeeOrderCounts[r.userId] = Number(r.cnt);
+    }
+
+    return res.json({
+      bucksInTheBank: (org as any).orgBucksBalance ?? 0,
+      admins: adminUsers.map(a => ({
+        id: a.id,
+        name: a.fullName,
+        balance: a.balance ?? 0,
+        avgMonthlySpend: Math.round((adminCreditTotals[a.id] ?? 0) / monthsSince),
+      })).sort((a, b) => b.balance - a.balance),
+      employees: employeeUsers.map(e => ({
+        id: e.id,
+        name: e.fullName,
+        balance: e.balance ?? 0,
+        ordersCount: employeeOrderCounts[e.id] ?? 0,
+        spent30Days: employeeSpend[e.id] ?? 0,
+      })).sort((a, b) => b.balance - a.balance),
+    });
+  });
+
   // Allocate monthly budget bucks to selected admins (prime_admin only)
   app.post("/api/org/allocate-budget", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const _orgForPause = await storage.getOrganization(user.organizationId);
+    if (_orgForPause && _orgForPause.code !== "FEF55758" && (_orgForPause.status === "paused" || _orgForPause.status === "inactive")) {
+      return res.status(403).json({ message: "Allocations are frozen while your subscription is paused. Please resolve your billing to continue." });
+    }
     const { adminIds, bucksEach } = z.object({
       adminIds: z.array(z.number().int()).min(1),
       bucksEach: z.number().int().min(1),
@@ -4088,6 +4175,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const _orgForPauseAuto = await storage.getOrganization(user.organizationId);
+    if (_orgForPauseAuto && _orgForPauseAuto.code !== "FEF55758" && (_orgForPauseAuto.status === "paused" || _orgForPauseAuto.status === "inactive")) {
+      return res.status(403).json({ message: "Allocations are frozen while your subscription is paused. Please resolve your billing to continue." });
+    }
     const { allocations } = z.object({
       allocations: z.array(z.object({ adminId: z.number().int(), bucks: z.number().int().min(0) })).min(1),
     }).parse(req.body);
@@ -5025,12 +5116,14 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         const admins = orgUsers.filter(u => u.role === "admin" || u.role === "prime_admin");
         const employees = orgUsers.filter(u => u.role === "employee");
         const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
+        const approvedOrders = await storage.getOrdersByOrganization(org.id, "approved");
         return {
           ...org,
           adminCount: admins.length,
           employeeCount: employees.length,
           totalUsers: orgUsers.length,
           primeAdmin: primeAdmin ? { id: primeAdmin.id, username: primeAdmin.username, fullName: primeAdmin.fullName, email: primeAdmin.email ?? null } : null,
+          pendingOrderCount: approvedOrders.length,
         };
       }));
       res.json(orgData);
@@ -6607,6 +6700,14 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
     const updated = await storage.updateOrderStatus(id, "completed", req.body?.adminNotes);
 
+    // Deduct org Bucks pool at fulfillment (non-FEF55758 orgs — FEF55758 deducts at placement)
+    if (employee.organizationId) {
+      const employeeOrg = await storage.getOrganization(employee.organizationId);
+      if (employeeOrg && employeeOrg.code !== "FEF55758") {
+        void storage.deductOrgBucksBalance(employee.organizationId, order.pointsCost);
+      }
+    }
+
     if (employee.email) {
       const subject = `Better Bucks — Order #${order.id} Fulfilled!`;
       const html = `
@@ -6628,6 +6729,60 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }
 
     res.json(updated);
+  });
+
+  // Developer: send a message (email) to an employee or org admin about an order
+  app.post("/api/developer/orders/:id/message", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+
+    const parsed = z.object({
+      recipient: z.enum(["employee", "org"]),
+      message: z.string().min(1).max(2000),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    const { recipient, message } = parsed.data;
+
+    const order = await storage.getOrder(id);
+    if (!order) return res.status(404).send("Order not found");
+
+    const employee = await storage.getUser(order.userId);
+    if (!employee) return res.status(404).send("Employee not found");
+
+    let to: string;
+    let recipientName: string;
+
+    if (recipient === "employee") {
+      if (!employee.email) return res.status(400).json({ message: "Employee has no email address." });
+      to = employee.email;
+      recipientName = employee.fullName;
+    } else {
+      if (!employee.organizationId) return res.status(400).json({ message: "Employee has no organization." });
+      const orgUsers = await storage.getUsersByOrganization(employee.organizationId);
+      const primeAdmin = orgUsers.find(u => u.role === "prime_admin");
+      if (!primeAdmin?.email) return res.status(400).json({ message: "Organization owner has no email address." });
+      to = primeAdmin.email;
+      recipientName = primeAdmin.fullName;
+    }
+
+    const subject = `Better Bucks — Update on Order #${order.id}`;
+    const html = `
+      <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+        ${emailLogoHeader}
+        <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Order Update</h2>
+        <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Regarding Order #${order.id}: ${escapeHtml(order.description)}</p>
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:20px;margin-bottom:20px;white-space:pre-line;">
+          <p style="margin:0;color:#1E293B;font-size:14px;line-height:1.6;">${escapeHtml(message)}</p>
+        </div>
+        <p style="color:#64748b;font-size:12px;margin:0;">— The Better Bucks Team</p>
+      </div>
+    `;
+
+    await sendEmail({ to, subject, html });
+    res.json({ ok: true, to: recipientName });
   });
 
   app.post("/api/developer/enterprise-accounts/:id/send-test-email", async (req, res) => {

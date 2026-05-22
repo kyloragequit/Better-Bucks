@@ -110,7 +110,7 @@ export default function AdminOrdersPage() {
         <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground" data-testid="text-admin-orders-title">
           Orders
         </h1>
-        <p className="text-muted-foreground mt-1">Review and manage employee orders</p>
+        <p className="text-muted-foreground mt-1">Review employee orders</p>
       </div>
 
       <div className="relative mb-6">
@@ -125,14 +125,12 @@ export default function AdminOrdersPage() {
         />
       </div>
 
-      {!isPrime && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-6" data-testid="notice-view-only">
-          <Lock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-          <p className="text-sm text-amber-800">
-            <strong>View only.</strong> Only the Organization Owner can approve, reject, or complete orders. Contact your Organization Owner to action any pending orders.
-          </p>
-        </div>
-      )}
+      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 mb-6" data-testid="notice-view-only">
+        <Lock className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+        <p className="text-sm text-blue-800">
+          <strong>View only.</strong> Orders are fulfilled by the Better Bucks team. Track order status here — no action required.
+        </p>
+      </div>
 
       {(pendingOrders.length > 0 && filteredPendingOrders.length > 0) && (
         <Card className="shadow-md mb-6 border-primary/20">
@@ -165,12 +163,6 @@ export default function AdminOrdersPage() {
                         <span className="hidden sm:inline text-xs">View</span>
                       </Button>
                     </div>
-                    {isPrime && !isPublicDemo && (
-                      <div className="flex gap-1.5">
-                        <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                        <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -186,7 +178,6 @@ export default function AdminOrdersPage() {
                     <TableHead>Bucks</TableHead>
                     <TableHead>Value</TableHead>
                     <TableHead>Details</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -209,14 +200,6 @@ export default function AdminOrdersPage() {
                           {order.photoUrls.length > 0 ? order.photoUrls.length : ""}
                           {order.itemUrl ? " Link" : ""}
                         </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isPrime && !isPublicDemo && (
-                          <div className="flex justify-end gap-2">
-                            <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                            <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                          </div>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -409,17 +392,6 @@ function AllOrdersVirtualList({
                         <span className="hidden sm:inline text-xs">View</span>
                       </Button>
                     </div>
-                    <div className="flex gap-1.5">
-                      {isPrime && !isPublicDemo && order.status === "pending" && (
-                        <>
-                          <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                          <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                        </>
-                      )}
-                      {isPrime && !isPublicDemo && order.status === "approved" && (
-                        <OrderActionButton orderId={order.id} action="completed" label="Complete" />
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -449,7 +421,6 @@ function AllOrdersVirtualList({
               <TableHead>Value</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Details</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -483,17 +454,6 @@ function AllOrdersVirtualList({
                       {order.itemUrl ? " Link" : ""}
                     </Button>
                   </TableCell>
-                  <TableCell className="text-right">
-                    {isPrime && !isPublicDemo && order.status === "pending" && (
-                      <div className="flex justify-end gap-2">
-                        <OrderActionButton orderId={order.id} action="approved" label="Approve" />
-                        <OrderActionButton orderId={order.id} action="rejected" label="Reject" variant="destructive" />
-                      </div>
-                    )}
-                    {isPrime && !isPublicDemo && order.status === "approved" && (
-                      <OrderActionButton orderId={order.id} action="completed" label="Complete" />
-                    )}
-                  </TableCell>
                 </TableRow>
               );
             })}
@@ -502,7 +462,7 @@ function AllOrdersVirtualList({
             )}
             {isFetchingNextPage && (
               <tr>
-                <td colSpan={8} className="py-4 text-center">
+                <td colSpan={7} className="py-4 text-center">
                   <SpinningLogo className="h-5 w-5 text-muted-foreground inline-block" />
                 </td>
               </tr>

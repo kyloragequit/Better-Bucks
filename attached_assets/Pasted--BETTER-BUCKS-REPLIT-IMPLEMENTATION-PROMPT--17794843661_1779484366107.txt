@@ -1,0 +1,223 @@
+=== BETTER BUCKS — REPLIT IMPLEMENTATION PROMPT ===
+
+═══════════════════════════════════════════════
+1 — ADMIN DASHBOARD: FULL REPLACEMENT
+═══════════════════════════════════════════════
+
+REPLACE the entire existing admin dashboard with a new dashboard containing exactly three sections, in this order:
+
+─────────────────────────────────────────
+SECTION 1 — BUCKS IN THE BANK
+─────────────────────────────────────────
+Definition: Bucks that have NOT yet been distributed to any admin. This pool is the source for allocations.
+
+Features:
+• Display the total Bucks in the Bank balance prominently.
+• "Set up monthly auto-allocation" button: lets the org owner schedule recurring Buck distributions to managers, proportional to (or manually split across) their team size.
+• "Manual allocation" button: lets the org owner immediately send Bucks to one or more managers.
+• The Bucks in the Bank balance directly determines billing under the Keep Your Bucks™ policy (see Section 4).
+
+─────────────────────────────────────────
+SECTION 2 — BUCKS ON THE WAY (show a car icon next to this heading)
+─────────────────────────────────────────
+Definition: Bucks currently sitting in admin/manager accounts — distributed but not yet awarded to employees.
+
+Features:
+• Show the grand total of all in-flight Bucks across all admins.
+• Below that total, show a per-admin breakdown: admin name | Bucks balance.
+• The admin with the highest average monthly Buck spend gets a crown icon next to their name. Show their monthly average in parentheses, e.g. "Sarah M. 👑 (avg 42 Bucks/mo)".
+• Important rule: Any Bucks still in admin accounts at the end of the billing cycle are automatically recalled back to Bucks in the Bank before the next invoice is generated. Make this rule visible as a small note under the section header.
+
+─────────────────────────────────────────
+SECTION 3 — EMPLOYEE BALANCES
+─────────────────────────────────────────
+Definition: Bucks currently held by employees (already awarded, not yet spent).
+
+Features:
+• Show the total Bucks held across all employees.
+• Per-employee breakdown: employee name | current balance | number of orders placed | Bucks spent in the past 30 days.
+
+─────────────────────────────────────────
+DASHBOARD — TOP REWARDED (keep this widget only)
+─────────────────────────────────────────
+• Keep the existing "Top Rewarded" widget exactly as-is.
+• Remove ALL other dashboard widgets. Do not leave any other cards, charts, stats, or widgets on the dashboard. The goal is a clean, uncluttered screen.
+
+═══════════════════════════════════════════════
+2 — NAVIGATION & DROPDOWN CLEANUP
+═══════════════════════════════════════════════
+
+Make the following changes to navigation and dropdowns:
+
+ITEMS TO DELETE from the org dropdown menu (remove completely — no archive, no hide):
+• Invite links
+• Items
+• Disputes
+• Goals
+• Surveys
+• Documents
+• Pending accounts
+• Store mgmt
+
+STORE ACCESS:
+• Org users must be able to edit the store directly from the "Store" dropdown selection. This replaces the now-deleted "Store mgmt" item. The store edit functionality should live inside the Store section.
+
+TEAM:
+• Remove the "Team" section from the org view entirely.
+
+INVITE LINKS:
+• Move invite link functionality to the Employees section. Admins create and manage invite links from within Employees, not from a separate nav item.
+
+═══════════════════════════════════════════════
+3 — ONBOARDING: STORE SETUP FLOW
+═══════════════════════════════════════════════
+
+When a new organization completes sign-up, immediately present a guided store setup flow BEFORE they reach the dashboard. Do not drop them into an empty dashboard.
+
+STORE SETUP FLOW:
+Step 1 — Prompt the org owner with: "Tell us what items you'd like in your store. List the products, rewards, or experiences you want your employees to be able to redeem Bucks for."
+• Provide a text input area where they can enter items (one per line or comma-separated).
+• Include an example list for guidance, e.g.: "Gift cards, Paid time off, Company swag, Lunch with the CEO, Spa day, Tech accessories."
+
+Step 2 — Once submitted, pre-populate the org's store with those items as draft listings.
+• Each item gets a default placeholder image, a name from their list, and a Buck price of 0 (prompting them to set prices).
+• Show a confirmation screen: "Your store has been set up! Review and finalize your items below." Let them edit names, prices, and images before publishing.
+
+Step 3 — After publishing the store, take them to the dashboard.
+
+CREDITS:
+• Org owners are provisioned with Bucks in the Bank per their plan.
+• Employees are provisioned with a starting Buck balance as configured by the org owner during setup (or they start at 0 if not configured).
+
+═══════════════════════════════════════════════
+4 — BUCKS BILLING POLICY UPDATE
+═══════════════════════════════════════════════
+
+Find every instance of the Keep Your Bucks™ policy text across the entire codebase (billing pages, tooltips, help text, emails, modals, onboarding screens) and update it to the following exact text:
+
+─────────────────────────────────────────
+Keep Your Bucks™ — How Buck billing works
+
+Your monthly Buck charge equals your plan Bucks at 1 Buck = $1, plus a flat $5/month service fee. Any Bucks still sitting in Bucks in the Bank at month-end are automatically recalled and applied as a credit against your next invoice — so you only pay for Bucks your team actually used. Bucks already earned by employees are always theirs to keep.
+
+Example: 150 Bucks/month plan ($155/mo total). Admins used 110 Bucks → 40 recalled → next invoice is $110 + $5 = $115 instead of $155.
+─────────────────────────────────────────
+
+The key change: replace every reference to "admin accounts" in this policy with "Bucks in the Bank". No other wording changes.
+
+═══════════════════════════════════════════════
+5 — STRIPE BILLING LOGIC
+═══════════════════════════════════════════════
+
+Audit and correct all Stripe billing logic to match the Keep Your Bucks™ policy exactly. The following rules must be enforced end-to-end in Stripe and in the application code that drives Stripe calls:
+
+─────────────────────────────────────────
+BILLING STRUCTURE
+─────────────────────────────────────────
+Each org is on a monthly subscription. The invoice for a given billing cycle must be calculated as follows:
+
+  Invoice total = (Bucks actually used by admins that cycle × $1) + $5 flat service fee
+
+"Bucks actually used" = plan Bucks minus any Bucks recalled from Bucks in the Bank at cycle end.
+
+The flat $5 service fee must be a fixed line item on every invoice regardless of Buck usage.
+
+─────────────────────────────────────────
+RECALL & CREDIT LOGIC
+─────────────────────────────────────────
+At the end of each billing cycle, before the invoice is finalized:
+
+Step 1 — Count how many Bucks remain in Bucks in the Bank (unallocated/unused by admins).
+Step 2 — Recall those Bucks back to the platform (zero out Bucks in the Bank for that cycle).
+Step 3 — Calculate the credit: recalled Bucks × $1.
+Step 4 — Apply that credit to the upcoming invoice using a Stripe credit note or invoice item with a negative amount. Do NOT carry it as a manual account credit — apply it directly to the next invoice line items so it is visible to the customer.
+Step 5 — The invoice sent to the customer must clearly show:
+  • Plan Bucks: [N] Bucks × $1 = $[N]
+  • Recalled Bucks credit: -[R] Bucks × $1 = -$[R]
+  • Service fee: $5.00
+  • Total due: $[N - R + 5]
+
+─────────────────────────────────────────
+EMPLOYEE BUCKS — DO NOT TOUCH
+─────────────────────────────────────────
+Bucks that have already been awarded to employees are owned by the employee. They must never be recalled, never deducted, and must never factor into the billing calculation. Only Bucks in the Bank (unallocated pool) are subject to recall.
+
+─────────────────────────────────────────
+ORDER FULFILLMENT DEDUCTION
+─────────────────────────────────────────
+When the developer marks an order as fulfilled in the developer dashboard, the full Buck cost of that order is deducted from the organization's balance at that moment. This deduction must be reflected in the running Buck totals used to calculate end-of-cycle billing. Bucks are NOT deducted at the time the employee places the order — only at fulfillment.
+
+Ensure Stripe is not charging for Bucks at order placement. Verify this logic in the webhook and invoice generation code.
+
+─────────────────────────────────────────
+STRIPE IMPLEMENTATION CHECKS
+─────────────────────────────────────────
+Verify and correct each of the following:
+
+1. Subscription plan: confirm the base subscription represents the plan Buck count at $1/Buck/month plus the $5 fee as a separate metered or fixed line item.
+
+2. Invoice finalization timing: confirm that the recall calculation (Step 1–4 above) runs BEFORE Stripe finalizes the invoice, not after. If using Stripe's invoice.upcoming webhook or a scheduled job, ensure it fires with enough lead time to apply the credit before the invoice closes.
+
+3. Credit application method: credits must appear as a visible negative line item on the invoice (not as a Stripe customer balance/credit that silently offsets future invoices). Use a negative invoice item or a credit note applied to the specific invoice.
+
+4. Proration: if an org upgrades or downgrades their Buck plan mid-cycle, ensure Stripe prorates correctly and the recall logic still runs on the correct plan Buck count for each portion of the cycle.
+
+5. Failed payments: if a payment fails, Bucks in the Bank must be frozen (no new allocations allowed) until the invoice is settled. Add a check in the allocation flow that blocks new distributions if the org has an open past-due invoice in Stripe.
+
+6. Webhook handling: confirm that all relevant Stripe webhooks (invoice.finalized, invoice.payment_succeeded, invoice.payment_failed, customer.subscription.updated) are handled and that the app's internal Buck ledger stays in sync with Stripe invoice outcomes.
+
+7. Test this flow end-to-end in Stripe test mode using the demo account before deploying to production.
+
+═══════════════════════════════════════════════
+6 — SETTINGS LABEL
+═══════════════════════════════════════════════
+
+Rename the settings label for org users from "Settings" to "Organization settings". Apply this change everywhere the label appears: sidebar nav, page title, breadcrumbs, and any modal or dropdown that references org-level settings.
+
+═══════════════════════════════════════════════
+7 — ORDERS: ORG & DEVELOPER DASHBOARD
+═══════════════════════════════════════════════
+
+─────────────────────────────────────────
+ORG SIDE — ORDER VISIBILITY
+─────────────────────────────────────────
+• Admins no longer need to approve orders. Orders placed by employees are not held in a pending/approval state.
+• Admins CAN see all orders placed within their org: employee name, item name, Buck cost, date, order status.
+• No approve/deny action available to admins — read-only view.
+
+─────────────────────────────────────────
+DEVELOPER DASHBOARD — ORDER MANAGEMENT
+─────────────────────────────────────────
+In the developer/platform admin dashboard:
+
+• Each organization listed in the developer dashboard must show a red badge/number next to the org name indicating how many unfulfilled orders exist for that org. Update in real time.
+
+• Clicking an org opens the order queue for that org. Each order row must show:
+  - Employee name
+  - Item name
+  - Direct link to the item (clickable URL)
+  - Buck cost
+  - Date ordered
+  - Current status
+
+• For each order, the developer has two actions:
+  1. Send a message to the org (admin) about the order — e.g. "We need more information about this item" or "This item exceeds the Buck value limit."
+  2. Send a message directly to the employee who placed the order — for the same reasons.
+
+• When an order is fulfilled or closed by the developer, the full Buck cost is deducted from the organization's balance at that time.
+
+• Bucks are NOT deducted at the time the employee places the order. Deduction happens when the developer marks the order as complete/fulfilled.
+
+═══════════════════════════════════════════════
+8 — SCOPE EXCLUSION (ORG FEF55758)
+═══════════════════════════════════════════════
+
+SCOPE RESTRICTION — APPLY WITH CARE
+
+All changes described in this prompt must be applied to:
+• The demo account (seed account)
+• All other organizations in the system
+
+DO NOT apply any changes to the organization with org code: FEF55758.
+That org must remain exactly as it currently is. Do not modify its dashboard, navigation, settings, store, order flow, billing policy display, Stripe configuration, or any other feature. Treat it as frozen.
+

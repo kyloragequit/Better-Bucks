@@ -94,6 +94,7 @@ type OrgWithStats = Organization & {
   employeeCount: number;
   totalUsers: number;
   primeAdmin: { id: number; username: string; fullName: string; email: string | null } | null;
+  pendingOrderCount: number;
 };
 
 const tierLabels: Record<string, string> = {
@@ -118,6 +119,9 @@ export default function DeveloperDashboardPage() {
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude" | "marketing" | "stripe-orphans" | "orders">("orgs");
   const [ordersOrgFilter, setOrdersOrgFilter] = useState<string>("");
+  const [msgOrderId, setMsgOrderId] = useState<number | null>(null);
+  const [msgRecipient, setMsgRecipient] = useState<"employee" | "org">("employee");
+  const [msgText, setMsgText] = useState("");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
   const [refCodeForm, setRefCodeForm] = useState<{ code: string; description: string; extraMonths: number } | null>(null);
   const [blogImageUploading, setBlogImageUploading] = useState(false);
@@ -504,6 +508,21 @@ export default function DeveloperDashboardPage() {
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const sendOrderMessageMutation = useMutation({
+    mutationFn: async ({ orderId, recipient, message }: { orderId: number; recipient: "employee" | "org"; message: string }) => {
+      const res = await apiRequest("POST", `/api/developer/orders/${orderId}/message`, { recipient, message });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Message sent", description: `Email delivered to ${data.to}.` });
+      setMsgOrderId(null);
+      setMsgText("");
+    },
+    onError: (e: Error) => {
+      toast({ title: "Failed to send message", description: e.message, variant: "destructive" });
     },
   });
 
@@ -1502,7 +1521,14 @@ export default function DeveloperDashboardPage() {
                           <TableRow key={org.id} data-testid={`row-paused-org-${org.id}`}>
                             <TableCell className="font-medium">{org.name}</TableCell>
                             <TableCell>
-                              <code className="text-xs bg-amber-100 px-1.5 py-0.5 rounded">{org.code}</code>
+                              <div className="flex flex-col gap-1">
+                                <code className="text-xs bg-amber-100 px-1.5 py-0.5 rounded">{org.code}</code>
+                                {org.pendingOrderCount > 0 && (
+                                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 border border-amber-300 text-xs w-fit" data-testid={`badge-pending-orders-${org.id}`}>
+                                    {org.pendingOrderCount} to fulfill
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline">{tierLabels[org.tier] || org.tier}</Badge>
@@ -1634,7 +1660,14 @@ export default function DeveloperDashboardPage() {
                             <TableRow key={org.id} data-testid={`row-org-${org.id}`}>
                               <TableCell className="font-medium">{org.name}</TableCell>
                               <TableCell>
-                                <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{org.code}</code>
+                                <div className="flex flex-col gap-1">
+                                  <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{org.code}</code>
+                                  {org.pendingOrderCount > 0 && (
+                                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 border border-amber-300 text-xs w-fit" data-testid={`badge-pending-orders-${org.id}`}>
+                                      {org.pendingOrderCount} to fulfill
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline">{tierLabels[org.tier] || org.tier}</Badge>
@@ -1976,16 +2009,27 @@ export default function DeveloperDashboardPage() {
                                   {order.convertedValue && <span className="text-xs text-muted-foreground">≈ {order.convertedValue}</span>}
                                 </div>
                               </div>
-                              <Button
-                                size="sm"
-                                onClick={() => fulfillOrderMutation.mutate(order.id)}
-                                disabled={fulfillOrderMutation.isPending}
-                                className="shrink-0 bg-green-600 hover:bg-green-700 text-white"
-                                data-testid={`button-fulfill-order-${order.id}`}
-                              >
-                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                                Mark Fulfilled
-                              </Button>
+                              <div className="flex gap-2 flex-wrap">
+                                <Button
+                                  size="sm"
+                                  onClick={() => fulfillOrderMutation.mutate(order.id)}
+                                  disabled={fulfillOrderMutation.isPending}
+                                  className="shrink-0 bg-green-600 hover:bg-green-700 text-white"
+                                  data-testid={`button-fulfill-order-${order.id}`}
+                                >
+                                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                  Mark Fulfilled
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setMsgOrderId(order.id); setMsgRecipient("employee"); setMsgText(""); }}
+                                  data-testid={`button-message-order-${order.id}`}
+                                >
+                                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                                  Message
+                                </Button>
+                              </div>
                             </div>
 
                             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
@@ -2028,6 +2072,56 @@ export default function DeveloperDashboardPage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* ── Message order dialog ── */}
+        {msgOrderId !== null && (
+          <Dialog open onOpenChange={open => { if (!open) setMsgOrderId(null); }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Send message about Order #{msgOrderId}</DialogTitle>
+                <DialogDescription>
+                  Email will be sent to the selected recipient via Better Bucks.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="flex gap-3">
+                  <Button
+                    size="sm"
+                    variant={msgRecipient === "employee" ? "default" : "outline"}
+                    onClick={() => setMsgRecipient("employee")}
+                  >
+                    Employee
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={msgRecipient === "org" ? "default" : "outline"}
+                    onClick={() => setMsgRecipient("org")}
+                  >
+                    Org owner
+                  </Button>
+                </div>
+                <Textarea
+                  rows={5}
+                  placeholder="Type your message here…"
+                  value={msgText}
+                  onChange={e => setMsgText(e.target.value)}
+                  data-testid="textarea-order-message"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setMsgOrderId(null)}>Cancel</Button>
+                <Button
+                  onClick={() => sendOrderMessageMutation.mutate({ orderId: msgOrderId, recipient: msgRecipient, message: msgText })}
+                  disabled={!msgText.trim() || sendOrderMessageMutation.isPending}
+                  data-testid="button-send-order-message"
+                >
+                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                  {sendOrderMessageMutation.isPending ? "Sending…" : "Send"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
 
         {activeTab === "inbox" && <InboxTab />}

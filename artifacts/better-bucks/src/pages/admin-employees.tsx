@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle, MoreVertical, Lock } from "lucide-react";
+import { Search, UserPlus, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, Mail, Phone, Zap, TrendingUp, TrendingDown, Upload, Download, CheckCircle2, XCircle, FileSpreadsheet, Send, Trash2, Clock, AlertTriangle, MoreVertical, Lock, Link2, Copy, Power, PowerOff } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,19 @@ import { useRoleLabels } from "@/hooks/use-role-labels";
 import { useUser } from "@/hooks/use-auth";
 import { AppLogo } from "@/components/app-logo";
 import type { InsertUser, Department, User, Organization, Invitation } from "@shared/schema";
+
+type InviteLink = {
+  id: number;
+  token: string;
+  roleToAssign: "employee" | "admin";
+  expiresAt: string;
+  isActive: boolean;
+  signupCount: number;
+};
+
+function buildJoinUrl(token: string) {
+  return `${window.location.origin}/join/${token}`;
+}
 
 function isCurrentlyLocked(user: User): boolean {
   return !!user.lockedUntil && new Date() < new Date(user.lockedUntil);
@@ -142,6 +155,7 @@ export default function AdminEmployeesPage() {
               <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
               <BulkDebitDialog users={users ?? []} departments={departments ?? []} />
               {isPrimeAdmin && <InviteUserDialog departments={departments ?? []} />}
+              {isPrimeAdmin && <InviteLinkDialog />}
               <CreateEmployeeDialog />
             </>
           )}
@@ -897,6 +911,160 @@ function InviteUserDialog({ departments }: { departments: Department[] }) {
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InviteLinkDialog() {
+  const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<"employee" | "admin">("employee");
+  const [generatedLink, setGeneratedLink] = useState<InviteLink | null>(null);
+  const { toast } = useToast();
+  const { data: currentUser } = useUser();
+  const queryClient = useQueryClient();
+  const isPrime = currentUser?.role === "prime_admin";
+
+  const { data: links = [] } = useQuery<InviteLink[]>({
+    queryKey: ["/api/invite-links"],
+    enabled: open,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/invite-links", { roleToAssign: role, expiresInDays: 30 });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to create invite link.");
+      }
+      return res.json() as Promise<InviteLink>;
+    },
+    onSuccess: (link) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invite-links"] });
+      setGeneratedLink(link);
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/invite-links/${id}`, { isActive });
+      if (!res.ok) throw new Error("Failed to update link");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/invite-links"] }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const copyUrl = (token: string) => {
+    const url = buildJoinUrl(token);
+    navigator.clipboard.writeText(url).then(
+      () => toast({ title: "Copied!", description: "Invite link copied to clipboard." }),
+      () => toast({ title: "Copy failed", description: url, variant: "destructive" }),
+    );
+  };
+
+  const handleOpenChange = (o: boolean) => {
+    if (!o) setGeneratedLink(null);
+    setOpen(o);
+  };
+
+  const activeLinks = links.filter(l => l.isActive && new Date(l.expiresAt) > new Date());
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" data-testid="button-invite-link">
+          <Link2 className="mr-2 h-4 w-4" /> Invite via Link
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>Invite via Link</DialogTitle>
+          <DialogDescription>
+            Generate a shareable link — anyone with it can create their account and join your organization.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-1">
+          {/* Role picker + generate */}
+          <div className="flex gap-3 items-end">
+            <div className="flex-1 grid gap-1.5">
+              <Label htmlFor="link-role">Role for new members</Label>
+              <Select value={role} onValueChange={v => setRole(v as "employee" | "admin")} disabled={!isPrime}>
+                <SelectTrigger id="link-role" data-testid="select-link-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  {isPrime && <SelectItem value="admin">Manager</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending}
+              data-testid="button-generate-link"
+            >
+              <Link2 className="h-4 w-4 mr-2" />
+              {createMutation.isPending ? "Generating..." : "Generate link"}
+            </Button>
+          </div>
+
+          {/* Newly generated link — highlighted */}
+          {generatedLink && (
+            <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
+              <p className="text-xs font-semibold text-primary uppercase tracking-wide">New link ready to share</p>
+              <code className="text-xs break-all block text-foreground">
+                {buildJoinUrl(generatedLink.token)}
+              </code>
+              <Button size="sm" className="w-full" onClick={() => copyUrl(generatedLink.token)} data-testid="button-copy-new-link">
+                <Copy className="h-4 w-4 mr-2" /> Copy link
+              </Button>
+            </div>
+          )}
+
+          {/* Existing active links */}
+          {activeLinks.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active links</p>
+              {activeLinks.map(l => (
+                <div key={l.id} className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2" data-testid={`row-link-${l.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {l.roleToAssign === "admin" ? "Manager" : "Employee"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {l.signupCount} joined · expires {new Date(l.expiresAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <code className="text-xs text-muted-foreground truncate block max-w-[220px]">{buildJoinUrl(l.token)}</code>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" onClick={() => copyUrl(l.token)} data-testid={`button-copy-${l.id}`}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => toggleMutation.mutate({ id: l.id, isActive: false })}
+                      disabled={toggleMutation.isPending}
+                      data-testid={`button-deactivate-${l.id}`}
+                    >
+                      <PowerOff className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -2115,6 +2283,7 @@ function MobileActionsMenu({ isPublicDemo, isPrimeAdmin, departments, users }: {
   const creditRef = useRef<HTMLDivElement>(null);
   const debitRef = useRef<HTMLDivElement>(null);
   const inviteRef = useRef<HTMLDivElement>(null);
+  const inviteLinkRef = useRef<HTMLDivElement>(null);
   const click = (ref: React.RefObject<HTMLDivElement>) => ref.current?.querySelector("button")?.click();
   return (
     <div className="sm:hidden flex items-center gap-2 w-full">
@@ -2125,6 +2294,7 @@ function MobileActionsMenu({ isPublicDemo, isPrimeAdmin, departments, users }: {
             <div ref={creditRef}><BulkCreditDialog users={users} departments={departments} /></div>
             <div ref={debitRef}><BulkDebitDialog users={users} departments={departments} /></div>
             {isPrimeAdmin && <div ref={inviteRef}><InviteUserDialog departments={departments} /></div>}
+            {isPrimeAdmin && <div ref={inviteLinkRef}><InviteLinkDialog /></div>}
             <div ref={addRef}><CreateEmployeeDialog /></div>
           </>
         )}
@@ -2157,6 +2327,11 @@ function MobileActionsMenu({ isPublicDemo, isPrimeAdmin, departments, users }: {
               {isPrimeAdmin && (
                 <DropdownMenuItem onSelect={() => click(inviteRef)} data-testid="menu-invite-user">
                   <Send className="h-4 w-4 mr-2" /> Invite User
+                </DropdownMenuItem>
+              )}
+              {isPrimeAdmin && (
+                <DropdownMenuItem onSelect={() => click(inviteLinkRef)} data-testid="menu-invite-link">
+                  <Link2 className="h-4 w-4 mr-2" /> Invite via Link
                 </DropdownMenuItem>
               )}
             </>

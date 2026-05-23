@@ -155,7 +155,7 @@ export default function AdminEmployeesPage() {
               <BulkCreditDialog users={users ?? []} departments={departments ?? []} />
               <BulkDebitDialog users={users ?? []} departments={departments ?? []} />
               {isPrimeAdmin && <InviteUserDialog departments={departments ?? []} />}
-              {isPrimeAdmin && <InviteLinkDialog />}
+              <InviteLinkDialog />
               <CreateEmployeeDialog />
             </>
           )}
@@ -2294,7 +2294,7 @@ function MobileActionsMenu({ isPublicDemo, isPrimeAdmin, departments, users }: {
             <div ref={creditRef}><BulkCreditDialog users={users} departments={departments} /></div>
             <div ref={debitRef}><BulkDebitDialog users={users} departments={departments} /></div>
             {isPrimeAdmin && <div ref={inviteRef}><InviteUserDialog departments={departments} /></div>}
-            {isPrimeAdmin && <div ref={inviteLinkRef}><InviteLinkDialog /></div>}
+            <div ref={inviteLinkRef}><InviteLinkDialog /></div>
             <div ref={addRef}><CreateEmployeeDialog /></div>
           </>
         )}
@@ -2329,11 +2329,9 @@ function MobileActionsMenu({ isPublicDemo, isPrimeAdmin, departments, users }: {
                   <Send className="h-4 w-4 mr-2" /> Invite User
                 </DropdownMenuItem>
               )}
-              {isPrimeAdmin && (
-                <DropdownMenuItem onSelect={() => click(inviteLinkRef)} data-testid="menu-invite-link">
-                  <Link2 className="h-4 w-4 mr-2" /> Invite via Link
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onSelect={() => click(inviteLinkRef)} data-testid="menu-invite-link">
+                <Link2 className="h-4 w-4 mr-2" /> Invite via Link
+              </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>

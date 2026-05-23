@@ -419,7 +419,7 @@ export default function AdminDashboardPage() {
             ) : (
               <>
                 {/* Mobile */}
-                <div className="sm:hidden divide-y rounded-lg border overflow-hidden">
+                <div className="sm:hidden divide-y rounded-lg border overflow-hidden overflow-y-auto max-h-[296px]">
                   {employees.map(e => (
                     <div key={e.id} className="px-3 py-2.5 bg-background" data-testid={`row-employee-mobile-${e.id}`}>
                       <div className="flex items-center justify-between">
@@ -440,9 +440,9 @@ export default function AdminDashboardPage() {
                   ))}
                 </div>
                 {/* Desktop */}
-                <div className="hidden sm:block overflow-x-auto rounded-lg border">
+                <div className="hidden sm:block overflow-x-auto overflow-y-auto max-h-[234px] rounded-lg border">
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10">
                       <tr className="border-b bg-muted/50">
                         <th scope="col" className="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
                         <th scope="col" className="px-3 py-2 text-right font-medium text-muted-foreground">Balance</th>

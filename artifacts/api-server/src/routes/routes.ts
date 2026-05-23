@@ -2713,10 +2713,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (user.organizationId) {
         const userOrg = await storage.getOrganization(user.organizationId);
         if (userOrg) {
-          // FEF55758 org is exempt: deduct org pool immediately at placement (legacy behavior)
-          if (userOrg.code === "FEF55758") {
-            void storage.deductOrgBucksBalance(user.organizationId, pointsCost);
-          }
+          // Deduct org Bucks pool immediately when the employee places the order (all orgs)
+          void storage.deductOrgBucksBalance(user.organizationId, pointsCost);
           // All orgs auto-approve orders except the demo PRIME1 org
           if (userOrg.code !== "PRIME1") {
             finalOrder = await storage.updateOrderStatus(order.id, "approved");
@@ -6700,13 +6698,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
     const updated = await storage.updateOrderStatus(id, "completed", req.body?.adminNotes);
 
-    // Deduct org Bucks pool at fulfillment (non-FEF55758 orgs — FEF55758 deducts at placement)
-    if (employee.organizationId) {
-      const employeeOrg = await storage.getOrganization(employee.organizationId);
-      if (employeeOrg && employeeOrg.code !== "FEF55758") {
-        void storage.deductOrgBucksBalance(employee.organizationId, order.pointsCost);
-      }
-    }
+    // Org Bucks pool is already deducted at order placement — no deduction needed at fulfillment
 
     if (employee.email) {
       const subject = `Better Bucks — Order #${order.id} Fulfilled!`;

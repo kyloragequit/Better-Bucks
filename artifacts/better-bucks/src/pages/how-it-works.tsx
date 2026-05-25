@@ -1221,10 +1221,10 @@ export default function HowItWorksPage() {
               <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>25 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 25 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-gray-900">$8.79</span>
+                <span className="text-4xl font-bold text-gray-900">$17.99</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
-              <p className="text-xs text-gray-500 mb-5">~$0.35 per login</p>
+              <p className="text-xs text-gray-500 mb-5">~$0.72 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
                 {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Basic reporting", "Email support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
@@ -1249,10 +1249,10 @@ export default function HowItWorksPage() {
               <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>75 Logins</p>
               <p className="text-xs text-white/70 mb-4">Up to 75 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-white">$15.19</span>
+                <span className="text-4xl font-bold text-white">$29.99</span>
                 <span className="text-sm text-white/70">/mo</span>
               </div>
-              <p className="text-xs text-white/70 mb-5">~$0.20 per login</p>
+              <p className="text-xs text-white/70 mb-5">~$0.40 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
                 {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-white/90">
@@ -1274,10 +1274,10 @@ export default function HowItWorksPage() {
               <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>150 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 150 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-gray-900">$23.99</span>
+                <span className="text-4xl font-bold text-gray-900">$47.99</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
-              <p className="text-xs text-gray-500 mb-5">~$0.16 per login</p>
+              <p className="text-xs text-gray-500 mb-5">~$0.32 per login</p>
               <ul className="space-y-2 mb-6 flex-1">
                 {["60-day free pilot", "Admin dashboard", "Bucks tracking", "Advanced reporting", "Priority support"].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-gray-600">

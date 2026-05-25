@@ -647,7 +647,7 @@ export default function LandingPage() {
               <p className="text-2xl font-extrabold text-primary mt-1 mb-1">25 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 25 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-gray-900">$18</span>
+                <span className="text-4xl font-bold text-gray-900">$17.99</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
               <p className="text-xs text-gray-500 mb-5">~$0.72 per login</p>
@@ -675,7 +675,7 @@ export default function LandingPage() {
               <p className="text-2xl font-extrabold text-secondary mt-1 mb-1">75 Logins</p>
               <p className="text-xs text-white/70 mb-4">Up to 75 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-white">$30</span>
+                <span className="text-4xl font-bold text-white">$29.99</span>
                 <span className="text-sm text-white/70">/mo</span>
               </div>
               <p className="text-xs text-white/70 mb-5">~$0.40 per login</p>
@@ -700,7 +700,7 @@ export default function LandingPage() {
               <p className="text-2xl font-extrabold text-primary mt-1 mb-1">150 Logins</p>
               <p className="text-xs text-gray-500 mb-4">Up to 150 employee accounts</p>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-gray-900">$48</span>
+                <span className="text-4xl font-bold text-gray-900">$47.99</span>
                 <span className="text-sm text-gray-500">/mo</span>
               </div>
               <p className="text-xs text-gray-500 mb-5">~$0.32 per login</p>

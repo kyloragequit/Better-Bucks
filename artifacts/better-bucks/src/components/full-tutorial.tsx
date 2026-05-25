@@ -38,26 +38,6 @@ function MiniBar({ label, pct, color, delay }: { label: string; pct: number; col
   );
 }
 
-function MiniTeamPreview() {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const timers = [setTimeout(() => setStep(1), 600), setTimeout(() => setStep(2), 1200), setTimeout(() => setStep(3), 1800)];
-    return () => timers.forEach(clearTimeout);
-  }, []);
-  const names = ["Sarah C.", "Marcus H.", "Priya P."];
-  return (
-    <div className="rounded-lg overflow-hidden border border-white/10" style={{ background: `${NAVY}CC` }}>
-      <div className="px-2.5 py-1.5 text-[10px] font-bold text-white/80 border-b border-white/10">My Team</div>
-      {names.map((n, i) => (
-        <div key={n} className="flex items-center gap-2 px-2.5 py-1 border-b border-white/5 transition-all duration-500" style={{ opacity: step > i ? 1 : 0, transform: step > i ? "translateX(0)" : "translateX(-8px)" }}>
-          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: GREEN }}>{n[0]}</div>
-          <span className="text-[10px] text-white/80">{n}</span>
-          {step > i && <span className="ml-auto text-[9px] font-bold" style={{ color: GREEN }}>✓</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function MiniSurveyPreview() {
   const [answered, setAnswered] = useState(0);
@@ -82,23 +62,6 @@ function MiniSurveyPreview() {
   );
 }
 
-function MiniDocPreview() {
-  const [show, setShow] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setShow(true), 500); return () => clearTimeout(t); }, []);
-  return (
-    <div className="rounded-lg overflow-hidden border border-white/10 transition-all duration-700" style={{ background: `${NAVY}CC`, opacity: show ? 1 : 0, transform: show ? "scale(1)" : "scale(0.9)" }}>
-      <div className="px-2.5 py-1.5 text-[10px] font-bold text-white/80 border-b border-white/10">Monthly Report</div>
-      <div className="px-2.5 py-2 space-y-1">
-        <MiniBar label="Awarded" pct={72} color={GREEN} delay={600} />
-        <MiniBar label="Spent" pct={45} color="#3B82F6" delay={900} />
-        <div className="flex justify-between mt-1">
-          <span className="text-[9px] text-white/50">PDF ready</span>
-          <span className="text-[9px] font-bold" style={{ color: GREEN }}>↓ Download</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const employeeSteps: Step[] = [
   {
@@ -169,43 +132,35 @@ const adminSteps: Step[] = [
     id: "welcome",
     path: "/admin/dashboard",
     title: "Your Admin Dashboard",
-    description: "Award Bucks, manage your team, approve orders, and track everything from here.",
+    description: "Award Bucks, manage your team, and track everything from here.",
   },
   {
-    id: "stats",
+    id: "bucks-in-the-bank",
     path: "/admin/dashboard",
-    selector: '[data-testid="text-points-credit"]',
-    title: "Bucks Stats",
-    description: "See Bucks credited and spent. Toggle Week / Month / Year to spot trends.",
+    selector: '[data-testid="card-bucks-in-the-bank"]',
+    title: "Bucks in the Bank",
+    description: "Your organization's Buck pool — the Bucks available to allocate to your admin team for rewarding employees.",
   },
   {
-    id: "leaderboard",
+    id: "bucks-on-the-way",
     path: "/admin/dashboard",
-    selector: '[data-testid="tab-leaderboard-admins"]',
-    title: "Leaderboard",
-    description: "See which admins have awarded the most. Switch to Employees to view balances.",
+    selector: '[data-testid="card-bucks-on-the-way"]',
+    title: "Bucks on the Way",
+    description: "The combined balance held by your admin team — Bucks that have been allocated and are ready to award.",
   },
   {
-    id: "analytics",
+    id: "employee-balances",
     path: "/admin/dashboard",
-    selector: '[data-testid="card-analytics"]',
-    title: "Budget & Categories",
-    description: "Track monthly budget usage and see how Bucks are distributed across categories like Safety, Performance, and Attendance.",
-  },
-  {
-    id: "team",
-    path: "/admin/team",
-    selector: '[data-testid="text-team-title"]',
-    title: "My Team",
-    description: "Your assigned employees live here. Select multiple members and award Bucks in bulk with a category tag.",
-    miniPreview: <MiniTeamPreview />,
+    selector: '[data-testid="card-employee-balances"]',
+    title: "Employee Balances",
+    description: "See every employee's current Bucks balance at a glance — scroll to find who's ready to spend.",
   },
   {
     id: "employees",
     path: "/admin/employees",
     selector: '[data-testid="input-search-employees"]',
     title: "Employee Management",
-    description: "Your full team roster. Search, filter, and click any name for their history.",
+    description: "Your full team roster. Search, filter, and click any name to view their history.",
   },
   {
     id: "bulk-credit",
@@ -215,11 +170,11 @@ const adminSteps: Step[] = [
     description: "Award Bucks to multiple employees at once — great for shift bonuses or milestones.",
   },
   {
-    id: "bulk-import",
+    id: "invite-link",
     path: "/admin/employees",
-    selector: '[data-testid="button-bulk-import"]',
-    title: "Import Employees",
-    description: "Upload an Excel file to add many employees at once. Download the template to get started.",
+    selector: '[data-testid="button-invite-link"]',
+    title: "Invite via Link",
+    description: "Generate a shareable link so employees can register themselves. Set an expiry or deactivate it anytime.",
   },
   {
     id: "instant-tx",
@@ -231,52 +186,26 @@ const adminSteps: Step[] = [
     id: "orders",
     path: "/admin/orders",
     title: "Orders",
-    description: "Review employee reward requests. Approve or reject orders — fulfillment is handled automatically.",
+    description: "View all employee reward requests here. Orders are processed automatically — no manual approval needed.",
   },
   {
-    id: "goals",
-    path: "/admin/goals",
-    selector: '[data-testid="input-goal-title"]',
-    title: "Team Goals",
-    description: "Create shared goals with deadlines and automatic Bucks rewards on completion.",
-    optional: true,
-  },
-  {
-    id: "surveys",
-    path: "/admin/surveys",
-    selector: '[data-testid="input-survey-title"]',
-    title: "Surveys",
-    description: "Create surveys for your team — multiple-choice or open-ended. View responses and track participation.",
-    miniPreview: <MiniSurveyPreview />,
-    optional: true,
-  },
-  {
-    id: "custom-items",
-    path: "/admin/items",
-    title: "Custom Items",
-    description: "Run a second incentive track — Safety Stars, Raffle Tickets, or any token you define.",
-    optional: true,
-  },
-  {
-    id: "documents",
-    path: "/admin/documents",
-    selector: '[data-testid="text-documents-title"]',
-    title: "Monthly Reports",
-    description: "Generate detailed monthly reports with charts, category breakdowns, and PDF downloads.",
-    miniPreview: <MiniDocPreview />,
+    id: "store-setup",
+    path: "/admin/store-setup",
+    title: "Store Setup",
+    description: "Configure your employee store — add items, set Buck prices, and control what your team can redeem.",
   },
   {
     id: "settings",
     path: "/admin/settings",
     selector: '[data-testid="text-settings-org-code"]',
-    title: "Settings",
+    title: "Organization Settings",
     description: "Your org code, passkey, and role labels live here. Use this to customize how your program runs.",
   },
   {
     id: "done",
     path: "/admin/dashboard",
     title: "You're Ready!",
-    description: "That covers everything. Award generously, keep goals active, and check in often!",
+    description: "Award generously, keep the store stocked, and check your dashboard regularly!",
   },
 ];
 
@@ -286,7 +215,7 @@ const primeAdminExtraSteps: Step[] = [
     path: "/admin/dashboard",
     selector: '[data-testid="input-monthly-budget"]',
     title: "Budget & Allocation",
-    description: "Set your monthly Buck budget and allocate Bucks to your admin team from the dashboard.",
+    description: "Set your monthly Buck budget and allocate Bucks to your admin team directly from the dashboard.",
   },
   {
     id: "subscription",
@@ -299,7 +228,7 @@ const primeAdminExtraSteps: Step[] = [
 function getSteps(role: string): Step[] {
   if (role === "employee") return employeeSteps;
   const base = [...adminSteps];
-  if (role === "prime_admin") base.splice(3, 0, ...primeAdminExtraSteps);
+  if (role === "prime_admin") base.splice(4, 0, ...primeAdminExtraSteps);
   return base;
 }
 

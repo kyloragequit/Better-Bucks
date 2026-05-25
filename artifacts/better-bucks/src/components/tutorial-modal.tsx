@@ -361,7 +361,7 @@ function buildSlides(role: string, name: string): Slide[] {
           {role === "prime_admin"
             ? "You have full control over the Better Bucks platform — manage your team, curate the store, configure your organization, and track every Bucks transaction."
             : role === "admin"
-            ? "You can manage employees, award Bucks for great work, approve orders, and keep your team motivated and recognized."
+            ? "You can manage employees, award Bucks for great work, view orders, and keep your team motivated and recognized."
             : "Earn Bucks for great performance and redeem them in your company store for things you actually want. Let's take a quick tour!"}
         </p>
         <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
@@ -373,9 +373,9 @@ function buildSlides(role: string, name: string): Slide[] {
               ]
             : role === "admin"
             ? [
-                { icon: Users, label: "Manage Team", desc: "Add & view employees" },
+                { icon: Users, label: "Manage Team", desc: "Add & invite employees" },
                 { icon: Coins, label: "Award Bucks", desc: "Recognize great work" },
-                { icon: ClipboardCheck, label: "Fulfill Orders", desc: "Approve requests" },
+                { icon: BarChart3, label: "Track Bucks", desc: "View balances & orders" },
               ]
             : [
                 { icon: Users, label: "Team", desc: "Manage everyone" },
@@ -420,9 +420,9 @@ function buildSlides(role: string, name: string): Slide[] {
         {role !== "employee" ? (
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: "Pending Orders", value: "4", color: "#f59e0b" },
+              { label: "Bucks in the Bank", value: "12K", color: "#3B82F6" },
               { label: "Employees", value: "47", color: NAVY },
-              { label: "Fulfilled Today", value: "8", color: GREEN },
+              { label: "Awarded Today", value: "850", color: GREEN },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-lg border p-3 text-center bg-white">
                 <p className="text-2xl font-black" style={{ color }}>{value}</p>
@@ -583,66 +583,9 @@ function buildSlides(role: string, name: string): Slide[] {
     welcomeSlide,
     dashboardSlide,
     {
-      id: "analytics",
-      title: "Budget & Category Analytics",
-      subtitle: "Track how your monthly budget is being used and see how Bucks are distributed across reward types.",
-      body: (
-        <div className="space-y-3">
-          <div className="rounded-xl border overflow-hidden">
-            <div className="px-4 py-3" style={{ background: NAVY }}>
-              <span className="text-white font-bold text-sm flex items-center gap-1.5">
-                <PieChart className="h-4 w-4" /> {currentMonth} Analytics
-              </span>
-            </div>
-            <div className="p-3 bg-white space-y-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Budget Progression</p>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-600"><span className="font-bold text-gray-800">6,200</span> of 10,000 bucks used</span>
-                  <span className="font-bold text-green-600">62%</span>
-                </div>
-                <AnimatedBar pct={62} color={GREEN} delay={300} />
-                <div className="flex justify-between mt-1 text-xs text-gray-400">
-                  <span>0</span><span>5,000</span><span>10,000</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Rewards by Category</p>
-                {[
-                  { name: "Safety", color: "#4E9F3D", pct: 42 },
-                  { name: "Performance", color: "#3B82F6", pct: 33 },
-                  { name: "Attendance", color: "#F59E0B", pct: 25 },
-                ].map((c, i) => (
-                  <div key={c.name} className="mb-2">
-                    <div className="flex justify-between text-xs mb-0.5">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full inline-block" style={{ background: c.color }} />
-                        {c.name}
-                      </span>
-                      <span className="font-semibold text-gray-700">{c.pct}%</span>
-                    </div>
-                    <AnimatedBar pct={c.pct} color={c.color} delay={400 + i * 200} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-400 text-center">
-            When awarding Bucks, select a category (Safety, Attendance, etc.) to see the breakdown here.
-          </p>
-        </div>
-      ),
-    },
-    {
-      id: "team",
-      title: "My Team",
-      subtitle: "View employees assigned to you. Select members and award Bucks in bulk with a single click.",
-      body: <MiniTeamAnim />,
-    },
-    {
       id: "employees",
       title: "Manage Your Employees",
-      subtitle: "View, approve, and manage employees. Award Bucks directly from the employee list.",
+      subtitle: "View and manage your full roster. Search, filter, and award Bucks directly from the list.",
       body: (
         <div className="space-y-3">
           <div className="rounded-xl border overflow-hidden">
@@ -723,36 +666,71 @@ function buildSlides(role: string, name: string): Slide[] {
       ),
     },
     {
+      id: "invite-link",
+      title: "Invite Employees via Link",
+      subtitle: "Generate a shareable link so employees can self-register — no manual account setup needed.",
+      body: (
+        <div className="space-y-3">
+          <div className="rounded-xl border overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><UserCheck className="h-4 w-4" /> Invite via Link</span>
+            </div>
+            <div className="bg-white p-4 space-y-3">
+              <div className="rounded-lg border px-3 py-2.5 flex items-center gap-2 bg-gray-50">
+                <ExternalLink className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <span className="text-xs text-gray-500 truncate flex-1">betterbucks.app/join/abc123xyz</span>
+                <button className="text-xs font-semibold px-2.5 py-1 rounded shrink-0" style={{ background: GREEN, color: "white" }}>Copy</button>
+              </div>
+              <div className="flex gap-2">
+                {[
+                  { label: "Expires", value: "7 days" },
+                  { label: "Role", value: "Employee" },
+                  { label: "Uses", value: "Unlimited" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex-1 rounded-lg border p-2 text-center bg-gray-50">
+                    <p className="text-[10px] text-gray-400">{label}</p>
+                    <p className="text-xs font-bold" style={{ color: NAVY }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Share the link via text or email. Deactivate it any time from the Employees page.
+          </p>
+        </div>
+      ),
+    },
+    {
       id: "orders",
-      title: "Fulfill Employee Orders",
-      subtitle: "When employees redeem items, their requests appear here for you to approve or reject.",
+      title: "Employee Orders",
+      subtitle: "Track all reward requests from your team. Orders are processed automatically — no manual approval needed.",
       body: (
         <div className="space-y-3">
           <div className="rounded-xl border overflow-hidden">
             <div className="px-4 py-3" style={{ background: NAVY }}>
-              <span className="text-white font-bold text-sm flex items-center gap-1.5"><ClipboardCheck className="h-4 w-4" /> Pending Orders</span>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><Package className="h-4 w-4" /> Orders</span>
             </div>
             <div className="divide-y bg-white">
               {[
-                { employee: "Sarah Chen", item: "Gaming Controller", bucks: 150 },
-                { employee: "Marcus Hill", item: 'Smart TV 55"', bucks: 450 },
-              ].map(({ employee, item, bucks }) => (
+                { employee: "Sarah Chen", item: "Gaming Controller", bucks: 150, status: "Pending" },
+                { employee: "Marcus Hill", item: 'Smart TV 55"', bucks: 450, status: "Fulfilled" },
+              ].map(({ employee, item, bucks, status }) => (
                 <div key={employee} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold" style={{ color: NAVY }}>{item}</p>
-                    <p className="text-xs text-gray-400">Requested by {employee} · {bucks} Bucks</p>
+                    <p className="text-xs text-gray-400">By {employee} · {bucks} Bucks</p>
                   </div>
-                  <div className="flex gap-1.5">
-                    <button className="text-xs px-2.5 py-1 rounded font-semibold text-white" style={{ background: GREEN }}>Approve</button>
-                    <button className="text-xs px-2.5 py-1 rounded font-semibold border text-red-500 border-red-200">Reject</button>
-                  </div>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: status === "Fulfilled" ? `${GREEN}18` : "#fef3c718", color: status === "Fulfilled" ? GREEN : "#f59e0b" }}>
+                    {status}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
           <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: `${NAVY}08` }}>
             <Package className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY + "80" }} />
-            <p className="text-gray-500">Once approved, Better Bucks handles fulfillment and ships the item directly to the employee.</p>
+            <p className="text-gray-500">Orders are placed by employees and processed automatically. View status and details here.</p>
           </div>
         </div>
       ),
@@ -783,47 +761,36 @@ function buildSlides(role: string, name: string): Slide[] {
       ),
     },
     {
-      id: "surveys",
-      title: "Employee Surveys",
-      subtitle: "Create surveys to gather team feedback — multiple choice or open-ended. View results in real time.",
-      body: <MiniSurveyAnim />,
-    },
-    {
-      id: "goals",
-      title: "Team Goals",
-      subtitle: "Set targets that motivate the whole team — hit them and everyone earns Bucks.",
+      id: "store-setup",
+      title: "Store Setup",
+      subtitle: "Add items, set Buck prices, and configure what your team can redeem in the employee store.",
       body: (
         <div className="space-y-3">
           <div className="rounded-xl border overflow-hidden">
             <div className="px-4 py-3 flex items-center justify-between" style={{ background: NAVY }}>
-              <span className="text-white font-bold text-sm flex items-center gap-1.5"><Target className="h-4 w-4" /> Goals</span>
+              <span className="text-white font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="h-4 w-4" /> Store Setup</span>
+              <button className="px-3 py-1 rounded text-xs font-semibold text-white" style={{ background: GREEN }}>+ Add Item</button>
             </div>
-            <div className="p-3 bg-gray-50 space-y-3">
+            <div className="divide-y bg-white">
               {[
-                { icon: Hash, label: "Units Shipped This Month", type: "Quantity", current: 74, target: 100, reward: 250 },
-                { icon: Timer, label: "Days Without an Incident", type: "Time", current: 18, target: 30, reward: 500 },
-              ].map(({ icon: Icon, label, type, current, target, reward }, i) => (
-                <div key={label} className="rounded-lg border bg-white p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: NAVY }}>
-                      <Icon className="h-3.5 w-3.5" style={{ color: GREEN }} />
-                      {label}
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${GREEN}18`, color: GREEN }}>{reward} bcks</span>
+                { name: "Gaming Controller", price: 150, active: true },
+                { name: "Gift Card $25", price: 100, active: true },
+                { name: 'Smart TV 55"', price: 450, active: false },
+              ].map(({ name, price, active }) => (
+                <div key={name} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: NAVY }}>{name}</p>
+                    <p className="text-xs font-bold" style={{ color: GREEN }}>{price} Bucks</p>
                   </div>
-                  <AnimatedBar pct={Math.round((current / target) * 100)} color={GREEN} delay={300 + i * 300} />
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>{current} / {target} {type === "Quantity" ? "units" : "days"}</span>
-                    <span>{Math.round((current / target) * 100)}%</span>
-                  </div>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: active ? `${GREEN}18` : "#f3f4f6", color: active ? GREEN : "#9ca3af" }}>
+                    {active ? "Active" : "Hidden"}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
           <p className="text-xs text-gray-400 text-center">
-            {role === "prime_admin"
-              ? "Create goals in the Goals tab. When a goal is met, distribute Bucks to every employee in one click."
-              : "Add progress to quantity goals using the Goals tab. The Organization Owner controls goal creation."}
+            Employees only see active items. Hide items temporarily without deleting them.
           </p>
         </div>
       ),
@@ -839,15 +806,12 @@ function buildSlides(role: string, name: string): Slide[] {
           </div>
           <div className="space-y-2 text-center max-w-xs w-full">
             {[
-              { icon: LayoutDashboard, text: "Dashboard — Org-wide stats and charts" },
-              { icon: PieChart, text: "Analytics — Budget tracking & category breakdown" },
-              { icon: Users, text: "Team — Your assigned employees & bulk awards" },
-              { icon: Users, text: "Employees — Add, manage & award your team" },
-              { icon: ShoppingCart, text: "Orders — Review and fulfill requests" },
+              { icon: LayoutDashboard, text: "Dashboard — Bucks in the Bank, On the Way & Employee Balances" },
+              { icon: Users, text: "Employees — Add, invite & award your team" },
+              { icon: ShoppingCart, text: "Orders — View all employee reward requests" },
               { icon: Zap, text: "Instant Transaction — Quick category-based awards" },
-              { icon: MessageSquare, text: "Surveys — Collect team feedback" },
-              { icon: Target, text: "Goals — Add progress to quantity goals" },
-              { icon: Package, text: "Items — Give and redeem custom non-Bucks tokens" },
+              { icon: ShoppingBag, text: "Store Setup — Configure the employee store" },
+              { icon: Settings, text: "Organization settings — Org code, passkey & labels" },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-2.5 text-left">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>
@@ -857,7 +821,7 @@ function buildSlides(role: string, name: string): Slide[] {
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-400 text-center">Navigate using the dropdown in the top bar.</p>
+          <p className="text-xs text-gray-400 text-center">Navigate using the top bar.</p>
         </div>
       ),
     },
@@ -903,12 +867,6 @@ function buildSlides(role: string, name: string): Slide[] {
           </p>
         </div>
       ),
-    },
-    {
-      id: "documents",
-      title: "Monthly Reports & Documents",
-      subtitle: "Generate detailed monthly reports with charts, breakdowns, and downloadable PDFs.",
-      body: <MiniDocAnim />,
     },
     {
       id: "settings",
@@ -959,17 +917,12 @@ function buildSlides(role: string, name: string): Slide[] {
             </div>
             <div className="space-y-2 text-center max-w-xs w-full">
               {[
-                { icon: LayoutDashboard, text: "Dashboard — Full platform analytics" },
-                { icon: Users, text: "Team — Your assigned employees & bulk awards" },
-                { icon: Users, text: "Employees — Add, manage & award your team" },
-                { icon: ShoppingCart, text: "Orders — Approve and fulfill requests" },
+                { icon: LayoutDashboard, text: "Dashboard — Bucks in the Bank, On the Way & Employee Balances" },
+                { icon: Users, text: "Employees — Add, invite & award your team" },
+                { icon: ShoppingCart, text: "Orders — View employee reward requests" },
                 { icon: Zap, text: "Instant Transaction — Quick category-based awards" },
-                { icon: MessageSquare, text: "Surveys — Create surveys & view responses" },
-                { icon: Target, text: "Goals — Create goals & distribute Bucks" },
-                { icon: Package, text: "Items — Custom non-Bucks token system" },
-                { icon: FileText, text: "Documents — Monthly reports & PDF downloads" },
-                { icon: ShoppingBag, text: "Store — Curate what employees can redeem" },
-                { icon: Settings, text: "Settings — Org config, Universal Passkey & billing" },
+                { icon: ShoppingBag, text: "Store Setup — Configure and curate the store" },
+                { icon: Settings, text: "Organization settings — Org code, passkey & billing" },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-2.5 text-left">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${NAVY}10` }}>

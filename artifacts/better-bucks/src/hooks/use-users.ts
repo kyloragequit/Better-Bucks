@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
-import { insertUserSchema } from "@shared/schema";
-import { z } from "zod";
+import { type InsertUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export function useUsers() {
@@ -33,7 +32,7 @@ export function useCreateUser() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: z.infer<typeof insertUserSchema>) => {
+    mutationFn: async (data: InsertUser) => {
       const res = await fetch(api.users.create.path, {
         method: api.users.create.method,
         headers: { "Content-Type": "application/json" },

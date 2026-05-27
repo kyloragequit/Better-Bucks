@@ -1,17 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Loader } from "@/components/ui/loader";
 import { useUser } from "@/hooks/use-auth";
 import { PasskeyFirstTimePrompt } from "@/components/passkey-manager";
 import { TopRewardedLeaderboard } from "@/components/top-rewarded-leaderboard";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Wallet, Users, Car, Crown, RefreshCw } from "lucide-react";
+import { Wallet, Users, Car, Crown, RefreshCw, Lock, CheckCircle2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,22 +26,19 @@ import {
 
 type DashboardSummary = {
   bucksInTheBank: number;
-  admins: { id: number; name: string; balance: number; avgMonthlySpend: number }[];
+  admins: {
+    id: number;
+    name: string;
+    balance: number;
+    avgMonthlySpend: number;
+    lastAllocatedMonth: string | null;
+    allocatedBucksThisMonth: number;
+  }[];
   employees: { id: number; name: string; balance: number; ordersCount: number; spent30Days: number }[];
 };
 
-type BudgetSettings = {
-  monthlyBudgetBucks: number;
-  budgetSetByName: string | null;
-  bucksPerDollar: number;
-};
-
-type ManagerCounts = {
-  counts: { adminId: number; adminName: string; employeeCount: number; percentage: number }[];
-  totalEmployees: number;
-  unassigned: number;
-  unassignedPercentage: number;
-};
+type AutoAllocation = { id: number; orgId: number; adminUserId: number; monthlyBucks: number; active: boolean };
+type AllocRule = { monthly: string; sendNow: string };
 
 export default function AdminDashboardPage() {
   const { data: currentUser } = useUser();
@@ -48,70 +46,74 @@ export default function AdminDashboardPage() {
   const queryClient = useQueryClient();
   const isPrime = currentUser?.role === "prime_admin";
 
+  const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
   const [showAutoAlloc, setShowAutoAlloc] = useState(false);
   const [showManualAlloc, setShowManualAlloc] = useState(false);
-  const [budget, setBudget] = useState("");
   const [selectedAdmins, setSelectedAdmins] = useState<number[]>([]);
   const [bucksEach, setBucksEach] = useState("");
-  const [autoAllocAmounts, setAutoAllocAmounts] = useState<Record<number, number> | null>(null);
   const [showOverBudgetDialog, setShowOverBudgetDialog] = useState(false);
-  const budgetInitialized = useRef(false);
+  const [allocRules, setAllocRules] = useState<Record<number, AllocRule>>({});
+  const [rulesInitialized, setRulesInitialized] = useState(false);
 
   const { data: summary, isLoading } = useQuery<DashboardSummary>({
     queryKey: ["/api/org/dashboard-summary"],
   });
 
-  const { data: budgetSettings } = useQuery<BudgetSettings>({
-    queryKey: ["/api/org/budget-settings"],
+  const { data: autoAllocsData } = useQuery<{ allocations: AutoAllocation[] }>({
+    queryKey: ["/api/org/auto-allocations"],
     enabled: isPrime,
   });
 
-  const { data: mgrCounts } = useQuery<ManagerCounts>({
-    queryKey: ["/api/org/manager-employee-counts"],
-    enabled: isPrime,
-  });
-
-  useEffect(() => {
-    if (budgetSettings && !budgetInitialized.current) {
-      budgetInitialized.current = true;
-      setBudget(String(budgetSettings.monthlyBudgetBucks));
-    }
-  }, [budgetSettings]);
+  const admins = summary?.admins ?? [];
+  const employees = summary?.employees ?? [];
+  const allocatableAdmins = admins.filter(a => a.id !== currentUser?.id);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/org/dashboard-summary"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/org/budget-settings"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/org/manager-employee-counts"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/org/auto-allocations"] });
   };
 
-  const { mutate: saveBudget, isPending: savingBudget } = useMutation({
-    mutationFn: () => apiRequest("PATCH", "/api/org/budget-settings", {
-      monthlyBudgetBucks: Math.max(0, parseInt(budget) || 0),
-      bucksPerDollar: budgetSettings?.bucksPerDollar ?? 1,
-    }),
+  useEffect(() => {
+    if (showAutoAlloc && autoAllocsData && !rulesInitialized && allocatableAdmins.length > 0) {
+      const rules: Record<number, AllocRule> = {};
+      for (const admin of allocatableAdmins) {
+        const existing = autoAllocsData.allocations.find(a => a.adminUserId === admin.id);
+        rules[admin.id] = { monthly: existing ? String(existing.monthlyBucks) : "", sendNow: "" };
+      }
+      setAllocRules(rules);
+      setRulesInitialized(true);
+    }
+    if (!showAutoAlloc) setRulesInitialized(false);
+  }, [showAutoAlloc, autoAllocsData, allocatableAdmins.length, rulesInitialized]);
+
+  const { mutate: saveAutoAllocRules, isPending: savingRules } = useMutation({
+    mutationFn: async () => {
+      for (const admin of allocatableAdmins) {
+        const rule = allocRules[admin.id];
+        if (!rule) continue;
+        const monthly = parseInt(rule.monthly) || 0;
+        const sendNow = parseInt(rule.sendNow) || 0;
+        const hasExisting = autoAllocsData?.allocations.some(a => a.adminUserId === admin.id);
+        if (monthly > 0 || sendNow > 0) {
+          await apiRequest("PUT", "/api/org/auto-allocations", {
+            adminUserId: admin.id,
+            monthlyBucks: monthly,
+            ...(sendNow > 0 ? { manualBucksNow: sendNow } : {}),
+          });
+        } else if (hasExisting) {
+          await apiRequest("PUT", "/api/org/auto-allocations", { adminUserId: admin.id, monthlyBucks: 0 });
+        }
+      }
+    },
     onSuccess: () => {
       invalidateAll();
-      toast({ title: "Budget saved" });
+      toast({ title: "Auto-allocation saved!" });
+      setShowAutoAlloc(false);
+      setAllocRules({});
+      setRulesInitialized(false);
     },
     onError: (e: Error) => toast({ title: "Failed to save", description: e.message, variant: "destructive" }),
-  });
-
-  const { mutate: autoAllocMutate, isPending: allocatingAuto } = useMutation({
-    mutationFn: (amounts: Record<number, number>) =>
-      apiRequest("POST", "/api/org/allocate-budget-auto", {
-        allocations: Object.entries(amounts).map(([id, amount]) => ({ adminId: Number(id), bucks: amount })),
-      }),
-    onSuccess: async (res) => {
-      const data = await res.json();
-      invalidateAll();
-      toast({
-        title: "Auto allocation complete!",
-        description: `${data.total.toLocaleString()} Bucks distributed to ${data.allocated} admin${data.allocated !== 1 ? "s" : ""}.`,
-      });
-      setAutoAllocAmounts(null);
-      setShowAutoAlloc(false);
-    },
-    onError: (e: Error) => toast({ title: "Auto allocation failed", description: e.message, variant: "destructive" }),
   });
 
   const { mutate: allocate, isPending: allocating } = useMutation({
@@ -122,10 +124,11 @@ export default function AdminDashboardPage() {
     onSuccess: async (res) => {
       const data = await res.json();
       invalidateAll();
-      toast({
-        title: "Budget allocated!",
-        description: `${data.total.toLocaleString()} Bucks sent to ${data.allocated} admin${data.allocated !== 1 ? "s" : ""}.`,
-      });
+      const skippedCount = data.skipped?.length ?? 0;
+      const msg = skippedCount
+        ? `${data.total.toLocaleString()} Bucks sent to ${data.allocated} manager${data.allocated !== 1 ? "s" : ""}. ${skippedCount} already allocated this month.`
+        : `${data.total.toLocaleString()} Bucks sent to ${data.allocated} manager${data.allocated !== 1 ? "s" : ""}.`;
+      toast({ title: "Budget allocated!", description: msg });
       setSelectedAdmins([]);
       setBucksEach("");
       setShowOverBudgetDialog(false);
@@ -138,9 +141,6 @@ export default function AdminDashboardPage() {
   });
 
   const bucksInTheBank = summary?.bucksInTheBank ?? 0;
-  const admins = summary?.admins ?? [];
-  const employees = summary?.employees ?? [];
-
   const totalAdminBalance = admins.reduce((s, a) => s + a.balance, 0);
   const totalEmployeeBalance = employees.reduce((s, e) => s + e.balance, 0);
 
@@ -148,37 +148,12 @@ export default function AdminDashboardPage() {
     ? admins.reduce((best, a) => a.avgMonthlySpend > best.avgMonthlySpend ? a : best).id
     : null;
 
-  const allocationAmount = (parseInt(bucksEach) || 0) * selectedAdmins.length;
+  const unlockedSelected = selectedAdmins.filter(id => {
+    const admin = admins.find(a => a.id === id);
+    return !admin || admin.lastAllocatedMonth !== currentMonth;
+  });
+  const allocationAmount = (parseInt(bucksEach) || 0) * unlockedSelected.length;
   const wouldExceedAvailable = allocationAmount > bucksInTheBank;
-
-  const computeAutoAlloc = () => {
-    if (!mgrCounts?.counts?.length) {
-      toast({ title: "No manager data", description: "Cannot auto-allocate without manager-employee data.", variant: "destructive" });
-      return;
-    }
-    if (bucksInTheBank <= 0) {
-      toast({ title: "No Bucks available", description: "Bucks in the Bank is empty.", variant: "destructive" });
-      return;
-    }
-    const allAdminsList = mgrCounts.counts;
-    const totalWeight = allAdminsList.reduce((sum, c) => sum + c.employeeCount + 1, 0);
-    const autoAmounts: Record<number, number> = {};
-    let totalUsed = 0;
-    for (const c of allAdminsList) {
-      const weight = c.employeeCount + 1;
-      const share = Math.floor((weight / totalWeight) * bucksInTheBank);
-      autoAmounts[c.adminId] = share;
-      totalUsed += share;
-    }
-    let leftover = bucksInTheBank - totalUsed;
-    const sorted = [...allAdminsList].sort((a, b) => b.employeeCount - a.employeeCount);
-    for (const c of sorted) {
-      if (leftover <= 0) break;
-      autoAmounts[c.adminId]++;
-      leftover--;
-    }
-    setAutoAllocAmounts(autoAmounts);
-  };
 
   if (isLoading) return <AdminLayout><Loader /></AdminLayout>;
 
@@ -215,7 +190,7 @@ export default function AdminDashboardPage() {
                 <Button
                   size="sm"
                   variant={showAutoAlloc ? "default" : "outline"}
-                  onClick={() => { setShowAutoAlloc(!showAutoAlloc); setShowManualAlloc(false); setAutoAllocAmounts(null); }}
+                  onClick={() => { setShowAutoAlloc(!showAutoAlloc); setShowManualAlloc(false); }}
                   data-testid="button-auto-allocate-toggle"
                 >
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
@@ -224,7 +199,7 @@ export default function AdminDashboardPage() {
                 <Button
                   size="sm"
                   variant={showManualAlloc ? "default" : "outline"}
-                  onClick={() => { setShowManualAlloc(!showManualAlloc); setShowAutoAlloc(false); setAutoAllocAmounts(null); }}
+                  onClick={() => { setShowManualAlloc(!showManualAlloc); setShowAutoAlloc(false); }}
                   data-testid="button-manual-allocate-toggle"
                 >
                   {showManualAlloc ? "Close" : "Manual allocation"}
@@ -232,82 +207,127 @@ export default function AdminDashboardPage() {
               </div>
             )}
 
-            {/* Auto-allocation panel */}
+            {/* Auto-allocation setup panel */}
             {showAutoAlloc && isPrime && (
               <div className="border-t pt-4 space-y-4">
-                <p className="text-sm font-semibold">Monthly Auto-Allocation</p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <label className="text-xs text-muted-foreground whitespace-nowrap">Monthly budget cap (Bucks)</label>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    value={budget}
-                    onChange={e => setBudget(e.target.value)}
-                    className="w-32 h-8 text-sm"
-                    placeholder="e.g. 500"
-                    data-testid="input-monthly-budget"
-                  />
-                  <Button size="sm" variant="outline" onClick={() => saveBudget()} disabled={savingBudget}>
-                    {savingBudget ? "Saving…" : "Save"}
-                  </Button>
+                <div>
+                  <p className="text-sm font-semibold">Monthly Auto-Allocation</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Set a recurring monthly amount per manager. Optionally send Bucks now — each manager can only receive one allocation per month, resetting at the start of each billing cycle.
+                  </p>
                 </div>
-                {budgetSettings?.budgetSetByName && (
-                  <p className="text-xs text-muted-foreground">Last set by <span className="font-medium">{budgetSettings.budgetSetByName}</span></p>
-                )}
-                {mgrCounts && mgrCounts.counts.length > 0 && (
-                  <div className="space-y-2">
-                    <Button size="sm" variant="outline" onClick={computeAutoAlloc} data-testid="button-compute-auto">
-                      Calculate proportional distribution
-                    </Button>
-                    {autoAllocAmounts && (
-                      <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-                        <p className="text-xs font-semibold text-muted-foreground">Proposed distribution from Bucks in the Bank</p>
-                        {mgrCounts.counts.map(c => (
-                          <div key={c.adminId} className="flex items-center justify-between text-sm">
-                            <span>{c.adminName}</span>
-                            <span className="font-semibold tabular-nums">{(autoAllocAmounts[c.adminId] ?? 0).toLocaleString()} Bucks</span>
+
+                {allocatableAdmins.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No managers found.</p>
+                ) : (
+                  <div className="rounded-lg border overflow-hidden">
+                    <div className="grid grid-cols-[1fr_110px_110px] gap-2 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
+                      <span>Manager</span>
+                      <span className="text-center">Monthly auto</span>
+                      <span className="text-center">Send now</span>
+                    </div>
+                    <div className="divide-y">
+                      {allocatableAdmins.map(admin => {
+                        const rule = allocRules[admin.id] ?? { monthly: "", sendNow: "" };
+                        const alreadyAllocated = admin.lastAllocatedMonth === currentMonth;
+                        return (
+                          <div key={admin.id} className="grid grid-cols-[1fr_110px_110px] gap-2 items-center px-3 py-2.5 bg-background">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{admin.name}</p>
+                              {alreadyAllocated ? (
+                                <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5">
+                                  <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
+                                  {admin.allocatedBucksThisMonth.toLocaleString()} sent this month
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">{admin.balance.toLocaleString()} Bucks</p>
+                              )}
+                            </div>
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              value={rule.monthly}
+                              onChange={e => setAllocRules(prev => ({ ...prev, [admin.id]: { ...rule, monthly: e.target.value } }))}
+                              className="h-8 text-sm text-center"
+                              placeholder="0"
+                            />
+                            {alreadyAllocated ? (
+                              <div className="flex items-center justify-center gap-1 h-8 text-xs text-muted-foreground">
+                                <Lock className="h-3 w-3" />
+                                <span>Locked</span>
+                              </div>
+                            ) : (
+                              <Input
+                                type="number"
+                                inputMode="numeric"
+                                min="0"
+                                value={rule.sendNow}
+                                onChange={e => setAllocRules(prev => ({ ...prev, [admin.id]: { ...rule, sendNow: e.target.value } }))}
+                                className="h-8 text-sm text-center"
+                                placeholder="0"
+                              />
+                            )}
                           </div>
-                        ))}
-                        <Button
-                          size="sm"
-                          className="w-full mt-2"
-                          onClick={() => autoAllocAmounts && autoAllocMutate(autoAllocAmounts)}
-                          disabled={allocatingAuto}
-                          data-testid="button-confirm-auto-allocate"
-                        >
-                          {allocatingAuto ? "Allocating…" : "Confirm & Distribute"}
-                        </Button>
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
+
+                <Button
+                  size="sm"
+                  className="w-full"
+                  disabled={savingRules || allocatableAdmins.length === 0}
+                  onClick={() => saveAutoAllocRules()}
+                  data-testid="button-save-auto-alloc"
+                >
+                  {savingRules ? "Saving…" : "Save & Apply"}
+                </Button>
               </div>
             )}
 
             {/* Manual allocation panel */}
             {showManualAlloc && isPrime && (
               <div className="border-t pt-4 space-y-4">
-                <p className="text-sm font-semibold">Manual Allocation</p>
-                {admins.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No admins found.</p>
+                <div>
+                  <p className="text-sm font-semibold">Manual Allocation</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Select managers and send Bucks now. Each manager can only receive one allocation per month — Bucks are deducted from your Bucks in the Bank.
+                  </p>
+                </div>
+                {allocatableAdmins.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No managers found.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {admins.map(a => (
-                      <label key={a.id} className="flex items-center gap-2 cursor-pointer py-1">
-                        <Checkbox
-                          checked={selectedAdmins.includes(a.id)}
-                          onCheckedChange={checked => {
-                            setSelectedAdmins(prev =>
-                              checked ? [...prev, a.id] : prev.filter(id => id !== a.id)
-                            );
-                          }}
-                          data-testid={`checkbox-admin-${a.id}`}
-                        />
-                        <span className="text-sm flex-1">{a.name}</span>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">{a.balance.toLocaleString()} Bucks</span>
-                      </label>
-                    ))}
+                  <div className="space-y-1">
+                    {allocatableAdmins.map(a => {
+                      const alreadyAllocated = a.lastAllocatedMonth === currentMonth;
+                      return (
+                        <label
+                          key={a.id}
+                          className={`flex items-center gap-2 py-1.5 px-1 rounded ${alreadyAllocated ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted/30"}`}
+                        >
+                          <Checkbox
+                            checked={selectedAdmins.includes(a.id)}
+                            disabled={alreadyAllocated}
+                            onCheckedChange={checked => {
+                              if (alreadyAllocated) return;
+                              setSelectedAdmins(prev => checked ? [...prev, a.id] : prev.filter(id => id !== a.id));
+                            }}
+                            data-testid={`checkbox-admin-${a.id}`}
+                          />
+                          <span className="text-sm flex-1 truncate">{a.name}</span>
+                          {alreadyAllocated ? (
+                            <Badge variant="secondary" className="text-xs font-normal gap-1 flex-shrink-0">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                              {a.allocatedBucksThisMonth.toLocaleString()} sent
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{a.balance.toLocaleString()} Bucks</span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
                 <div className="flex items-center gap-2 flex-wrap">
@@ -323,13 +343,13 @@ export default function AdminDashboardPage() {
                   />
                   <Button
                     size="sm"
-                    disabled={selectedAdmins.length === 0 || !bucksEach || allocating}
+                    disabled={unlockedSelected.length === 0 || !bucksEach || allocating}
                     onClick={() => wouldExceedAvailable ? setShowOverBudgetDialog(true) : allocate()}
                     data-testid="button-allocate"
                   >
                     {allocating
                       ? "Allocating…"
-                      : `Allocate to ${selectedAdmins.length} admin${selectedAdmins.length !== 1 ? "s" : ""}`}
+                      : `Allocate to ${unlockedSelected.length} manager${unlockedSelected.length !== 1 ? "s" : ""}`}
                   </Button>
                 </div>
                 {allocationAmount > 0 && (
@@ -362,10 +382,10 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-3">
-              Admin balances — unspent Bucks are recalled to Bucks in the Bank at end of billing cycle
+              Manager balances — unspent Bucks are recalled to Bucks in the Bank at end of billing cycle
             </p>
             {admins.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No admins found.</p>
+              <p className="text-sm text-muted-foreground">No managers found.</p>
             ) : (
               <div className="divide-y rounded-lg border overflow-hidden">
                 {admins.map(a => {
@@ -387,9 +407,17 @@ export default function AdminDashboardPage() {
                           </span>
                         )}
                       </div>
-                      <span className="text-sm font-semibold tabular-nums ml-2 whitespace-nowrap">
-                        {a.balance.toLocaleString()} Bucks
-                      </span>
+                      <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                        {a.lastAllocatedMonth === currentMonth && (
+                          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-200 gap-1 hidden sm:flex">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Allocated
+                          </Badge>
+                        )}
+                        <span className="text-sm font-semibold tabular-nums whitespace-nowrap">
+                          {a.balance.toLocaleString()} Bucks
+                        </span>
+                      </div>
                     </div>
                   );
                 })}

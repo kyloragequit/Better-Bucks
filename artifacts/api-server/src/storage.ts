@@ -122,6 +122,8 @@ export interface IStorage {
   getOrgRecallHistory(orgId: number, limit?: number): Promise<typeof orgRecallHistory.$inferSelect[]>;
   createOrgRecallEntry(data: { orgId: number; recallMonth: string; totalRecalled: number; discountCents: number }): Promise<void>;
   setOrgLastRecallMonth(orgId: number, month: string): Promise<void>;
+  setAdminAllocatedMonth(adminId: number, month: string, bucks: number): Promise<void>;
+  clearOrgAdminAllocatedMonths(orgId: number): Promise<void>;
   setOrganizationDefaultPin(orgId: number, hashedPin: string | null, plainPin?: string | null): Promise<Organization>;
   setOrganizationReportRecipients(orgId: number, userIds: number[] | null): Promise<Organization>;
 
@@ -2474,6 +2476,18 @@ DatabaseStorage.prototype.createOrgRecallEntry = async function(data) {
 
 DatabaseStorage.prototype.setOrgLastRecallMonth = async function(orgId, month) {
   await db.update(organizations).set({ lastRecallMonth: month }).where(eq(organizations.id, orgId));
+};
+
+DatabaseStorage.prototype.setAdminAllocatedMonth = async function(adminId, month, bucks) {
+  await db.update(users)
+    .set({ lastAllocatedMonth: month, allocatedBucksThisMonth: bucks })
+    .where(eq(users.id, adminId));
+};
+
+DatabaseStorage.prototype.clearOrgAdminAllocatedMonths = async function(orgId) {
+  await db.update(users)
+    .set({ lastAllocatedMonth: null, allocatedBucksThisMonth: 0 })
+    .where(and(eq(users.organizationId, orgId), inArray(users.role, ["admin", "prime_admin"])));
 };
 
 export const storage: IStorage = new DatabaseStorage();

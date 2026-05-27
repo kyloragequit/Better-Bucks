@@ -109,6 +109,8 @@ export const users = pgTable("users", {
   shippingState: text("shipping_state"),
   shippingZip: text("shipping_zip"),
   shippingCountry: text("shipping_country"),
+  lastAllocatedMonth: text("last_allocated_month"),
+  allocatedBucksThisMonth: integer("allocated_bucks_this_month").default(0).notNull(),
 });
 
 export const transactionCategories = pgTable("transaction_categories", {

@@ -66,8 +66,14 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
         await storage.topUpOrgBucksBalance(org.id, bucksAdded);
         // Run any saved auto-allocation rules from the pool
         const autoAllocs = await storage.getOrgAutoAllocations(org.id);
+        const nowWebhook = new Date();
+        const monthKeyWebhook = `${nowWebhook.getFullYear()}-${String(nowWebhook.getMonth() + 1).padStart(2, "0")}`;
+        const orgUsersWebhook = await storage.getUsersByOrganization(org.id);
+        const adminMapWebhook = new Map(orgUsersWebhook.map(u => [u.id, u]));
         for (const alloc of autoAllocs) {
           if (!alloc.active || alloc.monthlyBucks <= 0) continue;
+          const adminUser = adminMapWebhook.get(alloc.adminUserId);
+          if (adminUser && (adminUser as any).lastAllocatedMonth === monthKeyWebhook) continue;
           await storage.deductOrgBucksBalance(org.id, alloc.monthlyBucks);
           await storage.updateUserBalance(alloc.adminUserId, alloc.monthlyBucks);
           await storage.createTransaction({
@@ -76,6 +82,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
             reason: "Auto monthly Buck allocation",
             performedBy: 0,
           });
+          await storage.setAdminAllocatedMonth(alloc.adminUserId, monthKeyWebhook, alloc.monthlyBucks);
         }
       } catch (err) {
         console.error(`[Webhook] Failed to top up Buck pool for org ${org.id}:`, err);

@@ -4156,6 +4156,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         name: a.fullName,
         balance: a.balance ?? 0,
         avgMonthlySpend: Math.round((adminCreditTotals[a.id] ?? 0) / monthsSince),
+        lastAllocatedMonth: (a as any).lastAllocatedMonth ?? null,
+        allocatedBucksThisMonth: (a as any).allocatedBucksThisMonth ?? 0,
       })).sort((a, b) => b.balance - a.balance),
       employees: employeeUsers.map(e => ({
         id: e.id,
@@ -4172,46 +4174,67 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const _orgForPause = await storage.getOrganization(user.organizationId);
-    if (_orgForPause && _orgForPause.code !== "FEF55758" && (_orgForPause.status === "paused" || _orgForPause.status === "inactive")) {
+    const org = await storage.getOrganization(user.organizationId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    if (org.code !== "FEF55758" && (org.status === "paused" || org.status === "inactive")) {
       return res.status(403).json({ message: "Allocations are frozen while your subscription is paused. Please resolve your billing to continue." });
     }
     const { adminIds, bucksEach } = z.object({
       adminIds: z.array(z.number().int()).min(1),
       bucksEach: z.number().int().min(1),
     }).parse(req.body);
+    const isFEF = org.code === "FEF55758";
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const orgUsers = await storage.getUsersByOrganization(user.organizationId);
-    const validAdminIds = orgUsers.filter(u => (u.role === "admin") && adminIds.includes(u.id)).map(u => u.id);
-    if (validAdminIds.length === 0) return res.status(400).json({ message: "No valid admin IDs" });
-    for (const adminId of validAdminIds) {
-      await storage.updateUserBalance(adminId, bucksEach);
-      await storage.createTransaction({ userId: adminId, amount: bucksEach, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
-      invalidateUserCache(adminId);
-      void _pushPassUpdateForEmployee(adminId);
-      void _pushGoogleWalletUpdateForEmployee(adminId);
+    const validAdmins = orgUsers.filter(u => u.role === "admin" && adminIds.includes(u.id));
+    if (validAdmins.length === 0) return res.status(400).json({ message: "No valid admin IDs" });
+    let allocated = 0;
+    const skipped: number[] = [];
+    for (const admin of validAdmins) {
+      if (!isFEF && (admin as any).lastAllocatedMonth === monthKey) {
+        skipped.push(admin.id);
+        continue;
+      }
+      if (!isFEF) await storage.deductOrgBucksBalance(user.organizationId, bucksEach);
+      await storage.updateUserBalance(admin.id, bucksEach);
+      await storage.createTransaction({ userId: admin.id, amount: bucksEach, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
+      if (!isFEF) await storage.setAdminAllocatedMonth(admin.id, monthKey, bucksEach);
+      invalidateUserCache(admin.id);
+      void _pushPassUpdateForEmployee(admin.id);
+      void _pushGoogleWalletUpdateForEmployee(admin.id);
+      allocated++;
     }
-    res.json({ allocated: validAdminIds.length, bucksEach, total: validAdminIds.length * bucksEach });
+    res.json({ allocated, bucksEach, total: allocated * bucksEach, skipped });
   });
 
   app.post("/api/org/allocate-budget-auto", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const _orgForPauseAuto = await storage.getOrganization(user.organizationId);
-    if (_orgForPauseAuto && _orgForPauseAuto.code !== "FEF55758" && (_orgForPauseAuto.status === "paused" || _orgForPauseAuto.status === "inactive")) {
+    const orgAuto = await storage.getOrganization(user.organizationId);
+    if (!orgAuto) return res.status(404).json({ message: "Organization not found" });
+    if (orgAuto.code !== "FEF55758" && (orgAuto.status === "paused" || orgAuto.status === "inactive")) {
       return res.status(403).json({ message: "Allocations are frozen while your subscription is paused. Please resolve your billing to continue." });
     }
     const { allocations } = z.object({
       allocations: z.array(z.object({ adminId: z.number().int(), bucks: z.number().int().min(0) })).min(1),
     }).parse(req.body);
+    const isFEFAuto = orgAuto.code === "FEF55758";
+    const nowAuto = new Date();
+    const monthKeyAuto = `${nowAuto.getFullYear()}-${String(nowAuto.getMonth() + 1).padStart(2, "0")}`;
     const orgUsers = await storage.getUsersByOrganization(user.organizationId);
-    const validAdminIds = new Set(orgUsers.filter(u => u.role === "admin").map(u => u.id));
+    const adminMap = new Map(orgUsers.filter(u => u.role === "admin").map(u => [u.id, u]));
     let totalAllocated = 0;
     let adminsAllocated = 0;
     for (const { adminId, bucks } of allocations) {
-      if (!validAdminIds.has(adminId) || bucks <= 0) continue;
+      const admin = adminMap.get(adminId);
+      if (!admin || bucks <= 0) continue;
+      if (!isFEFAuto && (admin as any).lastAllocatedMonth === monthKeyAuto) continue;
+      if (!isFEFAuto) await storage.deductOrgBucksBalance(user.organizationId, bucks);
       await storage.updateUserBalance(adminId, bucks);
       await storage.createTransaction({ userId: adminId, amount: bucks, reason: "Monthly budget allocation from prime admin", performedBy: user.id });
+      if (!isFEFAuto) await storage.setAdminAllocatedMonth(adminId, monthKeyAuto, bucks);
       invalidateUserCache(adminId);
       void _pushPassUpdateForEmployee(adminId);
       void _pushGoogleWalletUpdateForEmployee(adminId);
@@ -4251,21 +4274,50 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user || user.role !== "prime_admin") return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.status(400).json({ message: "No organization" });
-    const { adminUserId, monthlyBucks } = z.object({
+    const orgForAlloc = await storage.getOrganization(user.organizationId);
+    if (!orgForAlloc) return res.status(404).json({ message: "Organization not found" });
+    const { adminUserId, monthlyBucks, manualBucksNow } = z.object({
       adminUserId: z.number().int().min(1),
       monthlyBucks: z.number().int().min(0),
+      manualBucksNow: z.number().int().min(0).optional(),
     }).parse(req.body);
     const orgUsers = await storage.getUsersByOrganization(user.organizationId);
     const admin = orgUsers.find(u => u.id === adminUserId && u.role === "admin");
     if (!admin) return res.status(400).json({ message: "User is not an admin in this organization" });
+
+    const isFEFAlloc = orgForAlloc.code === "FEF55758";
+
+    // Save or remove the monthly recurring rule
+    let alloc = null;
     if (monthlyBucks === 0) {
       const allocs = await storage.getOrgAutoAllocations(user.organizationId);
       const existing = allocs.find(a => a.adminUserId === adminUserId);
       if (existing) await storage.removeOrgAutoAllocation(existing.id, user.organizationId);
-      return res.json({ removed: true });
+    } else {
+      alloc = await storage.upsertOrgAutoAllocation({ orgId: user.organizationId, adminUserId, monthlyBucks });
     }
-    const alloc = await storage.upsertOrgAutoAllocation({ orgId: user.organizationId, adminUserId, monthlyBucks });
-    return res.json({ alloc });
+
+    // Handle optional one-time "send now" amount
+    let sentNow = 0;
+    if (manualBucksNow && manualBucksNow > 0) {
+      if (!isFEFAlloc && (orgForAlloc.status === "paused" || orgForAlloc.status === "inactive")) {
+        return res.status(403).json({ message: "Allocations are frozen while your subscription is paused. Please resolve your billing to continue." });
+      }
+      const nowAlloc = new Date();
+      const monthKeyAlloc = `${nowAlloc.getFullYear()}-${String(nowAlloc.getMonth() + 1).padStart(2, "0")}`;
+      if (isFEFAlloc || (admin as any).lastAllocatedMonth !== monthKeyAlloc) {
+        if (!isFEFAlloc) await storage.deductOrgBucksBalance(user.organizationId, manualBucksNow);
+        await storage.updateUserBalance(adminUserId, manualBucksNow);
+        await storage.createTransaction({ userId: adminUserId, amount: manualBucksNow, reason: "Manual budget allocation", performedBy: user.id });
+        if (!isFEFAlloc) await storage.setAdminAllocatedMonth(adminUserId, monthKeyAlloc, manualBucksNow);
+        invalidateUserCache(adminUserId);
+        void _pushPassUpdateForEmployee(adminUserId);
+        void _pushGoogleWalletUpdateForEmployee(adminUserId);
+        sentNow = manualBucksNow;
+      }
+    }
+
+    return res.json({ alloc, sentNow, removed: monthlyBucks === 0 });
   });
 
   app.delete("/api/org/auto-allocations/:id", async (req, res) => {
@@ -8426,6 +8478,7 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
             totalRecalled += recalled;
           }
           await storage.setOrgLastRecallMonth(org.id, monthKey);
+          await storage.clearOrgAdminAllocatedMonths(org.id);
         } catch (err) {
           console.error(`[BuckRecall] Failed for org ${org.name} (${org.id}):`, err);
         }

@@ -353,7 +353,20 @@ export function registerMobileRoutes(app: Express) {
         return;
       }
 
-      const match = await verifyPassword(parsed.currentPassword, user.password);
+      let match = await verifyPassword(parsed.currentPassword, user.password);
+
+      // Fallback: an unexpired password-reset code may be used in place of the
+      // current password, letting users who received a reset email set a new
+      // password directly without knowing the old one.
+      if (!match && user.passwordResetToken && user.passwordResetExpiry) {
+        if (
+          new Date(user.passwordResetExpiry) > new Date() &&
+          String(parsed.currentPassword).trim() === String(user.passwordResetToken).trim()
+        ) {
+          match = true;
+        }
+      }
+
       if (!match) {
         res.status(401).json({ message: "Current password is incorrect." });
         return;

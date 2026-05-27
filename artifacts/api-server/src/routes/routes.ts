@@ -2241,6 +2241,18 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
             }
           }
 
+          // Fallback: an unexpired password-reset code (sent via forgot-password email)
+          // may be used in place of the current password. This lets a user who just
+          // received a reset code skip the "old password" step and set a new one directly.
+          if (!match && targetUser.passwordResetToken && targetUser.passwordResetExpiry) {
+            if (
+              new Date(targetUser.passwordResetExpiry) > new Date() &&
+              String(data.currentPassword).trim() === String(targetUser.passwordResetToken).trim()
+            ) {
+              match = true;
+            }
+          }
+
           if (!match) {
             const hint = pinAllowed
               ? " Tip: you can also use your organization's universal PIN here."

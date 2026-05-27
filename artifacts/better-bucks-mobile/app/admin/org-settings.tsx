@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { apiUrl } from "@/constants/api";
+import { apiUrl, API_URL } from "@/constants/api";
 import { brand } from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -78,6 +79,26 @@ export default function OrgSettingsScreen() {
     const mb = parseInt(monthlyBudget);
     if (!bpd || bpd < 1) { Alert.alert("Invalid", "Enter a valid Bucks per Dollar (min 1)."); return; }
     if (isNaN(mb) || mb < 0) { Alert.alert("Invalid", "Enter a valid monthly budget (0 = unlimited)."); return; }
+
+    // Changing the monthly budget affects billing — direct the admin to the
+    // subscription page where they can update their plan through Stripe.
+    const currentBudget = org?.monthlyBudgetBucks ?? 0;
+    if (mb !== currentBudget) {
+      const subscriptionUrl = `${API_URL.replace(/\/+$/, "")}/admin/subscription`;
+      Alert.alert(
+        "Update Your Plan",
+        "Changing your monthly budget requires a subscription update. You'll be taken to the subscription page.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Go to Subscription",
+            onPress: () => Linking.openURL(subscriptionUrl),
+          },
+        ]
+      );
+      return;
+    }
+
     setSavingBudget(true);
     try {
       const res = await fetch(apiUrl("/api/mobile/admin/org/budget"), {

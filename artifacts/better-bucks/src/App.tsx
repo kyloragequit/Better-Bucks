@@ -55,6 +55,7 @@ const ChangePasswordPage = lazy(() => import("@/pages/change-password"));
 const VerifyEmailPage = lazy(() => import("@/pages/verify-email"));
 const DeveloperLoginPage = lazy(() => import("@/pages/developer-login"));
 const DeveloperDashboardPage = lazy(() => import("@/pages/developer-dashboard"));
+const DeveloperOrgDetailPage = lazy(() => import("@/pages/developer-org-detail"));
 const AdminInstantTransactionPage = lazy(() => import("@/pages/admin-instant-transaction"));
 const EmployeeSettingsPage = lazy(() => import("@/pages/employee-settings"));
 const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password"));
@@ -435,6 +436,7 @@ function Router() {
 
         <Route path="/developer" component={DeveloperLoginPage} />
         <Route path="/developer/dashboard" component={DeveloperDashboardPage} />
+        <Route path="/developer/orgs/:id" component={DeveloperOrgDetailPage} />
 
         <Route path="/merchant/login" component={MerchantLoginPage} />
         <Route path="/merchant/change-password" component={MerchantChangePasswordPage} />

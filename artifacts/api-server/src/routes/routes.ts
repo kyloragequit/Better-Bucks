@@ -6691,6 +6691,57 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     }
   });
 
+  // Developer: get org detail with all users and their pending orders
+  app.get("/api/developer/organizations/:id/detail", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (isNaN(orgId)) return res.status(400).send("Invalid ID");
+    const org = await storage.getOrganization(orgId);
+    if (!org) return res.status(404).send("Organization not found");
+    const orgUsers = await storage.getUsersByOrganization(orgId);
+    const approvedOrders = await storage.getOrdersByOrganization(orgId, "approved");
+    const ordersByUser = new Map<number, typeof approvedOrders>();
+    for (const order of approvedOrders) {
+      const list = ordersByUser.get(order.userId) ?? [];
+      list.push(order);
+      ordersByUser.set(order.userId, list);
+    }
+    const usersWithOrders = orgUsers
+      .filter(u => u.status !== "deleted")
+      .map(u => ({
+        id: u.id,
+        fullName: u.fullName,
+        username: u.username,
+        email: u.email ?? null,
+        role: u.role,
+        balance: u.balance,
+        status: u.status,
+        shippingAddressLine1: u.shippingAddressLine1 ?? null,
+        shippingAddressLine2: u.shippingAddressLine2 ?? null,
+        shippingCity: u.shippingCity ?? null,
+        shippingState: u.shippingState ?? null,
+        shippingZip: u.shippingZip ?? null,
+        shippingCountry: u.shippingCountry ?? null,
+        orders: (ordersByUser.get(u.id) ?? []).map(o => ({
+          id: o.id,
+          description: o.description,
+          pointsCost: o.pointsCost,
+          status: o.status,
+          createdAt: o.createdAt,
+          itemUrl: o.itemUrl ?? null,
+          selectedSize: o.selectedSize ?? null,
+          selectedColor: o.selectedColor ?? null,
+          adminNotes: o.adminNotes ?? null,
+        })),
+      }))
+      .sort((a, b) => {
+        const roleOrder: Record<string, number> = { prime_admin: 0, admin: 1, employee: 2, developer: 3 };
+        return (roleOrder[a.role] ?? 9) - (roleOrder[b.role] ?? 9);
+      });
+    res.json({ ...org, users: usersWithOrders, pendingOrderCount: approvedOrders.length });
+  });
+
   // Developer: fulfill an order — mark completed and send confirmation email to employee
   app.patch("/api/developer/orders/:id/fulfill", async (req, res) => {
     const user = req.user as User | undefined;

@@ -14,7 +14,7 @@ import { AppLogo } from "@/components/app-logo";
 import { Loader } from "@/components/ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
-import { Building2, Users, LogOut, LogIn, Code2, Shield, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail, Bot, Send, RotateCcw, Download, Megaphone, CreditCard, CheckCircle2, Clock, AlertOctagon, RefreshCw } from "lucide-react";
+import { Building2, Users, LogOut, LogIn, Code2, Trash2, AlertTriangle, Play, Pause, FileEdit, Save, BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, TrendingUp, DollarSign, PlusCircle, UserX, Filter, XCircle, BookOpen, Plus, Pencil, Calendar, ImageIcon, Upload, Loader2, Tag, ToggleLeft, ToggleRight, Copy, Check, Mail, Bot, Send, RotateCcw, Download, Megaphone, CreditCard, CheckCircle2, Clock, AlertOctagon, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import type { Organization, BlogPost, ReferralCode } from "@shared/schema";
@@ -120,7 +120,7 @@ export default function DeveloperDashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [cmsValues, setCmsValues] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "agreements" | "enterprise" | "inbox" | "claude" | "marketing" | "stripe-orphans" | "orders">("orgs");
+  const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "enterprise" | "inbox" | "claude" | "marketing" | "stripe-orphans" | "orders">("orgs");
   const [ordersOrgFilter, setOrdersOrgFilter] = useState<string>("");
   const [msgOrderId, setMsgOrderId] = useState<number | null>(null);
   const [msgRecipient, setMsgRecipient] = useState<"employee" | "org">("employee");
@@ -1448,7 +1448,15 @@ export default function DeveloperDashboardPage() {
                           const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_");
                           return (
                             <TableRow key={org.id} data-testid={`row-org-${org.id}`}>
-                              <TableCell className="font-medium">{org.name}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  {org.licenseAcceptedAt
+                                    ? <span title={`Agreement signed ${new Date(org.licenseAcceptedAt).toLocaleDateString()}`} className="text-green-600 text-base leading-none">✓</span>
+                                    : <span title="No license agreement on record" className="text-red-500 text-base leading-none">✗</span>
+                                  }
+                                  {org.name}
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 <div className="flex flex-col gap-1">
                                   <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{org.code}</code>
@@ -1647,91 +1655,6 @@ export default function DeveloperDashboardPage() {
               </CardContent>
             </Card>
           </>
-        )}
-        {activeTab === "agreements" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                License Agreement Records
-              </CardTitle>
-              <CardDescription>
-                Organizations that have accepted the Terms of Service &amp; Software License Agreement at signup. Organizations created before this feature was launched will show no acceptance date.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Organization</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Agreement Accepted</TableHead>
-                      <TableHead>Account Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
-                          <Loader />
-                        </TableCell>
-                      </TableRow>
-                    ) : (organizations ?? []).filter(o => o.status !== "deleted").length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No organizations found.</TableCell>
-                      </TableRow>
-                    ) : (
-                      (organizations ?? [])
-                        .filter(o => o.status !== "deleted" && !o.isDemo)
-                        .sort((a, b) => {
-                          if (a.licenseAcceptedAt && b.licenseAcceptedAt) return new Date(b.licenseAcceptedAt).getTime() - new Date(a.licenseAcceptedAt).getTime();
-                          if (a.licenseAcceptedAt) return -1;
-                          if (b.licenseAcceptedAt) return 1;
-                          return 0;
-                        })
-                        .map(org => (
-                          <TableRow key={org.id} data-testid={`row-agreement-${org.id}`}>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{org.name}</p>
-                                <p className="text-xs text-muted-foreground font-mono">{org.code}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{tierLabels[org.tier] ?? org.tier}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={org.status === "active" ? "default" : "secondary"}>{org.status}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {org.licenseAcceptedAt ? (
-                                <div>
-                                  <p className="text-sm font-medium text-green-700">
-                                    {new Date(org.licenseAcceptedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {new Date(org.licenseAcceptedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}
-                                  </p>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground italic">Before feature launch</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <p className="text-sm">
-                                {new Date(org.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                              </p>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
         )}
 
         {activeTab === "enterprise" && <EnterpriseAccountsTab />}

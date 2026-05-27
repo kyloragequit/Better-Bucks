@@ -3904,9 +3904,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   app.get("/api/organizations/features", async (req, res) => {
     const user = req.user as User | undefined;
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
-    if (!user.organizationId) return res.json({ storeEnabled: true, manualOrdersEnabled: true, ordersEnabled: true });
+    if (!user.organizationId) return res.json({ storeEnabled: true, manualOrdersEnabled: false, ordersEnabled: true });
     const org = await storage.getOrganization(user.organizationId);
-    res.json({ storeEnabled: org?.storeEnabled ?? true, manualOrdersEnabled: org?.manualOrdersEnabled ?? true, ordersEnabled: org?.ordersEnabled ?? true });
+    const isPrime1 = org?.code === "PRIME1";
+    res.json({ storeEnabled: org?.storeEnabled ?? true, manualOrdersEnabled: isPrime1 ? (org?.manualOrdersEnabled ?? true) : false, ordersEnabled: org?.ordersEnabled ?? true });
   });
 
   // Update feature flags (prime admin only)
@@ -3921,7 +3922,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       ordersEnabled: z.boolean(),
       requireSocialSignupApproval: z.boolean(),
     }).parse(req.body);
-    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, manualOrdersEnabled, allowEmployeePasswordCreation, ordersEnabled, requireSocialSignupApproval);
+    const currentOrg = await storage.getOrganization(user.organizationId);
+    const effectiveManualOrders = currentOrg?.code === "PRIME1" ? manualOrdersEnabled : false;
+    const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, effectiveManualOrders, allowEmployeePasswordCreation, ordersEnabled, requireSocialSignupApproval);
     res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation, ordersEnabled: updated.ordersEnabled, requireSocialSignupApproval: updated.requireSocialSignupApproval });
   });
 
@@ -6723,6 +6726,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         shippingState: u.shippingState ?? null,
         shippingZip: u.shippingZip ?? null,
         shippingCountry: u.shippingCountry ?? null,
+        termsAcceptedAt: u.termsAcceptedAt ?? null,
+        marketingOptIn: u.marketingOptIn ?? false,
         orders: (ordersByUser.get(u.id) ?? []).map(o => ({
           id: o.id,
           description: o.description,

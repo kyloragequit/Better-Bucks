@@ -1398,18 +1398,20 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
             data-testid="switch-store-enabled"
           />
         </div>
-        <div className="flex items-center justify-between rounded-lg border p-4">
-          <div>
-            <p className="font-medium text-sm">Manual Order Requests</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Allow employees to submit custom order requests for admin approval.</p>
+        {org.code === "PRIME1" && (
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <p className="font-medium text-sm">Manual Order Requests</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Allow employees to submit custom order requests for admin approval.</p>
+            </div>
+            <Switch
+              checked={manualOrdersEnabled}
+              onCheckedChange={(v) => handleToggle("manualOrdersEnabled", v)}
+              disabled={mutation.isPending}
+              data-testid="switch-manual-orders-enabled"
+            />
           </div>
-          <Switch
-            checked={manualOrdersEnabled}
-            onCheckedChange={(v) => handleToggle("manualOrdersEnabled", v)}
-            disabled={mutation.isPending}
-            data-testid="switch-manual-orders-enabled"
-          />
-        </div>
+        )}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>
             <p className="font-medium text-sm">Employee Password Creation</p>

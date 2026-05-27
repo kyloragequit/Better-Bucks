@@ -29,6 +29,8 @@ type OrgUser = {
   shippingState: string | null;
   shippingZip: string | null;
   shippingCountry: string | null;
+  termsAcceptedAt: string | null;
+  marketingOptIn: boolean;
   orders: OrgOrder[];
 };
 
@@ -131,9 +133,25 @@ function UserCard({ user, onFulfill, fulfillingId }: {
 
       {expanded && (
         <CardContent className="pt-0 px-4 pb-4">
-          <div className="flex items-start gap-1.5 mb-3 text-muted-foreground">
+          <div className="flex items-start gap-1.5 mb-2 text-muted-foreground">
             <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
             <AddressBlock user={user} />
+          </div>
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            {user.termsAcceptedAt ? (
+              <span className="inline-flex items-center gap-1 text-[11px] text-green-700 font-medium">
+                <CheckCircle2 className="h-3 w-3" />
+                T&amp;C signed {new Date(user.termsAcceptedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] text-red-500">
+                <span className="font-bold">✗</span> T&amp;C not accepted
+              </span>
+            )}
+            <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${user.marketingOptIn ? "text-blue-600" : "text-muted-foreground"}`}>
+              {user.marketingOptIn ? <CheckCircle2 className="h-3 w-3" /> : <span className="font-bold">✗</span>}
+              Marketing {user.marketingOptIn ? "opted in" : "not opted in"}
+            </span>
           </div>
 
           {hasOrders ? (

@@ -48,6 +48,13 @@ export default function AdminOrdersPage() {
   const [searchRaw, setSearchRaw] = useState("");
   const search = useDebounce(searchRaw, 150);
 
+  const { data: orgInfo } = useQuery<{ code: string }>({
+    queryKey: ["/api/organizations/my-org"],
+    select: (d: any) => ({ code: d.code }),
+    enabled: !!isPrime,
+  });
+  const canSelfFulfill = isPrime && orgInfo?.code === "FEF55758";
+
   // Pending orders: fetch all at once (typically few)
   const { data: pendingOrders = [], isLoading: pendingLoading } = useQuery<OrderWithUser[]>({
     queryKey: ["/api/orders", "pending"],
@@ -125,12 +132,21 @@ export default function AdminOrdersPage() {
         />
       </div>
 
-      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 mb-6" data-testid="notice-view-only">
-        <Lock className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-        <p className="text-sm text-blue-800">
-          <strong>View only.</strong> Orders are fulfilled by the Better Bucks team. Track order status here — no action required.
-        </p>
-      </div>
+      {canSelfFulfill ? (
+        <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 mb-6">
+          <Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-green-800">
+            <strong>Your org manages its own orders.</strong> Approve or reject pending requests, then mark approved orders as fulfilled once shipped.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 mb-6" data-testid="notice-view-only">
+          <Lock className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-blue-800">
+            <strong>View only.</strong> Orders are fulfilled by the Better Bucks team. Track order status here — no action required.
+          </p>
+        </div>
+      )}
 
       {(pendingOrders.length > 0 && filteredPendingOrders.length > 0) && (
         <Card className="shadow-md mb-6 border-primary/20">
@@ -245,7 +261,7 @@ export default function AdminOrdersPage() {
       </Card>
 
       {selectedOrder && (
-        <OrderPhotoDialog order={selectedOrder} onClose={() => setSelectedOrder(null)} isPrime={isPrime} />
+        <OrderPhotoDialog order={selectedOrder} onClose={() => setSelectedOrder(null)} isPrime={isPrime} canSelfFulfill={!!canSelfFulfill} />
       )}
 
     </AdminLayout>
@@ -531,13 +547,56 @@ function OrderActionButton({ orderId, action, label, variant = "default" }: { or
   );
 }
 
-function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; onClose: () => void; isPrime: boolean | undefined }) {
+function OrderPhotoDialog({ order, onClose, isPrime, canSelfFulfill }: { order: OrderWithUser; onClose: () => void; isPrime: boolean | undefined; canSelfFulfill: boolean }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [adminNotes, setAdminNotes] = useState(order.adminNotes ?? "");
   const [newBucks, setNewBucks] = useState(String(order.pointsCost));
   const [savingNotes, setSavingNotes] = useState(false);
   const [savingBucks, setSavingBucks] = useState(false);
+  const [actioning, setActioning] = useState(false);
+
+  const invalidateOrders = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/orders", "pending"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/orders/paginated"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/orders/pending-count"] });
+  };
+
+  const handleStatusChange = async (newStatus: "approved" | "rejected") => {
+    setActioning(true);
+    try {
+      const res = await apiRequest("PATCH", `/api/orders/${order.id}/status`, { status: newStatus, adminNotes });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to update order");
+      }
+      invalidateOrders();
+      toast({ title: newStatus === "approved" ? "Order approved" : "Order rejected" });
+      onClose();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const handleFulfill = async () => {
+    setActioning(true);
+    try {
+      const res = await apiRequest("PATCH", `/api/orders/${order.id}/admin-fulfill`, { adminNotes });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to fulfill order");
+      }
+      invalidateOrders();
+      toast({ title: "Order fulfilled", description: "Confirmation email sent to the employee." });
+      onClose();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setActioning(false);
+    }
+  };
 
   const handleSaveNotes = async () => {
     setSavingNotes(true);
@@ -696,7 +755,22 @@ function OrderPhotoDialog({ order, onClose, isPrime }: { order: OrderWithUser; o
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {canSelfFulfill && order.status === "pending" && (
+            <div className="flex gap-2 sm:mr-auto">
+              <Button size="sm" variant="destructive" onClick={() => handleStatusChange("rejected")} disabled={actioning} data-testid={`button-reject-order-${order.id}`}>
+                <X className="h-4 w-4 mr-1" /> Reject
+              </Button>
+              <Button size="sm" className="bg-primary" onClick={() => handleStatusChange("approved")} disabled={actioning} data-testid={`button-approve-order-${order.id}`}>
+                <Check className="h-4 w-4 mr-1" /> Approve
+              </Button>
+            </div>
+          )}
+          {canSelfFulfill && order.status === "approved" && (
+            <Button size="sm" className="bg-green-600 hover:bg-green-700 sm:mr-auto" onClick={handleFulfill} disabled={actioning} data-testid={`button-fulfill-order-${order.id}`}>
+              <Check className="h-4 w-4 mr-1" /> Mark Fulfilled
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>

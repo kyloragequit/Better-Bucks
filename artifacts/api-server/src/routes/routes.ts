@@ -6747,6 +6747,51 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ ...org, users: usersWithOrders, pendingOrderCount: approvedOrders.length });
   });
 
+  // Admin self-fulfill: FEF55758 prime admins can mark approved orders as completed
+  app.patch("/api/orders/:id/admin-fulfill", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "prime_admin") {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+    if (!user.organizationId) return res.status(400).json({ message: "No organization" });
+    const org = await storage.getOrganization(user.organizationId);
+    if (org?.code !== "FEF55758") {
+      return res.status(403).json({ message: "Self-fulfillment is not available for your organization" });
+    }
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send("Invalid ID");
+    const order = await storage.getOrder(id);
+    if (!order) return res.status(404).send("Order not found");
+    const orderOwner = await storage.getUser(order.userId);
+    if (!orderOwner || orderOwner.organizationId !== user.organizationId) {
+      return res.status(404).send("Order not found");
+    }
+    if (order.status !== "approved") {
+      return res.status(400).json({ message: "Only approved orders can be fulfilled" });
+    }
+    const updated = await storage.updateOrderStatus(id, "completed", req.body?.adminNotes);
+    if (orderOwner.email) {
+      const subject = `Better Bucks — Order #${order.id} Fulfilled!`;
+      const html = `
+        <div style="font-family:'Inter',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#ffffff;">
+          ${emailLogoHeader}
+          <h2 style="text-align:center;color:#162A4A;font-size:22px;font-weight:700;margin:16px 0 4px;">Your Order Has Been Fulfilled!</h2>
+          <p style="text-align:center;color:#64748b;font-size:13px;margin:0 0 24px;">Great news — your Better Bucks order is on its way.</p>
+          <div style="background:#F0F9F4;border:1px solid #BBF7D0;border-radius:12px;padding:20px;margin-bottom:20px;">
+            <p style="margin:0 0 8px;color:#166534;font-size:15px;font-weight:600;">Order #${order.id} — ${escapeHtml(order.description)}</p>
+            ${order.selectedSize ? `<p style="margin:4px 0 0;color:#6B7280;font-size:13px;">Size: ${escapeHtml(order.selectedSize)}</p>` : ""}
+            ${order.selectedColor ? `<p style="margin:4px 0 0;color:#6B7280;font-size:13px;">Color: ${escapeHtml(order.selectedColor)}</p>` : ""}
+            <p style="margin:8px 0 0;color:#374151;font-size:14px;font-weight:500;">${order.pointsCost} Bucks redeemed</p>
+          </div>
+          <p style="color:#374151;font-size:14px;margin:0 0 16px;">Your item has been ordered and will be delivered to your address on file. If you have any questions, please reach out to your organization admin.</p>
+          <p style="color:#64748b;font-size:12px;margin:0;">Thank you for using Better Bucks!</p>
+        </div>
+      `;
+      void sendEmail({ to: orderOwner.email, subject, html });
+    }
+    res.json(updated);
+  });
+
   // Developer: fulfill an order — mark completed and send confirmation email to employee
   app.patch("/api/developer/orders/:id/fulfill", async (req, res) => {
     const user = req.user as User | undefined;
@@ -8176,6 +8221,41 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
       console.log(`[BudgetReminder] Sent reminders to ${sent} org(s)`);
     } catch (err) {
       console.error("[BudgetReminder] Cron error:", err);
+    }
+  });
+
+  // ── FEF55758 Free Monthly 500 Bucks Auto-Allocation (1st of each month at 9:01 AM UTC) ──
+  cron.schedule("1 9 1 * *", async () => {
+    console.log("[FEF55758Alloc] Running monthly 500 Bucks auto-allocation...");
+    try {
+      const fefOrg = await storage.getOrganizationByCode("FEF55758");
+      if (!fefOrg || fefOrg.status !== "active") {
+        console.log("[FEF55758Alloc] Org not found or inactive — skipping");
+        return;
+      }
+      const now = new Date();
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const orgUsers = await storage.getUsersByOrganization(fefOrg.id);
+      const primeAdmins = orgUsers.filter(u => u.role === "prime_admin" && u.status === "active");
+      let allocated = 0;
+      for (const pa of primeAdmins) {
+        const reason = `Monthly 500 Bucks allocation (${monthKey})`;
+        const existing = await db.select({ id: transactions.id })
+          .from(transactions)
+          .where(and(eq(transactions.userId, pa.id), eq(transactions.reason, reason)))
+          .limit(1);
+        if (existing.length > 0) {
+          console.log(`[FEF55758Alloc] Already allocated for ${pa.username} in ${monthKey} — skipping`);
+          continue;
+        }
+        await storage.updateUserBalance(pa.id, 500);
+        await storage.createTransaction({ userId: pa.id, amount: 500, reason, performedBy: 0 });
+        invalidateUserCache(pa.id);
+        allocated++;
+      }
+      console.log(`[FEF55758Alloc] Allocated 500 Bucks to ${allocated}/${primeAdmins.length} prime admin(s) for ${monthKey}`);
+    } catch (err) {
+      console.error("[FEF55758Alloc] Error:", err);
     }
   });
 

@@ -10,7 +10,7 @@ import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus"
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-auth";
-import { Lock, Mail, Trash2, KeyRound, User, Gift } from "lucide-react";
+import { Lock, Mail, Trash2, KeyRound, User, Gift, MapPin } from "lucide-react";
 import { useUserDetails } from "@/hooks/use-users";
 import { useLocation } from "wouter";
 import { PasskeyManager } from "@/components/passkey-manager";
@@ -42,6 +42,12 @@ export default function EmployeeSettingsPage() {
   const [awaitingCode, setAwaitingCode] = useState(false);
   const [codeSentTo, setCodeSentTo] = useState("");
   const [email, setEmail] = useState("");
+  const [addrLine1, setAddrLine1] = useState("");
+  const [addrLine2, setAddrLine2] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrZip, setAddrZip] = useState("");
+  const [addrCountry, setAddrCountry] = useState("");
 
   const displayNameMutation = useMutation({
     mutationFn: async () => {
@@ -115,6 +121,26 @@ export default function EmployeeSettingsPage() {
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to update email.", variant: "destructive" });
+    },
+  });
+
+  const addressMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PATCH", `/api/users/${user!.id}/profile`, {
+        shippingAddressLine1: addrLine1.trim() || null,
+        shippingAddressLine2: addrLine2.trim() || null,
+        shippingCity: addrCity.trim() || null,
+        shippingState: addrState.trim() || null,
+        shippingZip: addrZip.trim() || null,
+        shippingCountry: addrCountry.trim() || null,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Address saved", description: "Your shipping address has been updated." });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to update address.", variant: "destructive" });
     },
   });
 
@@ -420,6 +446,102 @@ export default function EmployeeSettingsPage() {
           </CardHeader>
           <CardContent>
             <PasskeyManager />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MapPin className="h-5 w-5" />
+              Shipping Address
+            </CardTitle>
+            <CardDescription>Used for physical reward deliveries. All fields are required for store orders.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              onFocusCapture={scrollOnFocus}
+              onSubmit={(e) => { e.preventDefault(); addressMutation.mutate(); }}
+              className="space-y-3"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="addr-line1">Street Address</Label>
+                <Input
+                  id="addr-line1"
+                  value={addrLine1}
+                  onChange={(e) => setAddrLine1(e.target.value)}
+                  placeholder={user?.shippingAddressLine1 ?? "123 Main St"}
+                  data-testid="input-addr-line1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="addr-line2">Apt / Suite <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input
+                  id="addr-line2"
+                  value={addrLine2}
+                  onChange={(e) => setAddrLine2(e.target.value)}
+                  placeholder={user?.shippingAddressLine2 ?? "Apt 4B"}
+                  data-testid="input-addr-line2"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="addr-city">City</Label>
+                  <Input
+                    id="addr-city"
+                    value={addrCity}
+                    onChange={(e) => setAddrCity(e.target.value)}
+                    placeholder={user?.shippingCity ?? "New York"}
+                    data-testid="input-addr-city"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="addr-state">State / Province</Label>
+                  <Input
+                    id="addr-state"
+                    value={addrState}
+                    onChange={(e) => setAddrState(e.target.value)}
+                    placeholder={user?.shippingState ?? "NY"}
+                    data-testid="input-addr-state"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="addr-zip">ZIP / Postal Code</Label>
+                  <Input
+                    id="addr-zip"
+                    value={addrZip}
+                    onChange={(e) => setAddrZip(e.target.value)}
+                    placeholder={user?.shippingZip ?? "10001"}
+                    data-testid="input-addr-zip"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="addr-country">Country</Label>
+                  <Input
+                    id="addr-country"
+                    value={addrCountry}
+                    onChange={(e) => setAddrCountry(e.target.value)}
+                    placeholder={user?.shippingCountry ?? "US"}
+                    data-testid="input-addr-country"
+                  />
+                </div>
+              </div>
+              {user?.shippingAddressLine1 && (
+                <p className="text-xs text-muted-foreground">
+                  Current: {[user.shippingAddressLine1, user.shippingAddressLine2, user.shippingCity, user.shippingState, user.shippingZip, user.shippingCountry].filter(Boolean).join(", ")}
+                </p>
+              )}
+              <Button
+                type="submit"
+                disabled={addressMutation.isPending || (!addrLine1 && !addrCity)}
+                className="w-full"
+                data-testid="button-save-address"
+              >
+                {addressMutation.isPending ? <SpinningLogo className="h-4 w-4 mr-2" /> : null}
+                Save Address
+              </Button>
+            </form>
           </CardContent>
         </Card>
 

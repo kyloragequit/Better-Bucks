@@ -105,10 +105,13 @@ const tierLabels: Record<string, string> = {
 };
 
 const tierPrices: Record<string, number> = {
-  small: 99.99,
-  mid: 199.99,
-  large: 299.99,
-  enterprise: 599.99,
+  small: 18,
+  mid: 30,
+  large: 48,
+  enterprise: 0,
+  starter: 55,
+  growth: 155,
+  pro: 305,
 };
 
 export default function DeveloperDashboardPage() {
@@ -726,14 +729,7 @@ export default function DeveloperDashboardPage() {
           <div className="mb-5 flex items-center gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800" role="alert" data-testid="banner-orphan-alert">
             <AlertOctagon className="h-5 w-5 shrink-0 text-red-600" />
             <p className="flex-1 text-sm font-medium">
-              <span className="font-bold">{permanentlyFailedCount} Stripe orphan{permanentlyFailedCount !== 1 ? "s" : ""}</span> permanently failed and need manual cleanup.{" "}
-              <button
-                className="underline underline-offset-2 hover:text-red-900 font-semibold"
-                onClick={() => { setActiveTab("stripe-orphans"); setBlogForm(null); }}
-                data-testid="banner-orphan-go-to-tab"
-              >
-                Go to Stripe Cleanup →
-              </button>
+              <span className="font-bold">{permanentlyFailedCount} Stripe orphan{permanentlyFailedCount !== 1 ? "s" : ""}</span> permanently failed and need manual cleanup in Stripe.
             </p>
             <button
               aria-label="Dismiss"
@@ -751,148 +747,11 @@ export default function DeveloperDashboardPage() {
               Developer Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {activeTab === "cms" ? "Edit landing page text and links." : activeTab === "blog" ? "Create and manage blog posts." : activeTab === "referrals" ? "Create and manage referral codes for signup discounts." : activeTab === "agreements" ? "View Terms of Service & Software License Agreement acceptance records." : activeTab === "enterprise" ? "Create and manage specialized enterprise accounts with custom billing." : activeTab === "inbox" ? "All RFI and affiliate form submissions. Resend notification emails if needed." : activeTab === "claude" ? "Chat with Claude about Better Bucks code, features, and strategy." : activeTab === "marketing" ? "Everyone who opted in to marketing communications — export to CSV for email campaigns." : activeTab === "stripe-orphans" ? "Stripe cleanup records that could not be automatically linked — manually mark resolved when Stripe already cleaned them up." : activeTab === "orders" ? "All approved orders waiting to be purchased and shipped. Select an org to filter, then mark each order as fulfilled when sent." : "View all organizations and manage customer accounts."}
+              View all organizations and manage customer accounts.
             </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant={activeTab === "orgs" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("orgs"); setBlogForm(null); }}
-              data-testid="button-tab-orgs"
-            >
-              <Building2 className="mr-1.5 h-4 w-4" />
-              Organizations
-            </Button>
-            <Button
-              variant={activeTab === "cms" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("cms"); setBlogForm(null); }}
-              data-testid="button-tab-cms"
-            >
-              <FileEdit className="mr-1.5 h-4 w-4" />
-              Edit Home Page
-            </Button>
-            <Button
-              variant={activeTab === "blog" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("blog"); setBlogForm(null); }}
-              data-testid="button-tab-blog"
-            >
-              <BookOpen className="mr-1.5 h-4 w-4" />
-              Blog
-            </Button>
-            <Button
-              variant={activeTab === "referrals" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("referrals"); setBlogForm(null); }}
-              data-testid="button-tab-referrals"
-            >
-              <Tag className="mr-1.5 h-4 w-4" />
-              Referral Codes
-            </Button>
-            <Button
-              variant={activeTab === "agreements" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("agreements"); setBlogForm(null); }}
-              data-testid="button-tab-agreements"
-            >
-              <Shield className="mr-1.5 h-4 w-4" />
-              Agreements
-            </Button>
-            <Button
-              variant={activeTab === "enterprise" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("enterprise"); setBlogForm(null); }}
-              data-testid="button-tab-enterprise"
-            >
-              <Building2 className="mr-1.5 h-4 w-4" />
-              Enterprise Accounts
-            </Button>
-            <Button
-              variant={activeTab === "inbox" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("inbox"); setBlogForm(null); }}
-              data-testid="button-tab-inbox"
-            >
-              <Mail className="mr-1.5 h-4 w-4" />
-              Inbox
-            </Button>
-            <Button
-              variant={activeTab === "claude" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("claude"); setBlogForm(null); }}
-              data-testid="button-tab-claude"
-              className={activeTab === "claude" ? "" : "border-violet-300 text-violet-700 hover:bg-violet-50"}
-            >
-              <Bot className="mr-1.5 h-4 w-4" />
-              Claude
-            </Button>
-            <Button
-              variant={activeTab === "marketing" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("marketing"); setBlogForm(null); }}
-              data-testid="button-tab-marketing"
-              className={activeTab === "marketing" ? "" : "border-green-300 text-green-700 hover:bg-green-50"}
-            >
-              <Megaphone className="mr-1.5 h-4 w-4" />
-              Marketing
-            </Button>
-            <Button
-              variant={activeTab === "stripe-orphans" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("stripe-orphans"); setBlogForm(null); }}
-              data-testid="button-tab-stripe-orphans"
-              className={activeTab === "stripe-orphans" ? "" : "border-orange-300 text-orange-700 hover:bg-orange-50"}
-            >
-              <CreditCard className="mr-1.5 h-4 w-4" />
-              Stripe Cleanup
-              {permanentlyFailedCount > 0 && (
-                <span
-                  className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold leading-none px-1.5 py-0.5 min-w-[1.25rem]"
-                  data-testid="badge-stripe-orphan-count"
-                >
-                  {permanentlyFailedCount}
-                </span>
-              )}
-            </Button>
-            <Button
-              variant={activeTab === "orders" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("orders"); setBlogForm(null); }}
-              data-testid="button-tab-orders"
-              className={activeTab === "orders" ? "" : "border-amber-300 text-amber-700 hover:bg-amber-50"}
-            >
-              <CheckCircle2 className="mr-1.5 h-4 w-4" />
-              Orders to Fulfill
-            </Button>
           </div>
         </div>
 
-        <a
-          href="https://analytics.google.com/analytics/web/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block mb-6"
-          data-testid="card-ga-analytics-link"
-        >
-          <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors cursor-pointer">
-            <CardContent className="pt-5 pb-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-blue-600 text-white">
-                    <BarChart3 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-blue-900">Google Analytics 4</p>
-                    <p className="text-sm text-blue-700">View traffic, user sessions, and page analytics for the Better Bucks website</p>
-                  </div>
-                </div>
-                <ExternalLink className="h-4 w-4 text-blue-500 flex-shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
-        </a>
 
         {activeTab === "blog" ? (
           <Card>
@@ -1347,50 +1206,8 @@ export default function DeveloperDashboardPage() {
           <Loader />
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-primary/10">
-                      <Building2 className="h-5 w-5 text-secondary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Organizations</p>
-                      <p className="text-2xl font-bold" data-testid="text-total-orgs">{organizations?.length || 0}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-primary/10">
-                      <Shield className="h-5 w-5 text-secondary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Admins</p>
-                      <p className="text-2xl font-bold" data-testid="text-total-admins">
-                        {organizations?.reduce((sum, o) => sum + o.adminCount, 0) || 0}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-primary/10">
-                      <Users className="h-5 w-5 text-secondary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Employees</p>
-                      <p className="text-2xl font-bold" data-testid="text-total-employees">
-                        {organizations?.reduce((sum, o) => sum + o.employeeCount, 0) || 0}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* ── Summary stats ─────────────────────── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               <Card className={organizations?.some(o => o.status === "paused") ? "border-amber-300 bg-amber-50" : ""}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
@@ -1402,36 +1219,6 @@ export default function DeveloperDashboardPage() {
                       <p className="text-2xl font-bold text-amber-600" data-testid="text-paused-orgs">
                         {organizations?.filter(o => o.status === "paused").length || 0}
                       </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* ── Platform metrics row ─────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-green-100">
-                      <PlusCircle className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Accounts Created (all time)</p>
-                      <p className="text-2xl font-bold text-green-600" data-testid="text-total-created">{metrics?.totalCreated ?? "—"}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-md bg-red-100">
-                      <UserX className="h-5 w-5 text-red-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Accounts Deleted (all time)</p>
-                      <p className="text-2xl font-bold text-red-500" data-testid="text-total-deleted">{metrics?.totalDeleted ?? "—"}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1612,10 +1399,13 @@ export default function DeveloperDashboardPage() {
                       <option value="all">All Types</option>
                       <option value="free">Free</option>
                       <option value="promo">Promo</option>
-                      <option value="small">Small ($99.99/mo)</option>
-                      <option value="mid">Mid ($199.99/mo)</option>
-                      <option value="large">Large ($299.99/mo)</option>
-                      <option value="enterprise">Enterprise ($599.99/mo)</option>
+                      <option value="small">Small ($18/mo)</option>
+                      <option value="mid">Mid ($30/mo)</option>
+                      <option value="large">Large ($48/mo)</option>
+                      <option value="enterprise">Enterprise (custom)</option>
+                      <option value="starter">Starter – 5,000 Bucks ($55/mo)</option>
+                      <option value="growth">Growth – 15,000 Bucks ($155/mo)</option>
+                      <option value="pro">Pro – 30,000 Bucks ($305/mo)</option>
                     </select>
                   </div>
                   <Button

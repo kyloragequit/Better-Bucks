@@ -2324,6 +2324,15 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (data.fullName?.trim() && (isPrime || user.id === id)) {
       profileData.fullName = data.fullName.trim();
     }
+    // Users can update their own shipping address
+    if (user.id === id || isPrime) {
+      if (data.shippingAddressLine1 !== undefined) profileData.shippingAddressLine1 = data.shippingAddressLine1 || null;
+      if (data.shippingAddressLine2 !== undefined) profileData.shippingAddressLine2 = data.shippingAddressLine2 || null;
+      if (data.shippingCity !== undefined) profileData.shippingCity = data.shippingCity || null;
+      if (data.shippingState !== undefined) profileData.shippingState = data.shippingState || null;
+      if (data.shippingZip !== undefined) profileData.shippingZip = data.shippingZip || null;
+      if (data.shippingCountry !== undefined) profileData.shippingCountry = data.shippingCountry || null;
+    }
     let updatedUser = await storage.updateUserProfile(id, profileData);
 
     // If an admin/prime_admin changed someone ELSE'S password, force that user
@@ -3345,10 +3354,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     mid:        { price: 3000,  maxEmployees: 75,  name: "Much Better",      description: "75 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support.",    planBucks: 0 },
     large:      { price: 4800,  maxEmployees: 150, name: "A LOT Better",     description: "150 employee logins — includes 60-day free pilot, admin dashboard, Bucks tracking, advanced reporting, and priority support.", planBucks: 0 },
     enterprise: { price: 0,     maxEmployees: -1,  name: "How much Better?", description: "Unlimited employee logins — custom pricing, please contact us for a personalized quote.",                                      planBucks: 0 },
-    starter:    { price: 5000,  maxEmployees: -1,  name: "Starter",          description: "50 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, email support.",                        planBucks: 50 },
-    growth:     { price: 15000, maxEmployees: -1,  name: "Growth",           description: "150 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 150 },
-    pro:        { price: 30000, maxEmployees: -1,  name: "Pro",              description: "300 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",                    planBucks: 300 },
-    custom:     { price: 0,     maxEmployees: -1,  name: "Custom",           description: "Custom Bucks per month — billed at $1 per Buck, admin dashboard, Bucks tracking.",                                             planBucks: 0 },
+    starter:    { price: 5000,  maxEmployees: -1,  name: "Starter",          description: "5,000 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, email support.",               planBucks: 5000 },
+    growth:     { price: 15000, maxEmployees: -1,  name: "Growth",           description: "15,000 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",               planBucks: 15000 },
+    pro:        { price: 30000, maxEmployees: -1,  name: "Pro",              description: "30,000 Bucks per month — distribute to admins & employees, admin dashboard, Bucks tracking, priority support.",               planBucks: 30000 },
+    custom:     { price: 0,     maxEmployees: -1,  name: "Custom",           description: "Custom Bucks per month — billed at $1 per 100 Bucks, admin dashboard, Bucks tracking.",                                      planBucks: 0 },
   };
 
   // Organization signup - create checkout session
@@ -3391,7 +3400,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
   }) {
     const planPrices: Record<string, string> = {
       small: "$18/mo", mid: "$30/mo", large: "$48/mo", enterprise: "Contact us",
-      starter: "$55/mo", growth: "$155/mo", pro: "$305/mo", custom: "$1/Buck + $5/mo",
+      starter: "$55/mo", growth: "$155/mo", pro: "$305/mo", custom: "$1/100 Bucks + $5/mo",
     };
 
     let validatedReferral: { code: string; extraMonths: number } | null = null;
@@ -4299,7 +4308,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (recalledBucks > 0) {
         await stripe.invoiceItems.create({
           customer: customerId,
-          amount: -(recalledBucks * 100),
+          amount: -Math.round(recalledBucks),
           currency: "usd",
           description: `Keep Your Bucks™ credit — ${recalledBucks} recalled Bucks deducted from first invoice`,
         });
@@ -4318,9 +4327,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
                   tier === "custom"
                     ? `Better Bucks – Custom (${planBucks} Bucks/mo)`
                     : `Better Bucks – ${config.name}`,
-                description: `${planBucks} Bucks/month at 1 Buck = $1. Keep Your Bucks™: unspent admin Bucks are recalled and credited against next month's invoice.`,
+                description: `${planBucks} Bucks/month at 100 Bucks = $1. Keep Your Bucks™: unspent admin Bucks are recalled and credited against next month's invoice.`,
               },
-              unit_amount: planBucks * 100,
+              unit_amount: Math.round(planBucks),
               recurring: { interval: "month" },
               tax_behavior: "exclusive",
             },
@@ -5756,7 +5765,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       const shop = shops.find(s => s.pointsPerDollar > 0);
       if (shop) {
         const dollars = (totalCost / shop.pointsPerDollar).toFixed(2);
-        storeConvertedValue = `$${dollars} (${shop.pointsPerDollar} bcks = $1)`;
+        storeConvertedValue = `$${dollars} (100 Bucks = $1)`;
       }
     }
 

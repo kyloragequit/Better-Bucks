@@ -452,7 +452,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Choose Your Monthly Bucks</h3>
               <p className="text-gray-500 text-sm leading-relaxed">
-                Pick how many Bucks to reward each month. Every Buck equals $1 — plans start at 50 Bucks/mo or go fully custom.
+                Pick how many Bucks to reward each month. 100 Bucks = $1 — plans start at 5,000 Bucks/mo or go fully custom.
               </p>
             </div>
 
@@ -479,10 +479,10 @@ export default function LandingPage() {
             <div>
               <h3 className="text-base font-bold text-gray-900 mb-1">Keep Your Bucks™ — How Buck billing works</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                Your monthly Buck charge equals your plan Bucks at 1 Buck = $1, plus a flat $5/month service fee. Any Bucks still sitting in <strong>Bucks in the Bank</strong> at month-end are automatically recalled and applied as a credit against your next invoice — so you only pay for Bucks your team actually used. Bucks already earned by employees are always theirs to keep.
+                Your monthly Buck charge equals your plan Bucks at 100 Bucks = $1, plus a flat $5/month service fee. Any Bucks still sitting in <strong>Bucks in the Bank</strong> at month-end are automatically recalled and applied as a credit against your next invoice — so you only pay for Bucks your team actually used. Bucks already earned by employees are always theirs to keep.
               </p>
               <p className="text-gray-500 text-xs mt-2 italic">
-                Example: 150 Bucks/month plan ($155/mo total). Admins used 110 Bucks → 40 recalled → next invoice is $110 + $5 = $115 instead of $155.
+                Example: 15,000 Bucks/month plan ($155/mo total). Admins distributed 11,000 Bucks → 4,000 recalled → next invoice is $110 + $5 = $115 instead of $155.
               </p>
             </div>
           </div>

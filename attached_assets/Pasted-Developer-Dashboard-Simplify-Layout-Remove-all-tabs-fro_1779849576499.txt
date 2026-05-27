@@ -1,0 +1,39 @@
+Developer Dashboard — Simplify Layout
+Remove all tabs from the developer dashboard except the Organizations tab. Above the organizations list, show only two summary stats: "Paused Accounts" (count of paused organizations) and "Est. Monthly Billing." Monthly billing is calculated as: (per-organization subscription price based on their user count tier) + $5 Bucks Fee per active organization. Do not include any other line items in the billing estimate.
+
+Organizations — Detail View
+When clicking on an organization, open a detail view with exactly two tabs: "Users" and "Store."
+The Users tab shows all members of that organization and their roles (Admin, Manager, Employee). Include their name, email, and address.
+
+Store — Dev-Controlled
+Organizations cannot edit their own store. All store management happens from the developer dashboard's Store tab for each organization.
+In the developer dashboard Store tab, I can create store items with the following fields:
+
+Item name
+Description
+Image upload
+Price (in Bucks — whole numbers only, no cents)
+Size filter options (I can add multiple sizes, e.g., S, M, L, XL)
+Color filter options (I can add multiple colors)
+
+Once a store item is created for one organization, I can select it and apply it to other organizations from that same item's settings. This does not duplicate the item — it links or copies it to the selected organizations.
+
+User Onboarding — Required Fields
+For all user types (Admin, Org, and Employee), require the following fields at account creation:
+
+Full name
+Email address
+Shipping address (street, city, state, zip)
+
+Store this information on the user's profile and make it available when viewing orders in the developer dashboard.
+
+Order Confirmation Flow
+When I click "Confirm" on an order in the developer dashboard, the system sends a confirmation email to the customer's email address on file. The email should include:
+
+Order item(s) and details
+Total Bucks cost
+Shipping address on file
+
+
+Bucks-to-Dollar Ratio — App-Wide
+Update the Bucks-to-dollar ratio to 100 Bucks = $1.00 everywhere across the app. Remove all cent-level pricing. Bucks values must be whole integers only — no decimals, no cents. Audit every location in the codebase where Bucks are calculated, displayed, or converted and apply this change consistently.

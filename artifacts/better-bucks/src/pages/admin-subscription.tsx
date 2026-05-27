@@ -29,9 +29,9 @@ import type { Organization } from "@shared/schema";
 const NAVY = "#162A4A";
 
 const BUCK_TIERS = [
-  { id: "starter", name: "Starter", bucks: 50, price: 50, icon: Users, popular: false },
-  { id: "growth", name: "Growth", bucks: 150, price: 150, icon: Zap, popular: true },
-  { id: "pro", name: "Pro", bucks: 300, price: 300, icon: Crown, popular: false },
+  { id: "starter", name: "Starter", bucks: 5000, price: 50, icon: Users, popular: false },
+  { id: "growth", name: "Growth", bucks: 15000, price: 150, icon: Zap, popular: true },
+  { id: "pro", name: "Pro", bucks: 30000, price: 300, icon: Crown, popular: false },
   { id: "custom", name: "Custom", bucks: null, price: null, icon: Building2, popular: false },
 ];
 
@@ -312,7 +312,7 @@ export default function AdminSubscriptionPage() {
                             <p className="text-sm font-bold mt-0.5" style={{ color: NAVY }}>You Choose</p>
                           )}
                           <p className="text-[10px] text-gray-400">
-                            {tier.bucks !== null ? `${tier.bucks} Bucks` : "1 Buck = $1"}
+                            {tier.bucks !== null ? `${tier.bucks.toLocaleString()} Bucks` : "100 Bucks = $1"}
                           </p>
                         </button>
                       );
@@ -389,13 +389,13 @@ export default function AdminSubscriptionPage() {
               <div>
                 <p className="font-bold text-sm mb-1" style={{ color: NAVY }}>Keep Your Bucks™ — How Buck Billing Works</p>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Your monthly Buck charge equals your plan Bucks at 1 Buck = $1, plus a flat <strong>$5/month service fee</strong>.
+                  Your monthly Buck charge equals your plan Bucks at 100 Bucks = $1, plus a flat <strong>$5/month service fee</strong>.
                   Any Bucks still sitting in <strong>Bucks in the Bank</strong> at month-end are automatically recalled and applied as a
                   <strong> credit against your next invoice</strong> — so you only pay for Bucks your team actually used.
                   Bucks already earned by employees are always theirs to keep.
                 </p>
                 <p className="text-xs text-gray-400 italic mt-2">
-                  Example: 150 Bucks/month plan ($155/mo total). Admins used 110 Bucks → 40 recalled → next invoice is $110 + $5 = <strong>$115</strong> instead of $155.
+                  Example: 15,000 Bucks/month plan ($155/mo total). Admins distributed 11,000 Bucks → 4,000 recalled → next invoice is $110 + $5 = <strong>$115</strong> instead of $155.
                 </p>
               </div>
             </div>

@@ -1912,7 +1912,7 @@ function ShopWebsitesSection() {
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">1 Buck = $1 — standard rate applied automatically.</p>
+            <p className="text-xs text-muted-foreground">100 Bucks = $1 — standard rate applied automatically.</p>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"

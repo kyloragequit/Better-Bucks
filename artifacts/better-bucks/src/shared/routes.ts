@@ -159,6 +159,12 @@ export const api = {
         verificationCode: z.string().optional(),
         email: z.string().email().optional().or(z.literal("")).transform((v: string | undefined) => v || null),
         departmentId: z.number().int().nullable().optional(),
+        shippingAddressLine1: z.string().optional().nullable(),
+        shippingAddressLine2: z.string().optional().nullable(),
+        shippingCity: z.string().optional().nullable(),
+        shippingState: z.string().optional().nullable(),
+        shippingZip: z.string().optional().nullable(),
+        shippingCountry: z.string().optional().nullable(),
       }),
       responses: {
         200: z.custom<typeof users.$inferSelect>(),

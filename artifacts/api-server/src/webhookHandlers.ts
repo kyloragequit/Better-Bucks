@@ -272,13 +272,15 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice): Promise<void> {
       return;
     }
 
-    console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): applying Keep Your Bucks™ credit of -$${creditBucks} [plan=${planBucks}, recalled=${currentBalance}]`);
+    console.log(`[Webhook] invoice.created — org ${org.id} (${org.name}): applying Keep Your Bucks™ credit of -${creditBucks} Bucks [plan=${planBucks}, recalled=${currentBalance}]`);
 
     const stripe = await getUncachableStripeClient();
+    // FEF55758 is a legacy org exempt from new billing logic
+    const isFef = (org as any).code === "FEF55758";
     await stripe.invoiceItems.create({
       customer: customerId,
       invoice: invoice.id,
-      amount: -(creditBucks * 100),
+      amount: isFef ? -(creditBucks * 100) : -Math.round(creditBucks),
       currency: "usd",
       description: `Keep Your Bucks™ credit — ${creditBucks} Bucks recalled from admin accounts (plan: ${planBucks}, pool balance: ${currentBalance})`,
     });

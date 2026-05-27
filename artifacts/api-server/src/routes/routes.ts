@@ -5149,7 +5149,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       const allOrgs = await storage.getAllOrganizationsIncludingDeleted();
       const totalCreated = allOrgs.length;
       const totalDeleted = allOrgs.filter(o => o.status === "deleted").length;
-      const tierPrices: Record<string, number> = { small: 99.99, mid: 199.99, large: 299.99, enterprise: 599.99 };
+      const tierPrices: Record<string, number> = { small: 18, mid: 30, large: 48, enterprise: 0, starter: 55, growth: 155, pro: 305 };
       const monthlyBilling = allOrgs
         .filter(o => o.status === "active" && o.stripeCustomerId !== "free_membership" && !o.stripeCustomerId?.startsWith("promo_"))
         .reduce((sum, o) => sum + (tierPrices[o.tier] || 0), 0);

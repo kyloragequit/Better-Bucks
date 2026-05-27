@@ -398,6 +398,7 @@ export default function DeveloperDashboardPage() {
 
   const [deleteDialog, setDeleteDialog] = useState<{ orgId: number; orgName: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
+  const [selectedOrg, setSelectedOrg] = useState<OrgWithStats | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: async ({ orgId, orgName, reason }: { orgId: number; orgName: string; reason: string }) => {
@@ -1447,7 +1448,12 @@ export default function DeveloperDashboardPage() {
                         paginatedOrgs.map((org) => {
                           const isFree = org.stripeCustomerId === "free_membership" || org.stripeCustomerId?.startsWith("promo_");
                           return (
-                            <TableRow key={org.id} data-testid={`row-org-${org.id}`}>
+                            <TableRow
+                              key={org.id}
+                              data-testid={`row-org-${org.id}`}
+                              className="cursor-pointer hover:bg-muted/60 transition-colors"
+                              onClick={() => setSelectedOrg(org)}
+                            >
                               <TableCell className="font-medium">
                                 <div className="flex items-center gap-1.5">
                                   {org.licenseAcceptedAt
@@ -1493,7 +1499,8 @@ export default function DeveloperDashboardPage() {
                                       <div className="flex items-center gap-1 mt-1">
                                         <span className="text-xs text-muted-foreground truncate max-w-[140px]">{org.primeAdmin.email}</span>
                                         <button
-                                          onClick={() => {
+                                          onClick={(e) => {
+                                            e.stopPropagation();
                                             navigator.clipboard.writeText(org.primeAdmin!.email!);
                                             setCopiedEmailId(org.id);
                                             setTimeout(() => setCopiedEmailId(null), 1500);
@@ -1525,7 +1532,7 @@ export default function DeveloperDashboardPage() {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => impersonateMutation.mutate(org.primeAdmin!.id)}
+                                      onClick={(e) => { e.stopPropagation(); impersonateMutation.mutate(org.primeAdmin!.id); }}
                                       disabled={impersonateMutation.isPending}
                                       data-testid={`button-enter-org-${org.id}`}
                                     >
@@ -1540,7 +1547,7 @@ export default function DeveloperDashboardPage() {
                                       size="sm"
                                       variant="outline"
                                       className="text-amber-600 border-amber-300 hover:bg-amber-50"
-                                      onClick={() => togglePauseMutation.mutate({ orgId: org.id, newStatus: "paused" })}
+                                      onClick={(e) => { e.stopPropagation(); togglePauseMutation.mutate({ orgId: org.id, newStatus: "paused" }); }}
                                       disabled={togglePauseMutation.isPending}
                                       data-testid={`button-pause-org-${org.id}`}
                                     >
@@ -1552,7 +1559,7 @@ export default function DeveloperDashboardPage() {
                                     <Button
                                       size="sm"
                                       className="bg-green-600 hover:bg-green-700"
-                                      onClick={() => togglePauseMutation.mutate({ orgId: org.id, newStatus: "active" })}
+                                      onClick={(e) => { e.stopPropagation(); togglePauseMutation.mutate({ orgId: org.id, newStatus: "active" }); }}
                                       disabled={togglePauseMutation.isPending}
                                       data-testid={`button-reactivate-org-${org.id}`}
                                     >
@@ -1565,7 +1572,8 @@ export default function DeveloperDashboardPage() {
                                       size="sm"
                                       variant="outline"
                                       className="text-amber-700 border-amber-400 hover:bg-amber-50"
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         const hasPaidSub = !isFree && org.stripeSubscriptionId && org.stripeSubscriptionId !== "pending_checkout";
                                         const msg = hasPaidSub
                                           ? `Cancel subscription for "${org.name}"? This will stop Stripe billing and immediately pause all users' access. Data is preserved.`
@@ -1582,7 +1590,8 @@ export default function DeveloperDashboardPage() {
                                   <Button
                                     size="sm"
                                     variant="destructive"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setDeleteReason("");
                                       setDeleteDialog({ orgId: org.id, orgName: org.name });
                                     }}
@@ -2448,6 +2457,162 @@ export default function DeveloperDashboardPage() {
 
       </main>
       <SiteFooter />
+
+      {/* Org detail dialog */}
+      <Dialog open={!!selectedOrg} onOpenChange={(open) => { if (!open) setSelectedOrg(null); }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          {selectedOrg && (() => {
+            const o = selectedOrg;
+            const isFree = o.stripeCustomerId === "free_membership" || o.stripeCustomerId?.startsWith("promo_");
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-lg">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    {o.name}
+                  </DialogTitle>
+                  <DialogDescription asChild>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Badge variant={o.status === "active" ? "default" : "destructive"} className={`capitalize ${o.status === "paused" ? "bg-amber-500" : ""}`}>{o.status}</Badge>
+                      <Badge variant="outline">{tierLabels[o.tier] || o.tier}</Badge>
+                      {o.isDemo && <Badge variant="secondary">Demo</Badge>}
+                      {isFree ? <Badge variant="secondary">Free</Badge> : <Badge variant="outline">${tierPrices[o.tier] ?? 0}/mo</Badge>}
+                    </div>
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 mt-2">
+                  {/* Identity */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Org Code</p>
+                      <code className="text-sm bg-gray-100 px-2 py-0.5 rounded font-mono">{o.code}</code>
+                    </div>
+                    {o.siteId && (
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Site ID</p>
+                        <code className="text-sm bg-gray-100 px-2 py-0.5 rounded font-mono">{o.siteId}</code>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Created</p>
+                      <p className="text-sm">{new Date(o.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">License Agreement</p>
+                      {o.licenseAcceptedAt ? (
+                        <p className="text-sm text-green-700 font-medium">✓ {new Date(o.licenseAcceptedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                      ) : (
+                        <p className="text-sm text-red-500">✗ Not on record</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Users */}
+                  <div className="border rounded-lg p-3 grid grid-cols-3 gap-3 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-primary">{o.adminCount}</p>
+                      <p className="text-xs text-muted-foreground">Admins</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-primary">{o.employeeCount}</p>
+                      <p className="text-xs text-muted-foreground">Employees</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-primary">{o.pendingOrderCount}</p>
+                      <p className="text-xs text-muted-foreground">Pending Orders</p>
+                    </div>
+                  </div>
+
+                  {/* Bucks balance */}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Org Bucks Balance</p>
+                    <p className="text-sm font-semibold">{(o.orgBucksBalance ?? 0).toLocaleString()} Bucks</p>
+                  </div>
+
+                  {/* Owner */}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Organization Owner</p>
+                    {o.primeAdmin ? (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{o.primeAdmin.fullName}</p>
+                          <p className="text-xs text-muted-foreground">@{o.primeAdmin.username}</p>
+                          {o.primeAdmin.email && <p className="text-xs text-muted-foreground">{o.primeAdmin.email}</p>}
+                        </div>
+                        {o.primeAdmin && (o.status === "active" || o.status === "paused") && (
+                          <Button size="sm" variant="outline" onClick={() => { setSelectedOrg(null); impersonateMutation.mutate(o.primeAdmin!.id); }}>
+                            <LogIn className="mr-1.5 h-3 w-3" />
+                            Enter
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No owner set</p>
+                    )}
+                  </div>
+
+                  {/* Billing */}
+                  <div>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Billing</p>
+                    <div className="grid grid-cols-1 gap-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Stripe Customer</span>
+                        <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded max-w-[220px] truncate">{o.stripeCustomerId ?? "—"}</code>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subscription</span>
+                        <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded max-w-[220px] truncate">{o.stripeSubscriptionId ?? "—"}</code>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Marketing opt-in</span>
+                        <span>{o.marketingOptIn ? "✓ Yes" : "No"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-2 pt-1 border-t">
+                    {o.status === "active" && (
+                      <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                        onClick={() => { setSelectedOrg(null); togglePauseMutation.mutate({ orgId: o.id, newStatus: "paused" }); }}
+                        disabled={togglePauseMutation.isPending}>
+                        <Pause className="mr-1.5 h-3 w-3" />Pause
+                      </Button>
+                    )}
+                    {o.status === "paused" && (
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700"
+                        onClick={() => { setSelectedOrg(null); togglePauseMutation.mutate({ orgId: o.id, newStatus: "active" }); }}
+                        disabled={togglePauseMutation.isPending}>
+                        <Play className="mr-1.5 h-3 w-3" />Reactivate
+                      </Button>
+                    )}
+                    {o.status === "active" && !isFree && (
+                      <Button size="sm" variant="outline" className="text-amber-700 border-amber-400 hover:bg-amber-50"
+                        onClick={() => {
+                          setSelectedOrg(null);
+                          const hasPaidSub = o.stripeSubscriptionId && o.stripeSubscriptionId !== "pending_checkout";
+                          const msg = hasPaidSub
+                            ? `Cancel subscription for "${o.name}"? This will stop Stripe billing and immediately pause all users' access. Data is preserved.`
+                            : `Pause "${o.name}"? All users will lose access. Data is preserved.`;
+                          if (confirm(msg)) cancelSubMutation.mutate(o.id);
+                        }}
+                        disabled={cancelSubMutation.isPending}>
+                        <XCircle className="mr-1.5 h-3 w-3" />Cancel Sub
+                      </Button>
+                    )}
+                    <Button size="sm" variant="destructive"
+                      onClick={() => { setSelectedOrg(null); setDeleteReason(""); setDeleteDialog({ orgId: o.id, orgName: o.name }); }}
+                      disabled={deleteMutation.isPending}>
+                      <Trash2 className="mr-1.5 h-3 w-3" />Delete
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!deleteDialog} onOpenChange={(open) => { if (!open) { setDeleteDialog(null); setDeleteReason(""); } }}>
         <DialogContent className="sm:max-w-md">

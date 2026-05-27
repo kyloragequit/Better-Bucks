@@ -29,7 +29,13 @@ async function _seedDemoOrg() {
     .from(organizations)
     .where(eq(organizations.code, DEMO_CODE))
     .limit(1);
-  if (existing.length > 0) return;
+  if (existing.length > 0) {
+    // Backfill orgBucksBalance for demo orgs seeded before this field was set
+    if ((existing[0].orgBucksBalance ?? 0) === 0) {
+      await db.update(organizations).set({ orgBucksBalance: 500 }).where(eq(organizations.id, existing[0].id));
+    }
+    return;
+  }
 
   console.log("[seedDemo] VIEWDEMO org not found — seeding demo data...");
 
@@ -49,6 +55,7 @@ async function _seedDemoOrg() {
       manualOrdersEnabled: true,
       bucksPerDollar: 2,
       monthlyBudgetBucks: 0,
+      orgBucksBalance: 500,
       adminRoleLabel: "Manager",
       employeeRoleLabel: "Team Member",
       storeUrl: "https://www.amazon.com/",
@@ -378,6 +385,7 @@ export async function createSessionDemoOrg(): Promise<{ orgId: number; primeAdmi
     manualOrdersEnabled: true,
     bucksPerDollar: 2,
     monthlyBudgetBucks: BUDGET,
+    orgBucksBalance: 500,
     adminRoleLabel: "Manager",
     employeeRoleLabel: "Team Member",
     storeUrl: "https://www.amazon.com/",

@@ -7,6 +7,8 @@ declare global {
       remove: (widgetId: string) => void;
       reset: (widgetId: string) => void;
     };
+    hcaptchaApiReady?: () => void;
+    __hcaptchaRenderQueue?: Array<() => void>;
   }
 }
 
@@ -18,6 +20,16 @@ interface HCaptchaWidgetProps {
 export function HCaptchaWidget({ onToken, onExpire }: HCaptchaWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const onTokenRef = useRef(onToken);
+  const onExpireRef = useRef(onExpire);
+
+  useEffect(() => {
+    onTokenRef.current = onToken;
+  }, [onToken]);
+
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   useEffect(() => {
     const siteKey: string =
@@ -29,9 +41,9 @@ export function HCaptchaWidget({ onToken, onExpire }: HCaptchaWidgetProps) {
       try {
         widgetIdRef.current = window.hcaptcha.render(containerRef.current, {
           sitekey: siteKey,
-          callback: onToken,
-          "expired-callback": onExpire,
-          "error-callback": onExpire,
+          callback: (token: string) => onTokenRef.current(token),
+          "expired-callback": () => onExpireRef.current(),
+          "error-callback": () => onExpireRef.current(),
           theme: "light",
         });
       } catch (e) {
@@ -42,17 +54,24 @@ export function HCaptchaWidget({ onToken, onExpire }: HCaptchaWidgetProps) {
     if (window.hcaptcha) {
       renderWidget();
     } else {
-      const existing = document.getElementById("hcaptcha-script");
-      if (!existing) {
+      window.__hcaptchaRenderQueue = window.__hcaptchaRenderQueue || [];
+      window.__hcaptchaRenderQueue.push(renderWidget);
+
+      if (!window.hcaptchaApiReady) {
+        window.hcaptchaApiReady = () => {
+          const queue = window.__hcaptchaRenderQueue || [];
+          window.__hcaptchaRenderQueue = [];
+          for (const fn of queue) fn();
+        };
+      }
+
+      if (!document.getElementById("hcaptcha-script")) {
         const script = document.createElement("script");
         script.id = "hcaptcha-script";
-        script.src = "https://js.hcaptcha.com/1/api.js?render=explicit";
+        script.src = "https://js.hcaptcha.com/1/api.js?render=explicit&onload=hcaptchaApiReady";
         script.async = true;
         script.defer = true;
-        script.onload = renderWidget;
         document.head.appendChild(script);
-      } else {
-        existing.addEventListener("load", renderWidget);
       }
     }
 

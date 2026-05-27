@@ -6759,6 +6759,121 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ ...org, users: usersWithOrders, pendingOrderCount: approvedOrders.length });
   });
 
+  // ── Developer: per-org store management ──────────────────────────────────
+
+  // List store items for a specific org
+  app.get("/api/developer/organizations/:id/store-items", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (isNaN(orgId)) return res.status(400).json({ message: "Invalid ID" });
+    const items = await storage.getStoreItemsByOrganization(orgId);
+    res.json(items);
+  });
+
+  // Search store items across all orgs (for copy-to-org workflow)
+  app.get("/api/developer/store-items/search", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const q = String(req.query.q ?? "").trim();
+    const items = await storage.searchAllStoreItems(q);
+    res.json(items);
+  });
+
+  // Create a new store item for a specific org
+  app.post("/api/developer/organizations/:id/store-items", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (isNaN(orgId)) return res.status(400).json({ message: "Invalid ID" });
+    const org = await storage.getOrganization(orgId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    const schema = z.object({
+      name: z.string().min(1).max(100),
+      price: z.coerce.number().int().positive(),
+      url: z.string().optional().default(""),
+      imageUrl: z.string().optional().default(""),
+      requiresSize: z.boolean().optional().default(false),
+      requiresColor: z.boolean().optional().default(false),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
+    const item = await storage.createStoreItem({
+      organizationId: orgId,
+      name: parsed.data.name,
+      price: parsed.data.price,
+      url: parsed.data.url ?? "",
+      imageUrl: parsed.data.imageUrl ?? "",
+      requiresSize: parsed.data.requiresSize ?? false,
+      requiresColor: parsed.data.requiresColor ?? false,
+    });
+    res.json(item);
+  });
+
+  // Copy an existing store item from any org into this org
+  app.post("/api/developer/organizations/:id/store-items/copy", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (isNaN(orgId)) return res.status(400).json({ message: "Invalid ID" });
+    const org = await storage.getOrganization(orgId);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+    const schema = z.object({ sourceItemId: z.number().int().positive() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "sourceItemId is required" });
+    const source = await storage.getStoreItem(parsed.data.sourceItemId);
+    if (!source) return res.status(404).json({ message: "Source item not found" });
+    const existing = await storage.getStoreItemsByOrganization(orgId);
+    if (existing.some(i => i.name.toLowerCase() === source.name.toLowerCase())) {
+      return res.status(409).json({ message: `"${source.name}" already exists in this org's store.` });
+    }
+    const newItem = await storage.createStoreItem({
+      organizationId: orgId,
+      name: source.name,
+      price: source.price,
+      url: source.url ?? "",
+      imageUrl: source.imageUrl ?? "",
+      requiresSize: source.requiresSize ?? false,
+      requiresColor: source.requiresColor ?? false,
+    });
+    res.json(newItem);
+  });
+
+  // Update any store item (developer-scoped, no org ownership check)
+  app.patch("/api/developer/store-items/:itemId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const itemId = parseInt(req.params.itemId);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
+    const item = await storage.getStoreItem(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
+    const schema = z.object({
+      name: z.string().min(1).max(100).optional(),
+      price: z.coerce.number().int().positive().optional(),
+      url: z.string().optional(),
+      imageUrl: z.string().optional(),
+      requiresSize: z.boolean().optional(),
+      requiresColor: z.boolean().optional(),
+      available: z.boolean().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
+    const updated = await storage.updateStoreItem(itemId, parsed.data);
+    res.json(updated);
+  });
+
+  // Delete any store item (developer-scoped)
+  app.delete("/api/developer/store-items/:itemId", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const itemId = parseInt(req.params.itemId);
+    if (isNaN(itemId)) return res.status(400).json({ message: "Invalid ID" });
+    const item = await storage.getStoreItem(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
+    await storage.deleteStoreItem(itemId);
+    res.sendStatus(200);
+  });
+
   // Admin self-fulfill: FEF55758 prime admins can mark approved orders as completed
   app.patch("/api/orders/:id/admin-fulfill", async (req, res) => {
     const user = req.user as User | undefined;

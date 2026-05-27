@@ -130,6 +130,7 @@ export interface IStorage {
   getStoreItem(id: number): Promise<StoreItem | undefined>;
   updateStoreItem(id: number, data: Partial<InsertStoreItem>): Promise<StoreItem>;
   deleteStoreItem(id: number): Promise<void>;
+  searchAllStoreItems(q: string): Promise<(StoreItem & { orgName: string; orgCode: string })[]>;
 
   addToWishlist(userId: number, storeItemId: number): Promise<Wishlist>;
   removeFromWishlist(userId: number, storeItemId: number): Promise<void>;
@@ -994,6 +995,33 @@ export class DatabaseStorage implements IStorage {
 
   async deleteStoreItem(id: number): Promise<void> {
     await db.delete(storeItems).where(eq(storeItems.id, id));
+  }
+
+  async searchAllStoreItems(q: string): Promise<(StoreItem & { orgName: string; orgCode: string })[]> {
+    const rows = await db
+      .select({
+        id: storeItems.id,
+        organizationId: storeItems.organizationId,
+        name: storeItems.name,
+        description: storeItems.description,
+        price: storeItems.price,
+        url: storeItems.url,
+        imageUrl: storeItems.imageUrl,
+        available: storeItems.available,
+        requiresSize: storeItems.requiresSize,
+        requiresColor: storeItems.requiresColor,
+        sizes: storeItems.sizes,
+        colors: storeItems.colors,
+        createdAt: storeItems.createdAt,
+        orgName: organizations.name,
+        orgCode: organizations.code,
+      })
+      .from(storeItems)
+      .innerJoin(organizations, eq(storeItems.organizationId, organizations.id))
+      .where(q.trim() ? ilike(storeItems.name, `%${q.trim()}%`) : sql`true`)
+      .orderBy(desc(storeItems.createdAt))
+      .limit(60);
+    return rows as (StoreItem & { orgName: string; orgCode: string })[];
   }
 
   async updateOrganizationFeatureFlags(id: number, storeEnabled: boolean, manualOrdersEnabled: boolean, allowEmployeePasswordCreation: boolean, ordersEnabled: boolean, requireSocialSignupApproval: boolean): Promise<Organization> {

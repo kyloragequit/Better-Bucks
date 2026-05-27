@@ -1398,7 +1398,7 @@ function FeatureFlagsSection({ org }: { org: OrgWithFree }) {
             data-testid="switch-store-enabled"
           />
         </div>
-        {org.code === "PRIME1" && (
+        {(org.code === "PRIME1" || org.code === "FEF55758") && (
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div>
               <p className="font-medium text-sm">Manual Order Requests</p>

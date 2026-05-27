@@ -3906,8 +3906,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     if (!req.isAuthenticated() || !user) return res.status(401).send("Unauthorized");
     if (!user.organizationId) return res.json({ storeEnabled: true, manualOrdersEnabled: false, ordersEnabled: true });
     const org = await storage.getOrganization(user.organizationId);
-    const isPrime1 = org?.code === "PRIME1";
-    res.json({ storeEnabled: org?.storeEnabled ?? true, manualOrdersEnabled: isPrime1 ? (org?.manualOrdersEnabled ?? true) : false, ordersEnabled: org?.ordersEnabled ?? true });
+    const manualOrdersAllowed = org?.code === "PRIME1" || org?.code === "FEF55758";
+    res.json({ storeEnabled: org?.storeEnabled ?? true, manualOrdersEnabled: manualOrdersAllowed ? (org?.manualOrdersEnabled ?? true) : false, ordersEnabled: org?.ordersEnabled ?? true });
   });
 
   // Update feature flags (prime admin only)
@@ -3923,7 +3923,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       requireSocialSignupApproval: z.boolean(),
     }).parse(req.body);
     const currentOrg = await storage.getOrganization(user.organizationId);
-    const effectiveManualOrders = currentOrg?.code === "PRIME1" ? manualOrdersEnabled : false;
+    const effectiveManualOrders = (currentOrg?.code === "PRIME1" || currentOrg?.code === "FEF55758") ? manualOrdersEnabled : false;
     const updated = await storage.updateOrganizationFeatureFlags(user.organizationId, storeEnabled, effectiveManualOrders, allowEmployeePasswordCreation, ordersEnabled, requireSocialSignupApproval);
     res.json({ storeEnabled: updated.storeEnabled, manualOrdersEnabled: updated.manualOrdersEnabled, allowEmployeePasswordCreation: updated.allowEmployeePasswordCreation, ordersEnabled: updated.ordersEnabled, requireSocialSignupApproval: updated.requireSocialSignupApproval });
   });

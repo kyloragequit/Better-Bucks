@@ -315,6 +315,12 @@ export default function SignupPage() {
                         <span>{feature}</span>
                       </div>
                     ))}
+                    {isEnterprise && (
+                      <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-2 py-1.5 mt-2">
+                        <span className="text-primary text-sm leading-none">⚡</span>
+                        <span className="text-xs font-bold text-primary tracking-wide">Supports Workday-based workflows</span>
+                      </div>
+                    )}
                   </div>
                   <div className="pt-2">
                     <Button

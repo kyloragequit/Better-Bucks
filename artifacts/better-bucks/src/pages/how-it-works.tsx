@@ -1290,7 +1290,11 @@ export default function HowItWorksPage() {
               <h3 className="text-3xl font-extrabold tracking-tight" style={{ color: NAVY }}>How much Better?</h3>
               <p className="text-2xl font-extrabold mt-1 mb-1" style={{ color: BUCKS_COLOR }}>Unlimited Logins</p>
               <p className="text-xs text-gray-500 mb-4">150+ employees, no cap</p>
-              <p className="text-sm text-gray-600 mb-6 flex-1 mt-2">Let's talk. We'll build the right plan for your team size, goals, and budget — no cookie-cutter tiers.</p>
+              <p className="text-sm text-gray-600 mb-4 flex-1 mt-2">Let's talk. We'll build the right plan for your team size, goals, and budget — no cookie-cutter tiers.</p>
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2 mb-5" style={{ background: `${NAVY}12`, border: `1px solid ${NAVY}30` }}>
+                <span className="text-base leading-none" style={{ color: NAVY }}>⚡</span>
+                <p className="text-xs font-bold tracking-wide" style={{ color: NAVY }}>Supports Workday-based workflows</p>
+              </div>
               <Button className="w-full" style={{ background: NAVY }} onClick={() => rfiRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} data-testid="button-pricing-enterprise">
                 Request Info <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -9,6 +10,7 @@ import { registerMobileRoutes } from "./routes/mobile";
 import { transferRouter } from "./routes/transfers";
 import { initTransferWs } from "./transferWs";
 import healthRouter from "./routes/health";
+import devAuthRouter from "./routes/devAuth";
 import { ensureStripeReady } from "./stripeLazy";
 import { WebhookHandlers } from "./webhookHandlers";
 import { startStripeOrphanRetryJob } from "./stripeOrphanRetry";
@@ -84,6 +86,9 @@ app.post(
   },
 );
 
+// Cookie parser — needed early for OIDC state cookies (devAuth router)
+app.use(cookieParser());
+
 // CORS
 app.use(cors());
 
@@ -150,6 +155,9 @@ app.use("/api/mobile/organizations/signup", mobileSignupLimiter);
 
 // Health check — mounted before registerRoutes so it's always available
 app.use("/api", healthRouter);
+
+// Developer Replit OIDC auth routes (must be before registerRoutes)
+app.use("/api/dev-auth", devAuthRouter);
 
 export async function initApp(): Promise<void> {
   const compression = (await import("compression")).default;

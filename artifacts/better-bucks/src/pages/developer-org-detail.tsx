@@ -9,14 +9,73 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Loader } from "@/components/ui/loader";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   ArrowLeft, Package, User, Search, CheckCircle2,
   MapPin, ExternalLink, ChevronDown, ChevronRight,
   Building2, Users, ShoppingBag, Store, Plus, Copy,
-  Trash2, ImageIcon, Tag,
+  Trash2, ImageIcon, Tag, X, Upload, Pencil,
 } from "lucide-react";
 import { SpinningLogo } from "@/components/spinning-logo";
+
+// Shared helper: upload an image file to the developer store-item-image endpoint, returns a data URL.
+async function uploadStoreItemImage(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("image", file);
+  const res = await fetch("/api/developer/store-item-image", { method: "POST", body: fd, credentials: "include" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || "Image upload failed");
+  }
+  const { url } = await res.json();
+  return url as string;
+}
+
+// Small chip-style editor for a list of attribute values (sizes, colors, …).
+function AttrChips({ label, values, onChange, placeholder, testId }: {
+  label: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  testId?: string;
+}) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (!values.some(x => x.toLowerCase() === v.toLowerCase())) onChange([...values, v]);
+    setDraft("");
+  };
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {values.map(v => (
+            <span key={v} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs rounded-full pl-2.5 pr-1 py-1">
+              {v}
+              <button type="button" onClick={() => onChange(values.filter(x => x !== v))} className="rounded-full hover:bg-primary/20 p-0.5">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          placeholder={placeholder}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          data-testid={testId}
+        />
+        <Button type="button" size="sm" variant="outline" onClick={add} disabled={!draft.trim()}>Add</Button>
+      </div>
+    </div>
+  );
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,6 +130,8 @@ type StoreItem = {
   available: boolean;
   requiresSize: boolean;
   requiresColor: boolean;
+  sizes: string[] | null;
+  colors: string[] | null;
   createdAt: string;
 };
 
@@ -273,6 +334,12 @@ function StoreItemRow({ item, action }: {
           {!item.available && (
             <Badge variant="outline" className="text-[10px] h-4 px-1">Hidden</Badge>
           )}
+          {"sizes" in item && (item.sizes?.length ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-[10px] h-4 px-1">{item.sizes!.length} sizes</Badge>
+          )}
+          {"colors" in item && (item.colors?.length ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-[10px] h-4 px-1">{item.colors!.length} colors</Badge>
+          )}
         </div>
       </div>
       <div className="flex-shrink-0">{action}</div>
@@ -290,8 +357,17 @@ function StoreTab({ orgId }: { orgId: number }) {
   const [newPrice, setNewPrice] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newImageUrl, setNewImageUrl] = useState("");
+  const [newSizes, setNewSizes] = useState<string[]>([]);
+  const [newColors, setNewColors] = useState<string[]>([]);
+  const [uploadingNew, setUploadingNew] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editItem, setEditItem] = useState<StoreItem | null>(null);
+
+  const resetCreate = () => {
+    setNewName(""); setNewPrice(""); setNewUrl(""); setNewImageUrl("");
+    setNewSizes([]); setNewColors([]);
+  };
 
   const orgItemsKey = `/api/developer/organizations/${orgId}/store-items`;
 
@@ -317,6 +393,8 @@ function StoreTab({ orgId }: { orgId: number }) {
         price: parseInt(newPrice),
         url: newUrl.trim() || undefined,
         imageUrl: newImageUrl.trim() || undefined,
+        sizes: newSizes,
+        colors: newColors,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -326,8 +404,33 @@ function StoreTab({ orgId }: { orgId: number }) {
     },
     onSuccess: () => {
       toast({ title: "Item added to store" });
-      setNewName(""); setNewPrice(""); setNewUrl(""); setNewImageUrl("");
+      resetCreate();
       setShowCreate(false);
+      invalidate();
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async (item: StoreItem) => {
+      const res = await apiRequest("PATCH", `/api/developer/store-items/${item.id}`, {
+        name: item.name.trim(),
+        price: item.price,
+        url: item.url ?? "",
+        imageUrl: item.imageUrl ?? "",
+        available: item.available,
+        sizes: item.sizes ?? [],
+        colors: item.colors ?? [],
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to update item");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Item updated" });
+      setEditItem(null);
       invalidate();
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -411,14 +514,6 @@ function StoreTab({ orgId }: { orgId: number }) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Image URL</Label>
-                  <Input
-                    placeholder="https://…"
-                    value={newImageUrl}
-                    onChange={e => setNewImageUrl(e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2 space-y-1.5">
                   <Label className="text-xs">Product URL</Label>
                   <Input
                     placeholder="https://…"
@@ -426,9 +521,62 @@ function StoreTab({ orgId }: { orgId: number }) {
                     onChange={e => setNewUrl(e.target.value)}
                   />
                 </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs">Image</Label>
+                  <div className="flex items-center gap-3">
+                    {newImageUrl ? (
+                      <img src={newImageUrl} alt="preview" className="h-12 w-12 rounded object-cover bg-gray-100 flex-shrink-0" />
+                    ) : (
+                      <div className="h-12 w-12 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <ImageIcon className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        data-testid="input-new-store-item-image-file"
+                        onChange={async e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingNew(true);
+                          try {
+                            const url = await uploadStoreItemImage(file);
+                            setNewImageUrl(url);
+                          } catch (err) {
+                            toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
+                          } finally {
+                            setUploadingNew(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      <span className="inline-flex items-center gap-1.5 text-xs border rounded-md px-3 py-2 hover:bg-gray-50">
+                        {uploadingNew ? <SpinningLogo className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
+                        {uploadingNew ? "Uploading…" : "Upload image"}
+                      </span>
+                    </label>
+                    {newImageUrl && (
+                      <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => setNewImageUrl("")}>Remove</Button>
+                    )}
+                  </div>
+                  <Input
+                    placeholder="…or paste an image URL"
+                    value={newImageUrl.startsWith("data:") ? "" : newImageUrl}
+                    onChange={e => setNewImageUrl(e.target.value)}
+                    className="mt-2"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <AttrChips label="Sizes (optional — employees pick one)" values={newSizes} onChange={setNewSizes} placeholder="e.g. S, M, L, XL" testId="input-new-store-item-size" />
+                </div>
+                <div className="col-span-2">
+                  <AttrChips label="Colors (optional — employees pick one)" values={newColors} onChange={setNewColors} placeholder="e.g. Black, Navy, Red" testId="input-new-store-item-color" />
+                </div>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => { setShowCreate(false); setNewName(""); setNewPrice(""); setNewUrl(""); setNewImageUrl(""); }}>
+                <Button size="sm" variant="outline" onClick={() => { setShowCreate(false); resetCreate(); }}>
                   Cancel
                 </Button>
                 <Button
@@ -460,18 +608,29 @@ function StoreTab({ orgId }: { orgId: number }) {
                 key={item.id}
                 item={item}
                 action={
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
-                    disabled={deletingId === item.id}
-                    onClick={() => deleteMutation.mutate(item.id)}
-                    data-testid={`button-delete-store-item-${item.id}`}
-                  >
-                    {deletingId === item.id
-                      ? <SpinningLogo className="h-3.5 w-3.5" />
-                      : <Trash2 className="h-3.5 w-3.5" />}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+                      onClick={() => setEditItem({ ...item, sizes: item.sizes ?? [], colors: item.colors ?? [] })}
+                      data-testid={`button-edit-store-item-${item.id}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                      disabled={deletingId === item.id}
+                      onClick={() => deleteMutation.mutate(item.id)}
+                      data-testid={`button-delete-store-item-${item.id}`}
+                    >
+                      {deletingId === item.id
+                        ? <SpinningLogo className="h-3.5 w-3.5" />
+                        : <Trash2 className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
                 }
               />
             ))}
@@ -529,6 +688,91 @@ function StoreTab({ orgId }: { orgId: number }) {
           </div>
         )}
       </section>
+
+      {/* Edit item dialog */}
+      {editItem && (
+        <Dialog open onOpenChange={open => { if (!open) setEditItem(null); }}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Store Item</DialogTitle>
+              <DialogDescription>Update the item's details, image, and the size/color options employees choose from.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Item Name</Label>
+                <Input value={editItem.name} onChange={e => setEditItem({ ...editItem, name: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Price (Bucks)</Label>
+                  <Input type="number" value={editItem.price} onChange={e => setEditItem({ ...editItem, price: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Product URL</Label>
+                  <Input placeholder="https://…" value={editItem.url ?? ""} onChange={e => setEditItem({ ...editItem, url: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Image</Label>
+                <div className="flex items-center gap-3">
+                  {editItem.imageUrl ? (
+                    <img src={editItem.imageUrl} alt="preview" className="h-12 w-12 rounded object-cover bg-gray-100 flex-shrink-0" />
+                  ) : (
+                    <div className="h-12 w-12 rounded bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <ImageIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                  )}
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async e => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const url = await uploadStoreItemImage(file);
+                          setEditItem(prev => prev ? { ...prev, imageUrl: url } : prev);
+                        } catch (err) {
+                          toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
+                        } finally {
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                    <span className="inline-flex items-center gap-1.5 text-xs border rounded-md px-3 py-2 hover:bg-gray-50">
+                      <Upload className="h-3.5 w-3.5" />Upload image
+                    </span>
+                  </label>
+                  {editItem.imageUrl && (
+                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => setEditItem({ ...editItem, imageUrl: "" })}>Remove</Button>
+                  )}
+                </div>
+              </div>
+              <AttrChips label="Sizes (employees pick one)" values={editItem.sizes ?? []} onChange={next => setEditItem({ ...editItem, sizes: next })} placeholder="e.g. S, M, L, XL" />
+              <AttrChips label="Colors (employees pick one)" values={editItem.colors ?? []} onChange={next => setEditItem({ ...editItem, colors: next })} placeholder="e.g. Black, Navy, Red" />
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label className="text-xs font-medium">Visible in store</Label>
+                  <p className="text-[11px] text-muted-foreground">Turn off to hide this item from employees.</p>
+                </div>
+                <Switch checked={editItem.available} onCheckedChange={v => setEditItem({ ...editItem, available: v })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
+              <Button
+                disabled={!editItem.name.trim() || !editItem.price || editMutation.isPending}
+                onClick={() => editMutation.mutate(editItem)}
+                data-testid="button-save-store-item-edit"
+              >
+                {editMutation.isPending ? <SpinningLogo className="h-3.5 w-3.5 mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

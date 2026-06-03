@@ -2665,6 +2665,31 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ url: dataUrl });
   });
 
+  // Developer: upload a store item image (stored as base64 data URL in DB — survives Replit redeploys)
+  app.post("/api/developer/store-item-image", (req, res, next) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    next();
+  }, async (req: any, res: any, next: any) => {
+    const multer = (await import("multer")).default;
+    const storeImageUpload = multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req: any, file: any, cb: any) => {
+        if (file.mimetype.startsWith("image/")) {
+          cb(null, true);
+        } else {
+          cb(new Error("Only image files are allowed"));
+        }
+      },
+    });
+    storeImageUpload.single("image")(req, res, next);
+  }, (req: any, res: any) => {
+    if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    res.json({ url: dataUrl });
+  });
+
   // Upload photos
   app.post("/api/upload", (req, res, next) => {
     const user = req.user as User | undefined;
@@ -3614,7 +3639,11 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
               description: tier === "custom" ? `Custom plan: ${customBucks} Bucks per month, billed at $1 per Buck.` : config.description,
               metadata: { tier },
             },
-            unit_amount: 0,  // $0 anchor — variable charges applied via invoice.created webhook
+            // Charge the real tier price. For the bucks tiers the invoice.created
+            // webhook still subtracts a "Keep Your Bucks" credit for any recalled
+            // balance; for seat/login tiers (planBucks=0) this is a flat monthly charge.
+            // Custom plans are billed at $1/Buck per the plan description above.
+            unit_amount: tier === "custom" ? Math.round((customBucks ?? 0) * 100) : config.price,
             recurring: { interval: 'month' },
             tax_behavior: 'exclusive',
           },
@@ -3705,7 +3734,7 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
               description: config.description,
               metadata: { tier },
             },
-            unit_amount: 0,  // $0 anchor — variable charges applied via invoice.created webhook
+            unit_amount: config.price,  // Charge the real tier price on reactivation
             recurring: { interval: 'month' },
             tax_behavior: 'exclusive',
           },
@@ -6867,19 +6896,26 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       price: z.coerce.number().int().positive(),
       url: z.string().optional().default(""),
       imageUrl: z.string().optional().default(""),
-      requiresSize: z.boolean().optional().default(false),
-      requiresColor: z.boolean().optional().default(false),
+      requiresSize: z.boolean().optional(),
+      requiresColor: z.boolean().optional(),
+      sizes: z.array(z.string().trim().min(1)).optional(),
+      colors: z.array(z.string().trim().min(1)).optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
+    const sizes = parsed.data.sizes ?? [];
+    const colors = parsed.data.colors ?? [];
     const item = await storage.createStoreItem({
       organizationId: orgId,
       name: parsed.data.name,
       price: parsed.data.price,
       url: parsed.data.url ?? "",
       imageUrl: parsed.data.imageUrl ?? "",
-      requiresSize: parsed.data.requiresSize ?? false,
-      requiresColor: parsed.data.requiresColor ?? false,
+      // Providing an attribute list implies the attribute is required (employee picks from it).
+      requiresSize: parsed.data.requiresSize ?? sizes.length > 0,
+      requiresColor: parsed.data.requiresColor ?? colors.length > 0,
+      sizes,
+      colors,
     });
     res.json(item);
   });
@@ -6909,6 +6945,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       imageUrl: source.imageUrl ?? "",
       requiresSize: source.requiresSize ?? false,
       requiresColor: source.requiresColor ?? false,
+      sizes: source.sizes ?? [],
+      colors: source.colors ?? [],
     });
     res.json(newItem);
   });
@@ -6929,10 +6967,20 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       requiresSize: z.boolean().optional(),
       requiresColor: z.boolean().optional(),
       available: z.boolean().optional(),
+      sizes: z.array(z.string().trim().min(1)).optional(),
+      colors: z.array(z.string().trim().min(1)).optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
-    const updated = await storage.updateStoreItem(itemId, parsed.data);
+    const updateData: Record<string, unknown> = { ...parsed.data };
+    // Keep the "required" flag in sync when an attribute list is edited (unless explicitly set).
+    if (parsed.data.sizes !== undefined && parsed.data.requiresSize === undefined) {
+      updateData.requiresSize = parsed.data.sizes.length > 0;
+    }
+    if (parsed.data.colors !== undefined && parsed.data.requiresColor === undefined) {
+      updateData.requiresColor = parsed.data.colors.length > 0;
+    }
+    const updated = await storage.updateStoreItem(itemId, updateData);
     res.json(updated);
   });
 

@@ -535,7 +535,7 @@ function StoreTab({ orgId }: { orgId: number }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Tab = "users" | "store";
+type Tab = "users" | "store" | "address";
 
 export default function DeveloperOrgDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -545,6 +545,11 @@ export default function DeveloperOrgDetailPage() {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("users");
+  const [addrLine1, setAddrLine1] = useState("");
+  const [addrLine2, setAddrLine2] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrZip, setAddrZip] = useState("");
 
   const orgId = parseInt(id ?? "0");
 
@@ -570,6 +575,28 @@ export default function DeveloperOrgDetailPage() {
     },
     onSettled: () => setFulfillingId(null),
   });
+
+  const saveAddressMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PATCH", `/api/developer/organizations/${orgId}/address`, {
+        businessAddressLine1: addrLine1.trim() || null,
+        businessAddressLine2: addrLine2.trim() || null,
+        businessCity: addrCity.trim() || null,
+        businessState: addrState.trim() || null,
+        businessZip: addrZip.trim() || null,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Address saved", description: "Business address updated for this organization." });
+      queryClient.invalidateQueries({ queryKey: [`/api/developer/organizations/${orgId}/detail`] });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message || "Failed to save address.", variant: "destructive" });
+    },
+  });
+
+  // Pre-fill address fields when org data loads
+  const orgAddress = (org as (typeof org & { businessAddressLine1?: string | null; businessAddressLine2?: string | null; businessCity?: string | null; businessState?: string | null; businessZip?: string | null }) | undefined);
 
   const filtered = (org?.users ?? []).filter(u => {
     if (!search.trim()) return true;
@@ -682,6 +709,25 @@ export default function DeveloperOrgDetailPage() {
             <Store className="h-4 w-4" />
             Store
           </button>
+          <button
+            onClick={() => {
+              setActiveTab("address");
+              setAddrLine1(orgAddress?.businessAddressLine1 ?? "");
+              setAddrLine2(orgAddress?.businessAddressLine2 ?? "");
+              setAddrCity(orgAddress?.businessCity ?? "");
+              setAddrState(orgAddress?.businessState ?? "");
+              setAddrZip(orgAddress?.businessZip ?? "");
+            }}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "address"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-address"
+          >
+            <MapPin className="h-4 w-4" />
+            Business Address
+          </button>
         </div>
 
         {/* Users tab */}
@@ -731,6 +777,52 @@ export default function DeveloperOrgDetailPage() {
         {/* Store tab */}
         {activeTab === "store" && (
           <StoreTab orgId={orgId} />
+        )}
+
+        {/* Business Address tab */}
+        {activeTab === "address" && (
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div>
+                <p className="text-sm font-semibold mb-1">Business Address</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Set the organization's shipping address. This will be used as the default delivery address for employee orders, so employees don't need to enter their own.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="addr-line1">Address Line 1</Label>
+                  <Input id="addr-line1" placeholder="123 Main St" value={addrLine1} onChange={e => setAddrLine1(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="addr-line2">Address Line 2 <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input id="addr-line2" placeholder="Suite 100" value={addrLine2} onChange={e => setAddrLine2(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-1">
+                    <Label htmlFor="addr-city">City</Label>
+                    <Input id="addr-city" placeholder="Chicago" value={addrCity} onChange={e => setAddrCity(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="addr-state">State</Label>
+                    <Input id="addr-state" placeholder="IL" value={addrState} onChange={e => setAddrState(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="addr-zip">ZIP Code</Label>
+                    <Input id="addr-zip" placeholder="60601" value={addrZip} onChange={e => setAddrZip(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <Button
+                onClick={() => saveAddressMutation.mutate()}
+                disabled={saveAddressMutation.isPending}
+                className="w-full"
+              >
+                <MapPin className="mr-2 h-4 w-4" />
+                {saveAddressMutation.isPending ? "Saving…" : "Save Business Address"}
+              </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

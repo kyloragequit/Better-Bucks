@@ -42,6 +42,11 @@ export const organizations = pgTable("organizations", {
   planBucks: integer("plan_bucks").default(0).notNull(),
   orgBucksBalance: doublePrecision("org_bucks_balance").default(0).notNull(),
   lastRecallMonth: text("last_recall_month"),
+  businessAddressLine1: text("business_address_line1"),
+  businessAddressLine2: text("business_address_line2"),
+  businessCity: text("business_city"),
+  businessState: text("business_state"),
+  businessZip: text("business_zip"),
 });
 
 export const orgAutoAllocations = pgTable("org_auto_allocations", {

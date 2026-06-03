@@ -123,6 +123,7 @@ export default function DeveloperDashboardPage() {
   const [activeTab, setActiveTab] = useState<"orgs" | "cms" | "blog" | "referrals" | "enterprise" | "inbox" | "claude" | "marketing" | "stripe-orphans" | "orders">("orgs");
   const [ordersOrgFilter, setOrdersOrgFilter] = useState<string>("");
   const [msgOrderId, setMsgOrderId] = useState<number | null>(null);
+  const [confirmFulfillOrderId, setConfirmFulfillOrderId] = useState<number | null>(null);
   const [msgRecipient, setMsgRecipient] = useState<"employee" | "org">("employee");
   const [msgText, setMsgText] = useState("");
   const [blogForm, setBlogForm] = useState<Partial<BlogPost> & { isNew?: boolean } | null>(null);
@@ -1733,7 +1734,7 @@ export default function DeveloperDashboardPage() {
                               <div className="flex gap-2 flex-wrap">
                                 <Button
                                   size="sm"
-                                  onClick={() => fulfillOrderMutation.mutate(order.id)}
+                                  onClick={() => setConfirmFulfillOrderId(order.id)}
                                   disabled={fulfillOrderMutation.isPending}
                                   className="shrink-0 bg-green-600 hover:bg-green-700 text-white"
                                   data-testid={`button-fulfill-order-${order.id}`}
@@ -1839,6 +1840,33 @@ export default function DeveloperDashboardPage() {
                 >
                   <Send className="mr-1.5 h-3.5 w-3.5" />
                   {sendOrderMessageMutation.isPending ? "Sending…" : "Send"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {confirmFulfillOrderId !== null && (
+          <Dialog open onOpenChange={open => { if (!open) setConfirmFulfillOrderId(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Did you complete this order?</DialogTitle>
+                <DialogDescription>
+                  Confirming will mark Order #{confirmFulfillOrderId} as fulfilled, deduct the Bucks from the employee's account, and send them a confirmation email. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setConfirmFulfillOrderId(null)}>Not yet</Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  disabled={fulfillOrderMutation.isPending}
+                  onClick={() => {
+                    fulfillOrderMutation.mutate(confirmFulfillOrderId);
+                    setConfirmFulfillOrderId(null);
+                  }}
+                >
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                  Yes, Order Complete
                 </Button>
               </DialogFooter>
             </DialogContent>

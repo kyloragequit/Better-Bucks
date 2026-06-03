@@ -2734,8 +2734,8 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (user.organizationId) {
         const userOrg = await storage.getOrganization(user.organizationId);
         if (userOrg) {
-          // Deduct org Bucks pool immediately when the employee places the order (all orgs)
-          void storage.deductOrgBucksBalance(user.organizationId, pointsCost);
+          // Org Bucks pool is deducted at fulfillment (when the order is completed), not at placement.
+          // This ensures bucks only "exit" the organization once the order is actually fulfilled.
           // All orgs auto-approve orders except the demo PRIME1 org
           if (userOrg.code !== "PRIME1") {
             finalOrder = await storage.updateOrderStatus(order.id, "approved");
@@ -6811,6 +6811,23 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
     res.json({ ...org, users: usersWithOrders, pendingOrderCount: approvedOrders.length });
   });
 
+  // Developer: set business address for an org
+  app.patch("/api/developer/organizations/:id/address", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+    const orgId = parseInt(req.params.id);
+    if (isNaN(orgId)) return res.status(400).json({ message: "Invalid ID" });
+    const { businessAddressLine1, businessAddressLine2, businessCity, businessState, businessZip } = req.body;
+    await db.update(organizations).set({
+      businessAddressLine1: businessAddressLine1 ?? null,
+      businessAddressLine2: businessAddressLine2 ?? null,
+      businessCity: businessCity ?? null,
+      businessState: businessState ?? null,
+      businessZip: businessZip ?? null,
+    }).where(eq(organizations.id, orgId));
+    res.json({ success: true });
+  });
+
   // ── Developer: per-org store management ──────────────────────────────────
 
   // List store items for a specific org
@@ -6987,7 +7004,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
     const updated = await storage.updateOrderStatus(id, "completed", req.body?.adminNotes);
 
-    // Org Bucks pool is already deducted at order placement — no deduction needed at fulfillment
+    // Deduct org Bucks pool now that the order is fulfilled — bucks exit the organization at completion
+    if (employee.organizationId) {
+      void storage.deductOrgBucksBalance(employee.organizationId, order.pointsCost);
+    }
 
     if (employee.email) {
       const subject = `Better Bucks — Order #${order.id} Fulfilled!`;

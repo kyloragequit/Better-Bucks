@@ -66,7 +66,7 @@ router.get("/login", async (req: Request, res: Response) => {
     res.redirect(redirectTo.href);
   } catch (err) {
     logger.error({ err }, "[devAuth] Failed to start OIDC flow");
-    res.redirect("/developer?error=oidc_init_failed");
+    res.redirect("/login?error=oidc_init_failed");
   }
 });
 
@@ -79,7 +79,7 @@ router.get("/callback", async (req: Request, res: Response) => {
   clearOidcCookies(res);
 
   if (!codeVerifier || !expectedState) {
-    return res.redirect("/developer?error=missing_oidc_state");
+    return res.redirect("/login?error=missing_oidc_state");
   }
 
   let tokens: oidc.TokenEndpointResponse & oidc.TokenEndpointResponseHelpers;
@@ -97,54 +97,59 @@ router.get("/callback", async (req: Request, res: Response) => {
     });
   } catch (err) {
     logger.error({ err }, "[devAuth] OIDC token exchange failed");
-    return res.redirect("/developer?error=auth_failed");
+    return res.redirect("/login?error=auth_failed");
   }
 
   const claims = tokens.claims();
   if (!claims) {
-    return res.redirect("/developer?error=no_claims");
+    return res.redirect("/login?error=no_claims");
   }
 
-  // Look up the developer user by their Replit username (stored in users.username)
-  // or by email as a fallback. Only users with role=developer are allowed through.
   const replitUsername = (claims.username ?? claims.preferred_username ?? claims.sub) as string;
   const replitEmail = claims.email as string | undefined;
 
+  // Only the designated developer Replit account is allowed
+  const ALLOWED_REPLIT_USERNAME = process.env.DEVELOPER_REPLIT_USERNAME ?? "milesgchase";
+  if (replitUsername !== ALLOWED_REPLIT_USERNAME) {
+    logger.warn({ replitUsername }, "[devAuth] Unauthorized Replit login attempt");
+    return res.redirect("/login?error=not_authorized");
+  }
+
+  // Find or auto-create the developer user linked to this Replit account
   let devUser: typeof users.$inferSelect | undefined;
 
-  // Try username match first
-  if (replitUsername) {
-    const [found] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, replitUsername))
-      .limit(1);
-    if (found?.role === "developer") devUser = found;
-  }
+  const [found] = await db
+    .select()
+    .from(users)
+    .where(eq(users.username, replitUsername))
+    .limit(1);
 
-  // Fallback: match by email
-  if (!devUser && replitEmail) {
-    const [found] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, replitEmail))
-      .limit(1);
-    if (found?.role === "developer") devUser = found;
-  }
-
-  if (!devUser) {
-    logger.warn(
-      { replitUsername, replitEmail },
-      "[devAuth] Replit identity not matched to any developer account",
-    );
-    return res.redirect("/developer?error=not_authorized");
+  if (found?.role === "developer") {
+    devUser = found;
+  } else if (!found) {
+    // Auto-create developer account on first login
+    const [created] = await db.insert(users).values({
+      username: replitUsername,
+      password: "",
+      fullName: "Developer",
+      role: "developer",
+      balance: 0,
+      status: "active",
+      email: replitEmail ?? null,
+    }).returning();
+    devUser = created;
+    logger.info({ replitUsername }, "[devAuth] Developer user auto-created");
+  } else {
+    // User exists but isn't a developer — deny
+    logger.warn({ replitUsername }, "[devAuth] Replit identity not matched to any developer account");
+    return res.redirect("/login?error=not_authorized");
   }
 
   // Use Passport's req.login so the existing session/middleware stack sees a normal session
   req.login(devUser, (err) => {
     if (err) {
       logger.error({ err }, "[devAuth] req.login failed");
-      return res.redirect("/developer?error=session_failed");
+      return res.redirect("/login?error=session_failed");
     }
     res.redirect("/developer/dashboard");
   });

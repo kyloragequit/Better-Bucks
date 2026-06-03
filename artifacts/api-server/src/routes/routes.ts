@@ -7577,6 +7577,78 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     res.json(entries);
   }));
 
+  // POST /api/developer/create-test-org — creates a test org for billing/payment testing
+  app.post("/api/developer/create-test-org", async (req, res) => {
+    const user = req.user as User | undefined;
+    if (!req.isAuthenticated() || !user || user.role !== "developer") return res.status(401).send("Unauthorized");
+
+    // Create or update the test organization
+    const existingOrg = await storage.getOrganizationByCode("TESTCO");
+    let org = existingOrg;
+    if (!org) {
+      const [newOrg] = await db.insert(organizations).values({
+        name: "Test Company",
+        code: "TESTCO",
+        status: "active",
+        tier: "starter",
+        maxEmployees: 50,
+        bucksPerDollar: 100,
+        monthlyBudgetBucks: 50000,
+        planBucks: 500,
+        orgBucksBalance: 0,
+        storeEnabled: true,
+        ordersEnabled: true,
+        manualOrdersEnabled: true,
+      }).returning();
+      org = newOrg;
+    }
+
+    // Create or update the prime_admin with username/password 123456
+    const hashedPassword = await hashPassword("123456");
+    const existingUser = await storage.getUserByUsername("123456");
+    let testUser;
+    if (existingUser) {
+      const [updated] = await db.update(users)
+        .set({ password: hashedPassword, organizationId: org.id, role: "prime_admin", status: "active" })
+        .where(eq(users.id, existingUser.id))
+        .returning();
+      testUser = updated;
+    } else {
+      const [created] = await db.insert(users).values({
+        username: "123456",
+        password: hashedPassword,
+        fullName: "Test Owner",
+        role: "prime_admin",
+        organizationId: org.id,
+        balance: 0,
+        status: "active",
+      }).returning();
+      testUser = created;
+    }
+
+    // Create a test employee if one doesn't exist
+    const existingEmp = await storage.getUserByUsername("test_employee");
+    if (!existingEmp) {
+      const empHash = await hashPassword("employee123");
+      await db.insert(users).values({
+        username: "test_employee",
+        password: empHash,
+        fullName: "Test Employee",
+        role: "employee",
+        organizationId: org.id,
+        balance: 0,
+        status: "active",
+      });
+    }
+
+    res.json({
+      message: "Test org created successfully",
+      org: { id: org.id, name: org.name, code: org.code },
+      login: { username: "123456", password: "123456" },
+      employee: { username: "test_employee", password: "employee123" },
+    });
+  });
+
   // GET /api/developer/mcp-config — returns MCP connection info for the setup panel
   app.get("/api/developer/mcp-config", (req, res) => {
     const user = req.user as User | undefined;

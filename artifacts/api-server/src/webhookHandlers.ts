@@ -58,12 +58,51 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       return;
     }
 
-    // Top up the org's distributable Buck pool by the amount actually charged
-    // (dynamic billing: charged amount = planBucks − orgBucksBalance at invoice time)
-    const bucksAdded = Math.round(invoice.amount_paid / 100);
-    if (bucksAdded > 0) {
+    // Refill the org's distributable Buck pool — but ONLY for a BUCKS-plan payment.
+    // invoice.paid also fires for the login/seats subscription; those must NEVER add Bucks.
+    // Classify the invoice by its subscription metadata: the bucks subscription carries
+    // planBucks and/or a bucks tier (starter/growth/pro/custom); login tiers do not.
+    let bucksToAdd = 0;
+    let doPoolRefill = false;
+    const isFef = (org as any).code === "FEF55758";
+
+    if (isFef) {
+      // Legacy FEF55758 uses the 1 Buck = $1 convention — preserve its original behavior.
+      bucksToAdd = Math.round(invoice.amount_paid / 100);
+      doPoolRefill = bucksToAdd > 0;
+    } else {
+      let isBucksInvoice = false;
+      let planBucks = org.planBucks ?? 0;
       try {
-        await storage.topUpOrgBucksBalance(org.id, bucksAdded);
+        const rawSub = (invoice as any).subscription;
+        const subId = typeof rawSub === "string" ? rawSub : rawSub?.id;
+        if (subId) {
+          const stripeForMeta = await getUncachableStripeClient();
+          const sub = await stripeForMeta.subscriptions.retrieve(subId);
+          const metaPlanBucks = parseInt(sub.metadata?.planBucks || "0");
+          const tier = sub.metadata?.tier || "";
+          isBucksInvoice = metaPlanBucks > 0 || ["starter", "growth", "pro", "custom"].includes(tier);
+          if (metaPlanBucks > 0) planBucks = metaPlanBucks;
+        }
+      } catch (err) {
+        console.error(`[Webhook] invoice.paid — could not classify subscription for org ${org.id}:`, err);
+      }
+      if (isBucksInvoice && planBucks > 0) {
+        // Top the bank up to a full planBucks budget for the month. The Keep-Your-Bucks credit
+        // on invoice.created already discounted the cash charged by any recalled balance still
+        // in the bank, so max(current, planBucks) conserves value (1 Buck = 1¢).
+        const currentBalance = org.orgBucksBalance ?? 0;
+        bucksToAdd = Math.max(0, planBucks - currentBalance);
+        doPoolRefill = true;
+        console.log(`[Webhook] invoice.paid — org ${org.id} (${org.name}): refilling Buck pool to planBucks=${planBucks} (adding ${bucksToAdd}, prior balance ${currentBalance})`);
+      } else {
+        console.log(`[Webhook] invoice.paid — org ${org.id} (${org.name}): non-Bucks (login/seats) invoice — pool unchanged`);
+      }
+    }
+
+    if (doPoolRefill) {
+      try {
+        if (bucksToAdd > 0) await storage.topUpOrgBucksBalance(org.id, bucksToAdd);
         // Run any saved auto-allocation rules from the pool
         const autoAllocs = await storage.getOrgAutoAllocations(org.id);
         const nowWebhook = new Date();
@@ -85,7 +124,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
           await storage.setAdminAllocatedMonth(alloc.adminUserId, monthKeyWebhook, alloc.monthlyBucks);
         }
       } catch (err) {
-        console.error(`[Webhook] Failed to top up Buck pool for org ${org.id}:`, err);
+        console.error(`[Webhook] Failed to refill Buck pool for org ${org.id}:`, err);
       }
     }
 

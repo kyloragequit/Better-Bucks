@@ -23,9 +23,13 @@ export const TUTORIAL_RESET_EVENT = "bb_tutorial_reset";
 // dismissal regardless of what the server cache currently says, until the
 // user explicitly restarts the tutorial.
 //
-// We also mirror the flag to sessionStorage so a module reload (HMR, lazy
-// chunk reload, deferred Suspense remount) doesn't lose the dismissal and
-// re-show the choice modal on the next navigation.
+// We also mirror the flag to localStorage so the dismissal is DURABLE: it
+// survives module reloads (HMR, lazy chunk reload, Suspense remount), full page
+// reloads, and even re-logins on the same device. This makes "Exit" reliable
+// regardless of whether the server complete-tutorial write wins its race against
+// the global query invalidator — the local flag alone keeps the tour closed.
+// (Previously this used sessionStorage, which was lost when the tab closed, so a
+// failed/slow server write could resurrect the tour on the next visit.)
 const dismissedSessionKey = (userId: number) => `bb_tutorial_dismissed_${userId}`;
 const dismissedThisSession = new Set<number>();
 
@@ -33,7 +37,7 @@ function isDismissed(userId: number): boolean {
   if (dismissedThisSession.has(userId)) return true;
   if (typeof window === "undefined") return false;
   try {
-    if (sessionStorage.getItem(dismissedSessionKey(userId)) === "1") {
+    if (localStorage.getItem(dismissedSessionKey(userId)) === "1") {
       dismissedThisSession.add(userId);
       return true;
     }
@@ -44,14 +48,17 @@ function isDismissed(userId: number): boolean {
 function markDismissed(userId: number) {
   dismissedThisSession.add(userId);
   if (typeof window !== "undefined") {
-    try { sessionStorage.setItem(dismissedSessionKey(userId), "1"); } catch {}
+    try { localStorage.setItem(dismissedSessionKey(userId), "1"); } catch {}
   }
 }
 
 function clearDismissed(userId: number) {
   dismissedThisSession.delete(userId);
   if (typeof window !== "undefined") {
-    try { sessionStorage.removeItem(dismissedSessionKey(userId)); } catch {}
+    try {
+      localStorage.removeItem(dismissedSessionKey(userId));
+      sessionStorage.removeItem(dismissedSessionKey(userId)); // clear any legacy flag too
+    } catch {}
   }
 }
 

@@ -86,24 +86,10 @@ const employeeSteps: Step[] = [
     optional: true,
   },
   {
-    id: "qr",
-    path: "/dashboard",
-    selector: '[data-testid="qr-code-container"]',
-    title: "Your QR Code",
-    description: "Your admin scans this to pull up your account instantly. No usernames needed.",
-  },
-  {
     id: "store",
     path: "/store",
     title: "The Store",
     description: "Browse and spend your Bucks on gift cards, products, and other rewards your company offers.",
-  },
-  {
-    id: "store-balance",
-    path: "/store",
-    selector: '[data-testid="text-store-balance"]',
-    title: "Balance in the Store",
-    description: "Your balance is always shown here so you know what you can afford.",
   },
   {
     id: "orders",
@@ -140,20 +126,6 @@ const adminSteps: Step[] = [
     selector: '[data-testid="card-bucks-in-the-bank"]',
     title: "Bucks in the Bank",
     description: "Your organization's Buck pool — the Bucks available to allocate to your admin team for rewarding employees.",
-  },
-  {
-    id: "bucks-on-the-way",
-    path: "/admin/dashboard",
-    selector: '[data-testid="card-bucks-on-the-way"]',
-    title: "Bucks on the Way",
-    description: "The combined balance held by your admin team — Bucks that have been allocated and are ready to award.",
-  },
-  {
-    id: "employee-balances",
-    path: "/admin/dashboard",
-    selector: '[data-testid="card-employee-balances"]',
-    title: "Employee Balances",
-    description: "See every employee's current Bucks balance at a glance — scroll to find who's ready to spend.",
   },
   {
     id: "employees",
@@ -213,9 +185,9 @@ const primeAdminExtraSteps: Step[] = [
   {
     id: "budget",
     path: "/admin/dashboard",
-    selector: '[data-testid="input-monthly-budget"]',
+    selector: '[data-testid="button-manual-allocate-toggle"]',
     title: "Budget & Allocation",
-    description: "Set your monthly Buck budget and allocate Bucks to your admin team directly from the dashboard.",
+    description: "Allocate your monthly Bucks to your admin team here — manually or on an automatic schedule. Unspent admin Bucks are recalled to your bank at month-end.",
   },
   {
     id: "subscription",
@@ -228,7 +200,10 @@ const primeAdminExtraSteps: Step[] = [
 function getSteps(role: string): Step[] {
   if (role === "employee") return employeeSteps;
   const base = [...adminSteps];
-  if (role === "prime_admin") base.splice(4, 0, ...primeAdminExtraSteps);
+  // Insert the prime-admin steps right after the "Bucks in the Bank" dashboard step
+  // (index 1) so the budget/allocation step stays grouped with the dashboard tour
+  // instead of interrupting the employee-management steps.
+  if (role === "prime_admin") base.splice(2, 0, ...primeAdminExtraSteps);
   return base;
 }
 
@@ -474,8 +449,16 @@ export function FullTutorialOverlay() {
     setLocation(step.path);
     const t1 = setTimeout(() => { findElement(); locating.current = true; }, 500);
     const t2 = setTimeout(() => findElement(), 1000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [stepIndex, step?.path, findElement, setLocation, showFullTutorial]);
+    // Safety net: if a step points at an element that no longer exists (a feature
+    // that was removed or renamed), auto-advance past it instead of stranding the
+    // user on a spotlight that never lands. Page-level steps (no selector) are kept.
+    const t3 = setTimeout(() => {
+      if (step?.selector && !document.querySelector(step.selector) && stepIndex < steps.length - 1) {
+        setStepIndex(s => s + 1);
+      }
+    }, 1500);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [stepIndex, step?.path, step?.selector, findElement, setLocation, showFullTutorial, steps.length]);
 
   useEffect(() => {
     let rafId = 0;

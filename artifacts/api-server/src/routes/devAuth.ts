@@ -133,8 +133,9 @@ router.get("/callback", async (req: Request, res: Response) => {
       password: "",
       fullName: "Developer",
       role: "developer",
+      status: "approved",
+      barcode: replitUsername,
       balance: 0,
-      status: "active",
       email: replitEmail ?? null,
     }).returning();
     devUser = created;

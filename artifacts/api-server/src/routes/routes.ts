@@ -2722,6 +2722,10 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
         convertedValue,
       });
 
+      // Hold the employee's Bucks at placement so they can't be double-spent across
+      // multiple pending orders. This is a hold, not a charge: if the order is rejected
+      // the Bucks are refunded (see PATCH /api/orders/:id/status). The Bucks are only
+      // permanently consumed ("exit the organization") once the order is fulfilled.
       await storage.updateUserBalance(user.id, -pointsCost);
       await storage.createTransaction({
         userId: user.id,
@@ -2734,8 +2738,9 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
       if (user.organizationId) {
         const userOrg = await storage.getOrganization(user.organizationId);
         if (userOrg) {
-          // Org Bucks pool is deducted at fulfillment (when the order is completed), not at placement.
-          // This ensures bucks only "exit" the organization once the order is actually fulfilled.
+          // The org "bank" (orgBucksBalance) is NEVER touched by employee orders — it only
+          // drives billing (planBucks − bank). These Bucks were already paid for when the
+          // org allocated them from the bank to the admin. Employee spending has no billing impact.
           // All orgs auto-approve orders except the demo PRIME1 org
           if (userOrg.code !== "PRIME1") {
             finalOrder = await storage.updateOrderStatus(order.id, "approved");
@@ -7004,10 +7009,13 @@ Better Bucks replaces paper-based, spreadsheet-driven, or manual employee recogn
 
     const updated = await storage.updateOrderStatus(id, "completed", req.body?.adminNotes);
 
-    // Deduct org Bucks pool now that the order is fulfilled — bucks exit the organization at completion
-    if (employee.organizationId) {
-      void storage.deductOrgBucksBalance(employee.organizationId, order.pointsCost);
-    }
+    // NOTE: We intentionally do NOT touch orgBucksBalance here.
+    // The org "bank" only drives billing (planBucks − bank). Those Bucks were already
+    // paid for when they were allocated from the bank to the admin, then distributed to
+    // the employee. The employee's own balance is the "exit" — it was held at order
+    // placement and is permanently consumed at completion. Deducting the bank again here
+    // would double-count and would make employee orders affect the monthly bill, which
+    // must never happen (employee balances have no bearing on billing).
 
     if (employee.email) {
       const subject = `Better Bucks — Order #${order.id} Fulfilled!`;
@@ -7609,7 +7617,7 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
     let testUser;
     if (existingUser) {
       const [updated] = await db.update(users)
-        .set({ password: hashedPassword, organizationId: org.id, role: "prime_admin", status: "active" })
+        .set({ password: hashedPassword, organizationId: org.id, role: "prime_admin", status: "approved" })
         .where(eq(users.id, existingUser.id))
         .returning();
       testUser = updated;
@@ -7619,9 +7627,10 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
         password: hashedPassword,
         fullName: "Test Owner",
         role: "prime_admin",
+        barcode: "123456",
         organizationId: org.id,
         balance: 0,
-        status: "active",
+        status: "approved",
       }).returning();
       testUser = created;
     }
@@ -7635,9 +7644,10 @@ Be concise. Prefer small, targeted edits. The developer is Miles.`;
         password: empHash,
         fullName: "Test Employee",
         role: "employee",
+        barcode: "test_employee",
         organizationId: org.id,
         balance: 0,
-        status: "active",
+        status: "approved",
       });
     }
 

@@ -4,6 +4,11 @@ packages:
   - lib/integrations/*
   - scripts
 
+allowBuilds:
+  core-js: true
+  dtrace-provider: true
+  esbuild: true
+
 autoInstallPeers: false
 
 catalog:

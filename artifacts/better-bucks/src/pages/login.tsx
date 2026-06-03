@@ -95,7 +95,8 @@ export default function LoginPage() {
 type CaptchaState = { error?: string };
 
 function redirectAfterLogin(role: string, setLocation: (path: string) => void) {
-  if (role === "admin" || role === "prime_admin") setLocation("/admin/dashboard");
+  if (role === "developer") setLocation("/developer/dashboard");
+  else if (role === "admin" || role === "prime_admin") setLocation("/admin/dashboard");
   else setLocation("/dashboard");
 }
 

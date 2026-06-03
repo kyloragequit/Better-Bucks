@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, User, LogIn, Eye, EyeOff, KeyRound, ArrowLeft } from "lucide-react";
+import { Lock, User, LogIn, Eye, EyeOff, KeyRound, ArrowLeft, Code2 } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { InstagramFloat } from "@/components/instagram-float";
 import { useQueryClient } from "@tanstack/react-query";
@@ -83,6 +83,19 @@ export default function LoginPage() {
                 Sign up today
               </Link>
             </p>
+
+            <div className="pt-2 border-t border-border">
+              <a href="/api/dev-auth/login" className="block">
+                <Button
+                  variant="outline"
+                  className="w-full text-muted-foreground"
+                  data-testid="button-replit-login"
+                >
+                  <Code2 className="mr-2 h-4 w-4" />
+                  Sign in with Replit
+                </Button>
+              </a>
+            </div>
           </div>
         </Card>
       </div>
